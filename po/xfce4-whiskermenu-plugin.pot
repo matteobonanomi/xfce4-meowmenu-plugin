@@ -1,0 +1,644 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026 Graeme Gott
+# This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: xfce4-whiskermenu-plugin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-11 07:30-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Add option to display all applications
+#: panel-plugin/applications-page.cpp:35 panel-plugin/category.cpp:52
+#: panel-plugin/settings-dialog.cpp:825
+msgid "All Applications"
+msgstr ""
+
+#: panel-plugin/command-edit.cpp:65
+msgid "Browse the file system to choose a custom command."
+msgstr ""
+
+#: panel-plugin/command-edit.cpp:75
+msgid "Select Command"
+msgstr ""
+
+#: panel-plugin/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:141
+msgid "_Cancel"
+msgstr ""
+
+#: panel-plugin/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:142
+msgid "_OK"
+msgstr ""
+
+#: panel-plugin/element.cpp:98
+#, c-format
+msgid "Failed to execute command \"%s\"."
+msgstr ""
+
+#. Add option to display favorites
+#: panel-plugin/favorites-page.cpp:37 panel-plugin/settings-dialog.cpp:816
+msgid "Favorites"
+msgstr ""
+
+#: panel-plugin/favorites-page.cpp:147
+msgid "Sort Alphabetically A-Z"
+msgstr ""
+
+#: panel-plugin/favorites-page.cpp:155
+msgid "Sort Alphabetically Z-A"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:61
+msgid "None"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:62
+msgid "Very Small"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:63
+msgid "Smaller"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:64
+msgid "Small"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:65
+msgid "Normal"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:66
+msgid "Large"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:67
+msgid "Larger"
+msgstr ""
+
+#: panel-plugin/icon-size.cpp:68
+msgid "Very Large"
+msgstr ""
+
+#. I18N: the first %s will be replaced with desktop file path, the second with Hidden=true
+#: panel-plugin/launcher.cpp:206
+#, c-format
+msgid ""
+"To unhide it you have to manually remove the file \"%s\" or open the file "
+"and remove the line \"%s\"."
+msgstr ""
+
+#: panel-plugin/launcher.cpp:210 panel-plugin/page.cpp:555
+msgid "Hide Application"
+msgstr ""
+
+#: panel-plugin/launcher.cpp:211
+#, c-format
+msgid "Are you sure you want to hide \"%s\"?"
+msgstr ""
+
+#: panel-plugin/page.cpp:452
+msgid "Add to Favorites"
+msgstr ""
+
+#: panel-plugin/page.cpp:465
+msgid "Move Up"
+msgstr ""
+
+#: panel-plugin/page.cpp:478
+msgid "Move Down"
+msgstr ""
+
+#: panel-plugin/page.cpp:495
+msgid "Remove from Favorites"
+msgstr ""
+
+#: panel-plugin/page.cpp:505
+msgid "Add to Desktop"
+msgstr ""
+
+#: panel-plugin/page.cpp:513
+msgid "Add to Panel"
+msgstr ""
+
+#: panel-plugin/page.cpp:523
+msgid "Add to Autostart"
+msgstr ""
+
+#: panel-plugin/page.cpp:534
+msgid "Remove from Autostart"
+msgstr ""
+
+#: panel-plugin/page.cpp:547
+msgid "Edit Application..."
+msgstr ""
+
+#: panel-plugin/page.cpp:618
+msgid "Unable to add launcher to desktop."
+msgstr ""
+
+#: panel-plugin/page.cpp:658 panel-plugin/page.cpp:671
+msgid "Unable to add launcher to panel."
+msgstr ""
+
+#: panel-plugin/page.cpp:695
+msgid "Unable to edit launcher."
+msgstr ""
+
+#: panel-plugin/plugin.cpp:423
+msgid "Alternate application launcher for Xfce"
+msgstr ""
+
+#: panel-plugin/plugin.cpp:428
+msgid "translator-credits"
+msgstr ""
+
+#. Add option to display recently used
+#: panel-plugin/recent-page.cpp:37 panel-plugin/settings-dialog.cpp:820
+#: panel-plugin/settings-dialog.cpp:916
+msgid "Recently Used"
+msgstr ""
+
+#: panel-plugin/recent-page.cpp:147
+msgid "Clear Recently Used"
+msgstr ""
+
+#: panel-plugin/run-action.cpp:65
+#, c-format
+msgid "Run %s"
+msgstr ""
+
+#: panel-plugin/search-action.cpp:262
+msgid "Search Action"
+msgstr ""
+
+#: panel-plugin/search-page.cpp:72
+msgid "No applications found"
+msgstr ""
+
+#. Create dialog window
+#: panel-plugin/settings-dialog.cpp:84 panel-plugin/whiskermenu.desktop.in:4
+msgid "Whisker Menu"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:87
+msgid "_Help"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:88
+msgid "_Close"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:102
+msgid "_General"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:103
+msgid "_Appearance"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:104
+msgid "_Behavior"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:105
+msgid "_Commands"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:106
+msgid "Search Actio_ns"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:136 panel-plugin/settings-dialog.cpp:138
+msgid "Select an Icon"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:228
+msgid "_Delete"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:229
+msgid "The action will be deleted permanently."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:230
+#, c-format
+msgid "Remove action \"%s\"?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:293
+#, c-format
+msgid "Unable to open the following url: %s"
+msgstr ""
+
+#. Add option to show as icons
+#: panel-plugin/settings-dialog.cpp:334
+msgid "Show as _icons"
+msgstr ""
+
+#. Add option to show as list
+#: panel-plugin/settings-dialog.cpp:351
+msgid "Show as lis_t"
+msgstr ""
+
+#. Add option to show as tree
+#: panel-plugin/settings-dialog.cpp:369
+msgid "Show as t_ree"
+msgstr ""
+
+#. Add option to use generic names
+#: panel-plugin/settings-dialog.cpp:440
+msgid "Show generic application _names"
+msgstr ""
+
+#. Add option to hide category names
+#: panel-plugin/settings-dialog.cpp:452
+msgid "Show cate_gory names"
+msgstr ""
+
+#. Add option to hide tooltips
+#: panel-plugin/settings-dialog.cpp:464
+msgid "Show application too_ltips"
+msgstr ""
+
+#. Add option to hide descriptions
+#: panel-plugin/settings-dialog.cpp:475
+msgid "Show application _descriptions"
+msgstr ""
+
+#. Add item icon size selector
+#: panel-plugin/settings-dialog.cpp:492
+msgid "Application icon si_ze:"
+msgstr ""
+
+#. Add category icon size selector
+#: panel-plugin/settings-dialog.cpp:515
+msgid "Categ_ory icon size:"
+msgstr ""
+
+#. Add option to change menu width
+#: panel-plugin/settings-dialog.cpp:549
+msgid "Menu _width:"
+msgstr ""
+
+#. Add option to change menu height
+#: panel-plugin/settings-dialog.cpp:567
+msgid "Menu _height:"
+msgstr ""
+
+#. Add option to control background opacity
+#: panel-plugin/settings-dialog.cpp:585
+msgid "Background opacit_y:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:628 panel-plugin/settings-dialog.cpp:873
+msgid "Menu"
+msgstr ""
+
+#. Add option to use horizontal categories
+#: panel-plugin/settings-dialog.cpp:632
+msgid "Position categories _horizontally"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:643 panel-plugin/settings-dialog.cpp:648
+msgid "Position cate_gories on bottom"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:643 panel-plugin/settings-dialog.cpp:648
+msgid "Position cate_gories on left"
+msgstr ""
+
+#. Add option to use alternate profile position
+#: panel-plugin/settings-dialog.cpp:659
+msgid "Position pro_file on bottom"
+msgstr ""
+
+#. Add option to use alternate search entry position
+#: panel-plugin/settings-dialog.cpp:670
+msgid "Position _search entry on bottom"
+msgstr ""
+
+#. Add option to use alternate commands position
+#: panel-plugin/settings-dialog.cpp:681
+msgid "Position commands next to search _entry"
+msgstr ""
+
+#. Add profile shape selector
+#: panel-plugin/settings-dialog.cpp:692
+msgid "P_rofile:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:699
+msgid "Round Picture"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:700
+msgid "Square Picture"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:701
+msgid "Hidden"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:721
+msgid "Panel Button"
+msgstr ""
+
+#. Add button style selector
+#: panel-plugin/settings-dialog.cpp:725
+msgid "Di_splay:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:730
+msgid "Icon"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:731
+msgid "Title"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:732
+msgid "Icon and title"
+msgstr ""
+
+#. Add title selector
+#: panel-plugin/settings-dialog.cpp:750
+msgid "_Title:"
+msgstr ""
+
+#. Add icon selector
+#: panel-plugin/settings-dialog.cpp:768
+msgid "_Icon:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:786
+msgid "Use a single _panel row"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:812
+msgid "Default Category"
+msgstr ""
+
+#. Add option to switch categories by hovering
+#: panel-plugin/settings-dialog.cpp:877
+msgid "Switch categories by _hovering"
+msgstr ""
+
+#. Add option to stay when menu loses focus
+#: panel-plugin/settings-dialog.cpp:888
+msgid "Stay _visible when focus is lost"
+msgstr ""
+
+#. Add option to sort categories
+#: panel-plugin/settings-dialog.cpp:899
+msgid "Sort ca_tegories"
+msgstr ""
+
+#. Add value to change maximum number of recently used entries
+#: panel-plugin/settings-dialog.cpp:920
+msgid "Amount of _items:"
+msgstr ""
+
+#. Add option to remember favorites
+#: panel-plugin/settings-dialog.cpp:943
+msgid "Include _favorites"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:956
+msgid "Session Commands"
+msgstr ""
+
+#. Add option to show confirmation dialogs
+#: panel-plugin/settings-dialog.cpp:960
+msgid "Show c_onfirmation dialog"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1035
+msgid "Name"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1040
+msgid "Pattern"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1057
+msgid "Add action"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1069
+msgid "Remove selected action"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1090
+msgid "Details"
+msgstr ""
+
+#. Create entry for name
+#: panel-plugin/settings-dialog.cpp:1094
+msgid "Nam_e:"
+msgstr ""
+
+#. Create entry for keyword
+#: panel-plugin/settings-dialog.cpp:1117
+msgid "_Pattern:"
+msgstr ""
+
+#. Create entry for command
+#: panel-plugin/settings-dialog.cpp:1139
+msgid "C_ommand:"
+msgstr ""
+
+#. Create toggle button for regular expressions
+#: panel-plugin/settings-dialog.cpp:1158
+msgid "_Regular expression"
+msgstr ""
+
+#: panel-plugin/settings.cpp:36
+msgid "Applications"
+msgstr ""
+
+#: panel-plugin/settings.cpp:85 panel-plugin/settings.cpp:92
+msgid "Man Pages"
+msgstr ""
+
+#: panel-plugin/settings.cpp:86 panel-plugin/settings.cpp:93
+msgid "Search the Web"
+msgstr ""
+
+#: panel-plugin/settings.cpp:87 panel-plugin/settings.cpp:94
+msgid "Search for Files"
+msgstr ""
+
+#: panel-plugin/settings.cpp:88 panel-plugin/settings.cpp:95
+msgid "Wikipedia"
+msgstr ""
+
+#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+msgid "Run in Terminal"
+msgstr ""
+
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+msgid "Open URI"
+msgstr ""
+
+#: panel-plugin/settings.cpp:107
+msgid "_Settings Manager"
+msgstr ""
+
+#: panel-plugin/settings.cpp:109
+msgid "Failed to open settings manager."
+msgstr ""
+
+#: panel-plugin/settings.cpp:112
+msgid "_Lock Screen"
+msgstr ""
+
+#: panel-plugin/settings.cpp:114
+msgid "Failed to lock screen."
+msgstr ""
+
+#: panel-plugin/settings.cpp:117
+msgid "Switch _User"
+msgstr ""
+
+#: panel-plugin/settings.cpp:119
+msgid "Failed to switch user."
+msgstr ""
+
+#: panel-plugin/settings.cpp:122
+msgid "Log _Out"
+msgstr ""
+
+#: panel-plugin/settings.cpp:124 panel-plugin/settings.cpp:159
+msgid "Failed to log out."
+msgstr ""
+
+#: panel-plugin/settings.cpp:125
+msgid "Are you sure you want to log out?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:126
+#, c-format
+msgid "Logging out in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:129
+msgid "_Restart"
+msgstr ""
+
+#: panel-plugin/settings.cpp:131
+msgid "Failed to restart."
+msgstr ""
+
+#: panel-plugin/settings.cpp:132
+msgid "Are you sure you want to restart?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:133
+#, c-format
+msgid "Restarting computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:136
+msgid "Shut _Down"
+msgstr ""
+
+#: panel-plugin/settings.cpp:138
+msgid "Failed to shut down."
+msgstr ""
+
+#: panel-plugin/settings.cpp:139
+msgid "Are you sure you want to shut down?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:140
+#, c-format
+msgid "Turning off computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:143
+msgid "Suspe_nd"
+msgstr ""
+
+#: panel-plugin/settings.cpp:145
+msgid "Failed to suspend."
+msgstr ""
+
+#: panel-plugin/settings.cpp:146
+msgid "Do you want to suspend to RAM?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:147
+#, c-format
+msgid "Suspending computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:150
+msgid "_Hibernate"
+msgstr ""
+
+#: panel-plugin/settings.cpp:152
+msgid "Failed to hibernate."
+msgstr ""
+
+#: panel-plugin/settings.cpp:153
+msgid "Do you want to suspend to disk?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:154
+#, c-format
+msgid "Hibernating computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:157
+msgid "Log Ou_t..."
+msgstr ""
+
+#: panel-plugin/settings.cpp:162
+msgid "_Edit Applications"
+msgstr ""
+
+#: panel-plugin/settings.cpp:164
+msgid "Failed to launch menu editor."
+msgstr ""
+
+#: panel-plugin/settings.cpp:167
+msgid "Edit _Profile"
+msgstr ""
+
+#: panel-plugin/settings.cpp:169
+msgid "Failed to edit profile."
+msgstr ""
+
+#: panel-plugin/xfce4-popup-whiskermenu.cpp:110
+msgid "Popup menu at current mouse position"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-whiskermenu.cpp:111
+msgid "Popup menu at center of screen"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-whiskermenu.cpp:112
+msgid "Print available menu instance IDs"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-whiskermenu.cpp:113
+msgid "Choose which menu to popup by instance ID"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-whiskermenu.cpp:114
+msgid "Print version information and exit"
+msgstr ""
+
+#: panel-plugin/whiskermenu.desktop.in:5
+msgid "Show a menu to easily access installed applications"
+msgstr ""

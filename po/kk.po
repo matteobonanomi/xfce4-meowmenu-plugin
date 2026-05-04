@@ -1,0 +1,612 @@
+# Kazakh translation for xfce4-whiskermenu-plugin.
+# Copyright (C) 2025 Graeme Gott
+# This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
+# 
+# Translators:
+# Baurzhan Muftakhidinov <baurthefirst@gmail.com>, 2013-2016
+msgid ""
+msgstr ""
+"Project-Id-Version: Whisker Menu\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-16 14:38-0500\n"
+"PO-Revision-Date: 2013-06-20 11:26+0000\n"
+"Last-Translator: Baurzhan Muftakhidinov <baurthefirst@gmail.com>, 2013-2016\n"
+"Language-Team: Kazakh (http://app.transifex.com/gottcode/xfce4-whiskermenu-plugin/language/kk/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: kk\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: ../panel-plugin/settings-dialog.cpp:1041
+msgid "Add action"
+msgstr "Әрекетті қосу"
+
+#: ../panel-plugin/page.cpp:513
+msgid "Add to Autostart"
+msgstr "Автожөнелтуге қосу"
+
+#: ../panel-plugin/page.cpp:494
+msgid "Add to Desktop"
+msgstr "Жұмыс үстеліне қосу"
+
+#: ../panel-plugin/page.cpp:473
+msgid "Add to Favorites"
+msgstr "Таңдамалыларға қосу"
+
+#: ../panel-plugin/page.cpp:502
+msgid "Add to Panel"
+msgstr "Панельге қосу"
+
+#: ../panel-plugin/applications-page.cpp:35 ../panel-plugin/category.cpp:51
+#: ../panel-plugin/settings-dialog.cpp:809
+msgid "All Applications"
+msgstr "Барлық қолданбалар"
+
+#: ../panel-plugin/plugin.cpp:418
+msgid "Alternate application launcher for Xfce"
+msgstr "Xfce үшін қолданбалар жөнелтуші"
+
+#: ../panel-plugin/settings-dialog.cpp:904
+msgid "Amount of _items:"
+msgstr "Нәрселер _саны:"
+
+#: ../panel-plugin/settings-dialog.cpp:476
+msgid "Application icon si_ze:"
+msgstr "Қолданба таңбашасының өл_шемі:"
+
+#: ../panel-plugin/settings.cpp:42
+msgid "Applications"
+msgstr "Қолданбалар"
+
+#: ../panel-plugin/launcher.cpp:181
+#, c-format
+msgid "Are you sure you want to hide \"%s\"?"
+msgstr "\"%s\" жасыруды қалайтыныңызға сенімдісіз бе?"
+
+#: ../panel-plugin/settings.cpp:122
+msgid "Are you sure you want to log out?"
+msgstr "Шығуды қалайтыныңызға сенімдісіз бе?"
+
+#: ../panel-plugin/settings.cpp:129
+msgid "Are you sure you want to restart?"
+msgstr "Қайта іске қосуды қалайтыныңызға сенімдісіз бе?"
+
+#: ../panel-plugin/settings.cpp:136
+msgid "Are you sure you want to shut down?"
+msgstr "Сөндіруді қалайтыныңызға сенімдісіз бе?"
+
+#: ../panel-plugin/settings-dialog.cpp:569
+msgid "Background opacit_y:"
+msgstr "Фон мөл_дірлілігі:"
+
+#: ../panel-plugin/command-edit.cpp:65
+msgid "Browse the file system to choose a custom command."
+msgstr "Таңдауыңызша команданы таңдау үшін файлдық жүйені шолыңыз."
+
+#: ../panel-plugin/settings-dialog.cpp:1123
+msgid "C_ommand:"
+msgstr "К_оманда:"
+
+#: ../panel-plugin/settings-dialog.cpp:499
+msgid "Categ_ory icon size:"
+msgstr "Сан_ат таңбашасы өлшемі:"
+
+#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:109
+msgid "Choose which menu to popup by instance ID"
+msgstr "Дана идентификаторы бойынша қай мәзірді шығару керектігін таңдаңыз"
+
+#: ../panel-plugin/recent-page.cpp:147
+msgid "Clear Recently Used"
+msgstr "Соңғы қолданылған тізімін тазалау"
+
+#: ../panel-plugin/plugin.cpp:419
+#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:128
+msgid "Copyright © 2013-2025 Graeme Gott"
+msgstr "Copyright © 2013-2025 Graeme Gott"
+
+#: ../panel-plugin/settings-dialog.cpp:796
+msgid "Default Category"
+msgstr "Әдепкі санат"
+
+#: ../panel-plugin/settings-dialog.cpp:1074
+msgid "Details"
+msgstr "Ақпараты"
+
+#: ../panel-plugin/settings-dialog.cpp:709
+msgid "Di_splay:"
+msgstr "Көр_сету:"
+
+#: ../panel-plugin/settings.cpp:143
+msgid "Do you want to suspend to RAM?"
+msgstr "Жұмысшы жадына (RAM) күту режиміне өтуді қалайсыз ба?"
+
+#: ../panel-plugin/settings.cpp:150
+msgid "Do you want to suspend to disk?"
+msgstr "Дискіге гибернациялауды қалайсыз ба?"
+
+#: ../panel-plugin/page.cpp:535
+msgid "Edit Application..."
+msgstr "Қолданбаны түзету..."
+
+#: ../panel-plugin/settings.cpp:164
+msgid "Edit _Profile"
+msgstr "_Профильді түзету"
+
+#: ../panel-plugin/settings.cpp:166
+msgid "Failed to edit profile."
+msgstr "Профильді түзету сәтсіз аяқталды."
+
+#: ../panel-plugin/element.cpp:98
+#, c-format
+msgid "Failed to execute command \"%s\"."
+msgstr "\"%s\" командасын орындау сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:149
+msgid "Failed to hibernate."
+msgstr "Гибернациялау сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:161
+msgid "Failed to launch menu editor."
+msgstr "Мәзір түзетушісін жөнелту сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:111
+msgid "Failed to lock screen."
+msgstr "Экранды бұғаттау сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:121 ../panel-plugin/settings.cpp:156
+msgid "Failed to log out."
+msgstr "Жүйеден шығу сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:106
+msgid "Failed to open settings manager."
+msgstr "Баптаулар басқарушысын ашу сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:128
+msgid "Failed to restart."
+msgstr "Қайта іске қосу сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:135
+msgid "Failed to shut down."
+msgstr "Сөндіру сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:142
+msgid "Failed to suspend."
+msgstr "Күту режиміне өту сәтсіз аяқталды."
+
+#: ../panel-plugin/settings.cpp:116
+msgid "Failed to switch user."
+msgstr "Пайдаланушыны ауыстыру сәтсіз аяқталды."
+
+#: ../panel-plugin/favorites-page.cpp:37
+#: ../panel-plugin/settings-dialog.cpp:800
+msgid "Favorites"
+msgstr "Таңдамалы"
+
+#: ../panel-plugin/settings.cpp:151
+#, c-format
+msgid "Hibernating computer in %d seconds."
+msgstr "Компьютер %d секундтан кейін гибернацияланады."
+
+#: ../panel-plugin/settings-dialog.cpp:685
+msgid "Hidden"
+msgstr "Жасырын"
+
+#: ../panel-plugin/launcher.cpp:180 ../panel-plugin/page.cpp:543
+msgid "Hide Application"
+msgstr "Қолданбаны жасыру"
+
+#: ../panel-plugin/settings-dialog.cpp:714
+msgid "Icon"
+msgstr "Таңбаша"
+
+#: ../panel-plugin/settings-dialog.cpp:716
+msgid "Icon and title"
+msgstr "Таңбаша және атауы"
+
+#: ../panel-plugin/settings-dialog.cpp:927
+msgid "Include _favorites"
+msgstr "_Таңдаулыларды қосу"
+
+#: ../panel-plugin/icon-size.cpp:65
+msgid "Large"
+msgstr "Үлкен"
+
+#: ../panel-plugin/icon-size.cpp:66
+msgid "Larger"
+msgstr "Үлкенірек"
+
+#: ../panel-plugin/settings.cpp:154
+msgid "Log Ou_t..."
+msgstr "Шығ_у..."
+
+#: ../panel-plugin/settings.cpp:119
+msgid "Log _Out"
+msgstr "Ш_ығу"
+
+#: ../panel-plugin/settings.cpp:123
+#, c-format
+msgid "Logging out in %d seconds."
+msgstr "%d секундтан кейін шығу орындалады."
+
+#: ../panel-plugin/settings.cpp:90
+msgid "Man Pages"
+msgstr "Man парақтары"
+
+#: ../panel-plugin/settings-dialog.cpp:612
+#: ../panel-plugin/settings-dialog.cpp:857
+msgid "Menu"
+msgstr "Мәзір"
+
+#: ../panel-plugin/settings-dialog.cpp:551
+msgid "Menu _height:"
+msgstr "Мәзір _биіктігі:"
+
+#: ../panel-plugin/settings-dialog.cpp:533
+msgid "Menu _width:"
+msgstr "Мәзір е_ні:"
+
+#: ../panel-plugin/settings-dialog.cpp:1078
+msgid "Nam_e:"
+msgstr "А_ты:"
+
+#: ../panel-plugin/settings-dialog.cpp:1019
+msgid "Name"
+msgstr "Аты"
+
+#: ../panel-plugin/search-page.cpp:71
+msgid "No applications found"
+msgstr "Қолданбалар табылмады"
+
+#: ../panel-plugin/icon-size.cpp:60
+msgid "None"
+msgstr "Жоқ"
+
+#: ../panel-plugin/icon-size.cpp:64
+msgid "Normal"
+msgstr "Қалыпты"
+
+#: ../panel-plugin/settings.cpp:95
+msgid "Open URI"
+msgstr "URI ашу"
+
+#: ../panel-plugin/settings-dialog.cpp:676
+msgid "P_rofile:"
+msgstr "П_рофиль:"
+
+#: ../panel-plugin/settings-dialog.cpp:705
+msgid "Panel Button"
+msgstr "Панель батырмасы"
+
+#: ../panel-plugin/settings-dialog.cpp:1024
+msgid "Pattern"
+msgstr "Үлгі"
+
+#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:107
+msgid "Popup menu at center of screen"
+msgstr "Қалқымалы мәзір экран ортасында"
+
+#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:106
+msgid "Popup menu at current mouse position"
+msgstr "Қалқымалы мәзір тышқанның ағымдағы орнында"
+
+#: ../panel-plugin/settings-dialog.cpp:654
+msgid "Position _search entry on bottom"
+msgstr "І_здеу өрісін төменде орналастыру"
+
+#: ../panel-plugin/settings-dialog.cpp:627
+#: ../panel-plugin/settings-dialog.cpp:632
+msgid "Position cate_gories on bottom"
+msgstr "Санат_тарды төменде орналастыру"
+
+#: ../panel-plugin/settings-dialog.cpp:627
+#: ../panel-plugin/settings-dialog.cpp:632
+msgid "Position cate_gories on left"
+msgstr "Санат_тарды сол жақта орналастыру"
+
+#: ../panel-plugin/settings-dialog.cpp:616
+msgid "Position categories _horizontally"
+msgstr "Санаттарды _горизонталды орналастыру"
+
+#: ../panel-plugin/settings-dialog.cpp:665
+msgid "Position commands next to search _entry"
+msgstr "Командаларды іздеу өрі_сінің қасында орналастыру"
+
+#: ../panel-plugin/settings-dialog.cpp:643
+msgid "Position pro_file on bottom"
+msgstr "Про_фильді төменде орналастыру"
+
+#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:108
+msgid "Print available menu instance IDs"
+msgstr "Қолжетімді мәзір даналарының ID-лерін шығару"
+
+#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:110
+msgid "Print version information and exit"
+msgstr "Нұсқа ақпаратын шығару және шығу"
+
+#: ../panel-plugin/recent-page.cpp:37 ../panel-plugin/settings-dialog.cpp:804
+#: ../panel-plugin/settings-dialog.cpp:900
+msgid "Recently Used"
+msgstr "Соңғы қолданылған"
+
+#: ../panel-plugin/settings-dialog.cpp:218
+#, c-format
+msgid "Remove action \"%s\"?"
+msgstr "\"%s\" әрекетін өшіру керек пе?"
+
+#: ../panel-plugin/page.cpp:523
+msgid "Remove from Autostart"
+msgstr "Автожегуден өшіру"
+
+#: ../panel-plugin/page.cpp:484
+msgid "Remove from Favorites"
+msgstr "Таңдаулылардан өшіру"
+
+#: ../panel-plugin/settings-dialog.cpp:1053
+msgid "Remove selected action"
+msgstr "Таңдалған әрекетті өшіру"
+
+#: ../panel-plugin/settings.cpp:130
+#, c-format
+msgid "Restarting computer in %d seconds."
+msgstr "Компьютер %d секундтан кейін қайта іске қосылады."
+
+#: ../panel-plugin/settings-dialog.cpp:683
+msgid "Round Picture"
+msgstr "Дөңгелек сурет"
+
+#: ../panel-plugin/run-action.cpp:64
+#, c-format
+msgid "Run %s"
+msgstr "%s орындау"
+
+#: ../panel-plugin/settings.cpp:94
+msgid "Run in Terminal"
+msgstr "Терминалда орындау"
+
+#: ../panel-plugin/settings-dialog.cpp:102
+msgid "Search Actio_ns"
+msgstr "Іздеу әре_кеттері"
+
+#: ../panel-plugin/search-action.cpp:260
+msgid "Search Action"
+msgstr "Іздеу әрекеті"
+
+#: ../panel-plugin/settings.cpp:92
+msgid "Search for Files"
+msgstr "Файлдарды іздеу"
+
+#: ../panel-plugin/settings.cpp:91
+msgid "Search the Web"
+msgstr "Интернеттен іздеу"
+
+#: ../panel-plugin/command-edit.cpp:75
+msgid "Select Command"
+msgstr "Команданы таңдау"
+
+#: ../panel-plugin/settings-dialog.cpp:135
+msgid "Select an Icon"
+msgstr "Таңбашаны таңдау"
+
+#: ../panel-plugin/settings-dialog.cpp:940
+msgid "Session Commands"
+msgstr "Сеанс командалары"
+
+#: ../panel-plugin/whiskermenu.desktop.in:5
+msgid "Show a menu to easily access installed applications"
+msgstr "Орнатылған қолданбаларға қатынау үшін қарапайым мәзірді көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:459
+msgid "Show application _descriptions"
+msgstr "Қолданбалар с_ипаттамаларын көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:448
+msgid "Show application too_ltips"
+msgstr "Қолданбалар қ_алқымалы кеңестерін көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:318
+msgid "Show as _icons"
+msgstr "Таңбаша_лар ретінде көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:335
+msgid "Show as lis_t"
+msgstr "Тізі_м ретінде көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:353
+msgid "Show as t_ree"
+msgstr "Аға_ш ретінде көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:944
+msgid "Show c_onfirmation dialog"
+msgstr "Ра_стау сұхбат терезесін көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:436
+msgid "Show cate_gory names"
+msgstr "Сан_аттар аттарын көрсету"
+
+#: ../panel-plugin/settings-dialog.cpp:424
+msgid "Show generic application _names"
+msgstr "Қолданбалардың жалпы ата_уларын көрсету"
+
+#: ../panel-plugin/settings.cpp:133
+msgid "Shut _Down"
+msgstr "Сөнді_ру"
+
+#: ../panel-plugin/icon-size.cpp:63
+msgid "Small"
+msgstr "Кіші"
+
+#: ../panel-plugin/icon-size.cpp:62
+msgid "Smaller"
+msgstr "Кішірек"
+
+#: ../panel-plugin/favorites-page.cpp:147
+msgid "Sort Alphabetically A-Z"
+msgstr "Әліппемен сұрыптау A-Z"
+
+#: ../panel-plugin/favorites-page.cpp:155
+msgid "Sort Alphabetically Z-A"
+msgstr "Әліппемен сұрыптау Z-A"
+
+#: ../panel-plugin/settings-dialog.cpp:883
+msgid "Sort ca_tegories"
+msgstr "Са_наттарды сұрыптау"
+
+#: ../panel-plugin/settings-dialog.cpp:684
+msgid "Square Picture"
+msgstr "Шаршы сурет"
+
+#: ../panel-plugin/settings-dialog.cpp:872
+msgid "Stay _visible when focus is lost"
+msgstr "Фокус жоғалғанда көрі_ніп тұру"
+
+#: ../panel-plugin/settings.cpp:140
+msgid "Suspe_nd"
+msgstr "Күту режи_мі"
+
+#: ../panel-plugin/settings.cpp:144
+#, c-format
+msgid "Suspending computer in %d seconds."
+msgstr "Компьютер %d секундтан кейін күту режиміне ауыстырылады."
+
+#: ../panel-plugin/settings.cpp:114
+msgid "Switch _User"
+msgstr "_Пайдаланушыны ауыстыру"
+
+#: ../panel-plugin/settings-dialog.cpp:861
+msgid "Switch categories by _hovering"
+msgstr "Санаттарды үстіне а_пару арқылы ауыстырыңыз"
+
+#: ../panel-plugin/settings-dialog.cpp:217
+msgid "The action will be deleted permanently."
+msgstr "Бұл әрекет қайтарылмайтындай жойылады."
+
+#: ../panel-plugin/settings-dialog.cpp:715
+msgid "Title"
+msgstr "Атауы"
+
+#: ../panel-plugin/launcher.cpp:176
+#, c-format
+msgid ""
+"To unhide it you have to manually remove the file \"%s\" or open the file "
+"and remove the line \"%s\"."
+msgstr "Оны көрсету үшін \"%s\" файлын қолмен өшіруіңіз керек немесе файлды ашып, \"%s\" жолын өшіруіңіз керек."
+
+#: ../panel-plugin/settings.cpp:137
+#, c-format
+msgid "Turning off computer in %d seconds."
+msgstr "Компьютер %d секундтан кейін сөндіріледі."
+
+#: ../panel-plugin/page.cpp:606
+msgid "Unable to add launcher to desktop."
+msgstr "Жөнелткішті жұмыс үстеліне қосу мүмкін емес."
+
+#: ../panel-plugin/page.cpp:646 ../panel-plugin/page.cpp:659
+msgid "Unable to add launcher to panel."
+msgstr "Жөнелткішті панельге қосу мүмкін емес."
+
+#: ../panel-plugin/page.cpp:700
+msgid "Unable to edit launcher."
+msgstr "Іске қосқышты түзету мүмкін емес."
+
+#: ../panel-plugin/settings-dialog.cpp:277
+#, c-format
+msgid "Unable to open the following url: %s"
+msgstr "Келесі сілтемені ашу мүмкін емес: %s"
+
+#: ../panel-plugin/settings-dialog.cpp:770
+msgid "Use a single _panel row"
+msgstr "Бір _панель жолын қолдану"
+
+#: ../panel-plugin/icon-size.cpp:67
+msgid "Very Large"
+msgstr "Өте үлкен"
+
+#: ../panel-plugin/icon-size.cpp:61
+msgid "Very Small"
+msgstr "Өте кішкентай"
+
+#: ../panel-plugin/settings-dialog.cpp:80
+#: ../panel-plugin/whiskermenu.desktop.in:4
+msgid "Whisker Menu"
+msgstr "Whisker мәзірі"
+
+#: ../panel-plugin/settings.cpp:93
+msgid "Wikipedia"
+msgstr "Википедия"
+
+#: ../panel-plugin/settings-dialog.cpp:99
+msgid "_Appearance"
+msgstr "С_ыртқы түрі"
+
+#: ../panel-plugin/settings-dialog.cpp:100
+msgid "_Behavior"
+msgstr "Мі_нез-құлығы"
+
+#: ../panel-plugin/command-edit.cpp:78 ../panel-plugin/settings-dialog.cpp:137
+msgid "_Cancel"
+msgstr "Ба_с тарту"
+
+#: ../panel-plugin/settings-dialog.cpp:84
+msgid "_Close"
+msgstr "_Жабу"
+
+#: ../panel-plugin/settings-dialog.cpp:101
+msgid "_Commands"
+msgstr "_Командалар"
+
+#: ../panel-plugin/settings-dialog.cpp:216
+msgid "_Delete"
+msgstr "Ө_шіру"
+
+#: ../panel-plugin/settings.cpp:159
+msgid "_Edit Applications"
+msgstr "Қолданбаларды түз_ету"
+
+#: ../panel-plugin/settings-dialog.cpp:98
+msgid "_General"
+msgstr "_Жалпы"
+
+#: ../panel-plugin/settings-dialog.cpp:83
+msgid "_Help"
+msgstr "_Көмек"
+
+#: ../panel-plugin/settings.cpp:147
+msgid "_Hibernate"
+msgstr "Ұйқы режи_мі"
+
+#: ../panel-plugin/settings-dialog.cpp:752
+msgid "_Icon:"
+msgstr "_Таңбаша:"
+
+#: ../panel-plugin/settings.cpp:109
+msgid "_Lock Screen"
+msgstr "Экранды б_локтау"
+
+#: ../panel-plugin/command-edit.cpp:79 ../panel-plugin/settings-dialog.cpp:138
+msgid "_OK"
+msgstr "_ОК"
+
+#: ../panel-plugin/settings-dialog.cpp:1101
+msgid "_Pattern:"
+msgstr "Үл_гі:"
+
+#: ../panel-plugin/settings-dialog.cpp:1142
+msgid "_Regular expression"
+msgstr "Тұ_рақты өрнек"
+
+#: ../panel-plugin/settings.cpp:126
+msgid "_Restart"
+msgstr "Қайта іске қо_су"
+
+#: ../panel-plugin/settings.cpp:104
+msgid "_Settings Manager"
+msgstr "_Баптаулар менеджері"
+
+#: ../panel-plugin/settings-dialog.cpp:734
+msgid "_Title:"
+msgstr "А_тауы:"
+
+#: ../panel-plugin/plugin.cpp:423
+msgid "translator-credits"
+msgstr "Baurzhan Muftakhidinov <baurthefirst@gmail.com>"

@@ -1,0 +1,16 @@
+# Default: normalizza tutto a LF nel repo
+* text=auto eol=lf
+
+# Script bash: LF obbligatorio
+*.sh text eol=lf
+
+# File Windows: CRLF solo per loro
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binari: nessuna conversione
+*.png binary
+*.ico binary
+*.so  binary
+*.a   binary
