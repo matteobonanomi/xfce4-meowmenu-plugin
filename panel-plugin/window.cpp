@@ -63,9 +63,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 {
 	// Create the window
 	m_window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
-	gtk_widget_set_name(GTK_WIDGET(m_window), "whiskermenu-window");
+	gtk_widget_set_name(GTK_WIDGET(m_window), "meowmenu-window");
 	// Untranslated window title to allow window managers to identify it; not visible to users.
-	gtk_window_set_title(m_window, "Whisker Menu");
+	gtk_window_set_title(m_window, "Meow Menu");
 #ifdef HAVE_GTK_LAYER_SHELL
 	if (!gtk_layer_is_supported())
 #endif
@@ -334,7 +334,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	reset_default_button();
 
 	// Add CSS classes
-	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_window)), "whiskermenu");
+	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_window)), "meowmenu");
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_search_box)), "search-area");
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_title_box)), "title-area");
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_commands_box)), "commands-area");

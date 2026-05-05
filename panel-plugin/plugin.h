@@ -48,6 +48,11 @@ public:
 		return m_button;
 	}
 
+	Window* get_window() const
+	{
+		return m_window;
+	}
+
 	enum ButtonStyle
 	{
 		ShowIcon = 0x1,

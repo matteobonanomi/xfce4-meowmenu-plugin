@@ -60,6 +60,7 @@ private:
 	GtkWidget* init_behavior_tab();
 	GtkWidget* init_commands_tab();
 	GtkWidget* init_search_actions_tab();
+	GtkWidget* init_search_tab();
 
 private:
 	Settings* const m_settings;
@@ -124,6 +125,17 @@ private:
 	GtkWidget* m_action_pattern;
 	GtkWidget* m_action_command;
 	GtkWidget* m_action_regex;
+
+	// Search Ranking 2.0 tab
+	GtkWidget* m_fuzzy_enabled;
+	GtkWidget* m_fuzzy_threshold;
+	GtkWidget* m_favorites_boost_enabled;
+	GtkWidget* m_favorites_boost_level;
+	GtkWidget* m_frecency_alpha;
+	GtkTreeView* m_aliases_view;
+	GtkListStore* m_aliases_model;
+	GtkWidget* m_alias_add;
+	GtkWidget* m_alias_remove;
 };
 
 }

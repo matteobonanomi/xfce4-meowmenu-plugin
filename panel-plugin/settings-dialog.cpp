@@ -17,13 +17,16 @@
 
 #include "settings-dialog.h"
 
+#include "applications-page.h"
 #include "command.h"
 #include "command-edit.h"
 #include "icon-size.h"
+#include "launcher.h"
 #include "plugin.h"
 #include "search-action.h"
 #include "settings.h"
 #include "slot.h"
+#include "window.h"
 
 #include <algorithm>
 
@@ -81,7 +84,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	m_plugin(plugin)
 {
 	// Create dialog window
-	m_window = xfce_titled_dialog_new_with_mixed_buttons(_("Whisker Menu"),
+	m_window = xfce_titled_dialog_new_with_mixed_buttons(_("Meow Menu"),
 			nullptr,
 			GtkDialogFlags(0),
 			"help-browser", _("_Help"), GTK_RESPONSE_HELP,
@@ -104,6 +107,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	gtk_notebook_append_page(notebook, init_behavior_tab(), gtk_label_new_with_mnemonic(_("_Behavior")));
 	gtk_notebook_append_page(notebook, init_commands_tab(), gtk_label_new_with_mnemonic(_("_Commands")));
 	gtk_notebook_append_page(notebook, init_search_actions_tab(), gtk_label_new_with_mnemonic(_("Search Actio_ns")));
+	gtk_notebook_append_page(notebook, init_search_tab(), gtk_label_new_with_mnemonic(_("_Search")));
 
 	// Add tabs to dialog
 	GtkBox* vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 8));
@@ -126,6 +130,7 @@ SettingsDialog::~SettingsDialog()
 	}
 
 	g_object_unref(m_actions_model);
+	g_object_unref(m_aliases_model);
 }
 
 //-----------------------------------------------------------------------------
@@ -307,6 +312,7 @@ void SettingsDialog::response(int response_id)
 
 		if (response_id == GTK_RESPONSE_CLOSE)
 		{
+			m_settings->save_aliases(m_settings->channel);
 			gtk_widget_destroy(m_window);
 		}
 	}
@@ -1185,6 +1191,364 @@ GtkWidget* SettingsDialog::init_search_actions_tab()
 	}
 
 	return GTK_WIDGET(page);
+}
+
+//-----------------------------------------------------------------------------
+
+GtkWidget* SettingsDialog::init_search_tab()
+{
+	// Create search ranking page
+	GtkBox* vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 6));
+	gtk_container_set_border_width(GTK_CONTAINER(vbox), 12);
+
+	// Fuzzy Search section
+	{
+		GtkGrid* grid = GTK_GRID(gtk_grid_new());
+		gtk_grid_set_column_spacing(grid, 6);
+		gtk_grid_set_row_spacing(grid, 6);
+
+		GtkWidget* label = gtk_label_new_with_mnemonic(_("_Fuzzy matching:"));
+		gtk_widget_set_halign(label, GTK_ALIGN_START);
+		gtk_grid_attach(grid, label, 0, 0, 1, 1);
+
+		m_fuzzy_enabled = gtk_switch_new();
+		gtk_widget_set_halign(m_fuzzy_enabled, GTK_ALIGN_START);
+		gtk_switch_set_active(GTK_SWITCH(m_fuzzy_enabled),
+		                      static_cast<bool>(m_settings->fuzzy_enabled));
+		gtk_grid_attach(grid, m_fuzzy_enabled, 1, 0, 1, 1);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_fuzzy_enabled);
+
+		connect(m_fuzzy_enabled, "notify::active",
+			[this](GObject* obj, GParamSpec*)
+			{
+				m_settings->fuzzy_enabled = gtk_switch_get_active(GTK_SWITCH(obj));
+				gtk_widget_set_sensitive(m_fuzzy_threshold,
+				                        gtk_switch_get_active(GTK_SWITCH(obj)));
+			});
+
+		label = gtk_label_new_with_mnemonic(_("Max _errors (0=auto):"));
+		gtk_widget_set_halign(label, GTK_ALIGN_START);
+		gtk_grid_attach(grid, label, 0, 1, 1, 1);
+
+		m_fuzzy_threshold = gtk_spin_button_new_with_range(0, 2, 1);
+		gtk_widget_set_halign(m_fuzzy_threshold, GTK_ALIGN_START);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_fuzzy_threshold),
+		                          static_cast<double>(static_cast<int>(m_settings->fuzzy_threshold)));
+		gtk_widget_set_sensitive(m_fuzzy_threshold,
+		                         static_cast<bool>(m_settings->fuzzy_enabled));
+		gtk_grid_attach(grid, m_fuzzy_threshold, 1, 1, 1, 1);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_fuzzy_threshold);
+
+		connect(m_fuzzy_threshold, "value-changed",
+			[this](GtkSpinButton* btn)
+			{
+				m_settings->fuzzy_threshold = gtk_spin_button_get_value_as_int(btn);
+			});
+
+		gtk_box_pack_start(vbox, make_aligned_frame(_("Fuzzy Search"), GTK_WIDGET(grid)),
+		                   false, false, 0);
+	}
+
+	// Usage Boost section
+	{
+		GtkGrid* grid = GTK_GRID(gtk_grid_new());
+		gtk_grid_set_column_spacing(grid, 6);
+		gtk_grid_set_row_spacing(grid, 6);
+
+		GtkWidget* label = gtk_label_new_with_mnemonic(_("_Boost favorites:"));
+		gtk_widget_set_halign(label, GTK_ALIGN_START);
+		gtk_grid_attach(grid, label, 0, 0, 1, 1);
+
+		m_favorites_boost_enabled = gtk_switch_new();
+		gtk_widget_set_halign(m_favorites_boost_enabled, GTK_ALIGN_START);
+		gtk_switch_set_active(GTK_SWITCH(m_favorites_boost_enabled),
+		                      static_cast<bool>(m_settings->favorites_boost_enabled));
+		gtk_grid_attach(grid, m_favorites_boost_enabled, 1, 0, 1, 1);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_favorites_boost_enabled);
+
+		connect(m_favorites_boost_enabled, "notify::active",
+			[this](GObject* obj, GParamSpec*)
+			{
+				m_settings->favorites_boost_enabled = gtk_switch_get_active(GTK_SWITCH(obj));
+				gtk_widget_set_sensitive(m_favorites_boost_level,
+				                        gtk_switch_get_active(GTK_SWITCH(obj)));
+			});
+
+		label = gtk_label_new_with_mnemonic(_("Boost _level:"));
+		gtk_widget_set_halign(label, GTK_ALIGN_START);
+		gtk_grid_attach(grid, label, 0, 1, 1, 1);
+
+		m_favorites_boost_level = gtk_combo_box_text_new();
+		gtk_widget_set_halign(m_favorites_boost_level, GTK_ALIGN_START);
+		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("Low"));
+		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("Medium"));
+		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("High"));
+		gtk_combo_box_set_active(GTK_COMBO_BOX(m_favorites_boost_level),
+		                         static_cast<int>(m_settings->favorites_boost_level) - 1);
+		gtk_widget_set_sensitive(m_favorites_boost_level,
+		                         static_cast<bool>(m_settings->favorites_boost_enabled));
+		gtk_grid_attach(grid, m_favorites_boost_level, 1, 1, 1, 1);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_favorites_boost_level);
+
+		connect(m_favorites_boost_level, "changed",
+			[this](GtkComboBox* combo)
+			{
+				m_settings->favorites_boost_level = gtk_combo_box_get_active(combo) + 1;
+			});
+
+		label = gtk_label_new_with_mnemonic(_("Recency _weight (%):"));
+		gtk_widget_set_halign(label, GTK_ALIGN_START);
+		gtk_grid_attach(grid, label, 0, 2, 1, 1);
+
+		m_frecency_alpha = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+		gtk_widget_set_hexpand(m_frecency_alpha, true);
+		gtk_scale_set_value_pos(GTK_SCALE(m_frecency_alpha), GTK_POS_RIGHT);
+		gtk_range_set_value(GTK_RANGE(m_frecency_alpha),
+		                    static_cast<double>(static_cast<int>(m_settings->frecency_alpha)));
+		gtk_grid_attach(grid, m_frecency_alpha, 1, 2, 1, 1);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_frecency_alpha);
+
+		connect(m_frecency_alpha, "value-changed",
+			[this](GtkRange* range)
+			{
+				m_settings->frecency_alpha = static_cast<int>(gtk_range_get_value(range));
+			});
+
+		gtk_box_pack_start(vbox, make_aligned_frame(_("Usage Boost"), GTK_WIDGET(grid)),
+		                   false, false, 0);
+	}
+
+	// Application Aliases section
+	{
+		enum { ALIAS_COL_NAME, ALIAS_COL_TERMS, ALIAS_COL_ID, ALIAS_N_COLS };
+
+		m_aliases_model = gtk_list_store_new(ALIAS_N_COLS,
+		                                     G_TYPE_STRING,
+		                                     G_TYPE_STRING,
+		                                     G_TYPE_STRING);
+
+		if (m_plugin->get_window())
+		{
+			const auto launchers = m_plugin->get_window()->get_applications()->find_all();
+			for (const auto* launcher : launchers)
+			{
+				const char* id = launcher->get_desktop_id();
+				const auto& terms = m_settings->get_aliases(id);
+				if (terms.empty())
+					continue;
+				std::string joined;
+				for (size_t i = 0; i < terms.size(); ++i)
+				{
+					if (i) joined += ", ";
+					joined += terms[i];
+				}
+				gtk_list_store_insert_with_values(m_aliases_model, nullptr, G_MAXINT,
+				    ALIAS_COL_NAME, launcher->get_display_name(),
+				    ALIAS_COL_TERMS, joined.c_str(),
+				    ALIAS_COL_ID, id,
+				    -1);
+			}
+		}
+
+		m_aliases_view = GTK_TREE_VIEW(gtk_tree_view_new_with_model(GTK_TREE_MODEL(m_aliases_model)));
+
+		GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
+		GtkTreeViewColumn* col = gtk_tree_view_column_new_with_attributes(
+		    _("Application"), renderer, "text", ALIAS_COL_NAME, nullptr);
+		gtk_tree_view_column_set_expand(col, true);
+		gtk_tree_view_append_column(m_aliases_view, col);
+
+		renderer = gtk_cell_renderer_text_new();
+		g_object_set(renderer, "editable", TRUE, nullptr);
+		col = gtk_tree_view_column_new_with_attributes(
+		    _("Aliases (comma-separated)"), renderer, "text", ALIAS_COL_TERMS, nullptr);
+		gtk_tree_view_column_set_expand(col, true);
+		gtk_tree_view_append_column(m_aliases_view, col);
+
+		connect(renderer, "edited",
+			[this](GtkCellRendererText*, const gchar* path_str, const gchar* new_text)
+			{
+				enum { ALIAS_COL_NAME, ALIAS_COL_TERMS, ALIAS_COL_ID, ALIAS_N_COLS };
+				GtkTreeIter iter;
+				if (!gtk_tree_model_get_iter_from_string(GTK_TREE_MODEL(m_aliases_model),
+				                                         &iter, path_str))
+					return;
+				gtk_list_store_set(m_aliases_model, &iter, ALIAS_COL_TERMS, new_text, -1);
+				gchar* id_val = nullptr;
+				gtk_tree_model_get(GTK_TREE_MODEL(m_aliases_model), &iter,
+				                   ALIAS_COL_ID, &id_val, -1);
+				if (id_val)
+				{
+					std::vector<std::string> terms;
+					gchar** parts = g_strsplit(new_text, ",", -1);
+					for (int i = 0; parts[i]; ++i)
+					{
+						gchar* stripped = g_strstrip(parts[i]);
+						if (*stripped)
+							terms.emplace_back(stripped);
+					}
+					g_strfreev(parts);
+					m_settings->set_aliases(std::string(id_val), terms);
+					g_free(id_val);
+				}
+			});
+
+		GtkWidget* scrolled = gtk_scrolled_window_new(nullptr, nullptr);
+		gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+		                               GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+		gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scrolled), GTK_SHADOW_IN);
+		gtk_widget_set_size_request(scrolled, -1, 120);
+		gtk_container_add(GTK_CONTAINER(scrolled), GTK_WIDGET(m_aliases_view));
+
+		m_alias_add = gtk_button_new_with_mnemonic(_("_Add"));
+		m_alias_remove = gtk_button_new_with_mnemonic(_("_Remove"));
+
+		connect(m_alias_add, "clicked",
+			[this](GtkButton*)
+			{
+				if (!m_plugin->get_window())
+					return;
+				enum { ALIAS_COL_NAME, ALIAS_COL_TERMS, ALIAS_COL_ID, ALIAS_N_COLS };
+				GtkWidget* dialog = gtk_dialog_new_with_buttons(
+				    _("Choose Application"),
+				    GTK_WINDOW(m_window),
+				    GTK_DIALOG_MODAL,
+				    _("_Cancel"), GTK_RESPONSE_CANCEL,
+				    _("_Add"),    GTK_RESPONSE_ACCEPT,
+				    nullptr);
+				GtkListStore* app_store = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+				const auto launchers = m_plugin->get_window()->get_applications()->find_all();
+				for (const auto* launcher : launchers)
+				{
+					gtk_list_store_insert_with_values(app_store, nullptr, G_MAXINT,
+					    0, launcher->get_display_name(),
+					    1, launcher->get_desktop_id(),
+					    -1);
+				}
+				GtkWidget* app_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(app_store));
+				g_object_unref(app_store);
+				GtkCellRenderer* rend = gtk_cell_renderer_text_new();
+				gtk_tree_view_append_column(GTK_TREE_VIEW(app_view),
+				    gtk_tree_view_column_new_with_attributes(
+				        _("Application"), rend, "text", 0, nullptr));
+				GtkWidget* sw = gtk_scrolled_window_new(nullptr, nullptr);
+				gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw),
+				    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+				gtk_widget_set_size_request(sw, 300, 240);
+				gtk_container_add(GTK_CONTAINER(sw), app_view);
+				gtk_box_pack_start(
+				    GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
+				    sw, true, true, 6);
+				gtk_widget_show_all(dialog);
+				if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+				{
+					GtkTreeSelection* sel = gtk_tree_view_get_selection(
+					    GTK_TREE_VIEW(app_view));
+					GtkTreeIter it;
+					GtkTreeModel* mdl;
+					if (gtk_tree_selection_get_selected(sel, &mdl, &it))
+					{
+						gchar* name = nullptr;
+						gchar* id   = nullptr;
+						gtk_tree_model_get(mdl, &it, 0, &name, 1, &id, -1);
+						gtk_list_store_insert_with_values(m_aliases_model,
+						    nullptr, G_MAXINT,
+						    ALIAS_COL_NAME, name,
+						    ALIAS_COL_TERMS, "",
+						    ALIAS_COL_ID, id,
+						    -1);
+						g_free(name);
+						g_free(id);
+					}
+				}
+				gtk_widget_destroy(dialog);
+				gtk_widget_set_sensitive(m_alias_remove, true);
+			});
+
+		connect(m_alias_remove, "clicked",
+			[this](GtkButton*)
+			{
+				enum { ALIAS_COL_NAME, ALIAS_COL_TERMS, ALIAS_COL_ID, ALIAS_N_COLS };
+				GtkTreeSelection* sel = gtk_tree_view_get_selection(m_aliases_view);
+				GtkTreeIter iter;
+				GtkTreeModel* mdl;
+				if (!gtk_tree_selection_get_selected(sel, &mdl, &iter))
+					return;
+				gchar* id_val = nullptr;
+				gtk_tree_model_get(mdl, &iter, ALIAS_COL_ID, &id_val, -1);
+				if (id_val)
+				{
+					m_settings->set_aliases(std::string(id_val), {});
+					g_free(id_val);
+				}
+				gtk_list_store_remove(m_aliases_model, &iter);
+				const bool has_rows = gtk_tree_model_iter_n_children(
+				    GTK_TREE_MODEL(m_aliases_model), nullptr) > 0;
+				gtk_widget_set_sensitive(m_alias_remove, has_rows);
+			});
+
+		const bool has_rows = gtk_tree_model_iter_n_children(
+		    GTK_TREE_MODEL(m_aliases_model), nullptr) > 0;
+		gtk_widget_set_sensitive(m_alias_remove, has_rows);
+
+		GtkWidget* btn_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
+		gtk_button_box_set_layout(GTK_BUTTON_BOX(btn_box), GTK_BUTTONBOX_START);
+		gtk_box_set_spacing(GTK_BOX(btn_box), 6);
+		gtk_box_pack_start(GTK_BOX(btn_box), m_alias_add, false, false, 0);
+		gtk_box_pack_start(GTK_BOX(btn_box), m_alias_remove, false, false, 0);
+
+		GtkBox* alias_vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 6));
+		gtk_box_pack_start(alias_vbox, scrolled, true, true, 0);
+		gtk_box_pack_start(alias_vbox, btn_box, false, false, 0);
+
+		gtk_box_pack_start(vbox,
+		    make_aligned_frame(_("Application Aliases"), GTK_WIDGET(alias_vbox)),
+		    true, true, 0);
+	}
+
+	// Reset to defaults button
+	GtkWidget* reset_button = gtk_button_new_with_mnemonic(_("_Reset to Defaults"));
+	gtk_widget_set_halign(reset_button, GTK_ALIGN_END);
+	gtk_widget_set_margin_top(reset_button, 6);
+	gtk_box_pack_start(vbox, reset_button, false, false, 0);
+
+	connect(reset_button, "clicked",
+		[this](GtkButton*)
+		{
+			m_settings->fuzzy_enabled = true;
+			m_settings->fuzzy_threshold = 0;
+			m_settings->favorites_boost_enabled = true;
+			m_settings->favorites_boost_level = 2;
+			m_settings->frecency_alpha = 70;
+
+			gtk_switch_set_active(GTK_SWITCH(m_fuzzy_enabled), true);
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_fuzzy_threshold), 0);
+			gtk_switch_set_active(GTK_SWITCH(m_favorites_boost_enabled), true);
+			gtk_combo_box_set_active(GTK_COMBO_BOX(m_favorites_boost_level), 1);
+			gtk_range_set_value(GTK_RANGE(m_frecency_alpha), 70.0);
+
+			// Clear all aliases: iterate model rows and wipe each entry
+			enum { ALIAS_COL_NAME, ALIAS_COL_TERMS, ALIAS_COL_ID, ALIAS_N_COLS };
+			GtkTreeIter iter;
+			if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m_aliases_model), &iter))
+			{
+				do
+				{
+					gchar* id_val = nullptr;
+					gtk_tree_model_get(GTK_TREE_MODEL(m_aliases_model), &iter,
+					                   ALIAS_COL_ID, &id_val, -1);
+					if (id_val)
+					{
+						m_settings->set_aliases(std::string(id_val), {});
+						g_free(id_val);
+					}
+				} while (gtk_tree_model_iter_next(GTK_TREE_MODEL(m_aliases_model), &iter));
+			}
+			gtk_list_store_clear(m_aliases_model);
+			gtk_widget_set_sensitive(m_alias_remove, false);
+		});
+
+	return GTK_WIDGET(vbox);
 }
 
 //-----------------------------------------------------------------------------

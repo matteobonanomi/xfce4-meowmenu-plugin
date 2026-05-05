@@ -642,3 +642,76 @@ msgstr ""
 #: panel-plugin/whiskermenu.desktop.in:5
 msgid "Show a menu to easily access installed applications"
 msgstr ""
+
+#. Search Ranking 2.0 tab (settings-dialog.cpp)
+#: panel-plugin/settings-dialog.cpp
+msgid "_Search"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "_Fuzzy matching:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Max _errors (0=auto):"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Fuzzy Search"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "_Boost favorites:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Boost _level:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Low"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Medium"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "High"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Recency _weight (%):"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Usage Boost"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Application"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Aliases (comma-separated)"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "_Add"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "_Remove"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Choose Application"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "Application Aliases"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp
+msgid "_Reset to Defaults"
+msgstr ""

@@ -249,13 +249,14 @@ void Page::launcher_activated(GtkTreePath* path)
 		return;
 	}
 
-	// Add to recent
+	// Add to recent and record frecency stats
 	if (Launcher* launcher = dynamic_cast<Launcher*>(element))
 	{
 		if (remember_launcher(launcher))
 		{
 			m_window->get_recent()->add(launcher);
 		}
+		m_settings->usage_stats.record_launch(launcher->get_desktop_id());
 	}
 
 	// Hide window

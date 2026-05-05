@@ -101,6 +101,7 @@ public:
 	void set_auto_start(bool enabled);
 
 private:
+	Settings* m_settings;
 	GarconMenuItem* m_item;
 	const gchar* m_display_name;
 	std::string m_search_name;

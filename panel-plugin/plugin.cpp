@@ -40,7 +40,7 @@ extern "C"
 
 #include "register-plugin.h"
 
-void whiskermenu_construct(XfcePanelPlugin* plugin)
+void meowmenu_construct(XfcePanelPlugin* plugin)
 {
 	xfce_textdomain(GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR, "UTF-8");
 	new Plugin(plugin);
@@ -64,7 +64,7 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 	m_settings = new Settings(this);
 
 	// Load default settings
-	gchar* defaults_file = xfce_resource_lookup(XFCE_RESOURCE_CONFIG, "xfce4/whiskermenu/defaults.rc");
+	gchar* defaults_file = xfce_resource_lookup(XFCE_RESOURCE_CONFIG, "xfce4/meowmenu/defaults.rc");
 	m_settings->load(defaults_file, true);
 	g_free(defaults_file);
 
@@ -98,7 +98,7 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 
 	// Create toggle button
 	m_button = xfce_panel_create_toggle_button();
-	gtk_widget_set_name(m_button, "whiskermenu-button");
+	gtk_widget_set_name(m_button, "meowmenu-button");
 	connect(m_button, "button-press-event",
 		[this](GtkWidget* widget, GdkEvent* event) -> gboolean
 		{
