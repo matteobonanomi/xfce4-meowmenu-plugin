@@ -1,3 +1,0 @@
-include:
-  - project: 'xfce/xfce4-dev-tools'
-    file: '/ci/build_project.yml'
