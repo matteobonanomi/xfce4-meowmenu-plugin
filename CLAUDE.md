@@ -271,5 +271,17 @@ hasn't, recommend the slash command and stop.
 |Test matrix (X11/Wayland)|Spec §17|
 |Performance budget|Spec §14|
 
+\---
+
+## 10\. Active Spec-Kit work
+
+<!-- SPECKIT START -->
+- Active plan: [.specify/specs/002-layout-presets/plan.md](.specify/specs/002-layout-presets/plan.md)
+<!-- SPECKIT END -->
+
+The block above is maintained by the `/speckit-plan` skill. Do not hand-edit
+its contents outside the markers; the skill rewrites the body each time a new
+plan is generated.
+
 
 
