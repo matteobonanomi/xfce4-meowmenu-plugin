@@ -17,11 +17,37 @@
 
 #include "query.h"
 
+#include <algorithm>
+#include <numeric>
 #include <sstream>
+#include <vector>
 
 #include <glib.h>
 
 using namespace WhiskerMenu;
+
+//-----------------------------------------------------------------------------
+
+// Rolling 2-row Levenshtein distance: O(m·n) time, O(n) space
+static int levenshtein(const std::string& a, const std::string& b)
+{
+	const size_t m = a.size();
+	const size_t n = b.size();
+	std::vector<int> prev(n + 1), curr(n + 1);
+	std::iota(prev.begin(), prev.end(), 0);
+	for (size_t i = 1; i <= m; ++i)
+	{
+		curr[0] = static_cast<int>(i);
+		for (size_t j = 1; j <= n; ++j)
+		{
+			curr[j] = (a[i - 1] == b[j - 1])
+			           ? prev[j - 1]
+			           : 1 + std::min({prev[j], curr[j - 1], prev[j - 1]});
+		}
+		std::swap(prev, curr);
+	}
+	return prev[n];
+}
 
 //-----------------------------------------------------------------------------
 
@@ -191,6 +217,30 @@ void Query::set(const std::string& query)
 	{
 		m_query_words.push_back(buffer);
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+unsigned int Query::match_fuzzy(const std::string& haystack, int max_errors) const
+{
+	// Only single-token queries: multi-token fuzzy produces too many false positives
+	if (m_query.empty() || m_query_words.size() > 1)
+		return UINT_MAX;
+
+	// Quick length check: haystack word must be at least len(query) - max_errors
+	// (checked per-word below, but reject trivially short haystacks early)
+	if (static_cast<int>(haystack.length()) < static_cast<int>(m_query.length()) - max_errors)
+		return UINT_MAX;
+
+	// Compare query against each whitespace-delimited word of haystack
+	std::string word;
+	std::stringstream ss(haystack);
+	while (ss >> word)
+	{
+		if (levenshtein(m_query, word) <= max_errors)
+			return 0x400;
+	}
+	return UINT_MAX;
 }
 
 //-----------------------------------------------------------------------------

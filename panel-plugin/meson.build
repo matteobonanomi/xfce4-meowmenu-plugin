@@ -21,6 +21,7 @@ plugin_sources = [
   'resizer.cpp',
   'run-action.cpp',
   'search-action.cpp',
+  'usage-stats.cpp',
   'search-page.cpp',
   'settings.cpp',
   'settings-dialog.cpp',
@@ -32,7 +33,7 @@ plugin_sources = [
 plugin_install_subdir = 'xfce4' / 'panel' / 'plugins'
 
 plugin_lib = shared_module(
-  'whiskermenu',
+  'meowmenu',
   plugin_sources,
   gnu_symbol_visibility: 'hidden',
   cpp_args: [
@@ -78,7 +79,7 @@ popup_whiskermenu = executable(
 
 i18n.merge_file(
   input: 'whiskermenu.desktop.in',
-  output: 'whiskermenu.desktop',
+  output: 'meowmenu.desktop',
   po_dir: '..' / 'po',
   type: 'desktop',
   install: true,

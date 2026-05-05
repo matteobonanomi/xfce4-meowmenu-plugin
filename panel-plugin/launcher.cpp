@@ -55,6 +55,7 @@ static std::string normalize(const gchar* string)
 //-----------------------------------------------------------------------------
 
 Launcher::Launcher(Settings* settings, GarconMenuItem* item) :
+	m_settings(settings),
 	m_item(item)
 {
 	// Fetch icon
@@ -257,6 +258,8 @@ void Launcher::run(GdkScreen* screen) const
 			garcon_menu_item_get_icon_name(m_item));
 
 	g_free(command);
+
+	m_settings->usage_stats.record_launch(get_desktop_id());
 }
 
 //-----------------------------------------------------------------------------
@@ -333,6 +336,25 @@ unsigned int Launcher::search(const Query& query)
 	if (match != UINT_MAX)
 	{
 		return match | 0x4000;
+	}
+
+	// Alias lookup — user-defined extra search terms, treated as primary-field match
+	for (const auto& alias : m_settings->get_aliases(get_desktop_id()))
+	{
+		const unsigned int alias_score = query.match(alias);
+		if (alias_score != UINT_MAX)
+			return alias_score;
+	}
+
+	// Fuzzy fallback on Name only (score 0x700: worse than any name char-match ≤0x600,
+	// better than generic-name matches ≥0x804, preserving RF-03 R3.4)
+	if (m_settings->fuzzy_enabled)
+	{
+		const int max_errors = (static_cast<int>(m_settings->fuzzy_threshold) != 0)
+		    ? static_cast<int>(m_settings->fuzzy_threshold)
+		    : (query.raw_query().size() <= 4 ? 1 : 2);
+		if (query.match_fuzzy(m_search_name, max_errors) != UINT_MAX)
+			return 0x700;
 	}
 
 	return UINT_MAX;

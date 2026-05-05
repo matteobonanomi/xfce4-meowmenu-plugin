@@ -23,8 +23,10 @@
 #include "slot.h"
 
 #include <algorithm>
+#include <sstream>
 
 #include <cstdio>
+#include <cstring>
 
 using namespace WhiskerMenu;
 
@@ -97,6 +99,12 @@ Settings::Settings(Plugin* plugin) :
 		new SearchAction(this, _("Open URI"), "^(file|http|https):\\/\\/(.*)$", "exo-open \\0", true)
 #endif
 	}),
+
+	fuzzy_enabled(this, "/search/fuzzy-enabled", true),
+	fuzzy_threshold(this, "/search/fuzzy-threshold", 0, 0, 2),
+	favorites_boost_enabled(this, "/search/favorites-boost-enabled", true),
+	favorites_boost_level(this, "/search/favorites-boost-level", 2, 1, 3),
+	frecency_alpha(this, "/search/frecency-alpha", 70, 0, 100),
 
 	menu_width(this, "/menu-width", 450, 10, SHRT_MAX),
 	menu_height(this, "/menu-height", 500, 10, SHRT_MAX),
@@ -331,6 +339,7 @@ void Settings::load(const gchar* base)
 
 	g_hash_table_destroy(properties);
 	prevent_invalid();
+	load_aliases(channel);
 }
 
 //-----------------------------------------------------------------------------
@@ -410,7 +419,12 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| menu_width.load(property, value)
 			|| menu_height.load(property, value)
 			|| menu_opacity.load(property, value)
-			|| search_actions.load(property, value))
+			|| search_actions.load(property, value)
+			|| fuzzy_enabled.load(property, value)
+			|| fuzzy_threshold.load(property, value)
+			|| favorites_boost_enabled.load(property, value)
+			|| favorites_boost_level.load(property, value)
+			|| frecency_alpha.load(property, value))
 	{
 	}
 
@@ -1108,6 +1122,126 @@ void SearchActionList::clone(const std::vector<SearchAction*>& in, std::vector<S
 				action->get_command(),
 				action->get_is_regex()));
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+const std::vector<std::string>& Settings::get_aliases(const char* desktop_id) const
+{
+	static const std::vector<std::string> empty;
+	if (!desktop_id)
+		return empty;
+	auto it = m_aliases.find(desktop_id);
+	return (it != m_aliases.end()) ? it->second : empty;
+}
+
+//-----------------------------------------------------------------------------
+
+void Settings::set_aliases(const std::string& desktop_id,
+                            const std::vector<std::string>& terms)
+{
+	if (terms.empty())
+		m_aliases.erase(desktop_id);
+	else
+		m_aliases[desktop_id] = terms;
+}
+
+//-----------------------------------------------------------------------------
+
+void Settings::load_aliases(XfconfChannel* ch)
+{
+	m_aliases.clear();
+	if (!ch)
+		return;
+
+	GHashTable* props = xfconf_channel_get_properties(ch, nullptr);
+	if (!props)
+		return;
+
+	GHashTableIter iter;
+	gpointer key_ptr, val_ptr;
+	g_hash_table_iter_init(&iter, props);
+	while (g_hash_table_iter_next(&iter, &key_ptr, &val_ptr))
+	{
+		const gchar* prop = static_cast<const gchar*>(key_ptr);
+
+		// Locate "/search/aliases/" anywhere in the full property path
+		// (the hash table keys include the channel's property base prefix)
+		const gchar* aliases_prefix = "/search/aliases/";
+		const gchar* start = strstr(prop, aliases_prefix);
+		if (!start)
+			continue;
+
+		const gchar* rest = start + strlen(aliases_prefix);
+		if (!*rest)
+			continue;
+
+		// Must end with "/terms"
+		const gchar* terms_suffix = "/terms";
+		const gsize rest_len = strlen(rest);
+		const gsize suf_len  = strlen(terms_suffix);
+		if (rest_len <= suf_len)
+			continue;
+		if (strcmp(rest + rest_len - suf_len, terms_suffix) != 0)
+			continue;
+
+		// Extract desktop-id between "/search/aliases/" and "/terms"
+		std::string desktop_id(rest, rest_len - suf_len);
+		if (desktop_id.empty())
+			continue;
+
+		// Read the string list via a relative path (channel handles base prefix)
+		std::string rel = "/search/aliases/" + desktop_id + "/terms";
+		gchar** arr = xfconf_channel_get_string_list(ch, rel.c_str());
+		if (!arr)
+			continue;
+
+		std::vector<std::string> terms_vec;
+		for (int i = 0; arr[i]; ++i)
+		{
+			if (arr[i][0])
+				terms_vec.emplace_back(arr[i]);
+		}
+		g_strfreev(arr);
+
+		if (!terms_vec.empty())
+			m_aliases[desktop_id] = std::move(terms_vec);
+	}
+
+	g_hash_table_destroy(props);
+}
+
+//-----------------------------------------------------------------------------
+
+void Settings::save_aliases(XfconfChannel* ch)
+{
+	if (!ch)
+		return;
+
+	// Clear all existing alias entries
+	xfconf_channel_reset_property(ch, "/search/aliases", true);
+
+	begin_property_update();
+	for (const auto& kv : m_aliases)
+	{
+		if (kv.second.empty())
+			continue;
+
+		std::string prop = "/search/aliases/" + kv.first + "/terms";
+
+		const int count = static_cast<int>(kv.second.size());
+		GPtrArray* array = g_ptr_array_sized_new(count);
+		for (const auto& term : kv.second)
+		{
+			GValue* gval = g_new0(GValue, 1);
+			g_value_init(gval, G_TYPE_STRING);
+			g_value_set_static_string(gval, term.c_str());
+			g_ptr_array_add(array, gval);
+		}
+		xfconf_channel_set_arrayv(ch, prop.c_str(), array);
+		xfconf_array_free(array);
+	}
+	end_property_update();
 }
 
 //-----------------------------------------------------------------------------

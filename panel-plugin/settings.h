@@ -19,6 +19,11 @@
 #define WHISKERMENU_SETTINGS_H
 
 #include "icon-size.h"
+#include "usage-stats.h"
+
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <xfconf/xfconf.h>
 
@@ -375,11 +380,31 @@ public:
 
 	SearchActionList search_actions;
 
+	// Search Ranking 2.0 — Xfconf-backed options
+	Boolean fuzzy_enabled;           // /search/fuzzy-enabled,           true
+	Integer fuzzy_threshold;         // /search/fuzzy-threshold,          0 (adaptive), 0–2
+	Boolean favorites_boost_enabled; // /search/favorites-boost-enabled,  true
+	Integer favorites_boost_level;   // /search/favorites-boost-level,    2, 1–3
+	Integer frecency_alpha;          // /search/frecency-alpha,           70, 0–100 (÷100.0)
+
+	// App-launch statistics for frecency (XDG_CACHE_HOME, not Xfconf)
+	UsageStats usage_stats;
+
+	// Alias map: desktop-id → list of extra search terms
+	const std::vector<std::string>& get_aliases(const char* desktop_id) const;
+	void set_aliases(const std::string& desktop_id,
+	                 const std::vector<std::string>& terms);
+	void load_aliases(XfconfChannel* ch);
+	void save_aliases(XfconfChannel* ch);
+
 	Integer menu_width;
 	Integer menu_height;
 	Integer menu_opacity;
 
 	friend class Plugin;
+
+private:
+	std::unordered_map<std::string, std::vector<std::string>> m_aliases;
 };
 
 }

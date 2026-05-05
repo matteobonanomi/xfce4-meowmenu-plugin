@@ -59,7 +59,8 @@ private:
 	public:
 		Match(Element* element = nullptr) :
 			m_element(element),
-			m_relevancy(UINT_MAX)
+			m_relevancy(UINT_MAX),
+			m_boost(0.0)
 		{
 		}
 
@@ -68,9 +69,12 @@ private:
 			return m_element;
 		}
 
-		bool operator<(const Match& match) const
+		// Composite sort: lower textual relevancy wins; at tie, higher boost wins.
+		bool operator<(const Match& other) const
 		{
-			return m_relevancy < match.m_relevancy;
+			if (m_relevancy != other.m_relevancy)
+				return m_relevancy < other.m_relevancy;
+			return m_boost > other.m_boost;
 		}
 
 		bool operator==(const Match& match) const
@@ -82,7 +86,12 @@ private:
 		{
 			g_assert(m_element);
 			m_relevancy = m_element->search(query);
+			m_boost = 0.0;
 		}
+
+		// Populate frecency+favorites boost for the composite sort key.
+		// boost_level: 1=Low, 2=Medium, 3=High (maps to FAVORITES_BONUS table).
+		void set_frecency(double frecency, bool is_favorite, int boost_level);
 
 		static bool invalid(const Match& match)
 		{
@@ -90,8 +99,9 @@ private:
 		}
 
 	private:
-		Element* m_element;
+		Element*     m_element;
 		unsigned int m_relevancy;
+		double       m_boost;
 	};
 	std::vector<Match> m_matches;
 };

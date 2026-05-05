@@ -17,4 +17,4 @@
 
 #include "register-plugin.h"
 
-XFCE_PANEL_PLUGIN_REGISTER(whiskermenu_construct)
+XFCE_PANEL_PLUGIN_REGISTER(meowmenu_construct)

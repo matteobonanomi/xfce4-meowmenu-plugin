@@ -34,6 +34,19 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+// Favorites bonus values for boost_level 1 (Low), 2 (Medium), 3 (High).
+// Must exceed maximum frecency [0,1] so favorites always precede non-favorites
+// at equal textual score, while a much-worse textual match still loses (RF-02 R2.3).
+static constexpr double kFavBonus[] = { 0.5, 1.0, 2.0 };
+
+void SearchPage::Match::set_frecency(double frecency, bool is_favorite, int boost_level)
+{
+	const int level = CLAMP(boost_level, 1, 3) - 1;
+	m_boost = frecency + (is_favorite ? kFavBonus[level] : 0.0);
+}
+
+//-----------------------------------------------------------------------------
+
 SearchPage::SearchPage(Settings* settings, Window* window) :
 	Page(settings, window, nullptr, nullptr),
 	m_run_action(settings)
@@ -137,6 +150,26 @@ void SearchPage::set_filter(const gchar* filter)
 	{
 		match.update(m_query);
 	}
+
+	// Populate frecency+favorites boost for composite sort key
+	{
+		const double alpha = static_cast<int>(m_settings->frecency_alpha) / 100.0;
+		for (auto& match : m_matches)
+		{
+			if (Match::invalid(match))
+				continue;
+			const Launcher* launcher = dynamic_cast<const Launcher*>(match.element());
+			if (!launcher)
+				continue;
+			const char* id = launcher->get_desktop_id();
+			const bool is_fav = m_settings->favorites_boost_enabled
+			                    && (m_settings->favorites.find(id) >= 0);
+			const double frecency = m_settings->usage_stats.get_frecency(id, alpha);
+			match.set_frecency(frecency, is_fav,
+			                   static_cast<int>(m_settings->favorites_boost_level));
+		}
+	}
+
 	m_matches.erase(std::remove_if(m_matches.begin(), m_matches.end(), &Match::invalid), m_matches.end());
 	std::stable_sort(m_matches.begin(), m_matches.end());
 

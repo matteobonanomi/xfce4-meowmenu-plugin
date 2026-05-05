@@ -17,4 +17,4 @@
 
 #include <libxfce4panel/libxfce4panel.h>
 
-extern void whiskermenu_construct(XfcePanelPlugin* plugin);
+extern void meowmenu_construct(XfcePanelPlugin* plugin);

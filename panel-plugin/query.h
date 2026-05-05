@@ -39,6 +39,10 @@ public:
 
 	unsigned int match_as_characters(const std::string& haystack) const;
 
+	// Fuzzy match on Name field only. Returns 0x400 on match, UINT_MAX otherwise.
+	// max_errors: maximum Levenshtein distance; only works for single-token queries.
+	unsigned int match_fuzzy(const std::string& haystack, int max_errors) const;
+
 	const std::string& query() const
 	{
 		return m_query;
