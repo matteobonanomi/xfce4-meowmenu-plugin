@@ -262,21 +262,52 @@ Trasformare molte opzioni sparse in preset facili da capire.
 
 #### Preset iniziali
 
-- Classic XFCE
-- Modern Compact
-- Touch Friendly
-- KDE-like
-- Search-first
+- Classic 
+- Modern
+- FullScreen
 
 #### Requisiti
 
 Ogni preset deve essere solo una macro su impostazioni esistenti e nuove, interamente reversibile e modificabile manualmente.
+
+Di seguito un breve descrizione di come immgino i preset:
+1. Classic è esattamente il Whisker Menu nelle suo opzioni di default
+2. Modern è la scelta che vorrei visualizzata di default e che comprende una serie di migliorie:
+- angolatura bordi presente, per rendere più moderno il menu
+- lieve distacco della finestra del menu dalla pannello in cui è alloggiato (se il pannello è in basso, il menu è leggermente più in alto del Classic, se il pannello è a sinistra, il menu è leggermente più a destra, etc)
+- possibilità di gestire l'opacità a due livelli: quella delle categorie/profili e quella delle applicazioni/ricerca (per qualche ragione adesso l'opacità controlla solo la zona delle categorie). Opacità delle categorie deve essere di default al 100% e delle applicazioni/ricerca all'80%
+- categorie mostrate a sinistra, profilo mostrato in alto, barra di ricerca mostrata in basso
+- applicazioni mostrate come icone e non come lista di default, icona delle applicazioni di dimensione Normale di default
+- "switch category by hovering" selezionata di default
+- non considerare queste specifiche esaustive, prendi esempio dal menu applicazioni/attività di default delle ultime versioni di Cinnamon o KDE per cercare una implementazione minimale idonea a XFCE
+3. FullScreen cerca di prendere spunto dal menu/attività di GNOME:
+- mostra una finestra di menu che occupa tutto lo spazio che una finesta potrebbe occupare
+- mostra di default una barra di ricerca in alto e in centro
+- sotto la barra sono presenti, in riga, tutte le categorie, di default è selezionato "All Applications"
+- di default passando il mouse sopra le categorie o cliccandoci si seleziona una diversa categoria
+- sotto la riga con tutte le categorie vengono mostrate in griglia le applicazioni con il loro nome sottostante e senza descrizione
+- è possibile modificare la griglia di applicazioni, di default 6 (colonne) x 3 (righe) che è centrata e lascia spazio ai margini. si può anche modificare basso-medio-alta la compattezza della griglia, di default su media
+- in basso a destra di defaul sono presenti i comandi (di default si mostrano solo le icone log-out / lock / shut-down) e l'icona del profilo utente
+- non considerare queste specifiche esaustive, prendi esempio dal menu applicazioni/attività di default delle ultime versioni di GNOME per cercare una implementazione minimale idonea a XFCE
+
 
 #### Criteri di accettazione
 
 - applicazione immediata del preset;
 - preview o descrizione sintetica;
 - possibilità di annullare o tornare ai default.
+- possibilità di modificare ulteriormente con le impostazioni esistenti o nuove di dettaglio
+- possibilità di salvare tutte le impostazioni attuali in un nuovo preset definito e rinominato dall'utente.
+- possibilità di scaricare un preset peronalizzato dall'utente in un file di config con tutte le impostazioni complete
+- possibilità di caricare un preset personalizzato da file di config
+- tutti i preset tranne i tre presenti inizialmente possono essere rinominati e rimossi
+
+#### Revisione del pannello delle impostazioni di MeowMenu
+le finestre General / Appearance / Behavior devono cambiare radicalmente contenuto:
+- General può chiamarsi ancora così (in inglese) e dovrebbe consentire di selezionare un Preset o salvarne / scaricarne / modificarne / rinominarne uno personalizzato
+- Appearence e Behavior possono cambiare radicalmente contenuto per alloggiare tutte le specifiche possibili e immaginabili che sottendono i preset
+- le impostazioni relative alla ricerca possono essere inserite nella tab Advanced Search o eliminate se ridondanti
+- Appearance e Behavior possono cambiare nome o si possono aggiungere ulteriori finestre tematiche purchè tutto resti consistente, intuitivo, ben strutturato ed organizzato.
 
 ### 9.3 Theme Editor visuale del menu
 
