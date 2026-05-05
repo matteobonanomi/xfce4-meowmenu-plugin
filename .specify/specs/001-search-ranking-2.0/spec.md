@@ -214,21 +214,19 @@ Requisiti di dettaglio:
   inline nel codice del modulo di scoring, comprensibile a un manutentore
   in pochi minuti.
 
-### RF-06 — Tab "Search" nelle Impostazioni
+### RF-06 — Tab "Advanced Search" nelle Impostazioni
 
-**Collocazione adottata (Q3 — risolto):** tab separato "Search" nel dialog
-preferenze esistente di Whisker, coerente con il pattern dei tab esistenti
-(Appearance, Behavior, Commands, Search Actions).
+**Collocazione adottata (Q3 — risolto):** tab separato "Advanced Search" nel
+dialog preferenze esistente di Whisker, coerente con il pattern dei tab
+esistenti (Appearance, Behavior, Commands, Search Actions).
 
 **Widget e opzioni:**
 
 | Opzione | Widget GTK | Default | Descrizione (visibile in UI) |
 |---|---|---|---|
-| Abilita fuzzy search | `GtkSwitch` | ON | Trova risultati anche con piccoli errori di battitura |
-| Soglia errori fuzzy | `GtkSpinButton` (1–2) | adattiva | Numero massimo di errori tollerati (adattivo se non modificato) |
-| Peso recenza (alpha) | `GtkScale` 0.0–1.0 | 0.7 | Bilancia recenza e frequenza nel boost utilizzo (alto = più peso alla recenza) |
-| Abilita boost preferiti | `GtkSwitch` | ON | Le app nei Preferiti compaiono prima a parità di rilevanza testuale |
-| Intensità boost preferiti | `GtkComboBox` (Bassa/Media/Alta) | Media | Quanto peso ha il fatto che un'app sia preferita |
+| Abilita fuzzy search + soglia errori | `GtkSwitch` + `GtkSpinButton` sulla stessa riga | ON / adattiva | Switch e numero massimo errori affiancati |
+| Peso recenza (alpha) | `GtkScale` 0.0–1.0 | 0.7 | Bilancia recenza e frequenza nel boost utilizzo |
+| Abilita boost preferiti + intensità | `GtkSwitch` + `GtkComboBox` sulla stessa riga | ON / Media | Switch e intensità affiancati |
 | Gestione alias | `GtkTreeView` (vedi RF-04) | — | Termini alternativi per trovare un'app |
 
 Vincoli di layout:
@@ -242,8 +240,15 @@ Vincoli di layout:
 - R6.4 — Il tab è compatto: massimo 8 widget visibili senza scroll. Se
   le opzioni crescessero oltre, usare `GtkExpander` per le avanzate, non
   aggiungere un ulteriore tab.
-- R6.5 — La soglia fuzzy mostra il testo "(adattiva)" quando è nel valore
-  di default; se l'utente la modifica manualmente, mostra il numero scelto.
+- R6.5 — La soglia fuzzy mostra il valore `0` (adattivo) di default; se
+  l'utente la modifica, mostra il numero scelto (1 o 2).
+- R6.6 — Ogni sezione del tab ("Fuzzy Search", "Usage Boost") ha un piccolo
+  pulsante "?" nell'intestazione della sezione. Al click mostra un `GtkPopover`
+  con una spiegazione breve in linguaggio utente (2–4 righe), comprensibile
+  da un utente non tecnico. Il popover scompare al click esterno.
+- R6.7 — Per il controllo "Recency weight" è presente una riga di testo
+  esplicativo di dimensione ridotta immediatamente sotto il cursore, visibile
+  senza interazione (nessun click richiesto).
 
 ### RF-07 — Nessuna regressione sull'esperienza esistente
 
@@ -430,7 +435,7 @@ Nessun punto aperto. Tutte le domande sono risolte:
 |---|---|---|
 | Q1 | Algoritmo fuzzy | Levenshtein semplice, soglia adattiva, strategia a tre livelli |
 | Q2 | Boost recenti | Frecency = decadimento iperbolico + log(count), alpha=0.7 |
-| Q3 | Collocazione opzioni Search | Tab separato "Search" nel dialog preferenze |
+| Q3 | Collocazione opzioni Search | Tab separato "Advanced Search" nel dialog preferenze |
 | Q4 | UI gestione alias | GtkTreeView editabile, alias CSV in colonna singola |
 | Q5 | Timestamp decadimento | Timestamp UNIX esistente + `launch_count` intero nel stats cache |
 | P1 | Storage alias | **Opzione A — Xfconf** (confermata dall'utente 2026-05-04) |

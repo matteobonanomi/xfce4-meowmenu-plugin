@@ -425,7 +425,7 @@ dell'app dall'utente).
 
 ---
 
-## 9. Modulo G — Tab "Search" in `settings-dialog.{h,cpp}`
+## 9. Modulo G — Tab "Advanced Search" in `settings-dialog.{h,cpp}`
 
 ### 9.1 Nuovo metodo
 
@@ -437,33 +437,65 @@ GtkWidget* init_search_tab();
 Il metodo segue esattamente il pattern degli altri `init_*_tab()`:
 costruisce il widget del tab, connette i segnali, ritorna il `GtkWidget*`.
 Il tab è aggiunto al `GtkNotebook` nel costruttore `SettingsDialog()`,
-dopo il tab "Search Actions" esistente.
+dopo il tab "Search Actions" esistente, con label `_("_Advanced Search")`.
 
-### 9.2 Layout del tab
+### 9.2 Funzione helper `make_info_frame`
+
+```cpp
+// settings-dialog.cpp (file-scope, prima di init_search_tab)
+static GtkWidget* make_info_frame(const gchar* title,
+                                   GtkWidget*   content,
+                                   const gchar* info_text);
+```
+
+Crea un `GtkFrame` con:
+- **Intestazione**: `GtkBox` orizzontale con `[<b>title</b>]` + pulsante `"?"`.
+- Il pulsante "?" è `GTK_RELIEF_NONE`, on-click mostra un `GtkPopover`
+  con `GtkLabel` (testo `info_text`, wrap 45 chars, margini 8px).
+- Il popover è creato con `gtk_popover_new(info_btn)` e mostrato con
+  `gtk_popover_popup()`.
+
+### 9.3 Layout del tab
 
 ```
 [GtkBox vertical, spacing=6]
-  ── Sezione "Fuzzy Search" ─────────────────────
-  GtkSwitch   "Abilita fuzzy search"          → fuzzy_enabled
-              "Trova risultati anche con piccoli errori di battitura"
-  GtkSpinButton [1-2, + label "(adattivo)"]   → fuzzy_threshold (0=adattivo)
-              "Numero massimo di errori tollerati"
-  ── Sezione "Boost Utilizzo" ────────────────────
-  GtkSwitch   "Abilita boost preferiti"       → favorites_boost_enabled
-              "Le app nei Preferiti compaiono prima a parità di rilevanza"
-  GtkComboBoxText [Bassa/Media/Alta]           → favorites_boost_level
-              "Intensità vantaggio per le app preferite"
-  GtkScale 0–100 (step 5)                     → frecency_alpha
-              "Peso recenza vs frequenza (alto = più recenza)"
-              label sinistro "Frequenza"  label destro "Recenza"
-  ── Sezione "Alias" ─────────────────────────────
-  GtkTreeView (due colonne: App | Alias CSV)  → aliases
-  [Aggiungi] [Rimuovi]
-  ── Footer ──────────────────────────────────────
-  GtkButton "Ripristina valori predefiniti"
+  ┌─ Fuzzy Search ─────────────────────────── [?] ─┐
+  │  GtkBox orizz:                                   │
+  │    [Fuzzy matching:] [GtkSwitch]                 │
+  │    [sep] [Max errors (0=auto):] [GtkSpinButton]  │
+  └──────────────────────────────────────────────────┘
+  ┌─ Usage Boost ──────────────────────────── [?] ─┐
+  │  GtkGrid:                                        │
+  │  row0: GtkBox orizz:                             │
+  │    [Boost favorites:] [GtkSwitch]                │
+  │    [sep] [Boost level:] [GtkComboBoxText]        │
+  │  row1: [Recency weight (%):] [GtkScale 0–100]   │
+  │  row2: (testo hint piccolo, sempre visibile)     │
+  └──────────────────────────────────────────────────┘
+  ┌─ Application Aliases ───────────────────────────┐
+  │  GtkTreeView (App | Alias CSV)                   │
+  │  [Add] [Remove]                                  │
+  └──────────────────────────────────────────────────┘
+  ── Footer ──────────────────────────────────────────
+  GtkButton "Reset to Defaults"  [allineato a destra]
 ```
 
-### 9.3 Alias TreeView — dettagli
+**Testo info popover — "Fuzzy Search":**
+> "Finds apps even when you mistype a word.\n
+> Example: \"firfox\" still finds Firefox.\n
+> Max errors 0 = automatic (1 for short queries, 2 for longer ones)."
+
+**Testo info popover — "Usage Boost":**
+> "Promotes apps you use frequently or marked as favorites.\n
+> Favorites always appear before non-favorites at equal relevance.\n
+> Recency weight controls the balance between how recently vs.\n
+> how often you launched an app."
+
+**Testo hint recency (sempre visibile, sotto la scala):**
+> "Higher = more weight to recently launched apps; lower = more weight
+> to launch frequency."  (font PANGO_SCALE_SMALL)
+
+### 9.4 Alias TreeView — dettagli
 
 | Colonna | Tipo renderer | Editabile | Contenuto |
 |---|---|---|---|
@@ -478,7 +510,7 @@ Il pulsante "Aggiungi" apre un selettore di app (popup con lista dei
 launcher caricati) per associare un desktop-id alla nuova riga, evitando
 che l'utente debba digitare il nome a mano (RF-06 R6.4 aggiornata in R4.4).
 
-### 9.4 Save su chiusura
+### 9.5 Save su chiusura
 
 In `SettingsDialog::response()` (pattern già presente per `search_actions`),
 aggiungere:

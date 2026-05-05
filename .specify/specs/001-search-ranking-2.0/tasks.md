@@ -87,17 +87,17 @@
 
 ---
 
-## Phase 6 — US4: Settings UI — Tab "Search"
+## Phase 6 — US4: Settings UI — Tab "Advanced Search"
 
-**Goal**: Tutte le nuove opzioni sono accessibili dall'interfaccia grafica delle Preferenze, con reset a default.
+**Goal**: Tutte le nuove opzioni sono accessibili dall'interfaccia grafica delle Preferenze, con reset a default. Il tab è denominato "Advanced Search". Ogni sezione ha un pulsante "?" con spiegazione in popover; Fuzzy matching + Max errors sono sulla stessa riga; Boost favorites + Level sono sulla stessa riga.
 
-**Test indipendente**: Aprire Impostazioni Whisker → verificare presenza tab "Search" → verificare presenza di tutti i controlli → modificare un'opzione → chiudere e riaprire: l'opzione è mantenuta → premere "Ripristina": torna al default.
+**Test indipendente**: Aprire Impostazioni Whisker → verificare presenza tab "Advanced Search" → verificare che fuzzy switch e spinbutton siano affiancati → verificare che boost switch e combo siano affiancati → cliccare "?" delle sezioni → leggi spiegazione → modificare un'opzione → chiudere e riaprire: l'opzione è mantenuta → premere "Reset": torna al default.
 
 - [X] T020 [US4] In `panel-plugin/settings-dialog.h`: dichiarare `GtkWidget* init_search_tab()`; aggiungere membri widget per il tab Search: `GtkWidget* m_fuzzy_enabled`, `GtkWidget* m_fuzzy_threshold`, `GtkWidget* m_favorites_boost_enabled`, `GtkWidget* m_favorites_boost_level`, `GtkWidget* m_frecency_alpha`, `GtkTreeView* m_aliases_view`, `GtkListStore* m_aliases_model`, `GtkWidget* m_alias_add`, `GtkWidget* m_alias_remove` — dipende da T005, T006
-- [X] T021 [US4] Implementare `SettingsDialog::init_search_tab()` in `panel-plugin/settings-dialog.cpp`: costruire GtkBox con le sezioni "Fuzzy Search", "Boost Utilizzo", "Alias" come descritto nel piano §9.2; ogni widget collegato al valore corrente della rispettiva impostazione; label descrittive di una frase per ogni controllo — dipende da T020
+- [X] T021 [US4] Implementare `SettingsDialog::init_search_tab()` in `panel-plugin/settings-dialog.cpp` secondo il layout aggiornato (piano §9.3): (a) aggiungere helper file-scope `make_info_frame(title, content, info_text)` che crea `GtkFrame` con intestazione `[<b>title</b>][?]` — il "?" mostra un `GtkPopover` con spiegazione on-click; (b) sezione "Fuzzy Search": fuzzy switch e spinbutton Max errors affiancati in `GtkBox` orizzontale su una sola riga; (c) sezione "Usage Boost": boost switch e combo Level affiancati su una sola riga; (d) riga "Recency weight" con hint testuale sempre visibile sotto il cursore (font piccolo); (e) ogni sezione avvolto in `make_info_frame` con testo popover appropriato — dipende da T020
 - [X] T022 [US4] In `SettingsDialog::init_search_tab()`: implementare la sezione Alias con `GtkTreeView` a tre colonne (App display name, Aliases CSV, desktop-id nascosto); pulsante "Aggiungi" apre popup con lista launcher per selezionare l'app target; pulsante "Rimuovi" elimina la riga selezionata; la colonna Aliases è editabile inline (renderer text editabile); popolare il model con i dati da `m_settings->aliases` — dipende da T021
-- [X] T023 [US4] Aggiungere pulsante "Ripristina valori predefiniti" in fondo al tab Search: al click, resetta `fuzzy_enabled`, `fuzzy_threshold`, `favorites_boost_enabled`, `favorites_boost_level`, `frecency_alpha` ai rispettivi default e svuota `m_aliases_model` — dipende da T021
-- [X] T024 [US4] In `SettingsDialog::SettingsDialog()` (costruttore) in `panel-plugin/settings-dialog.cpp`: chiamare `init_search_tab()` e aggiungere il tab al `GtkNotebook` dopo il tab "Search Actions" esistente, con label `_("Search")` (stringa traducibile) — dipende da T021
+- [X] T023 [US4] Aggiungere pulsante "Reset to Defaults" in fondo al tab: al click, resetta `fuzzy_enabled`, `fuzzy_threshold`, `favorites_boost_enabled`, `favorites_boost_level`, `frecency_alpha` ai rispettivi default e svuota `m_aliases_model` — dipende da T021
+- [X] T024 [US4] In `SettingsDialog::SettingsDialog()` (costruttore) in `panel-plugin/settings-dialog.cpp`: aggiornare la label del tab da `_("_Search")` a `_("_Advanced Search")` — dipende da T021
 - [X] T025 [US4] In `SettingsDialog::response()` in `panel-plugin/settings-dialog.cpp`: aggiungere `m_settings->save_aliases(m_settings->get_channel())` al momento della chiusura del dialog (stesso pattern di `search_actions` save in `plugin.cpp:346-352`) — dipende da T022
 
 **Checkpoint**: AC-09 verificato (reset impostazioni). AC-12 verificato (configurazione persiste). AC-14 verificato (alias persiste). AC-15 verificato (eliminazione stats cache non causa crash).

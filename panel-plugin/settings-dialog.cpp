@@ -79,6 +79,50 @@ static GtkWidget* make_aligned_frame(const gchar* text, GtkWidget* content)
 
 //-----------------------------------------------------------------------------
 
+// Frame with bold title and a "?" button that shows an info popover on click.
+static GtkWidget* make_info_frame(const gchar* title, GtkWidget* content, const gchar* info_text)
+{
+	// Header box: [<b>title</b>] [?]
+	GtkWidget* header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+
+	gchar* markup = g_markup_printf_escaped("<b>%s</b>", title);
+	GtkWidget* title_label = gtk_label_new(nullptr);
+	gtk_label_set_markup(GTK_LABEL(title_label), markup);
+	g_free(markup);
+	gtk_box_pack_start(GTK_BOX(header_box), title_label, false, false, 0);
+
+	GtkWidget* info_btn = gtk_button_new_with_label("?");
+	gtk_button_set_relief(GTK_BUTTON(info_btn), GTK_RELIEF_NONE);
+	gtk_widget_set_valign(info_btn, GTK_ALIGN_CENTER);
+
+	GtkWidget* popover = gtk_popover_new(info_btn);
+	GtkWidget* pop_label = gtk_label_new(info_text);
+	gtk_label_set_line_wrap(GTK_LABEL(pop_label), true);
+	gtk_label_set_max_width_chars(GTK_LABEL(pop_label), 45);
+	gtk_widget_set_margin_start(pop_label, 8);
+	gtk_widget_set_margin_end(pop_label, 8);
+	gtk_widget_set_margin_top(pop_label, 8);
+	gtk_widget_set_margin_bottom(pop_label, 8);
+	gtk_widget_show(pop_label);
+	gtk_container_add(GTK_CONTAINER(popover), pop_label);
+	g_signal_connect_swapped(info_btn, "clicked", G_CALLBACK(gtk_popover_popup), popover);
+
+	gtk_box_pack_start(GTK_BOX(header_box), info_btn, false, false, 0);
+	gtk_widget_show_all(header_box);
+
+	GtkWidget* frame = gtk_frame_new(nullptr);
+	gtk_frame_set_label_widget(GTK_FRAME(frame), header_box);
+	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_NONE);
+
+	gtk_widget_set_margin_start(content, 12);
+	gtk_widget_set_margin_top(content, 6);
+	gtk_container_add(GTK_CONTAINER(frame), content);
+
+	return frame;
+}
+
+//-----------------------------------------------------------------------------
+
 SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	m_settings(settings),
 	m_plugin(plugin)
@@ -107,7 +151,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	gtk_notebook_append_page(notebook, init_behavior_tab(), gtk_label_new_with_mnemonic(_("_Behavior")));
 	gtk_notebook_append_page(notebook, init_commands_tab(), gtk_label_new_with_mnemonic(_("_Commands")));
 	gtk_notebook_append_page(notebook, init_search_actions_tab(), gtk_label_new_with_mnemonic(_("Search Actio_ns")));
-	gtk_notebook_append_page(notebook, init_search_tab(), gtk_label_new_with_mnemonic(_("_Search")));
+	gtk_notebook_append_page(notebook, init_search_tab(), gtk_label_new_with_mnemonic(_("_Advanced Search")));
 
 	// Add tabs to dialog
 	GtkBox* vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 8));
@@ -1201,22 +1245,23 @@ GtkWidget* SettingsDialog::init_search_tab()
 	GtkBox* vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 6));
 	gtk_container_set_border_width(GTK_CONTAINER(vbox), 12);
 
-	// Fuzzy Search section
+	// Fuzzy Search section — switch and spinbutton on one row
 	{
-		GtkGrid* grid = GTK_GRID(gtk_grid_new());
-		gtk_grid_set_column_spacing(grid, 6);
-		gtk_grid_set_row_spacing(grid, 6);
+		GtkBox* row = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8));
+		gtk_widget_set_margin_bottom(GTK_WIDGET(row), 2);
 
-		GtkWidget* label = gtk_label_new_with_mnemonic(_("_Fuzzy matching:"));
-		gtk_widget_set_halign(label, GTK_ALIGN_START);
-		gtk_grid_attach(grid, label, 0, 0, 1, 1);
+		GtkWidget* lbl_fuzzy = gtk_label_new_with_mnemonic(_("_Fuzzy matching:"));
+		gtk_widget_set_halign(lbl_fuzzy, GTK_ALIGN_START);
+		gtk_widget_set_valign(lbl_fuzzy, GTK_ALIGN_CENTER);
+		gtk_box_pack_start(row, lbl_fuzzy, false, false, 0);
 
 		m_fuzzy_enabled = gtk_switch_new();
 		gtk_widget_set_halign(m_fuzzy_enabled, GTK_ALIGN_START);
+		gtk_widget_set_valign(m_fuzzy_enabled, GTK_ALIGN_CENTER);
 		gtk_switch_set_active(GTK_SWITCH(m_fuzzy_enabled),
 		                      static_cast<bool>(m_settings->fuzzy_enabled));
-		gtk_grid_attach(grid, m_fuzzy_enabled, 1, 0, 1, 1);
-		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_fuzzy_enabled);
+		gtk_box_pack_start(row, m_fuzzy_enabled, false, false, 0);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_fuzzy), m_fuzzy_enabled);
 
 		connect(m_fuzzy_enabled, "notify::active",
 			[this](GObject* obj, GParamSpec*)
@@ -1226,18 +1271,23 @@ GtkWidget* SettingsDialog::init_search_tab()
 				                        gtk_switch_get_active(GTK_SWITCH(obj)));
 			});
 
-		label = gtk_label_new_with_mnemonic(_("Max _errors (0=auto):"));
-		gtk_widget_set_halign(label, GTK_ALIGN_START);
-		gtk_grid_attach(grid, label, 0, 1, 1, 1);
+		gtk_box_pack_start(row,
+		    gtk_separator_new(GTK_ORIENTATION_VERTICAL), false, false, 4);
+
+		GtkWidget* lbl_errors = gtk_label_new_with_mnemonic(_("Max _errors (0=auto):"));
+		gtk_widget_set_halign(lbl_errors, GTK_ALIGN_START);
+		gtk_widget_set_valign(lbl_errors, GTK_ALIGN_CENTER);
+		gtk_box_pack_start(row, lbl_errors, false, false, 0);
 
 		m_fuzzy_threshold = gtk_spin_button_new_with_range(0, 2, 1);
 		gtk_widget_set_halign(m_fuzzy_threshold, GTK_ALIGN_START);
+		gtk_widget_set_valign(m_fuzzy_threshold, GTK_ALIGN_CENTER);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_fuzzy_threshold),
 		                          static_cast<double>(static_cast<int>(m_settings->fuzzy_threshold)));
 		gtk_widget_set_sensitive(m_fuzzy_threshold,
 		                         static_cast<bool>(m_settings->fuzzy_enabled));
-		gtk_grid_attach(grid, m_fuzzy_threshold, 1, 1, 1, 1);
-		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_fuzzy_threshold);
+		gtk_box_pack_start(row, m_fuzzy_threshold, false, false, 0);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_errors), m_fuzzy_threshold);
 
 		connect(m_fuzzy_threshold, "value-changed",
 			[this](GtkSpinButton* btn)
@@ -1245,26 +1295,35 @@ GtkWidget* SettingsDialog::init_search_tab()
 				m_settings->fuzzy_threshold = gtk_spin_button_get_value_as_int(btn);
 			});
 
-		gtk_box_pack_start(vbox, make_aligned_frame(_("Fuzzy Search"), GTK_WIDGET(grid)),
-		                   false, false, 0);
+		gtk_box_pack_start(vbox,
+		    make_info_frame(_("Fuzzy Search"), GTK_WIDGET(row),
+		        _("Finds apps even when you mistype a word.\n"
+		          "Example: \"firfox\" still finds Firefox.\n"
+		          "Max errors 0 = automatic (1 for short queries, 2 for longer ones).")),
+		    false, false, 0);
 	}
 
-	// Usage Boost section
+	// Usage Boost section — boost switch + level combo on one row; recency on its own row
 	{
 		GtkGrid* grid = GTK_GRID(gtk_grid_new());
-		gtk_grid_set_column_spacing(grid, 6);
+		gtk_grid_set_column_spacing(grid, 12);
 		gtk_grid_set_row_spacing(grid, 6);
 
-		GtkWidget* label = gtk_label_new_with_mnemonic(_("_Boost favorites:"));
-		gtk_widget_set_halign(label, GTK_ALIGN_START);
-		gtk_grid_attach(grid, label, 0, 0, 1, 1);
+		// Row 0: boost favorites switch and level combo affiancati
+		GtkBox* boost_row = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8));
+
+		GtkWidget* lbl_boost = gtk_label_new_with_mnemonic(_("_Boost favorites:"));
+		gtk_widget_set_halign(lbl_boost, GTK_ALIGN_START);
+		gtk_widget_set_valign(lbl_boost, GTK_ALIGN_CENTER);
+		gtk_box_pack_start(boost_row, lbl_boost, false, false, 0);
 
 		m_favorites_boost_enabled = gtk_switch_new();
 		gtk_widget_set_halign(m_favorites_boost_enabled, GTK_ALIGN_START);
+		gtk_widget_set_valign(m_favorites_boost_enabled, GTK_ALIGN_CENTER);
 		gtk_switch_set_active(GTK_SWITCH(m_favorites_boost_enabled),
 		                      static_cast<bool>(m_settings->favorites_boost_enabled));
-		gtk_grid_attach(grid, m_favorites_boost_enabled, 1, 0, 1, 1);
-		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_favorites_boost_enabled);
+		gtk_box_pack_start(boost_row, m_favorites_boost_enabled, false, false, 0);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_boost), m_favorites_boost_enabled);
 
 		connect(m_favorites_boost_enabled, "notify::active",
 			[this](GObject* obj, GParamSpec*)
@@ -1274,12 +1333,17 @@ GtkWidget* SettingsDialog::init_search_tab()
 				                        gtk_switch_get_active(GTK_SWITCH(obj)));
 			});
 
-		label = gtk_label_new_with_mnemonic(_("Boost _level:"));
-		gtk_widget_set_halign(label, GTK_ALIGN_START);
-		gtk_grid_attach(grid, label, 0, 1, 1, 1);
+		gtk_box_pack_start(boost_row,
+		    gtk_separator_new(GTK_ORIENTATION_VERTICAL), false, false, 4);
+
+		GtkWidget* lbl_level = gtk_label_new_with_mnemonic(_("Boost _level:"));
+		gtk_widget_set_halign(lbl_level, GTK_ALIGN_START);
+		gtk_widget_set_valign(lbl_level, GTK_ALIGN_CENTER);
+		gtk_box_pack_start(boost_row, lbl_level, false, false, 0);
 
 		m_favorites_boost_level = gtk_combo_box_text_new();
 		gtk_widget_set_halign(m_favorites_boost_level, GTK_ALIGN_START);
+		gtk_widget_set_valign(m_favorites_boost_level, GTK_ALIGN_CENTER);
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("Low"));
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("Medium"));
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("High"));
@@ -1287,8 +1351,8 @@ GtkWidget* SettingsDialog::init_search_tab()
 		                         static_cast<int>(m_settings->favorites_boost_level) - 1);
 		gtk_widget_set_sensitive(m_favorites_boost_level,
 		                         static_cast<bool>(m_settings->favorites_boost_enabled));
-		gtk_grid_attach(grid, m_favorites_boost_level, 1, 1, 1, 1);
-		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_favorites_boost_level);
+		gtk_box_pack_start(boost_row, m_favorites_boost_level, false, false, 0);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_level), m_favorites_boost_level);
 
 		connect(m_favorites_boost_level, "changed",
 			[this](GtkComboBox* combo)
@@ -1296,17 +1360,21 @@ GtkWidget* SettingsDialog::init_search_tab()
 				m_settings->favorites_boost_level = gtk_combo_box_get_active(combo) + 1;
 			});
 
-		label = gtk_label_new_with_mnemonic(_("Recency _weight (%):"));
-		gtk_widget_set_halign(label, GTK_ALIGN_START);
-		gtk_grid_attach(grid, label, 0, 2, 1, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(boost_row), 0, 0, 2, 1);
+
+		// Row 1: recency weight slider
+		GtkWidget* lbl_recency = gtk_label_new_with_mnemonic(_("Recency _weight (%):"));
+		gtk_widget_set_halign(lbl_recency, GTK_ALIGN_START);
+		gtk_widget_set_valign(lbl_recency, GTK_ALIGN_CENTER);
+		gtk_grid_attach(grid, lbl_recency, 0, 1, 1, 1);
 
 		m_frecency_alpha = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
 		gtk_widget_set_hexpand(m_frecency_alpha, true);
 		gtk_scale_set_value_pos(GTK_SCALE(m_frecency_alpha), GTK_POS_RIGHT);
 		gtk_range_set_value(GTK_RANGE(m_frecency_alpha),
 		                    static_cast<double>(static_cast<int>(m_settings->frecency_alpha)));
-		gtk_grid_attach(grid, m_frecency_alpha, 1, 2, 1, 1);
-		gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_frecency_alpha);
+		gtk_grid_attach(grid, m_frecency_alpha, 1, 1, 1, 1);
+		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_recency), m_frecency_alpha);
 
 		connect(m_frecency_alpha, "value-changed",
 			[this](GtkRange* range)
@@ -1314,8 +1382,25 @@ GtkWidget* SettingsDialog::init_search_tab()
 				m_settings->frecency_alpha = static_cast<int>(gtk_range_get_value(range));
 			});
 
-		gtk_box_pack_start(vbox, make_aligned_frame(_("Usage Boost"), GTK_WIDGET(grid)),
-		                   false, false, 0);
+		// Row 2: small always-visible hint for recency weight
+		GtkWidget* recency_hint = gtk_label_new(
+		    _("Higher = more weight to recently launched apps; "
+		      "lower = more weight to launch frequency."));
+		gtk_label_set_line_wrap(GTK_LABEL(recency_hint), true);
+		gtk_widget_set_halign(recency_hint, GTK_ALIGN_START);
+		PangoAttrList* attrs = pango_attr_list_new();
+		pango_attr_list_insert(attrs, pango_attr_scale_new(PANGO_SCALE_SMALL));
+		gtk_label_set_attributes(GTK_LABEL(recency_hint), attrs);
+		pango_attr_list_unref(attrs);
+		gtk_grid_attach(grid, recency_hint, 0, 2, 2, 1);
+
+		gtk_box_pack_start(vbox,
+		    make_info_frame(_("Usage Boost"), GTK_WIDGET(grid),
+		        _("Promotes apps you use frequently or marked as favorites.\n"
+		          "Favorites always appear before non-favorites at equal relevance.\n"
+		          "Recency weight controls the balance between how recently vs.\n"
+		          "how often you launched an app.")),
+		    false, false, 0);
 	}
 
 	// Application Aliases section
