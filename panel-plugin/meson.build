@@ -62,14 +62,14 @@ plugin_lib = shared_module(
   install_dir: get_option('prefix') / get_option('libdir') / plugin_install_subdir,
 )
 
-popup_whiskermenu_sources = [
-  'xfce4-popup-whiskermenu.cpp',
+popup_meowmenu_sources = [
+  'xfce4-popup-meowmenu.cpp',
   xfce_revision_h,
 ]
 
-popup_whiskermenu = executable(
-  'xfce4-popup-whiskermenu',
-  popup_whiskermenu_sources,
+popup_meowmenu = executable(
+  'xfce4-popup-meowmenu',
+  popup_meowmenu_sources,
   dependencies: [
     gio,
     glib,
@@ -88,4 +88,4 @@ i18n.merge_file(
   install_dir: get_option('prefix') / get_option('datadir') / plugin_install_subdir,
 )
 
-install_man('xfce4-popup-whiskermenu.1')
+install_man('xfce4-popup-meowmenu.1')

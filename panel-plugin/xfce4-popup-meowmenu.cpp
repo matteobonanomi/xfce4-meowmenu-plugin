@@ -53,7 +53,7 @@ static int listInstances()
 	}
 	xfconf_array_free(values);
 
-	// Find Whisker Menu plugins
+	// Find MeowMenu plugins
 	for (const std::string& panel : panels)
 	{
 		values = xfconf_channel_get_arrayv(channel, panel.c_str());
@@ -73,7 +73,7 @@ static int listInstances()
 
 			gchar* plugin = g_strdup_printf("/plugins/plugin-%d", instance);
 			gchar* name = xfconf_channel_get_string(channel, plugin, nullptr);
-			if (g_strcmp0(name, "whiskermenu") == 0)
+			if (g_strcmp0(name, "meowmenu") == 0)
 			{
 				std::cout << instance << std::endl;
 			}
@@ -155,8 +155,8 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	// Tell panel to call remote-event on Whisker Menu
-	const std::string instance = !instance_number ? "whiskermenu" : ("whiskermenu-" + std::to_string(instance_number));
+	// Tell panel to call remote-event on MeowMenu
+	const std::string instance = !instance_number ? "meowmenu" : ("meowmenu-" + std::to_string(instance_number));
 
 	int result = EXIT_SUCCESS;
 	GVariant* variant = g_variant_new_variant(g_variant_new_int32(at_pointer + (at_center * 2)));

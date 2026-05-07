@@ -18,7 +18,7 @@ L'unità di compilazione produce due binari:
 | Binario | Tipo | Sorgente principale | Scopo |
 |---|---|---|---|
 | `libwhiskermenu.so` | `shared_module` | `panel-plugin/*.cpp` + `register-plugin.c` | Plugin caricato dal pannello Xfce |
-| `xfce4-popup-whiskermenu` | `executable` | `panel-plugin/xfce4-popup-whiskermenu.cpp` | CLI che chiede al pannello via D-Bus di mostrare il menu |
+| `xfce4-popup-meowmenu` | `executable` | `panel-plugin/xfce4-popup-meowmenu.cpp` | CLI che chiede al pannello via D-Bus di mostrare il menu |
 
 Architettura riassunta:
 
@@ -54,7 +54,7 @@ Architettura riassunta:
             └─ LauncherIconView
 ```
 
-`xfce4-popup-whiskermenu` non interagisce direttamente con il plugin: si limita
+`xfce4-popup-meowmenu` non interagisce direttamente con il plugin: si limita
 a chiamare `org.xfce.Panel.PluginEvent("whiskermenu", "popup", ...)` su D-Bus.
 Il pannello consegna l'evento al plugin tramite il segnale `remote-event` —
 gestito da `Plugin::remote_event` in [panel-plugin/plugin.cpp](panel-plugin/plugin.cpp:381).
@@ -74,7 +74,7 @@ CLAUDE.md citi una directory `src/`, qui la convenzione upstream è
 |---|---|
 | [register-plugin.c](panel-plugin/register-plugin.c) | Macro `XFCE_PANEL_PLUGIN_REGISTER(whiskermenu_construct)` — l'unico file C; espone il symbol che il pannello cerca. |
 | [plugin.h](panel-plugin/plugin.h) / [plugin.cpp](panel-plugin/plugin.cpp) | Classe `Plugin`. Crea `Settings` e `Window`, costruisce il pulsante del pannello, collega tutti i segnali Xfce (`configure-plugin`, `mode-changed`, `remote-event`, `about`, `size-changed`, `free-data`). |
-| [xfce4-popup-whiskermenu.cpp](panel-plugin/xfce4-popup-whiskermenu.cpp) | Eseguibile CLI; opzioni `--pointer/--center/--list/--instance/--version`. Usa `xfconf` per enumerare le istanze del plugin nei pannelli e `gdbus` per inviare l'evento `popup`. |
+| [xfce4-popup-meowmenu.cpp](panel-plugin/xfce4-popup-meowmenu.cpp) | Eseguibile CLI; opzioni `--pointer/--center/--list/--instance/--version`. Usa `xfconf` per enumerare le istanze del plugin nei pannelli e `gdbus` per inviare l'evento `popup`. |
 
 ### 2.2 Finestra del menu e layout
 
@@ -139,7 +139,7 @@ CLAUDE.md citi una directory `src/`, qui la convenzione upstream è
 | `icons/` | Icone PNG/SVG del plugin (pulsante pannello, voci menu). |
 | `po/` | Traduzioni gettext; aggiornate spesso (vedi git log). |
 | `panel-plugin/whiskermenu.desktop.in` | `.desktop` del plugin per il pannello. |
-| `panel-plugin/xfce4-popup-whiskermenu.1` | Manpage della CLI. |
+| `panel-plugin/xfce4-popup-meowmenu.1` | Manpage della CLI. |
 | `xfce-revision.h.in` | Template per iniettare lo SHA git via `vcs_tag`. |
 | `meson_options.txt` | Opzioni build (accountsservice, gtk-layer-shell). |
 
@@ -170,7 +170,7 @@ Window::show(PositionAtButton)
 ### 3.2 Via D-Bus / scorciatoia da tastiera
 
 ```
-xfce4-popup-whiskermenu [--pointer|--center|--instance N]
+xfce4-popup-meowmenu [--pointer|--center|--instance N]
         │  g_dbus_proxy_call_sync("PluginEvent", "whiskermenu", "popup", int)
         ▼
 xfce4-panel  ─── segnale "remote-event" ───►  Plugin::remote_event()  [plugin.cpp:381]
