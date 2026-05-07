@@ -90,6 +90,10 @@ Resizer::Resizer(Edge edge, Window* window) :
 
 			m_window->resize(delta_x * m_delta_x, delta_y * m_delta_y, delta_x * m_delta_width, delta_y * m_delta_height);
 
+			// Update anchor so next event gives an incremental delta, not cumulative.
+			m_x = event_button->x;
+			m_y = event_button->y;
+
 			return GDK_EVENT_STOP;
 		});
 

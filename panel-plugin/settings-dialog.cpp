@@ -27,6 +27,8 @@
 #include "settings.h"
 #include "slot.h"
 #include "window.h"
+#include "preset.h"
+#include "preset-io.h"
 
 #include <algorithm>
 
@@ -144,21 +146,59 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 			response(response_id);
 		});
 
-	// Create tabs
-	GtkNotebook* notebook = GTK_NOTEBOOK(gtk_notebook_new());
-	gtk_notebook_append_page(notebook, init_general_tab(), gtk_label_new_with_mnemonic(_("_General")));
-	gtk_notebook_append_page(notebook, init_appearance_tab(), gtk_label_new_with_mnemonic(_("_Appearance")));
-	gtk_notebook_append_page(notebook, init_behavior_tab(), gtk_label_new_with_mnemonic(_("_Behavior")));
-	gtk_notebook_append_page(notebook, init_commands_tab(), gtk_label_new_with_mnemonic(_("_Commands")));
-	gtk_notebook_append_page(notebook, init_search_actions_tab(), gtk_label_new_with_mnemonic(_("Search Actio_ns")));
-	gtk_notebook_append_page(notebook, init_search_tab(), gtk_label_new_with_mnemonic(_("_Advanced Search")));
+	// Create sidebar navigation
+	GtkStack* stack = GTK_STACK(gtk_stack_new());
+	gtk_stack_set_transition_type(stack, GTK_STACK_TRANSITION_TYPE_NONE);
 
-	// Add tabs to dialog
-	GtkBox* vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 8));
-	gtk_container_set_border_width(GTK_CONTAINER(vbox), 6);
-	gtk_box_pack_start(vbox, GTK_WIDGET(notebook), true, true, 0);
+	auto add_page = [stack](GtkWidget* child, const char* id, const char* title)
+	{
+		GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
+		gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+		gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(scroll), true);
+		gtk_container_add(GTK_CONTAINER(scroll), child);
+		gtk_stack_add_titled(stack, scroll, id, title);
+	};
+
+	add_page(init_general_tab(),        "general",     _("General"));
+	add_page(init_appearance_tab(),     "appearance",  _("Appearance"));
+	add_page(init_behavior_tab(),       "behavior",    _("Behavior"));
+	add_page(init_commands_tab(),       "commands",    _("Commands"));
+	add_page(init_search_actions_tab(), "search-act",  _("Search Actions"));
+	add_page(init_search_tab(),         "adv-search",  _("Advanced Search"));
+
+	GtkStackSidebar* sidebar = GTK_STACK_SIDEBAR(gtk_stack_sidebar_new());
+	gtk_stack_sidebar_set_stack(sidebar, stack);
+	gtk_widget_set_size_request(GTK_WIDGET(sidebar), 160, -1);
+
+	GtkBox* hbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0));
+	gtk_box_pack_start(hbox, GTK_WIDGET(sidebar), false, false, 0);
+	gtk_box_pack_start(hbox, gtk_separator_new(GTK_ORIENTATION_VERTICAL), false, false, 0);
+	gtk_box_pack_start(hbox, GTK_WIDGET(stack), true, true, 0);
+
 	GtkBox* contents = GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(m_window)));
-	gtk_box_pack_start(contents, GTK_WIDGET(vbox), true, true, 0);
+	gtk_box_pack_start(contents, GTK_WIDGET(hbox), true, true, 0);
+	gtk_window_set_default_size(GTK_WINDOW(m_window), 820, 600);
+
+	// Mirror live menu-width / menu-height changes (e.g. drag-resizing the
+	// menu window) into the spin buttons. The Settings::property_changed slot
+	// is blocked during local writes via begin/end_property_update, but our
+	// dedicated handler is independent, so it fires whenever Xfconf updates.
+	if (m_settings->channel)
+	{
+		m_size_change_slot = g_signal_connect(m_settings->channel, "property-changed",
+			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue* value, gpointer data) -> void
+			{
+				auto* self = static_cast<SettingsDialog*>(data);
+				if (!G_VALUE_HOLDS_INT(value))
+					return;
+				const int v = g_value_get_int(value);
+				if (g_strcmp0(property, "/menu-width") == 0 && self->m_menu_width)
+					gtk_spin_button_set_value(GTK_SPIN_BUTTON(self->m_menu_width), v);
+				else if (g_strcmp0(property, "/menu-height") == 0 && self->m_menu_height)
+					gtk_spin_button_set_value(GTK_SPIN_BUTTON(self->m_menu_height), v);
+			}), this);
+	}
 
 	// Show GTK window
 	gtk_widget_show_all(m_window);
@@ -168,6 +208,12 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 
 SettingsDialog::~SettingsDialog()
 {
+	if (m_size_change_slot && m_settings && m_settings->channel)
+	{
+		g_signal_handler_disconnect(m_settings->channel, m_size_change_slot);
+		m_size_change_slot = 0;
+	}
+
 	for (auto command : m_commands)
 	{
 		delete command;
@@ -364,23 +410,644 @@ void SettingsDialog::response(int response_id)
 
 //-----------------------------------------------------------------------------
 
+void SettingsDialog::refresh_customized_indicator()
+{
+	const gchar* pid = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
+	const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
+	if (preset)
+	{
+		gtk_widget_set_visible(m_preset_customized, compute_preset_diff(*preset, *m_settings));
+	}
+}
+
+void SettingsDialog::sync_preset_widgets()
+{
+	// Update all preset-governed widgets to match the current settings after a preset
+	// is applied. Programmatic updates may fire their normal signal handlers; those
+	// writes back to settings are no-ops (same value), but side effects like
+	// m_grid_section visibility and m_show_descriptions sensitivity are correct.
+
+	// Layout mode first — its handler also shows/hides m_grid_section.
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo),
+		static_cast<const gchar*>(m_settings->layout_mode));
+
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_corner_radius),
+		static_cast<int>(m_settings->corner_radius));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_panel_gap),
+		static_cast<int>(m_settings->panel_gap));
+	gtk_range_set_value(GTK_RANGE(m_categories_opacity),
+		static_cast<int>(m_settings->categories_opacity));
+	gtk_range_set_value(GTK_RANGE(m_apps_opacity),
+		static_cast<int>(m_settings->apps_opacity));
+
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
+		static_cast<const gchar*>(m_settings->sidebar_position));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_search_bar_position_combo),
+		static_cast<const gchar*>(m_settings->search_bar_position));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
+		static_cast<const gchar*>(m_settings->profile_position));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_commands_position_combo),
+		static_cast<const gchar*>(m_settings->commands_position));
+
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_columns),
+		static_cast<int>(m_settings->grid_columns));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_rows),
+		static_cast<int>(m_settings->grid_rows));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
+		static_cast<const gchar*>(m_settings->grid_density));
+
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
+		static_cast<bool>(m_settings->category_hover_activate));
+
+	const int vm = static_cast<int>(m_settings->view_mode);
+	if (vm == Settings::ViewAsIcons)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_icons), true);
+	else if (vm == Settings::ViewAsTree)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_tree), true);
+	else
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_list), true);
+}
+
+void SettingsDialog::refresh_preset_combo(const std::string& select_id)
+{
+	m_loading_preset = true;
+
+	// Preserve active ID before clearing
+	const gchar* current_raw = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
+	std::string active_id = select_id.empty()
+		? (current_raw ? std::string(current_raw) : std::string())
+		: select_id;
+
+	// Rebuild combo entries
+	gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(m_preset_combo));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo), "classic",    _("Classic"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo), "modern",     _("Modern"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo), "fullscreen", _("FullScreen"));
+
+	const auto& user = enumerate_user_presets(m_settings->channel);
+	for (const auto& p : user)
+	{
+		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
+			p.id.c_str(), p.display_name.c_str());
+	}
+
+	// Restore selection
+	if (!active_id.empty())
+	{
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), active_id.c_str());
+	}
+
+	// Update button sensitivity: Rename/Delete only for user presets
+	bool is_user = (gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo)) != nullptr)
+		&& (active_id != "classic")
+		&& (active_id != "modern")
+		&& (active_id != "fullscreen");
+	if (m_preset_rename_btn)
+		gtk_widget_set_sensitive(m_preset_rename_btn, is_user);
+	if (m_preset_delete_btn)
+		gtk_widget_set_sensitive(m_preset_delete_btn, is_user);
+	if (m_preset_export_btn)
+		gtk_widget_set_sensitive(m_preset_export_btn, is_user);
+
+	m_loading_preset = false;
+}
+
+//-----------------------------------------------------------------------------
+
 GtkWidget* SettingsDialog::init_general_tab()
 {
-	// Create general page
-	GtkGrid* page = GTK_GRID(gtk_grid_new());
+	// Create general page — preset hub
+	GtkBox* page = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 12));
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
-	gtk_grid_set_column_spacing(page, 12);
-	gtk_grid_set_row_spacing(page, 6);
 
 
-	// Create box to display view layout
+	// Preset hub section
+	GtkGrid* preset_table = GTK_GRID(gtk_grid_new());
+	gtk_grid_set_column_spacing(preset_table, 12);
+	gtk_grid_set_row_spacing(preset_table, 6);
+
+	GtkWidget* preset_frame = make_aligned_frame(_("Layout Preset"), GTK_WIDGET(preset_table));
+	gtk_box_pack_start(page, preset_frame, false, false, 0);
+
+	// Preset combobox (T091: populated by refresh_preset_combo)
+	GtkWidget* preset_label = gtk_label_new_with_mnemonic(_("_Preset:"));
+	gtk_widget_set_halign(preset_label, GTK_ALIGN_START);
+	gtk_grid_attach(preset_table, preset_label, 0, 0, 1, 1);
+
+	m_preset_combo = gtk_combo_box_text_new();
+	m_preset_rename_btn = nullptr;
+	m_preset_delete_btn = nullptr;
+	m_preset_export_btn = nullptr;
+	gtk_widget_set_hexpand(m_preset_combo, true);
+	gtk_grid_attach(preset_table, m_preset_combo, 1, 0, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(preset_label), m_preset_combo);
+
+	// Preset description label
+	m_preset_description = gtk_label_new("");
+	gtk_label_set_line_wrap(GTK_LABEL(m_preset_description), true);
+	gtk_label_set_xalign(GTK_LABEL(m_preset_description), 0.0f);
+	gtk_widget_set_hexpand(m_preset_description, true);
+	gtk_grid_attach(preset_table, m_preset_description, 0, 1, 2, 1);
+
+	// "Customized" indicator
+	m_preset_customized = gtk_label_new(_("● Customized"));
+	gtk_label_set_xalign(GTK_LABEL(m_preset_customized), 0.0f);
+	gtk_grid_attach(preset_table, m_preset_customized, 0, 2, 2, 1);
+	gtk_widget_hide(m_preset_customized);
+
+	// Preset action buttons row
+	GtkWidget* action_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_margin_top(action_box, 4);
+	gtk_grid_attach(preset_table, action_box, 0, 3, 2, 1);
+
+	GtkWidget* reset_preset_btn = gtk_button_new_with_mnemonic(_("_Reset preset"));
+	gtk_box_pack_start(GTK_BOX(action_box), reset_preset_btn, false, false, 0);
+
+	connect(reset_preset_btn, "clicked",
+		[this](GtkButton*)
+		{
+			const gchar* pid = static_cast<const gchar*>(m_settings->current_preset_id);
+			const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
+			if (!preset)
+			{
+				return;
+			}
+			if (xfce_dialog_confirm(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				"edit-undo", _("_Reset"),
+				_("All customizations will be discarded and the preset values restored."),
+				_("Reset preset \"%s\"?"), _(preset->display_name.c_str())))
+			{
+				apply_preset(*preset, *m_settings);
+				m_plugin->reload_menu();
+				sync_preset_widgets();
+				refresh_customized_indicator();
+			}
+		});
+
+	// Save as new preset… (T090)
+	GtkWidget* save_btn = gtk_button_new_with_mnemonic(_("_Save as new…"));
+	gtk_box_pack_start(GTK_BOX(action_box), save_btn, false, false, 0);
+
+	connect(save_btn, "clicked",
+		[this](GtkButton*)
+		{
+			GtkWidget* dlg = gtk_dialog_new_with_buttons(_("Save as new preset"),
+				GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				GTK_DIALOG_MODAL,
+				_("_Cancel"), GTK_RESPONSE_CANCEL,
+				_("_Save"),   GTK_RESPONSE_OK,
+				nullptr);
+			gtk_dialog_set_default_response(GTK_DIALOG(dlg), GTK_RESPONSE_OK);
+
+			GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
+			GtkWidget* hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+			gtk_container_set_border_width(GTK_CONTAINER(hbox), 12);
+			gtk_box_pack_start(GTK_BOX(content), hbox, false, false, 0);
+
+			GtkWidget* lbl = gtk_label_new_with_mnemonic(_("_Name:"));
+			gtk_box_pack_start(GTK_BOX(hbox), lbl, false, false, 0);
+			GtkWidget* entry = gtk_entry_new();
+			gtk_entry_set_activates_default(GTK_ENTRY(entry), true);
+			gtk_widget_set_hexpand(entry, true);
+			gtk_box_pack_start(GTK_BOX(hbox), entry, true, true, 0);
+			gtk_label_set_mnemonic_widget(GTK_LABEL(lbl), entry);
+
+			gtk_widget_show_all(dlg);
+			if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_OK)
+			{
+				const gchar* name = gtk_entry_get_text(GTK_ENTRY(entry));
+				std::string uuid = save_current_as_user_preset(name ? name : "", *m_settings);
+				if (uuid.empty())
+				{
+					xfce_dialog_show_warning(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+						_("A preset with that name already exists or the name is empty."),
+						"%s", _("Could not save preset"));
+				}
+				else
+				{
+					refresh_preset_combo(uuid);
+					m_plugin->reload_menu();
+					refresh_customized_indicator();
+				}
+			}
+			gtk_widget_destroy(dlg);
+		});
+
+	// Rename… (T090) — enabled only for user presets
+	m_preset_rename_btn = gtk_button_new_with_mnemonic(_("Re_name…"));
+	gtk_widget_set_sensitive(m_preset_rename_btn, false);
+	gtk_box_pack_start(GTK_BOX(action_box), m_preset_rename_btn, false, false, 0);
+
+	connect(m_preset_rename_btn, "clicked",
+		[this](GtkButton*)
+		{
+			const gchar* active_id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
+			if (!active_id)
+				return;
+			const LayoutPreset* preset = find_preset_by_id(std::string(active_id));
+			if (!preset || preset->is_builtin)
+				return;
+
+			GtkWidget* dlg = gtk_dialog_new_with_buttons(_("Rename preset"),
+				GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				GTK_DIALOG_MODAL,
+				_("_Cancel"), GTK_RESPONSE_CANCEL,
+				_("_Rename"), GTK_RESPONSE_OK,
+				nullptr);
+			gtk_dialog_set_default_response(GTK_DIALOG(dlg), GTK_RESPONSE_OK);
+
+			GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
+			GtkWidget* hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+			gtk_container_set_border_width(GTK_CONTAINER(hbox), 12);
+			gtk_box_pack_start(GTK_BOX(content), hbox, false, false, 0);
+
+			GtkWidget* lbl = gtk_label_new_with_mnemonic(_("_Name:"));
+			gtk_box_pack_start(GTK_BOX(hbox), lbl, false, false, 0);
+			GtkWidget* entry = gtk_entry_new();
+			gtk_entry_set_text(GTK_ENTRY(entry), preset->display_name.c_str());
+			gtk_entry_set_activates_default(GTK_ENTRY(entry), true);
+			gtk_widget_set_hexpand(entry, true);
+			gtk_box_pack_start(GTK_BOX(hbox), entry, true, true, 0);
+			gtk_label_set_mnemonic_widget(GTK_LABEL(lbl), entry);
+
+			gtk_widget_show_all(dlg);
+			if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_OK)
+			{
+				const gchar* name = gtk_entry_get_text(GTK_ENTRY(entry));
+				std::string uuid = preset->id;
+				if (!rename_user_preset(uuid, name ? name : "", *m_settings))
+				{
+					xfce_dialog_show_warning(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+						_("A preset with that name already exists or the name is empty."),
+						"%s", _("Could not rename preset"));
+				}
+				else
+				{
+					refresh_preset_combo(uuid);
+				}
+			}
+			gtk_widget_destroy(dlg);
+		});
+
+	// Delete (T090) — enabled only for user presets
+	m_preset_delete_btn = gtk_button_new_with_mnemonic(_("_Delete"));
+	gtk_widget_set_sensitive(m_preset_delete_btn, false);
+	gtk_box_pack_start(GTK_BOX(action_box), m_preset_delete_btn, false, false, 0);
+
+	connect(m_preset_delete_btn, "clicked",
+		[this](GtkButton*)
+		{
+			const gchar* active_id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
+			if (!active_id)
+				return;
+			const LayoutPreset* preset = find_preset_by_id(std::string(active_id));
+			if (!preset || preset->is_builtin)
+				return;
+
+			if (xfce_dialog_confirm(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				"edit-delete", _("_Delete"),
+				_("This preset will be permanently removed."),
+				_("Delete preset \"%s\"?"), preset->display_name.c_str()))
+			{
+				std::string uuid = preset->id;
+				delete_user_preset(uuid, *m_settings);
+				refresh_preset_combo("modern");
+				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
+				m_plugin->reload_menu();
+				sync_preset_widgets();
+				refresh_customized_indicator();
+			}
+		});
+
+	// Export / Import row (T110, T111)
+	GtkWidget* io_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_margin_top(io_box, 2);
+	gtk_grid_attach(preset_table, io_box, 0, 4, 2, 1);
+
+	m_preset_export_btn = gtk_button_new_with_mnemonic(_("E_xport…"));
+	gtk_widget_set_sensitive(m_preset_export_btn, false);
+	gtk_box_pack_start(GTK_BOX(io_box), m_preset_export_btn, false, false, 0);
+
+	connect(m_preset_export_btn, "clicked",
+		[this](GtkButton*)
+		{
+			const gchar* active_id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
+			if (!active_id)
+				return;
+			const LayoutPreset* preset = find_preset_by_id(std::string(active_id));
+			if (!preset || preset->is_builtin)
+				return;
+
+			GtkFileChooserNative* chooser = gtk_file_chooser_native_new(
+				_("Export preset"),
+				GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				GTK_FILE_CHOOSER_ACTION_SAVE,
+				_("_Export"), _("_Cancel"));
+
+			std::string suggested = preset->display_name + ".meowpreset";
+			gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(chooser), suggested.c_str());
+
+			GtkFileFilter* filter = gtk_file_filter_new();
+			gtk_file_filter_set_name(filter, _("MeowMenu preset (*.meowpreset)"));
+			gtk_file_filter_add_pattern(filter, "*.meowpreset");
+			gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(chooser), filter);
+
+			if (gtk_native_dialog_run(GTK_NATIVE_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT)
+			{
+				gchar* path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(chooser));
+				if (path)
+				{
+					if (!export_user_preset(preset->id, std::string(path), *m_settings))
+					{
+						xfce_dialog_show_error(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+							nullptr, "%s", _("Could not export preset."));
+					}
+					g_free(path);
+				}
+			}
+			g_object_unref(chooser);
+		});
+
+	GtkWidget* import_btn = gtk_button_new_with_mnemonic(_("_Import…"));
+	gtk_box_pack_start(GTK_BOX(io_box), import_btn, false, false, 0);
+
+	connect(import_btn, "clicked",
+		[this](GtkButton*)
+		{
+			GtkFileChooserNative* chooser = gtk_file_chooser_native_new(
+				_("Import preset"),
+				GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				GTK_FILE_CHOOSER_ACTION_OPEN,
+				_("_Import"), _("_Cancel"));
+
+			GtkFileFilter* filter = gtk_file_filter_new();
+			gtk_file_filter_set_name(filter, _("MeowMenu preset (*.meowpreset)"));
+			gtk_file_filter_add_pattern(filter, "*.meowpreset");
+			gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(chooser), filter);
+
+			if (gtk_native_dialog_run(GTK_NATIVE_DIALOG(chooser)) != GTK_RESPONSE_ACCEPT)
+			{
+				g_object_unref(chooser);
+				return;
+			}
+			gchar* path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(chooser));
+			g_object_unref(chooser);
+			if (!path)
+				return;
+
+			std::string file_path(path);
+			g_free(path);
+
+			ImportResult result = import_user_preset(file_path, *m_settings);
+
+			if (result.status == ImportStatus::ConflictUser)
+			{
+				GtkWidget* dlg = gtk_message_dialog_new(
+					GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+					GTK_DIALOG_MODAL,
+					GTK_MESSAGE_QUESTION,
+					GTK_BUTTONS_NONE,
+					_("A preset named \"%s\" already exists. What would you like to do?"),
+					result.display_name.c_str());
+				gtk_dialog_add_buttons(GTK_DIALOG(dlg),
+					_("_Overwrite"), 1,
+					_("Re_name"),   2,
+					_("_Cancel"),   GTK_RESPONSE_CANCEL,
+					nullptr);
+				int resp = gtk_dialog_run(GTK_DIALOG(dlg));
+				gtk_widget_destroy(dlg);
+
+				if (resp == 1)
+				{
+					result = import_user_preset(file_path, *m_settings, {}, result.conflict_uuid);
+				}
+				else if (resp == 2)
+				{
+					GtkWidget* ndlg = gtk_dialog_new_with_buttons(_("Rename imported preset"),
+						GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+						GTK_DIALOG_MODAL,
+						_("_Cancel"), GTK_RESPONSE_CANCEL,
+						_("_Import"), GTK_RESPONSE_OK,
+						nullptr);
+					gtk_dialog_set_default_response(GTK_DIALOG(ndlg), GTK_RESPONSE_OK);
+					GtkWidget* ncontent = gtk_dialog_get_content_area(GTK_DIALOG(ndlg));
+					GtkWidget* nhbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+					gtk_container_set_border_width(GTK_CONTAINER(nhbox), 12);
+					gtk_box_pack_start(GTK_BOX(ncontent), nhbox, false, false, 0);
+					GtkWidget* nlbl = gtk_label_new_with_mnemonic(_("_Name:"));
+					gtk_box_pack_start(GTK_BOX(nhbox), nlbl, false, false, 0);
+					GtkWidget* nentry = gtk_entry_new();
+					gtk_entry_set_text(GTK_ENTRY(nentry), result.display_name.c_str());
+					gtk_entry_set_activates_default(GTK_ENTRY(nentry), true);
+					gtk_widget_set_hexpand(nentry, true);
+					gtk_box_pack_start(GTK_BOX(nhbox), nentry, true, true, 0);
+					gtk_label_set_mnemonic_widget(GTK_LABEL(nlbl), nentry);
+					gtk_widget_show_all(ndlg);
+
+					if (gtk_dialog_run(GTK_DIALOG(ndlg)) == GTK_RESPONSE_OK)
+					{
+						const gchar* nname = gtk_entry_get_text(GTK_ENTRY(nentry));
+						result = import_user_preset(file_path, *m_settings,
+							nname ? std::string(nname) : std::string());
+					}
+					else
+					{
+						result.status = ImportStatus::ParseError; // signal: cancelled
+					}
+					gtk_widget_destroy(ndlg);
+				}
+				else
+				{
+					return; // user cancelled
+				}
+			}
+
+			if (result.status == ImportStatus::Ok)
+			{
+				refresh_preset_combo(result.new_uuid);
+			}
+			else if (result.status != ImportStatus::ParseError)
+			{
+				xfce_dialog_show_error(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+					nullptr, "%s: %s", _("Could not import preset"),
+					result.error_message.c_str());
+			}
+		});
+
+	// Reset to defaults (full channel reset)  — T112
+	GtkWidget* defaults_btn = gtk_button_new_with_mnemonic(_("Reset to _defaults"));
+	gtk_widget_set_margin_top(defaults_btn, 8);
+	gtk_widget_set_halign(defaults_btn, GTK_ALIGN_START);
+	gtk_grid_attach(preset_table, defaults_btn, 0, 5, 2, 1);
+
+	connect(defaults_btn, "clicked",
+		[this](GtkButton*)
+		{
+			if (xfce_dialog_confirm(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
+				"edit-undo", _("_Reset"),
+				_("All settings will be reset to defaults and the Modern preset will be applied."),
+				_("Reset all settings to defaults?")))
+			{
+				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
+				m_plugin->reload_menu();
+				sync_preset_widgets();
+				refresh_preset_combo("modern");
+			}
+		});
+
+	// Populate combo (T091) and set initial description
+	refresh_preset_combo(static_cast<const gchar*>(m_settings->current_preset_id)
+		? std::string(static_cast<const gchar*>(m_settings->current_preset_id))
+		: std::string());
+	{
+		const gchar* pid = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
+		const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
+		if (preset)
+		{
+			gtk_label_set_text(GTK_LABEL(m_preset_description), _(preset->description.c_str()));
+		}
+	}
+
+	// Update description and apply preset on combo change (T051, T091)
+	connect(m_preset_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			if (m_loading_preset)
+				return;
+			const gchar* id = gtk_combo_box_get_active_id(combo);
+			if (!id)
+			{
+				return;
+			}
+			const LayoutPreset* preset = find_preset_by_id(std::string(id));
+			if (!preset)
+			{
+				return;
+			}
+			gtk_label_set_text(GTK_LABEL(m_preset_description), _(preset->description.c_str()));
+			apply_preset(*preset, *m_settings);
+			m_plugin->reload_menu();
+			sync_preset_widgets();
+			refresh_customized_indicator();
+			// Update Rename/Delete/Export sensitivity
+			bool is_user = !preset->is_builtin;
+			gtk_widget_set_sensitive(m_preset_rename_btn, is_user);
+			gtk_widget_set_sensitive(m_preset_delete_btn, is_user);
+			gtk_widget_set_sensitive(m_preset_export_btn, is_user);
+		});
+
+
+	// T120: Wayland / FullScreen warning InfoBar
+	// Shown only when FullScreen is active but gtk-layer-shell is unavailable.
+#if defined(HAVE_GTK_LAYER_SHELL)
+	(void)0; // gtk-layer-shell is present — no InfoBar needed
+#else
+	{
+		GtkWidget* infobar = gtk_info_bar_new();
+		gtk_info_bar_set_message_type(GTK_INFO_BAR(infobar), GTK_MESSAGE_WARNING);
+		GtkWidget* infobar_content = gtk_info_bar_get_content_area(GTK_INFO_BAR(infobar));
+		GtkWidget* infobar_label = gtk_label_new(
+			_("FullScreen mode requires gtk-layer-shell on Wayland. "
+			  "The menu will open as a regular window instead."));
+		gtk_label_set_line_wrap(GTK_LABEL(infobar_label), true);
+		gtk_label_set_xalign(GTK_LABEL(infobar_label), 0.0f);
+		gtk_container_add(GTK_CONTAINER(infobar_content), infobar_label);
+
+		const gchar* cur_id = static_cast<const gchar*>(m_settings->current_preset_id);
+		gtk_widget_set_visible(infobar, cur_id && strcmp(cur_id, "fullscreen") == 0);
+		gtk_box_pack_start(page, infobar, false, false, 0);
+	}
+#endif
+
+	// Display preferences section
+	GtkGrid* display_table = GTK_GRID(gtk_grid_new());
+	gtk_grid_set_column_spacing(display_table, 12);
+	gtk_grid_set_row_spacing(display_table, 6);
+
+	GtkWidget* display_frame = make_aligned_frame(_("Display"), GTK_WIDGET(display_table));
+	gtk_box_pack_start(page, display_frame, false, false, 0);
+
+	// Add option to use generic names
+	m_show_generic_names = gtk_check_button_new_with_mnemonic(_("Show generic application _names"));
+	gtk_grid_attach(display_table, m_show_generic_names, 0, 0, 2, 1);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_generic_names), !m_settings->launcher_show_name);
+
+	connect(m_show_generic_names, "toggled",
+		[this](GtkToggleButton* button)
+		{
+			m_settings->launcher_show_name = !gtk_toggle_button_get_active(button);
+			m_plugin->reload_menu();
+		});
+
+	// Add option to show category names
+	m_show_category_names = gtk_check_button_new_with_mnemonic(_("Show cate_gory names"));
+	gtk_grid_attach(display_table, m_show_category_names, 0, 1, 2, 1);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_category_names), m_settings->category_show_name);
+	gtk_widget_set_sensitive(m_show_category_names, (m_settings->category_icon_size != -1) && !m_settings->position_categories_horizontal);
+
+	connect(m_show_category_names, "toggled",
+		[this](GtkToggleButton* button)
+		{
+			m_settings->category_show_name = gtk_toggle_button_get_active(button);
+		});
+
+	// Add option to show tooltips
+	m_show_tooltips = gtk_check_button_new_with_mnemonic(_("Show application too_ltips"));
+	gtk_grid_attach(display_table, m_show_tooltips, 0, 2, 2, 1);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_tooltips), m_settings->launcher_show_tooltip);
+
+	connect(m_show_tooltips, "toggled",
+		[this](GtkToggleButton* button)
+		{
+			m_settings->launcher_show_tooltip = gtk_toggle_button_get_active(button);
+		});
+
+	// Add option to show descriptions
+	m_show_descriptions = gtk_check_button_new_with_mnemonic(_("Show application _descriptions"));
+	gtk_grid_attach(display_table, m_show_descriptions, 0, 3, 2, 1);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_descriptions), m_settings->launcher_show_description);
+	gtk_widget_set_sensitive(m_show_descriptions, m_settings->view_mode != Settings::ViewAsIcons);
+
+	connect(m_show_descriptions, "toggled",
+		[this](GtkToggleButton* button)
+		{
+			m_settings->launcher_show_description = gtk_toggle_button_get_active(button);
+			m_plugin->reload_menu();
+		});
+
+	return GTK_WIDGET(page);
+}
+
+//-----------------------------------------------------------------------------
+
+GtkWidget* SettingsDialog::init_appearance_tab()
+{
+	// Create appearance page
+	GtkBox* page = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 18));
+	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
+
+
+	// Align labels across sections
+	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	GtkSizeGroup* size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+
+
+	// Create view section (moved from General tab)
+	GtkGrid* view_table = GTK_GRID(gtk_grid_new());
+	gtk_grid_set_column_spacing(view_table, 12);
+	gtk_grid_set_row_spacing(view_table, 6);
+
+	GtkWidget* view_frame = make_aligned_frame(_("View"), GTK_WIDGET(view_table));
+	gtk_box_pack_start(page, view_frame, false, false, 0);
+
+	// View mode radio buttons
 	GtkButtonBox* display_box = GTK_BUTTON_BOX(gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL));
 	gtk_widget_set_halign(GTK_WIDGET(display_box), GTK_ALIGN_CENTER);
 	gtk_widget_set_hexpand(GTK_WIDGET(display_box), false);
 	gtk_button_box_set_layout(display_box, GTK_BUTTONBOX_EXPAND);
-	gtk_grid_attach(page, GTK_WIDGET(display_box), 0, 0, 2, 1);
+	gtk_grid_attach(view_table, GTK_WIDGET(display_box), 0, 0, 2, 1);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(display_box), 6);
 
-	// Add option to show as icons
 	m_show_as_icons = gtk_radio_button_new_with_mnemonic(nullptr, _("Show as _icons"));
 	{
 		const gchar* icons[] = {
@@ -397,7 +1064,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(m_show_as_icons), false);
 	gtk_box_pack_start(GTK_BOX(display_box), m_show_as_icons, true, true, 0);
 
-	// Add option to show as list
 	m_show_as_list = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(m_show_as_icons), _("Show as lis_t"));
 	{
 		const gchar* icons[] = {
@@ -415,7 +1081,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(m_show_as_list), false);
 	gtk_box_pack_start(GTK_BOX(display_box), m_show_as_list, true, true, 0);
 
-	// Add option to show as tree
 	m_show_as_tree = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(m_show_as_list), _("Show as t_ree"));
 	{
 		const gchar* icons[] = {
@@ -453,7 +1118,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 			{
 				m_settings->view_mode = Settings::ViewAsIcons;
 				m_plugin->reload_menu();
-
 				gtk_widget_set_sensitive(m_show_descriptions, false);
 			}
 		});
@@ -465,7 +1129,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 			{
 				m_settings->view_mode = Settings::ViewAsList;
 				m_plugin->reload_menu();
-
 				gtk_widget_set_sensitive(m_show_descriptions, true);
 			}
 		});
@@ -477,71 +1140,14 @@ GtkWidget* SettingsDialog::init_general_tab()
 			{
 				m_settings->view_mode = Settings::ViewAsTree;
 				m_plugin->reload_menu();
-
 				gtk_widget_set_sensitive(m_show_descriptions, true);
 			}
 		});
 
-	// Add space beneath options
-	gtk_widget_set_margin_bottom(GTK_WIDGET(display_box), 12);
-
-
-	// Add option to use generic names
-	m_show_generic_names = gtk_check_button_new_with_mnemonic(_("Show generic application _names"));
-	gtk_grid_attach(page, m_show_generic_names, 0, 1, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_generic_names), !m_settings->launcher_show_name);
-
-	connect(m_show_generic_names, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->launcher_show_name = !gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
-		});
-
-	// Add option to hide category names
-	m_show_category_names = gtk_check_button_new_with_mnemonic(_("Show cate_gory names"));
-	gtk_grid_attach(page, m_show_category_names, 0, 2, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_category_names), m_settings->category_show_name);
-	gtk_widget_set_sensitive(m_show_category_names, (m_settings->category_icon_size != -1) && !m_settings->position_categories_horizontal);
-
-	connect(m_show_category_names, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->category_show_name = gtk_toggle_button_get_active(button);
-		});
-
-	// Add option to hide tooltips
-	m_show_tooltips = gtk_check_button_new_with_mnemonic(_("Show application too_ltips"));
-	gtk_grid_attach(page, m_show_tooltips, 0, 3, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_tooltips), m_settings->launcher_show_tooltip);
-
-	connect(m_show_tooltips, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->launcher_show_tooltip = gtk_toggle_button_get_active(button);
-		});
-
-	// Add option to hide descriptions
-	m_show_descriptions = gtk_check_button_new_with_mnemonic(_("Show application _descriptions"));
-	gtk_grid_attach(page, m_show_descriptions, 0, 4, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_descriptions), m_settings->launcher_show_description);
-	gtk_widget_set_sensitive(m_show_descriptions, m_settings->view_mode != Settings::ViewAsIcons);
-
-	connect(m_show_descriptions, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->launcher_show_description = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
-		});
-
-	// Add space beneath options
-	gtk_widget_set_margin_bottom(m_show_descriptions, 12);
-
-
-	// Add item icon size selector
+	// Application icon size
 	GtkWidget* label = gtk_label_new_with_mnemonic(_("Application icon si_ze:"));
 	gtk_widget_set_halign(label, GTK_ALIGN_START);
-	gtk_grid_attach(page, label, 0, 5, 1, 1);
+	gtk_grid_attach(view_table, label, 0, 1, 1, 1);
 
 	m_item_icon_size = gtk_combo_box_text_new();
 	gtk_widget_set_halign(m_item_icon_size, GTK_ALIGN_START);
@@ -552,7 +1158,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_item_icon_size), icon_size.c_str());
 	}
 	gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size), m_settings->launcher_icon_size + 1);
-	gtk_grid_attach(page, m_item_icon_size, 1, 5, 1, 1);
+	gtk_grid_attach(view_table, m_item_icon_size, 1, 1, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_item_icon_size);
 
 	connect(m_item_icon_size, "changed",
@@ -561,10 +1167,10 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_settings->launcher_icon_size = gtk_combo_box_get_active(combo) - 1;
 		});
 
-	// Add category icon size selector
+	// Category icon size
 	label = gtk_label_new_with_mnemonic(_("Categ_ory icon size:"));
 	gtk_widget_set_halign(label, GTK_ALIGN_START);
-	gtk_grid_attach(page, label, 0, 6, 1, 1);
+	gtk_grid_attach(view_table, label, 0, 2, 1, 1);
 
 	m_category_icon_size = gtk_combo_box_text_new();
 	gtk_widget_set_halign(m_category_icon_size, GTK_ALIGN_START);
@@ -574,14 +1180,13 @@ GtkWidget* SettingsDialog::init_general_tab()
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_category_icon_size), icon_size.c_str());
 	}
 	gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size), m_settings->category_icon_size + 1);
-	gtk_grid_attach(page, m_category_icon_size, 1, 6, 1, 1);
+	gtk_grid_attach(view_table, m_category_icon_size, 1, 2, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_category_icon_size);
 
 	connect(m_category_icon_size, "changed",
 		[this](GtkComboBox* combo)
 		{
 			m_settings->category_icon_size = gtk_combo_box_get_active(combo) - 1;
-
 			const bool active = (m_settings->category_icon_size != -1) && !m_settings->position_categories_horizontal;
 			gtk_widget_set_sensitive(m_show_category_names, active);
 			if (!active)
@@ -590,20 +1195,15 @@ GtkWidget* SettingsDialog::init_general_tab()
 			}
 		});
 
-	// Add space beneath options
-	gtk_widget_set_margin_bottom(label, 12);
-	gtk_widget_set_margin_bottom(m_category_icon_size, 12);
-
-
-	// Add option to change menu width
+	// Menu width
 	label = gtk_label_new_with_mnemonic(_("Menu _width:"));
 	gtk_widget_set_halign(label, GTK_ALIGN_START);
-	gtk_grid_attach(page, label, 0, 7, 1, 1);
+	gtk_grid_attach(view_table, label, 0, 3, 1, 1);
 
 	m_menu_width = gtk_spin_button_new_with_range(10, SHRT_MAX, 1);
 	gtk_widget_set_halign(m_menu_width, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(m_menu_width, false);
-	gtk_grid_attach(page, m_menu_width, 1, 7, 1, 1);
+	gtk_grid_attach(view_table, m_menu_width, 1, 3, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_menu_width);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_width), m_settings->menu_width);
 
@@ -613,15 +1213,15 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_settings->menu_width = gtk_spin_button_get_value_as_int(button);
 		});
 
-	// Add option to change menu height
+	// Menu height
 	label = gtk_label_new_with_mnemonic(_("Menu _height:"));
 	gtk_widget_set_halign(label, GTK_ALIGN_START);
-	gtk_grid_attach(page, label, 0, 8, 1, 1);
+	gtk_grid_attach(view_table, label, 0, 4, 1, 1);
 
 	m_menu_height = gtk_spin_button_new_with_range(10, SHRT_MAX, 1);
 	gtk_widget_set_halign(m_menu_height, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(m_menu_height, false);
-	gtk_grid_attach(page, m_menu_height, 1, 8, 1, 1);
+	gtk_grid_attach(view_table, m_menu_height, 1, 4, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_menu_height);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_height), m_settings->menu_height);
 
@@ -630,44 +1230,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 		{
 			m_settings->menu_height = gtk_spin_button_get_value_as_int(button);
 		});
-
-	// Add option to control background opacity
-	label = gtk_label_new_with_mnemonic(_("Background opacit_y:"));
-	gtk_widget_set_halign(label, GTK_ALIGN_START);
-	gtk_grid_attach(page, label, 0, 9, 1, 1);
-
-	m_background_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
-	gtk_widget_set_hexpand(GTK_WIDGET(m_background_opacity), true);
-	gtk_grid_attach(page, m_background_opacity, 1, 9, 1, 1);
-	gtk_scale_set_value_pos(GTK_SCALE(m_background_opacity), GTK_POS_RIGHT);
-	gtk_range_set_value(GTK_RANGE(m_background_opacity), m_settings->menu_opacity);
-
-	connect(m_background_opacity, "value-changed",
-		[this](GtkRange* range)
-		{
-			m_settings->menu_opacity = gtk_range_get_value(range);
-		});
-
-	GdkScreen* screen = gtk_widget_get_screen(m_window);
-	const bool enabled = gdk_screen_is_composited(screen);
-	gtk_widget_set_sensitive(label, enabled);
-	gtk_widget_set_sensitive(GTK_WIDGET(m_background_opacity), enabled);
-
-	return GTK_WIDGET(page);
-}
-
-//-----------------------------------------------------------------------------
-
-GtkWidget* SettingsDialog::init_appearance_tab()
-{
-	// Create appearance page
-	GtkBox* page = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 18));
-	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
-
-
-	// Align labels across sections
-	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-	GtkSizeGroup* size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
 
 	// Create menu section
@@ -689,59 +1251,12 @@ GtkWidget* SettingsDialog::init_appearance_tab()
 			m_settings->position_categories_horizontal = gtk_toggle_button_get_active(button);
 			const bool active = (m_settings->category_icon_size != -1) && !m_settings->position_categories_horizontal;
 			gtk_widget_set_sensitive(m_show_category_names, active);
-			gtk_button_set_label(GTK_BUTTON(m_position_categories_alternate),
-					m_settings->position_categories_horizontal ? _("Position cate_gories on bottom") : _("Position cate_gories on left"));
-		});
-
-	// Add option to use alternate categories position
-	m_position_categories_alternate = gtk_check_button_new_with_mnemonic(
-			m_settings->position_categories_horizontal ? _("Position cate_gories on bottom") : _("Position cate_gories on left"));
-	gtk_grid_attach(menu_table, m_position_categories_alternate, 0, 1, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_categories_alternate), m_settings->position_categories_alternate);
-
-	connect(m_position_categories_alternate, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->position_categories_alternate = gtk_toggle_button_get_active(button);
-		});
-
-	// Add option to use alternate profile position
-	m_position_profile_alternate = gtk_check_button_new_with_mnemonic(_("Position pro_file on bottom"));
-	gtk_grid_attach(menu_table, m_position_profile_alternate, 0, 2, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_profile_alternate), m_settings->position_profile_alternate);
-
-	connect(m_position_profile_alternate, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->position_profile_alternate = gtk_toggle_button_get_active(button);
-		});
-
-	// Add option to use alternate search entry position
-	m_position_search_alternate = gtk_check_button_new_with_mnemonic(_("Position _search entry on bottom"));
-	gtk_grid_attach(menu_table, m_position_search_alternate, 0, 3, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_search_alternate), m_settings->position_search_alternate);
-
-	connect(m_position_search_alternate, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->position_search_alternate = gtk_toggle_button_get_active(button);
-		});
-
-	// Add option to use alternate commands position
-	m_position_commands_alternate = gtk_check_button_new_with_mnemonic(_("Position commands next to search _entry"));
-	gtk_grid_attach(menu_table, m_position_commands_alternate, 0, 4, 2, 1);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_commands_alternate), m_settings->position_commands_alternate);
-
-	connect(m_position_commands_alternate, "toggled",
-		[this](GtkToggleButton* button)
-		{
-			m_settings->position_commands_alternate = gtk_toggle_button_get_active(button);
 		});
 
 	// Add profile shape selector
-	GtkWidget* label = gtk_label_new_with_mnemonic(_("P_rofile:"));
+	label = gtk_label_new_with_mnemonic(_("P_rofile:"));
 	gtk_widget_set_halign(label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, label, 0, 5, 1, 1);
+	gtk_grid_attach(menu_table, label, 0, 1, 1, 1);
 
 	m_profile_shape = gtk_combo_box_text_new();
 	gtk_widget_set_halign(m_profile_shape, GTK_ALIGN_START);
@@ -750,7 +1265,7 @@ GtkWidget* SettingsDialog::init_appearance_tab()
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_profile_shape), _("Square Picture"));
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_profile_shape), _("Hidden"));
 	gtk_combo_box_set_active(GTK_COMBO_BOX(m_profile_shape), m_settings->profile_shape);
-	gtk_grid_attach(menu_table, m_profile_shape, 1, 5, 1, 1);
+	gtk_grid_attach(menu_table, m_profile_shape, 1, 1, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_profile_shape);
 
 	connect(m_profile_shape, "changed",
@@ -764,6 +1279,190 @@ GtkWidget* SettingsDialog::init_appearance_tab()
 
 
 	// Create panel button section
+	// Customization section (T070) — granular preset controls
+	GtkGrid* custom_table = GTK_GRID(gtk_grid_new());
+	gtk_grid_set_column_spacing(custom_table, 12);
+	gtk_grid_set_row_spacing(custom_table, 6);
+
+	GtkWidget* custom_frame = make_aligned_frame(_("Customization"), GTK_WIDGET(custom_table));
+	gtk_box_pack_start(page, custom_frame, false, false, 0);
+
+	// Corner radius
+	label = gtk_label_new_with_mnemonic(_("_Corner radius:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 0, 1, 1);
+
+	m_corner_radius = gtk_spin_button_new_with_range(0, 24, 1);
+	gtk_widget_set_halign(m_corner_radius, GTK_ALIGN_START);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_corner_radius), m_settings->corner_radius);
+	gtk_grid_attach(custom_table, m_corner_radius, 1, 0, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_corner_radius);
+	gtk_size_group_add_widget(label_size_group, label);
+	gtk_size_group_add_widget(size_group, m_corner_radius);
+
+	connect(m_corner_radius, "value-changed",
+		[this](GtkSpinButton* button)
+		{
+			m_settings->corner_radius = gtk_spin_button_get_value_as_int(button);
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	// Categories opacity
+	label = gtk_label_new_with_mnemonic(_("_Categories opacity:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 1, 1, 1);
+
+	m_categories_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+	gtk_widget_set_hexpand(m_categories_opacity, true);
+	gtk_scale_set_value_pos(GTK_SCALE(m_categories_opacity), GTK_POS_RIGHT);
+	gtk_range_set_value(GTK_RANGE(m_categories_opacity), m_settings->categories_opacity);
+	gtk_grid_attach(custom_table, m_categories_opacity, 1, 1, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_categories_opacity);
+	gtk_size_group_add_widget(label_size_group, label);
+
+	connect(m_categories_opacity, "value-changed",
+		[this](GtkRange* range)
+		{
+			m_settings->categories_opacity = static_cast<int>(gtk_range_get_value(range));
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	// Apps & search opacity
+	label = gtk_label_new_with_mnemonic(_("_Apps opacity:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 2, 1, 1);
+
+	m_apps_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+	gtk_widget_set_hexpand(m_apps_opacity, true);
+	gtk_scale_set_value_pos(GTK_SCALE(m_apps_opacity), GTK_POS_RIGHT);
+	gtk_range_set_value(GTK_RANGE(m_apps_opacity), m_settings->apps_opacity);
+	gtk_grid_attach(custom_table, m_apps_opacity, 1, 2, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_apps_opacity);
+	gtk_size_group_add_widget(label_size_group, label);
+
+	connect(m_apps_opacity, "value-changed",
+		[this](GtkRange* range)
+		{
+			m_settings->apps_opacity = static_cast<int>(gtk_range_get_value(range));
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	// Sidebar position
+	label = gtk_label_new_with_mnemonic(_("_Sidebar:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 3, 1, 1);
+
+	m_sidebar_position_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "left", _("Left"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "right", _("Right"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "hidden", _("Hidden"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
+		static_cast<const gchar*>(m_settings->sidebar_position));
+	gtk_grid_attach(custom_table, m_sidebar_position_combo, 1, 3, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_sidebar_position_combo);
+	gtk_size_group_add_widget(label_size_group, label);
+	gtk_size_group_add_widget(size_group, m_sidebar_position_combo);
+
+	connect(m_sidebar_position_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (val)
+			{
+				m_settings->sidebar_position = val;
+				m_plugin->reload_menu();
+				refresh_customized_indicator();
+			}
+		});
+
+	// Search bar position
+	label = gtk_label_new_with_mnemonic(_("_Search bar:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 4, 1, 1);
+
+	m_search_bar_position_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_search_bar_position_combo), "top", _("Top"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_search_bar_position_combo), "bottom", _("Bottom"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_search_bar_position_combo),
+		static_cast<const gchar*>(m_settings->search_bar_position));
+	gtk_grid_attach(custom_table, m_search_bar_position_combo, 1, 4, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_search_bar_position_combo);
+	gtk_size_group_add_widget(label_size_group, label);
+	gtk_size_group_add_widget(size_group, m_search_bar_position_combo);
+
+	connect(m_search_bar_position_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (val)
+			{
+				m_settings->search_bar_position = val;
+				m_plugin->reload_menu();
+				refresh_customized_indicator();
+			}
+		});
+
+	// Profile position
+	label = gtk_label_new_with_mnemonic(_("_Profile:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 5, 1, 1);
+
+	m_profile_position_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "top", _("Top"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom", _("Bottom"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom-right", _("Bottom Right"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "hidden", _("Hidden"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
+		static_cast<const gchar*>(m_settings->profile_position));
+	gtk_grid_attach(custom_table, m_profile_position_combo, 1, 5, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_profile_position_combo);
+	gtk_size_group_add_widget(label_size_group, label);
+	gtk_size_group_add_widget(size_group, m_profile_position_combo);
+
+	connect(m_profile_position_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (val)
+			{
+				m_settings->profile_position = val;
+				m_plugin->reload_menu();
+				refresh_customized_indicator();
+			}
+		});
+
+	// Commands position
+	label = gtk_label_new_with_mnemonic(_("Co_mmands:"));
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_grid_attach(custom_table, label, 0, 6, 1, 1);
+
+	m_commands_position_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_commands_position_combo), "top-right", _("Top Right"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_commands_position_combo), "bottom-right", _("Bottom Right"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_commands_position_combo), "hidden", _("Hidden"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_commands_position_combo),
+		static_cast<const gchar*>(m_settings->commands_position));
+	gtk_grid_attach(custom_table, m_commands_position_combo, 1, 6, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(label), m_commands_position_combo);
+	gtk_size_group_add_widget(label_size_group, label);
+	gtk_size_group_add_widget(size_group, m_commands_position_combo);
+
+	connect(m_commands_position_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (val)
+			{
+				m_settings->commands_position = val;
+				m_plugin->reload_menu();
+				refresh_customized_indicator();
+			}
+		});
+
+
 	GtkGrid* panel_table = GTK_GRID(gtk_grid_new());
 	gtk_grid_set_column_spacing(panel_table, 12);
 	gtk_grid_set_row_spacing(panel_table, 6);
@@ -998,6 +1697,137 @@ GtkWidget* SettingsDialog::init_behavior_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->favorites_in_recent = gtk_toggle_button_get_active(button);
+		});
+
+
+	// Layout section (T071)
+	GtkGrid* layout_table = GTK_GRID(gtk_grid_new());
+	gtk_grid_set_column_spacing(layout_table, 12);
+	gtk_grid_set_row_spacing(layout_table, 6);
+
+	GtkWidget* layout_frame = make_aligned_frame(_("Layout"), GTK_WIDGET(layout_table));
+	gtk_box_pack_start(page, layout_frame, false, false, 0);
+
+	// Panel gap
+	GtkWidget* layout_label = gtk_label_new_with_mnemonic(_("_Panel gap:"));
+	gtk_widget_set_halign(layout_label, GTK_ALIGN_START);
+	gtk_grid_attach(layout_table, layout_label, 0, 0, 1, 1);
+
+	m_panel_gap = gtk_spin_button_new_with_range(0, 50, 1);
+	gtk_widget_set_halign(m_panel_gap, GTK_ALIGN_START);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_panel_gap), m_settings->panel_gap);
+	gtk_grid_attach(layout_table, m_panel_gap, 1, 0, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(layout_label), m_panel_gap);
+
+	connect(m_panel_gap, "value-changed",
+		[this](GtkSpinButton* button)
+		{
+			m_settings->panel_gap = gtk_spin_button_get_value_as_int(button);
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	// Layout mode
+	layout_label = gtk_label_new_with_mnemonic(_("_Layout mode:"));
+	gtk_widget_set_halign(layout_label, GTK_ALIGN_START);
+	gtk_grid_attach(layout_table, layout_label, 0, 1, 1, 1);
+
+	m_layout_mode_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_layout_mode_combo), "docked", _("Docked"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_layout_mode_combo), "fullscreen", _("FullScreen"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo),
+		static_cast<const gchar*>(m_settings->layout_mode));
+	gtk_grid_attach(layout_table, m_layout_mode_combo, 1, 1, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(layout_label), m_layout_mode_combo);
+
+	// FullScreen grid section (hidden when layout is docked)
+	m_grid_section = gtk_grid_new();
+	gtk_grid_set_column_spacing(GTK_GRID(m_grid_section), 12);
+	gtk_grid_set_row_spacing(GTK_GRID(m_grid_section), 6);
+	gtk_widget_set_margin_top(m_grid_section, 4);
+	gtk_grid_attach(layout_table, m_grid_section, 0, 2, 2, 1);
+
+	const bool is_fullscreen_mode = (g_strcmp0(
+		static_cast<const gchar*>(m_settings->layout_mode), "fullscreen") == 0);
+	gtk_widget_set_visible(m_grid_section, is_fullscreen_mode);
+
+	// Grid columns
+	GtkWidget* grid_label = gtk_label_new_with_mnemonic(_("Grid _columns:"));
+	gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
+	gtk_grid_attach(GTK_GRID(m_grid_section), grid_label, 0, 0, 1, 1);
+
+	m_grid_columns = gtk_spin_button_new_with_range(2, 10, 1);
+	gtk_widget_set_halign(m_grid_columns, GTK_ALIGN_START);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_columns), m_settings->grid_columns);
+	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_columns, 1, 0, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(grid_label), m_grid_columns);
+
+	connect(m_grid_columns, "value-changed",
+		[this](GtkSpinButton* button)
+		{
+			m_settings->grid_columns = gtk_spin_button_get_value_as_int(button);
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	// Grid rows
+	grid_label = gtk_label_new_with_mnemonic(_("Grid _rows:"));
+	gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
+	gtk_grid_attach(GTK_GRID(m_grid_section), grid_label, 0, 1, 1, 1);
+
+	m_grid_rows = gtk_spin_button_new_with_range(1, 8, 1);
+	gtk_widget_set_halign(m_grid_rows, GTK_ALIGN_START);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_rows), m_settings->grid_rows);
+	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_rows, 1, 1, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(grid_label), m_grid_rows);
+
+	connect(m_grid_rows, "value-changed",
+		[this](GtkSpinButton* button)
+		{
+			m_settings->grid_rows = gtk_spin_button_get_value_as_int(button);
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	// Grid density
+	grid_label = gtk_label_new_with_mnemonic(_("Grid _density:"));
+	gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
+	gtk_grid_attach(GTK_GRID(m_grid_section), grid_label, 0, 2, 1, 1);
+
+	m_grid_density_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "low", _("Low"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "medium", _("Medium"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "high", _("High"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
+		static_cast<const gchar*>(m_settings->grid_density));
+	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_density_combo, 1, 2, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(grid_label), m_grid_density_combo);
+
+	connect(m_grid_density_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (val)
+			{
+				m_settings->grid_density = val;
+				m_plugin->reload_menu();
+				refresh_customized_indicator();
+			}
+		});
+
+	// Show/hide grid section when layout mode changes
+	connect(m_layout_mode_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (val)
+			{
+				m_settings->layout_mode = val;
+				gtk_widget_set_visible(m_grid_section,
+					g_strcmp0(val, "fullscreen") == 0);
+				m_plugin->reload_menu();
+				refresh_customized_indicator();
+			}
 		});
 
 

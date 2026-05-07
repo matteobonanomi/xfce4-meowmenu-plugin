@@ -21,6 +21,8 @@
 #include "settings.h"
 #include "slot.h"
 
+#include <algorithm>
+
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
@@ -242,30 +244,55 @@ void LauncherIconView::reload_icon_size()
 	// Reset padding to fix icon clipping
 	gtk_icon_view_set_item_padding(m_view, 0);
 
-	// Adjust item size
-	int padding = 2;
+	// Adjust item size based on icon size
+	int base_padding = 2;
 	switch (m_settings->launcher_icon_size)
 	{
 	case IconSize::Smallest:
 	case IconSize::Smaller:
-		padding = 2;
+		base_padding = 2;
 		break;
 
 	case IconSize::Small:
 	case IconSize::Normal:
 	case IconSize::Large:
-		padding = 4;
+		base_padding = 4;
 		break;
 
 	case IconSize::Larger:
 	case IconSize::Largest:
-		padding = 6;
+		base_padding = 6;
 		break;
 
 	default:
 		break;
 	}
+
+	// T043: adjust padding/spacing from grid-density (low/medium/high)
+	int padding = base_padding;
+	const char* density = m_settings->grid_density;
+	if (g_strcmp0(density, "low") == 0)
+	{
+		padding = base_padding + 4;
+		gtk_icon_view_set_column_spacing(m_view, base_padding + 4);
+		gtk_icon_view_set_row_spacing(m_view, base_padding + 4);
+	}
+	else if (g_strcmp0(density, "high") == 0)
+	{
+		padding = std::max(0, base_padding - 2);
+		gtk_icon_view_set_column_spacing(m_view, std::max(0, base_padding - 2));
+		gtk_icon_view_set_row_spacing(m_view, std::max(0, base_padding - 2));
+	}
+	else // medium (default)
+	{
+		gtk_icon_view_set_column_spacing(m_view, base_padding);
+		gtk_icon_view_set_row_spacing(m_view, base_padding);
+	}
 	gtk_icon_view_set_item_padding(m_view, padding);
+
+	// T043: fix column count for fullscreen mode, auto otherwise
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	gtk_icon_view_set_columns(m_view, is_fullscreen ? m_settings->grid_columns : -1);
 }
 
 //-----------------------------------------------------------------------------

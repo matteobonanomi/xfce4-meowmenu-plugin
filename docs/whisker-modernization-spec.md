@@ -257,6 +257,8 @@ Rendere la ricerca comparabile a un launcher moderno.
 
 ### 9.2 Layout Presets
 
+> **Implementazione tracciata in** [`.specify/specs/002-layout-presets/`](../.specify/specs/002-layout-presets/)
+
 #### Obiettivo
 Trasformare molte opzioni sparse in preset facili da capire.
 

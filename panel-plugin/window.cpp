@@ -63,6 +63,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 {
 	// Create the window
 	m_window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
+	m_frame = nullptr;
 	gtk_widget_set_name(GTK_WIDGET(m_window), "meowmenu-window");
 	// Untranslated window title to allow window managers to identify it; not visible to users.
 	gtk_window_set_title(m_window, "Meow Menu");
@@ -162,13 +163,14 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	g_signal_connect(G_OBJECT(m_window), "delete-event", G_CALLBACK(&gtk_widget_hide_on_delete), nullptr);
 
 	// Create the border of the window
-	GtkWidget* frame = gtk_frame_new(nullptr);
-	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_OUT);
-	gtk_container_add(GTK_CONTAINER(m_window), frame);
+	m_frame = GTK_FRAME(gtk_frame_new(nullptr));
+	GtkShadowType initial_shadow = (m_settings->corner_radius > 0) ? GTK_SHADOW_NONE : GTK_SHADOW_OUT;
+	gtk_frame_set_shadow_type(m_frame, initial_shadow);
+	gtk_container_add(GTK_CONTAINER(m_window), GTK_WIDGET(m_frame));
 
 	// Create window contents stack
 	m_window_stack = GTK_STACK(gtk_stack_new());
-	gtk_container_add(GTK_CONTAINER(frame), GTK_WIDGET(m_window_stack));
+	gtk_container_add(GTK_CONTAINER(m_frame), GTK_WIDGET(m_window_stack));
 
 	// Create loading message
 	m_window_load_spinner = GTK_SPINNER(gtk_spinner_new());
@@ -340,12 +342,40 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_commands_box)), "commands-area");
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_contents_stack)), "contents");
 
+	// Make inner containers transparent so the per-zone RGBA background set in
+	// on_draw_event shows through instead of being covered by opaque theme backgrounds.
+	GtkCssProvider* css = gtk_css_provider_new();
+	gtk_css_provider_load_from_data(css,
+		// Do NOT include ".meowmenu" here: the window's own background must stay
+		// themed so gtk_render_background() in on_draw_event() has a real color
+		// to paint with opacity. Only inner children need to be transparent.
+		".meowmenu > *,"
+		".meowmenu scrolledwindow,"
+		".meowmenu scrolledwindow > *,"
+		".meowmenu .search-area,"
+		".meowmenu .title-area,"
+		".meowmenu .commands-area,"
+		".meowmenu .contents,"
+		".meowmenu .contents > *,"
+		".meowmenu .categories,"
+		".meowmenu treeview,"
+		".meowmenu flowbox,"
+		".meowmenu flowboxchild,"
+		".meowmenu list,"
+		".meowmenu row"
+		"{ background-color: transparent; background-image: none; }", -1, nullptr);
+	gtk_style_context_add_provider_for_screen(
+		gdk_screen_get_default(),
+		GTK_STYLE_PROVIDER(css),
+		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+	g_object_unref(css);
+
 	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_category_buttons));
 	gtk_style_context_add_class(context, "categories");
 	gtk_style_context_add_class(context, "right");
 
 	// Show widgets
-	gtk_widget_show_all(frame);
+	gtk_widget_show_all(GTK_WIDGET(m_frame));
 	m_default_button->set_active(true);
 
 	// Handle transparency
@@ -363,6 +393,29 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			on_screen_changed(widget);
 		});
 	on_screen_changed(GTK_WIDGET(m_window));
+
+	// Re-evaluate RGBA visual and redraw when corner-radius changes so that
+	// the rounded-rect clip path is activated/deactivated without reopening the menu.
+	if (m_settings->channel)
+	{
+		g_signal_connect(m_settings->channel, "property-changed",
+			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
+			{
+				if (g_strcmp0(property, "/corner-radius") != 0
+						&& g_strcmp0(property, "/categories-opacity") != 0
+						&& g_strcmp0(property, "/apps-opacity") != 0)
+					return;
+				auto* self = static_cast<Window*>(user_data);
+				if (g_strcmp0(property, "/corner-radius") == 0 && self->m_frame)
+				{
+					const int r = CLAMP(static_cast<int>(self->m_settings->corner_radius), 0, 24);
+					gtk_frame_set_shadow_type(self->m_frame,
+						r > 0 ? GTK_SHADOW_NONE : GTK_SHADOW_OUT);
+				}
+				self->on_screen_changed(GTK_WIDGET(self->m_window));
+				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
+			}), this);
+	}
 
 	// Load applications
 	m_applications->load();
@@ -456,6 +509,12 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 void WhiskerMenu::Window::show(const Position position)
 {
 	m_position = position;
+
+	// Reset tracked size so set_size always applies the correct dimensions.
+	// Without this, stale geometry from a previous mode (e.g. fullscreen) could
+	// prevent set_size from triggering when switching back to a normal preset.
+	m_geometry.width = 0;
+	m_geometry.height = 0;
 
 	// Handle switching view types
 	m_search_results->update_view();
@@ -565,7 +624,8 @@ void WhiskerMenu::Window::show(const Position position)
 	}
 #endif
 	gdk_monitor_get_geometry(monitor_gdk, &m_monitor);
-	const bool resized = set_size(m_settings->menu_width, m_settings->menu_height);
+	gdk_monitor_get_workarea(monitor_gdk, &m_workarea);
+	bool resized = false;  // set below after fullscreen check
 
 	// Center window if requested
 	if (position == PositionAtCenter)
@@ -576,25 +636,110 @@ void WhiskerMenu::Window::show(const Position position)
 	// Move window
 	move_window();
 
-	// Relayout window if necessary
+	// Relayout window if necessary.
+	// T044: new string settings (sidebar-position, search-bar-position, profile-position,
+	//       commands-position) take precedence over the legacy boolean toggles.
 	const bool layout_ltr = gtk_widget_get_default_direction() != GTK_TEXT_DIR_RTL;
+
+	const char* sidebar_pos  = m_settings->sidebar_position;
+	const char* search_pos   = m_settings->search_bar_position;
+	const char* profile_pos  = m_settings->profile_position;
+	const char* commands_pos = m_settings->commands_position;
+
+	// Map string settings → layout booleans
+	// sidebar_position: "left" (default) / "right" (alternate) / "hidden"
+	// cats_alt=true → update_layout puts sidebar at column 0 (left side)
+	const bool cats_alt = (g_strcmp0(sidebar_pos, "left") == 0)
+			|| (g_strcmp0(sidebar_pos, "hidden") != 0 && g_strcmp0(sidebar_pos, "right") != 0
+				&& m_settings->position_categories_alternate);
+	// search_bar_position: "bottom" = alternate
+	const bool search_alt = (g_strcmp0(search_pos, "bottom") == 0)
+			|| (g_strcmp0(search_pos, "top") != 0 && m_settings->position_search_alternate);
+	// profile_position: "bottom" or "bottom-right" = alternate (bottom)
+	const bool profile_alt = (g_strcmp0(profile_pos, "bottom") == 0
+			|| g_strcmp0(profile_pos, "bottom-right") == 0)
+			|| (g_strcmp0(profile_pos, "top") != 0 && g_strcmp0(profile_pos, "hidden") != 0
+				&& m_settings->position_profile_alternate);
+	// commands_position: "bottom-right" = alternate
+	const bool commands_alt = (g_strcmp0(commands_pos, "bottom-right") == 0)
+			|| (g_strcmp0(commands_pos, "top-right") != 0 && g_strcmp0(commands_pos, "hidden") != 0
+				&& m_settings->position_commands_alternate);
+
 	if ((m_layout_ltr != layout_ltr)
 			|| (m_layout_categories_horizontal != m_settings->position_categories_horizontal)
-			|| (m_layout_categories_alternate != m_settings->position_categories_alternate)
-			|| (m_layout_search_alternate != m_settings->position_search_alternate)
-			|| (m_layout_commands_alternate != m_settings->position_commands_alternate)
-			|| (m_layout_profile_alternate != m_settings->position_profile_alternate)
+			|| (m_layout_categories_alternate != cats_alt)
+			|| (m_layout_search_alternate != search_alt)
+			|| (m_layout_commands_alternate != commands_alt)
+			|| (m_layout_profile_alternate != profile_alt)
 			|| (m_profile_shape != m_settings->profile_shape))
 	{
 		m_layout_ltr = layout_ltr;
 		m_layout_categories_horizontal = m_settings->position_categories_horizontal;
-		m_layout_categories_alternate = m_settings->position_categories_alternate;
-		m_layout_search_alternate = m_settings->position_search_alternate;
-		m_layout_commands_alternate = m_settings->position_commands_alternate;
-		m_layout_profile_alternate = m_settings->position_profile_alternate;
+		m_layout_categories_alternate = cats_alt;
+		m_layout_search_alternate = search_alt;
+		m_layout_commands_alternate = commands_alt;
+		m_layout_profile_alternate = profile_alt;
 		m_profile->update_picture();
 		m_profile_shape = m_settings->profile_shape;
 		update_layout();
+	}
+
+	// T044/T045: handle sidebar hidden and fullscreen mode
+	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
+			g_strcmp0(sidebar_pos, "hidden") != 0);
+
+	// T045: FullScreen — resize to fill monitor
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	if (is_fullscreen)
+	{
+#ifdef HAVE_GTK_LAYER_SHELL
+		if (gtk_layer_is_supported())
+		{
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_TOP,    true);
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_BOTTOM, true);
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_LEFT,   true);
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_RIGHT,  true);
+			gtk_layer_set_exclusive_zone(m_window, -1);
+			for (int edge = 0; edge < 4; ++edge)
+				gtk_layer_set_margin(m_window, static_cast<GtkLayerShellEdge>(edge), 0);
+		}
+		else
+#endif
+		{
+			resized = set_size(m_workarea.width, m_workarea.height);
+			m_geometry.x = m_workarea.x;
+			m_geometry.y = m_workarea.y;
+		}
+	}
+	else
+	{
+#ifdef HAVE_GTK_LAYER_SHELL
+		if (gtk_layer_is_supported())
+		{
+			// Restore to default anchors
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_TOP,    true);
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_BOTTOM, false);
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_LEFT,   true);
+			gtk_layer_set_anchor(m_window, GTK_LAYER_SHELL_EDGE_RIGHT,  false);
+		}
+#endif
+		resized = set_size(m_settings->menu_width, m_settings->menu_height);
+	}
+
+	// Fullscreen-specific layout tweaks
+	if (is_fullscreen)
+	{
+		// Center search bar at 50% of screen width (issue #3)
+		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_CENTER);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), m_workarea.width / 2, -1);
+		// Give the categories sidebar a meaningful minimum width (issue #4)
+		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), m_workarea.width / 6, -1);
+	}
+	else
+	{
+		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
+		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
 	}
 
 	// Show window
@@ -604,12 +749,6 @@ void WhiskerMenu::Window::show(const Position position)
 	{
 		check_scrollbar_needed();
 	}
-
-	// Fetch actual window size
-	GtkRequisition size;
-	gtk_widget_get_preferred_size(GTK_WIDGET(m_window), &size, nullptr);
-	m_geometry.width = std::max(size.width, m_geometry.width);
-	m_geometry.height = std::max(size.height, m_geometry.height);
 
 	// Fetch position again to make sure window does not overlap panel
 	if (position == PositionAtButton)
@@ -654,9 +793,12 @@ void WhiskerMenu::Window::resize_start()
 
 void WhiskerMenu::Window::resize_end()
 {
-	// Store new size
-	m_settings->menu_width = m_geometry.width;
-	m_settings->menu_height = m_geometry.height;
+	// Store new size (never persist fullscreen dimensions as the normal menu size)
+	if (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
+	{
+		m_settings->menu_width = m_geometry.width;
+		m_settings->menu_height = m_geometry.height;
+	}
 
 	// Move window back to panel button or center of screen
 	if (m_position == PositionAtButton)
@@ -904,8 +1046,9 @@ gboolean WhiskerMenu::Window::on_map_event()
 
 void WhiskerMenu::Window::on_state_flags_changed(GtkWidget* widget)
 {
-	// Refocus and raise window if visible
-	if (gtk_widget_get_visible(widget))
+	// Refocus and raise window if visible; skip when stay-on-focus-out is active
+	// so that the menu remains visible without stealing focus from other windows.
+	if (gtk_widget_get_visible(widget) && !m_settings->stay_on_focus_out)
 	{
 		gtk_window_present(m_window);
 	}
@@ -917,7 +1060,9 @@ void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 {
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
-	if (!visual || (m_settings->menu_opacity == 100))
+	// Always request an RGBA visual when the compositor provides one so that
+	// on_draw_event() can apply per-zone opacity and rounded-corner clipping.
+	if (!visual)
 	{
 		visual = gdk_screen_get_system_visual(screen);
 		m_supports_alpha = false;
@@ -945,8 +1090,37 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	const bool enabled = gdk_screen_is_composited(screen);
 
+	// Build rounded-rect clip path (T040: corner-radius)
+	const double r = CLAMP(m_settings->corner_radius, 0, 24);
+	auto clip_rounded = [&](cairo_t* c)
+	{
+		if (r > 0.0)
+		{
+			cairo_new_path(c);
+			cairo_arc(c, r,         r,          r, G_PI,       G_PI * 1.5);
+			cairo_arc(c, width - r, r,          r, G_PI * 1.5, G_PI * 2.0);
+			cairo_arc(c, width - r, height - r, r, 0.0,        G_PI * 0.5);
+			cairo_arc(c, r,         height - r, r, G_PI * 0.5, G_PI);
+			cairo_close_path(c);
+		}
+		else
+		{
+			cairo_rectangle(c, 0.0, 0.0, width, height);
+		}
+	};
+
+	const double cats_alpha = CLAMP(m_settings->categories_opacity, 0, 100) / 100.0;
+	const double apps_alpha = CLAMP(m_settings->apps_opacity,       0, 100) / 100.0;
+	const bool uniform = (cats_alpha == apps_alpha);
+
 	if (enabled && m_supports_alpha)
 	{
+		// Erase the previous frame so pixels outside the rounded clip are transparent.
+		cairo_save(cr);
+		cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+		cairo_paint(cr);
+		cairo_restore(cr);
+
 		cairo_surface_t* background = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
 		cairo_t* cr_background = cairo_create(background);
 		cairo_set_operator(cr_background, CAIRO_OPERATOR_SOURCE);
@@ -955,7 +1129,54 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 
 		cairo_set_source_surface(cr, background, 0.0, 0.0);
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-		cairo_paint_with_alpha(cr, m_settings->menu_opacity / 100.0);
+
+		if (uniform)
+		{
+			// Single-pass paint (T040 clip, T041 uniform opacity)
+			cairo_save(cr);
+			clip_rounded(cr);
+			cairo_clip(cr);
+			cairo_paint_with_alpha(cr, apps_alpha);
+			cairo_restore(cr);
+		}
+		else
+		{
+			// Dual-zone paint (T041: categories zone vs apps zone)
+			GtkAllocation sidebar_alloc;
+			gtk_widget_get_allocation(GTK_WIDGET(m_sidebar), &sidebar_alloc);
+			const bool sidebar_visible = gtk_widget_get_visible(GTK_WIDGET(m_sidebar));
+
+			cairo_save(cr);
+			clip_rounded(cr);
+			cairo_clip(cr);
+
+			if (sidebar_visible && sidebar_alloc.width > 0)
+			{
+				// Apps zone: everything except the sidebar column
+				cairo_save(cr);
+				cairo_rectangle(cr, 0.0, 0.0, width, height);
+				cairo_rectangle(cr, sidebar_alloc.x, sidebar_alloc.y,
+						sidebar_alloc.width, sidebar_alloc.height);
+				cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
+				cairo_clip(cr);
+				cairo_paint_with_alpha(cr, apps_alpha);
+				cairo_restore(cr);
+
+				// Sidebar (categories) zone
+				cairo_save(cr);
+				cairo_rectangle(cr, sidebar_alloc.x, sidebar_alloc.y,
+						sidebar_alloc.width, sidebar_alloc.height);
+				cairo_clip(cr);
+				cairo_paint_with_alpha(cr, cats_alpha);
+				cairo_restore(cr);
+			}
+			else
+			{
+				cairo_paint_with_alpha(cr, apps_alpha);
+			}
+
+			cairo_restore(cr);
+		}
 
 		cairo_surface_destroy(background);
 	}
@@ -1028,6 +1249,21 @@ void WhiskerMenu::Window::center_window()
 
 void WhiskerMenu::Window::move_window()
 {
+	// T042: apply panel-gap offset away from the panel
+	const int gap = m_settings->panel_gap;
+	if (gap > 0 && m_position == PositionAtButton)
+	{
+		const XfceScreenPosition screen_pos = m_plugin->get_screen_position();
+		if (xfce_screen_position_is_top(screen_pos))
+			m_geometry.y += gap;
+		else if (xfce_screen_position_is_bottom(screen_pos))
+			m_geometry.y -= gap;
+		else if (xfce_screen_position_is_left(screen_pos))
+			m_geometry.x += gap;
+		else
+			m_geometry.x -= gap;
+	}
+
 	// Prevent window from leaving screen
 	m_geometry.x = CLAMP(m_geometry.x, m_monitor.x, m_monitor.x + m_monitor.width - m_geometry.width);
 	m_geometry.y = CLAMP(m_geometry.y, m_monitor.y, m_monitor.y + m_monitor.height - m_geometry.height);
