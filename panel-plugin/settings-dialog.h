@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_SETTINGS_DIALOG_H
 #define WHISKERMENU_SETTINGS_DIALOG_H
 
+#include <string>
 #include <vector>
 
 #include <gtk/gtk.h>
@@ -54,6 +55,9 @@ private:
 	void remove_action();
 
 	void response(int response_id);
+	void refresh_customized_indicator();
+	void refresh_preset_combo(const std::string& select_id = {});
+	void sync_preset_widgets();
 
 	GtkWidget* init_general_tab();
 	GtkWidget* init_appearance_tab();
@@ -78,14 +82,39 @@ private:
 	GtkWidget* m_show_tooltips;
 	GtkWidget* m_category_icon_size;
 	GtkWidget* m_item_icon_size;
-	GtkWidget* m_background_opacity;
+
+	// Preset hub
+	GtkWidget* m_preset_combo;
+	GtkWidget* m_preset_description;
+	GtkWidget* m_preset_customized;
+	GtkWidget* m_preset_rename_btn;
+	GtkWidget* m_preset_delete_btn;
+	GtkWidget* m_preset_export_btn;
+	bool m_loading_preset = false;
+
+	// Tracks Xfconf "property-changed" subscription that mirrors live
+	// menu_width/menu_height updates (e.g. drag-resize) into the spin buttons.
+	gulong m_size_change_slot = 0;
+
+	// Appearance customization (T070)
+	GtkWidget* m_corner_radius;
+	GtkWidget* m_categories_opacity;
+	GtkWidget* m_apps_opacity;
+	GtkWidget* m_sidebar_position_combo;
+	GtkWidget* m_search_bar_position_combo;
+	GtkWidget* m_profile_position_combo;
+	GtkWidget* m_commands_position_combo;
+
+	// Behavior layout (T071)
+	GtkWidget* m_panel_gap;
+	GtkWidget* m_layout_mode_combo;
+	GtkWidget* m_grid_columns;
+	GtkWidget* m_grid_rows;
+	GtkWidget* m_grid_density_combo;
+	GtkWidget* m_grid_section;
 
 	// Layout
 	GtkWidget* m_position_categories_horizontal;
-	GtkWidget* m_position_categories_alternate;
-	GtkWidget* m_position_search_alternate;
-	GtkWidget* m_position_commands_alternate;
-	GtkWidget* m_position_profile_alternate;
 	GtkWidget* m_profile_shape;
 	GtkWidget* m_menu_width;
 	GtkWidget* m_menu_height;

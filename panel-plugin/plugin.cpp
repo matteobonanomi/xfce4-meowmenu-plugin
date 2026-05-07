@@ -247,6 +247,13 @@ void Plugin::get_menu_position(int* x, int* y) const
 
 //-----------------------------------------------------------------------------
 
+XfceScreenPosition Plugin::get_screen_position() const
+{
+	return xfce_panel_plugin_get_screen_position(m_plugin);
+}
+
+//-----------------------------------------------------------------------------
+
 void Plugin::menu_hidden()
 {
 	m_hide_time = 0;

@@ -1,5 +1,7 @@
 plugin_sources = [
   'applications-page.cpp',
+  'preset.cpp',
+  'preset-io.cpp',
   'category.cpp',
   'category-button.cpp',
   'command.cpp',

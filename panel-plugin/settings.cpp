@@ -19,6 +19,7 @@
 
 #include "command.h"
 #include "plugin.h"
+#include "preset.h"
 #include "search-action.h"
 #include "slot.h"
 
@@ -108,7 +109,26 @@ Settings::Settings(Plugin* plugin) :
 
 	menu_width(this, "/menu-width", 450, 10, SHRT_MAX),
 	menu_height(this, "/menu-height", 500, 10, SHRT_MAX),
-	menu_opacity(this, "/menu-opacity", 100, 0, 100)
+	menu_opacity(this, "/menu-opacity", 100, 0, 100),
+
+	schema_version(this, "/schema-version", 0, 0, G_MAXINT),
+	current_preset_id(this, "/current-preset-id"),
+
+	corner_radius(this, "/corner-radius", 0, 0, 24),
+	panel_gap(this, "/panel-gap", 0, 0, 50),
+	categories_opacity(this, "/categories-opacity", 100, 0, 100),
+	apps_opacity(this, "/apps-opacity", 100, 0, 100),
+
+	sidebar_position(this, "/sidebar-position", "left"),
+	search_bar_position(this, "/search-bar-position", "top"),
+	profile_position(this, "/profile-position", "top"),
+	commands_position(this, "/commands-position", "top-right"),
+
+	grid_columns(this, "/grid-columns", 4, 2, 10),
+	grid_rows(this, "/grid-rows", 3, 1, 8),
+	grid_density(this, "/grid-density", "medium"),
+
+	layout_mode(this, "/layout-mode", "docked")
 {
 	command[CommandSettings] = new Command(this, "/command-settings", "/show-command-settings",
 			"org.xfce.settings.manager", "preferences-desktop",
@@ -337,9 +357,11 @@ void Settings::load(const gchar* base)
 		property_changed(static_cast<const gchar*>(key) + base_len, static_cast<GValue*>(value));
 	}
 
+	const guint loaded_property_count = g_hash_table_size(properties);
 	g_hash_table_destroy(properties);
 	prevent_invalid();
 	load_aliases(channel);
+	migrate_schema(loaded_property_count == 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -424,7 +446,21 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| fuzzy_threshold.load(property, value)
 			|| favorites_boost_enabled.load(property, value)
 			|| favorites_boost_level.load(property, value)
-			|| frecency_alpha.load(property, value))
+			|| frecency_alpha.load(property, value)
+			|| schema_version.load(property, value)
+			|| current_preset_id.load(property, value)
+			|| corner_radius.load(property, value)
+			|| panel_gap.load(property, value)
+			|| categories_opacity.load(property, value)
+			|| apps_opacity.load(property, value)
+			|| sidebar_position.load(property, value)
+			|| search_bar_position.load(property, value)
+			|| profile_position.load(property, value)
+			|| commands_position.load(property, value)
+			|| grid_columns.load(property, value)
+			|| grid_rows.load(property, value)
+			|| grid_density.load(property, value)
+			|| layout_mode.load(property, value))
 	{
 	}
 
@@ -1241,6 +1277,67 @@ void Settings::save_aliases(XfconfChannel* ch)
 		xfconf_channel_set_arrayv(ch, prop.c_str(), array);
 		xfconf_array_free(array);
 	}
+	end_property_update();
+}
+
+//-----------------------------------------------------------------------------
+
+void Settings::migrate_schema(bool is_fresh_install)
+{
+	if (!channel)
+		return;
+
+	// Already migrated
+	if (schema_version >= 1)
+		return;
+
+	begin_property_update();
+
+	// Map legacy menu-opacity → categories-opacity if present and categories-opacity missing
+	if (xfconf_channel_has_property(channel, "/menu-opacity")
+			&& !xfconf_channel_has_property(channel, "/categories-opacity"))
+	{
+		const int legacy_opacity = xfconf_channel_get_int(channel, "/menu-opacity", 100);
+		xfconf_channel_set_int(channel, "/categories-opacity", legacy_opacity);
+		categories_opacity = legacy_opacity;
+	}
+
+	// Write defaults for V1 properties not yet in the channel
+	struct { const char* prop; int val; } int_props[] = {
+		{ "/corner-radius",       0   },
+		{ "/panel-gap",           0   },
+		{ "/categories-opacity",  100 },
+		{ "/apps-opacity",        100 },
+		{ "/grid-columns",        4   },
+		{ "/grid-rows",           3   },
+	};
+	for (auto& p : int_props)
+	{
+		if (!xfconf_channel_has_property(channel, p.prop))
+			xfconf_channel_set_int(channel, p.prop, p.val);
+	}
+
+	struct { const char* prop; const char* val; } str_props[] = {
+		{ "/sidebar-position",     "left"      },
+		{ "/search-bar-position",  "top"       },
+		{ "/profile-position",     "top"       },
+		{ "/commands-position",    "top-right" },
+		{ "/grid-density",         "medium"    },
+		{ "/layout-mode",          "docked"    },
+	};
+	for (auto& p : str_props)
+	{
+		if (!xfconf_channel_has_property(channel, p.prop))
+			xfconf_channel_set_string(channel, p.prop, p.val);
+	}
+
+	if (is_fresh_install)
+		apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *this);
+	else
+		current_preset_id = "classic";
+
+	schema_version = 1;
+
 	end_property_update();
 }
 

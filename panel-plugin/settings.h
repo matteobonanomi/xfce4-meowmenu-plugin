@@ -401,6 +401,32 @@ public:
 	Integer menu_height;
 	Integer menu_opacity;
 
+	// Layout Presets (milestone 002) — schema versioning & preset tracking
+	Integer schema_version;
+	String  current_preset_id;
+
+	// Layout Presets — visual properties
+	Integer corner_radius;
+	Integer panel_gap;
+	Integer categories_opacity;
+	Integer apps_opacity;
+
+	// Layout Presets — element positions
+	String sidebar_position;
+	String search_bar_position;
+	String profile_position;
+	String commands_position;
+
+	// Layout Presets — grid (FullScreen mode)
+	Integer grid_columns;
+	Integer grid_rows;
+	String  grid_density;
+
+	// Layout Presets — window mode
+	String layout_mode;
+
+	void migrate_schema(bool is_fresh_install);
+
 	friend class Plugin;
 
 private:

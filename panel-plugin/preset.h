@@ -1,0 +1,93 @@
+/*
+ * Copyright (C) 2026 MeowMenu contributors
+ *
+ * This library is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef WHISKERMENU_PRESET_H
+#define WHISKERMENU_PRESET_H
+
+#include <map>
+#include <string>
+#include <vector>
+
+#include <xfconf/xfconf.h>
+
+namespace WhiskerMenu
+{
+
+class Settings;
+
+// A single setting value: bool, int, or string.
+struct PresetValue
+{
+	enum Kind { Bool, Int, Str } kind;
+	bool  b;
+	int   i;
+	std::string s;
+
+	static PresetValue from_bool(bool v)   { PresetValue p; p.kind = Bool; p.b = v; return p; }
+	static PresetValue from_int(int v)     { PresetValue p; p.kind = Int;  p.i = v; return p; }
+	static PresetValue from_str(const char* v) { PresetValue p; p.kind = Str; p.s = v; return p; }
+};
+
+typedef std::map<std::string, PresetValue> PresetValueMap;
+
+struct LayoutPreset
+{
+	std::string   id;
+	std::string   display_name;
+	std::string   description;
+	bool          is_builtin;
+	PresetValueMap values;
+};
+
+// Indices into BUILTIN_PRESETS
+enum BuiltinPresetIndex
+{
+	PRESET_CLASSIC   = 0,
+	PRESET_MODERN    = 1,
+	PRESET_FULLSCREEN = 2,
+	PRESET_BUILTIN_COUNT = 3,
+};
+
+extern const LayoutPreset BUILTIN_PRESETS[PRESET_BUILTIN_COUNT];
+
+// Apply all values from preset to settings; set current_preset_id at the end.
+void apply_preset(const LayoutPreset& preset, Settings& settings);
+
+// Find a preset by id (built-ins first, then user presets in cache).
+// Returns nullptr if not found.
+const LayoutPreset* find_preset_by_id(const std::string& id);
+
+// True if any setting governed by preset differs from the live settings values.
+bool compute_preset_diff(const LayoutPreset& preset, const Settings& settings);
+
+// Rebuild the in-memory user-preset cache from Xfconf.
+// Returns a reference to the cache; callers must not store across mutations.
+const std::vector<LayoutPreset>& enumerate_user_presets(XfconfChannel* channel);
+
+// Save all current governed settings as a new user preset named display_name.
+// Returns the new uuid on success, empty string if name conflicts or is empty.
+std::string save_current_as_user_preset(const std::string& display_name, Settings& settings);
+
+// Rename an existing user preset. Returns false if uuid not found or name conflicts.
+bool rename_user_preset(const std::string& uuid, const std::string& new_name, Settings& settings);
+
+// Delete a user preset. Clears current_preset_id if it matches uuid.
+void delete_user_preset(const std::string& uuid, Settings& settings);
+
+} // namespace WhiskerMenu
+
+#endif // WHISKERMENU_PRESET_H

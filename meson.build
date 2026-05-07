@@ -150,3 +150,6 @@ xfce_revision_h = vcs_tag(
 subdir('panel-plugin')
 subdir('icons')
 subdir('po')
+if get_option('enable_tests')
+  subdir('tests')
+endif

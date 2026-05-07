@@ -11,3 +11,10 @@ option(
   value: 'auto',
   description: 'Enable support for positioning in Wayland',
 )
+
+option(
+  'enable_tests',
+  type: 'boolean',
+  value: true,
+  description: 'Build unit tests',
+)

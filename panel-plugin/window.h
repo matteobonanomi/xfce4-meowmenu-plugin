@@ -118,6 +118,7 @@ private:
 	Plugin* m_plugin;
 
 	GtkWindow* m_window;
+	GtkFrame* m_frame;
 
 	GtkStack* m_window_stack;
 	GtkSpinner* m_window_load_spinner;
@@ -134,6 +135,7 @@ private:
 	Resizer* m_resize[8];
 	Position m_position;
 	GdkRectangle m_monitor;
+	GdkRectangle m_workarea;
 
 	Profile* m_profile;
 

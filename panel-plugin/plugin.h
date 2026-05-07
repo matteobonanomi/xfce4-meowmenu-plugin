@@ -63,6 +63,7 @@ public:
 	ButtonStyle get_button_style() const;
 	std::string get_button_title_default() const;
 	void get_menu_position(int* x, int* y) const;
+	XfceScreenPosition get_screen_position() const;
 
 	void menu_hidden();
 	void reload_button();
