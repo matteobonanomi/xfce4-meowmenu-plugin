@@ -412,6 +412,17 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 					gtk_frame_set_shadow_type(self->m_frame,
 						r > 0 ? GTK_SHADOW_NONE : GTK_SHADOW_OUT);
 				}
+
+				// Apply live per-region content opacity too; apps-opacity must affect
+				// the actual applications content, not only the background paint.
+				const double cats_alpha = CLAMP(static_cast<int>(self->m_settings->categories_opacity), 0, 100) / 100.0;
+				const double apps_alpha = CLAMP(static_cast<int>(self->m_settings->apps_opacity), 0, 100) / 100.0;
+				gtk_widget_set_opacity(GTK_WIDGET(self->m_panels_stack), apps_alpha);
+				gtk_widget_set_opacity(GTK_WIDGET(self->m_sidebar), cats_alpha);
+				gtk_widget_set_opacity(GTK_WIDGET(self->m_categories_box), cats_alpha);
+				gtk_widget_set_opacity(GTK_WIDGET(self->m_title_box), cats_alpha);
+				gtk_widget_set_opacity(GTK_WIDGET(self->m_search_box), cats_alpha);
+
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
 				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
 			}), this);
@@ -688,8 +699,37 @@ void WhiskerMenu::Window::show(const Position position)
 	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
 			g_strcmp0(sidebar_pos, "hidden") != 0);
 
-	// T045: FullScreen — resize to fill monitor
+	// Keep visual content opacity in sync with the two region sliders.
+	const double cats_alpha = CLAMP(static_cast<int>(m_settings->categories_opacity), 0, 100) / 100.0;
+	const double apps_alpha = CLAMP(static_cast<int>(m_settings->apps_opacity), 0, 100) / 100.0;
+	gtk_widget_set_opacity(GTK_WIDGET(m_panels_stack), apps_alpha);
+	gtk_widget_set_opacity(GTK_WIDGET(m_sidebar), cats_alpha);
+	gtk_widget_set_opacity(GTK_WIDGET(m_categories_box), cats_alpha);
+	gtk_widget_set_opacity(GTK_WIDGET(m_title_box), cats_alpha);
+	gtk_widget_set_opacity(GTK_WIDGET(m_search_box), cats_alpha);
+
+	// T045: FullScreen mode + size-sensitive layout tweaks
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+
+	// Apply mode-dependent child size requests *before* resizing the toplevel.
+	// This prevents stale fullscreen requests from forcing docked presets wider
+	// than their configured menu-width when switching back from FullScreen.
+	if (is_fullscreen)
+	{
+		// Center search bar at 50% of screen width (issue #3)
+		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_CENTER);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), m_workarea.width / 2, -1);
+		// Give the categories sidebar a meaningful minimum width (issue #4)
+		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), m_workarea.width / 6, -1);
+	}
+	else
+	{
+		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
+		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
+	}
+
+	// Resize window according to current layout mode
 	if (is_fullscreen)
 	{
 #ifdef HAVE_GTK_LAYER_SHELL
@@ -724,22 +764,6 @@ void WhiskerMenu::Window::show(const Position position)
 		}
 #endif
 		resized = set_size(m_settings->menu_width, m_settings->menu_height);
-	}
-
-	// Fullscreen-specific layout tweaks
-	if (is_fullscreen)
-	{
-		// Center search bar at 50% of screen width (issue #3)
-		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_CENTER);
-		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), m_workarea.width / 2, -1);
-		// Give the categories sidebar a meaningful minimum width (issue #4)
-		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), m_workarea.width / 6, -1);
-	}
-	else
-	{
-		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
-		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
-		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
 	}
 
 	// Show window
@@ -1141,38 +1165,38 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		}
 		else
 		{
-			// Dual-zone paint (T041: categories zone vs apps zone)
-			GtkAllocation sidebar_alloc;
-			gtk_widget_get_allocation(GTK_WIDGET(m_sidebar), &sidebar_alloc);
-			const bool sidebar_visible = gtk_widget_get_visible(GTK_WIDGET(m_sidebar));
+			// Dual-zone paint (T041): apps zone = exact applications box perimeter
+			// (m_panels_stack). Everything else (header, categories/sidebar, search
+			// area, margins) belongs to the sidebar/background zone.
+			//
+			// IMPORTANT: gtk_widget_get_allocation() returns coordinates in the
+			// immediate parent coordinate space. The draw context here is the
+			// toplevel window, so translate the rectangle to window coordinates.
+			GtkAllocation apps_alloc_local;
+			gtk_widget_get_allocation(GTK_WIDGET(m_panels_stack), &apps_alloc_local);
+			gint apps_x = apps_alloc_local.x;
+			gint apps_y = apps_alloc_local.y;
+			gtk_widget_translate_coordinates(GTK_WIDGET(m_panels_stack),
+				GTK_WIDGET(m_window), 0, 0, &apps_x, &apps_y);
+			const bool has_apps_box = gtk_widget_get_visible(GTK_WIDGET(m_panels_stack))
+				&& apps_alloc_local.width > 0 && apps_alloc_local.height > 0;
 
 			cairo_save(cr);
 			clip_rounded(cr);
 			cairo_clip(cr);
 
-			if (sidebar_visible && sidebar_alloc.width > 0)
-			{
-				// Apps zone: everything except the sidebar column
-				cairo_save(cr);
-				cairo_rectangle(cr, 0.0, 0.0, width, height);
-				cairo_rectangle(cr, sidebar_alloc.x, sidebar_alloc.y,
-						sidebar_alloc.width, sidebar_alloc.height);
-				cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
-				cairo_clip(cr);
-				cairo_paint_with_alpha(cr, apps_alpha);
-				cairo_restore(cr);
+			// Sidebar/background zone: whole menu by default
+			cairo_paint_with_alpha(cr, cats_alpha);
 
-				// Sidebar (categories) zone
-				cairo_save(cr);
-				cairo_rectangle(cr, sidebar_alloc.x, sidebar_alloc.y,
-						sidebar_alloc.width, sidebar_alloc.height);
-				cairo_clip(cr);
-				cairo_paint_with_alpha(cr, cats_alpha);
-				cairo_restore(cr);
-			}
-			else
+			// Applications zone: paint only inside the applications box rectangle
+			if (has_apps_box)
 			{
+				cairo_save(cr);
+				cairo_rectangle(cr, apps_x, apps_y,
+						apps_alloc_local.width, apps_alloc_local.height);
+				cairo_clip(cr);
 				cairo_paint_with_alpha(cr, apps_alpha);
+				cairo_restore(cr);
 			}
 
 			cairo_restore(cr);
