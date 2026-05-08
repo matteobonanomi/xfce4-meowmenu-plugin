@@ -1,5 +1,8 @@
 # MeowMenu: make your XFCE run!
 
-A fork of WhiskerMenu to add experimental features and a fresh new look to your XFCE desktop
+MeowMenu is a fork of Whisker Menu for Xfce that keeps the familiar panel
+launcher feel while bringing a cleaner modern look, a more capable search bar,
+and extra customization options for users who want the menu to fit their
+workflow.
 
-
+Built for Xubuntu 26.04 with Xfce 4.20.x.

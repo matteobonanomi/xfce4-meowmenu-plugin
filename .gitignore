@@ -1,1 +1,8 @@
 .claude/worktrees/*
+.claude/*
+.agents/*
+.specify/*
+.vscode/*
+.codex
+AGENTS.md
+CLAUDE.md

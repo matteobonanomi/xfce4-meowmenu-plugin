@@ -8,7 +8,7 @@
       "enabled": true,
       "priority": 10,
       "registered_commands": {
-        "claude": [
+        "codex": [
           "speckit.git.feature",
           "speckit.git.validate",
           "speckit.git.remote",
