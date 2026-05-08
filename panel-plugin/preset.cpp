@@ -81,8 +81,8 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)            },
 			{ "panel-gap",            PresetValue::from_int(8)             },
-			{ "categories-opacity",   PresetValue::from_int(100)           },
-			{ "apps-opacity",         PresetValue::from_int(80)            },
+			{ "categories-opacity",   PresetValue::from_int(80)            },
+			{ "apps-opacity",         PresetValue::from_int(70)            },
 			{ "sidebar-position",     PresetValue::from_str("left")        },
 			{ "search-bar-position",  PresetValue::from_str("bottom")      },
 			{ "profile-position",     PresetValue::from_str("top")         },

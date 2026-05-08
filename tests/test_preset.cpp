@@ -71,6 +71,8 @@ static TestPresetDef make_classic()
 			{ "layout-mode",           PV::from_str("docked") },
 			{ "hover-switch-category", PV::from_bool(false)  },
 			{ "view-mode-default",     PV::from_str("list")  },
+			{ "menu-width",            PV::from_int(450)     },
+			{ "menu-height",           PV::from_int(500)     },
 		}
 	};
 }
@@ -82,8 +84,8 @@ static TestPresetDef make_modern()
 		{
 			{ "corner-radius",         PV::from_int(12)       },
 			{ "panel-gap",             PV::from_int(8)        },
-			{ "categories-opacity",    PV::from_int(100)      },
-			{ "apps-opacity",          PV::from_int(80)       },
+			{ "categories-opacity",    PV::from_int(80)       },
+			{ "apps-opacity",          PV::from_int(70)       },
 			{ "sidebar-position",      PV::from_str("left")   },
 			{ "search-bar-position",   PV::from_str("bottom") },
 			{ "profile-position",      PV::from_str("top")    },
@@ -91,6 +93,8 @@ static TestPresetDef make_modern()
 			{ "grid-density",          PV::from_str("medium") },
 			{ "hover-switch-category", PV::from_bool(true)    },
 			{ "view-mode-default",     PV::from_str("icons")  },
+			{ "menu-width",            PV::from_int(450)      },
+			{ "menu-height",           PV::from_int(500)      },
 		}
 	};
 }
@@ -138,6 +142,8 @@ struct SettingsShadow
 	std::string layout_mode  = "docked";
 	bool category_hover_activate = false;
 	int view_mode = 1; // ViewAsList
+	int menu_width = 450;
+	int menu_height = 500;
 	std::string current_preset_id;
 };
 
@@ -160,6 +166,8 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		else if (prop == "grid-density" && val.kind == PV::S)         s.grid_density = val.s;
 		else if (prop == "layout-mode" && val.kind == PV::S)          s.layout_mode = val.s;
 		else if (prop == "hover-switch-category" && val.kind == PV::B)s.category_hover_activate = val.b;
+		else if (prop == "menu-width" && val.kind == PV::I)           s.menu_width = val.i;
+		else if (prop == "menu-height" && val.kind == PV::I)          s.menu_height = val.i;
 		else if (prop == "view-mode-default" && val.kind == PV::S)
 		{
 			if (val.s == "icons") s.view_mode = 0;
@@ -189,6 +197,8 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 		if (prop == "grid-density" && val.kind == PV::S && s.grid_density != val.s) return true;
 		if (prop == "layout-mode" && val.kind == PV::S && s.layout_mode != val.s) return true;
 		if (prop == "hover-switch-category" && val.kind == PV::B && s.category_hover_activate != val.b) return true;
+		if (prop == "menu-width" && val.kind == PV::I && s.menu_width != val.i) return true;
+		if (prop == "menu-height" && val.kind == PV::I && s.menu_height != val.i) return true;
 		if (prop == "view-mode-default" && val.kind == PV::S)
 		{
 			const std::string& sv = val.s;
@@ -208,15 +218,15 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 static void test_classic_property_count()
 {
 	auto c = make_classic();
-	// Classic governs 10 properties
-	assert(c.values.size() == 10);
+	// Classic governs 12 properties
+	assert(c.values.size() == 12);
 }
 
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	// Modern governs 11 properties
-	assert(m.values.size() == 11);
+	// Modern governs 13 properties
+	assert(m.values.size() == 13);
 }
 
 static void test_fullscreen_property_count()
@@ -264,6 +274,14 @@ static void test_modern_apps_opacity()
 	auto m = make_modern();
 	auto it = m.values.find("apps-opacity");
 	assert(it != m.values.end());
+	assert(it->second.i == 70);
+}
+
+static void test_modern_categories_opacity()
+{
+	auto m = make_modern();
+	auto it = m.values.find("categories-opacity");
+	assert(it != m.values.end());
 	assert(it->second.i == 80);
 }
 
@@ -281,6 +299,37 @@ static void test_fullscreen_sidebar_hidden()
 	auto it = f.values.find("sidebar-position");
 	assert(it != f.values.end());
 	assert(it->second.s == "hidden");
+}
+
+static void test_fullscreen_to_docked_restores_menu_size()
+{
+	SettingsShadow s;
+
+	// Simulate a stale oversize dimension inherited from a fullscreen session.
+	s.menu_width = 980;
+	s.menu_height = 820;
+
+	auto f = make_fullscreen();
+	apply_preset_shadow(f, s);
+	assert(s.layout_mode == "fullscreen");
+	// FullScreen preset must not define docked menu dimensions.
+	assert(s.menu_width == 980);
+	assert(s.menu_height == 820);
+
+	auto m = make_modern();
+	apply_preset_shadow(m, s);
+	assert(s.layout_mode == "docked");
+	assert(s.menu_width == 450);
+	assert(s.menu_height == 500);
+
+	// Repeat for Classic to guard both docked presets.
+	s.menu_width = 940;
+	s.menu_height = 760;
+	auto c = make_classic();
+	apply_preset_shadow(c, s);
+	assert(s.layout_mode == "docked");
+	assert(s.menu_width == 450);
+	assert(s.menu_height == 500);
 }
 
 // Simulated find_preset_by_id using the shadow table
@@ -446,8 +495,10 @@ int main()
 	test_diff_after_modify();
 	test_modern_corner_radius();
 	test_modern_apps_opacity();
+	test_modern_categories_opacity();
 	test_fullscreen_layout_mode();
 	test_fullscreen_sidebar_hidden();
+	test_fullscreen_to_docked_restores_menu_size();
 	test_find_by_id();
 	// T084: user preset CRUD
 	test_user_preset_save_then_enumerate();
