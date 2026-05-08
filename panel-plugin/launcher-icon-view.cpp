@@ -290,9 +290,8 @@ void LauncherIconView::reload_icon_size()
 	}
 	gtk_icon_view_set_item_padding(m_view, padding);
 
-	// T043: fix column count for fullscreen mode, auto otherwise
-	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
-	gtk_icon_view_set_columns(m_view, is_fullscreen ? m_settings->grid_columns : -1);
+	// Let GtkIconView adapt the number of columns to the available width.
+	gtk_icon_view_set_columns(m_view, -1);
 }
 
 //-----------------------------------------------------------------------------

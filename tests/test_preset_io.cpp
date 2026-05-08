@@ -39,14 +39,14 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "panel-gap",             PropKind::Int,  0,   50,  {} },
 	{ "categories-opacity",    PropKind::Int,  0,   100, {} },
 	{ "apps-opacity",          PropKind::Int,  0,   100, {} },
-	{ "grid-columns",          PropKind::Int,  2,   10,  {} },
-	{ "grid-rows",             PropKind::Int,  1,   8,   {} },
 	{ "sidebar-position",      PropKind::Str,  0,   0,   {"left","right","hidden"} },
+	{ "position-categories-horizontal", PropKind::Bool, 0, 0, {} },
 	{ "search-bar-position",   PropKind::Str,  0,   0,   {"top","bottom"} },
 	{ "profile-position",      PropKind::Str,  0,   0,   {"top","bottom","bottom-right","hidden"} },
 	{ "commands-position",     PropKind::Str,  0,   0,   {"top-right","bottom-right","hidden"} },
 	{ "grid-density",          PropKind::Str,  0,   0,   {"low","medium","high"} },
 	{ "layout-mode",           PropKind::Str,  0,   0,   {"docked","fullscreen"} },
+	{ "launcher-icon-size",    PropKind::Int,  -1,  6,   {} },
 	{ "view-mode-default",     PropKind::Str,  0,   0,   {"icons","list","tree"} },
 	{ "hover-switch-category", PropKind::Bool, 0,   0,   {} },
 };
@@ -170,13 +170,15 @@ static RawSettings make_valid_modern_raw()
 	RawSettings r;
 	r.put("corner-radius",      "12");
 	r.put("panel-gap",          "8");
-	r.put("categories-opacity", "100");
-	r.put("apps-opacity",       "80");
+	r.put("categories-opacity", "80");
+	r.put("apps-opacity",       "70");
 	r.put("sidebar-position",   "left");
+	r.put("position-categories-horizontal", "false");
 	r.put("search-bar-position","bottom");
 	r.put("profile-position",   "top");
 	r.put("commands-position",  "top-right");
 	r.put("layout-mode",        "docked");
+	r.put("launcher-icon-size", "3");
 	r.put("grid-density",       "medium");
 	r.put("hover-switch-category", "true");
 	r.put("view-mode-default",  "icons");

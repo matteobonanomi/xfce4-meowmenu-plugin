@@ -47,6 +47,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_settings(settings),
 	m_plugin(plugin),
 	m_window(nullptr),
+	m_css_provider(nullptr),
 	m_position(PositionAtButton),
 	m_sidebar_size_group(nullptr),
 	m_geometry{0,0,1,1},
@@ -311,6 +312,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create box for packing launcher pages
 	m_panels_stack = GTK_STACK(gtk_stack_new());
+	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_panels_stack)),
+		"applications-area");
 	gtk_grid_attach(m_contents_box, GTK_WIDGET(m_panels_stack), 0, 1, 1, 1);
 	gtk_widget_set_hexpand(GTK_WIDGET(m_panels_stack), true);
 	gtk_widget_set_vexpand(GTK_WIDGET(m_panels_stack), true);
@@ -342,33 +345,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_commands_box)), "commands-area");
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_contents_stack)), "contents");
 
-	// Make inner containers transparent so the per-zone RGBA background set in
-	// on_draw_event shows through instead of being covered by opaque theme backgrounds.
-	GtkCssProvider* css = gtk_css_provider_new();
-	gtk_css_provider_load_from_data(css,
-		// Do NOT include ".meowmenu" here: the window's own background must stay
-		// themed so gtk_render_background() in on_draw_event() has a real color
-		// to paint with opacity. Only inner children need to be transparent.
-		".meowmenu > *,"
-		".meowmenu scrolledwindow,"
-		".meowmenu scrolledwindow > *,"
-		".meowmenu .search-area,"
-		".meowmenu .title-area,"
-		".meowmenu .commands-area,"
-		".meowmenu .contents,"
-		".meowmenu .contents > *,"
-		".meowmenu .categories,"
-		".meowmenu treeview,"
-		".meowmenu flowbox,"
-		".meowmenu flowboxchild,"
-		".meowmenu list,"
-		".meowmenu row"
-		"{ background-color: transparent; background-image: none; }", -1, nullptr);
+	m_css_provider = gtk_css_provider_new();
+	GdkScreen* css_screen = gtk_widget_get_screen(GTK_WIDGET(m_window));
 	gtk_style_context_add_provider_for_screen(
-		gdk_screen_get_default(),
-		GTK_STYLE_PROVIDER(css),
+		css_screen ? css_screen : gdk_screen_get_default(),
+		GTK_STYLE_PROVIDER(m_css_provider),
 		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-	g_object_unref(css);
+	update_background_css();
 
 	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_category_buttons));
 	gtk_style_context_add_class(context, "categories");
@@ -413,16 +396,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 						r > 0 ? GTK_SHADOW_NONE : GTK_SHADOW_OUT);
 				}
 
-				// Apply live per-region content opacity too; apps-opacity must affect
-				// the actual applications content, not only the background paint.
-				const double cats_alpha = CLAMP(static_cast<int>(self->m_settings->categories_opacity), 0, 100) / 100.0;
-				const double apps_alpha = CLAMP(static_cast<int>(self->m_settings->apps_opacity), 0, 100) / 100.0;
-				gtk_widget_set_opacity(GTK_WIDGET(self->m_panels_stack), apps_alpha);
-				gtk_widget_set_opacity(GTK_WIDGET(self->m_sidebar), cats_alpha);
-				gtk_widget_set_opacity(GTK_WIDGET(self->m_categories_box), cats_alpha);
-				gtk_widget_set_opacity(GTK_WIDGET(self->m_title_box), cats_alpha);
-				gtk_widget_set_opacity(GTK_WIDGET(self->m_search_box), cats_alpha);
-
+				self->update_background_css();
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
 				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
 			}), this);
@@ -456,6 +430,16 @@ WhiskerMenu::Window::~Window()
 		delete resizer;
 	}
 
+	if (m_css_provider)
+	{
+		GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(m_window));
+		if (screen)
+		{
+			gtk_style_context_remove_provider_for_screen(
+				screen, GTK_STYLE_PROVIDER(m_css_provider));
+		}
+		g_object_unref(m_css_provider);
+	}
 	gtk_widget_destroy(GTK_WIDGET(m_window));
 	g_object_unref(m_window);
 }
@@ -699,15 +683,6 @@ void WhiskerMenu::Window::show(const Position position)
 	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
 			g_strcmp0(sidebar_pos, "hidden") != 0);
 
-	// Keep visual content opacity in sync with the two region sliders.
-	const double cats_alpha = CLAMP(static_cast<int>(m_settings->categories_opacity), 0, 100) / 100.0;
-	const double apps_alpha = CLAMP(static_cast<int>(m_settings->apps_opacity), 0, 100) / 100.0;
-	gtk_widget_set_opacity(GTK_WIDGET(m_panels_stack), apps_alpha);
-	gtk_widget_set_opacity(GTK_WIDGET(m_sidebar), cats_alpha);
-	gtk_widget_set_opacity(GTK_WIDGET(m_categories_box), cats_alpha);
-	gtk_widget_set_opacity(GTK_WIDGET(m_title_box), cats_alpha);
-	gtk_widget_set_opacity(GTK_WIDGET(m_search_box), cats_alpha);
-
 	// T045: FullScreen mode + size-sensitive layout tweaks
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 
@@ -719,15 +694,24 @@ void WhiskerMenu::Window::show(const Position position)
 		// Center search bar at 50% of screen width (issue #3)
 		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_CENTER);
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), m_workarea.width / 2, -1);
-		// Give the categories sidebar a meaningful minimum width (issue #4)
-		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), m_workarea.width / 6, -1);
+		// Keep sidebar width meaningful, and compensate on the opposite side so
+		// the applications grid stays centered.
+		const int sidebar_width = m_workarea.width / 6;
+		const bool sidebar_on_left = (m_layout_ltr == m_layout_categories_alternate);
+		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), sidebar_width, -1);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_on_left ? 0 : sidebar_width);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_on_left ? sidebar_width : 0);
 	}
 	else
 	{
 		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), 0);
 	}
+
+	update_background_css();
 
 	// Resize window according to current layout mode
 	if (is_fullscreen)
@@ -1076,6 +1060,68 @@ void WhiskerMenu::Window::on_state_flags_changed(GtkWidget* widget)
 	{
 		gtk_window_present(m_window);
 	}
+
+	update_background_css();
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::update_background_css()
+{
+	if (!m_css_provider || !m_window)
+	{
+		return;
+	}
+
+	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_window));
+	GdkRGBA bg = { 0.12, 0.12, 0.12, 1.0 };
+	if (!gtk_style_context_lookup_color(context, "theme_bg_color", &bg))
+	{
+		gtk_style_context_lookup_color(context, "bg_color", &bg);
+	}
+
+	const int red   = CLAMP(static_cast<int>(bg.red   * 255.0 + 0.5), 0, 255);
+	const int green = CLAMP(static_cast<int>(bg.green * 255.0 + 0.5), 0, 255);
+	const int blue  = CLAMP(static_cast<int>(bg.blue  * 255.0 + 0.5), 0, 255);
+	const double cats_alpha = CLAMP(m_settings->categories_opacity, 0, 100) / 100.0;
+	const double apps_alpha = CLAMP(m_settings->apps_opacity, 0, 100) / 100.0;
+
+	gchar* css = g_strdup_printf(
+		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		".meowmenu > *,"
+		".meowmenu frame,"
+		".meowmenu frame > *,"
+		".meowmenu stack,"
+		".meowmenu stack > *,"
+		".meowmenu scrolledwindow,"
+		".meowmenu scrolledwindow > *,"
+		".meowmenu grid,"
+		".meowmenu grid > *,"
+		".meowmenu .search-area,"
+		".meowmenu .title-area,"
+		".meowmenu .commands-area,"
+		".meowmenu .contents,"
+		".meowmenu .contents > *,"
+		".meowmenu .categories,"
+		".meowmenu treeview,"
+		".meowmenu flowbox,"
+		".meowmenu flowboxchild,"
+		".meowmenu list,"
+		".meowmenu row"
+		"{ background-color: transparent; background-image: none; }"
+		".meowmenu .applications-area,"
+		".meowmenu .applications-area > *"
+		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		".meowmenu .category-button,"
+		".meowmenu .category-button *,"
+		".meowmenu .category-button image,"
+		".meowmenu .category-button label"
+		"{ opacity: 1; }",
+		red, green, blue, cats_alpha,
+		red, green, blue, apps_alpha);
+
+	gtk_css_provider_load_from_data(m_css_provider, css, -1, nullptr);
+	g_free(css);
 }
 
 //-----------------------------------------------------------------------------
@@ -1085,7 +1131,7 @@ void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
 	// Always request an RGBA visual when the compositor provides one so that
-	// on_draw_event() can apply per-zone opacity and rounded-corner clipping.
+	// themed RGBA backgrounds and rounded-corner clipping can be composited.
 	if (!visual)
 	{
 		visual = gdk_screen_get_system_visual(screen);
@@ -1096,6 +1142,7 @@ void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 		m_supports_alpha = true;
 	}
 	gtk_widget_set_visual(widget, visual);
+	update_background_css();
 }
 
 //-----------------------------------------------------------------------------
@@ -1133,10 +1180,6 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		}
 	};
 
-	const double cats_alpha = CLAMP(m_settings->categories_opacity, 0, 100) / 100.0;
-	const double apps_alpha = CLAMP(m_settings->apps_opacity,       0, 100) / 100.0;
-	const bool uniform = (cats_alpha == apps_alpha);
-
 	if (enabled && m_supports_alpha)
 	{
 		// Erase the previous frame so pixels outside the rounded clip are transparent.
@@ -1153,54 +1196,11 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 
 		cairo_set_source_surface(cr, background, 0.0, 0.0);
 		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-
-		if (uniform)
-		{
-			// Single-pass paint (T040 clip, T041 uniform opacity)
-			cairo_save(cr);
-			clip_rounded(cr);
-			cairo_clip(cr);
-			cairo_paint_with_alpha(cr, apps_alpha);
-			cairo_restore(cr);
-		}
-		else
-		{
-			// Dual-zone paint (T041): apps zone = exact applications box perimeter
-			// (m_panels_stack). Everything else (header, categories/sidebar, search
-			// area, margins) belongs to the sidebar/background zone.
-			//
-			// IMPORTANT: gtk_widget_get_allocation() returns coordinates in the
-			// immediate parent coordinate space. The draw context here is the
-			// toplevel window, so translate the rectangle to window coordinates.
-			GtkAllocation apps_alloc_local;
-			gtk_widget_get_allocation(GTK_WIDGET(m_panels_stack), &apps_alloc_local);
-			gint apps_x = apps_alloc_local.x;
-			gint apps_y = apps_alloc_local.y;
-			gtk_widget_translate_coordinates(GTK_WIDGET(m_panels_stack),
-				GTK_WIDGET(m_window), 0, 0, &apps_x, &apps_y);
-			const bool has_apps_box = gtk_widget_get_visible(GTK_WIDGET(m_panels_stack))
-				&& apps_alloc_local.width > 0 && apps_alloc_local.height > 0;
-
-			cairo_save(cr);
-			clip_rounded(cr);
-			cairo_clip(cr);
-
-			// Sidebar/background zone: whole menu by default
-			cairo_paint_with_alpha(cr, cats_alpha);
-
-			// Applications zone: paint only inside the applications box rectangle
-			if (has_apps_box)
-			{
-				cairo_save(cr);
-				cairo_rectangle(cr, apps_x, apps_y,
-						apps_alloc_local.width, apps_alloc_local.height);
-				cairo_clip(cr);
-				cairo_paint_with_alpha(cr, apps_alpha);
-				cairo_restore(cr);
-			}
-
-			cairo_restore(cr);
-		}
+		cairo_save(cr);
+		clip_rounded(cr);
+		cairo_clip(cr);
+		cairo_paint(cr);
+		cairo_restore(cr);
 
 		cairo_surface_destroy(background);
 	}

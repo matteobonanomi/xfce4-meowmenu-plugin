@@ -418,6 +418,7 @@ public:
 	String commands_position;
 
 	// Layout Presets — grid (FullScreen mode)
+	Boolean grid_auto_size;
 	Integer grid_columns;
 	Integer grid_rows;
 	String  grid_density;
