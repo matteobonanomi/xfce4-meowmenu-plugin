@@ -1,3 +1,17 @@
+MEOW MENU DEVELOPMENT
+
+0.1.0 (2026-05-04)
+======
+- first release from Whisker fork
+- add advanced search options
+
+0.2.0 (2026-05-09)
+======
+- add Presets: Classic, Modern (default), FullScreen
+- more customization options
+
+WHISKER MENU DEVELOPMENT BEFORE FORK
+
 2.10.1 (2026-02-21)
 ======
 - Fix meson to make minsize an optimized build
