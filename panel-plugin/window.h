@@ -100,6 +100,7 @@ private:
 	void on_state_flags_changed(GtkWidget* widget);
 	void on_screen_changed(GtkWidget* widget);
 	gboolean on_draw_event(GtkWidget* widget, cairo_t* cr);
+	void update_background_css();
 	void check_scrollbar_needed();
 	void favorites_toggled();
 	void recent_toggled();
@@ -131,6 +132,7 @@ private:
 	GtkGrid* m_contents_box;
 	GtkBox* m_categories_box;
 	GtkStack* m_panels_stack;
+	GtkCssProvider* m_css_provider;
 
 	Resizer* m_resize[8];
 	Position m_position;

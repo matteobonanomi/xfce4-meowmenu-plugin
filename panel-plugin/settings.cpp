@@ -124,6 +124,7 @@ Settings::Settings(Plugin* plugin) :
 	profile_position(this, "/profile-position", "top"),
 	commands_position(this, "/commands-position", "top-right"),
 
+	grid_auto_size(this, "/grid-auto-size", true),
 	grid_columns(this, "/grid-columns", 4, 2, 10),
 	grid_rows(this, "/grid-rows", 3, 1, 8),
 	grid_density(this, "/grid-density", "medium"),
@@ -457,6 +458,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| search_bar_position.load(property, value)
 			|| profile_position.load(property, value)
 			|| commands_position.load(property, value)
+			|| grid_auto_size.load(property, value)
 			|| grid_columns.load(property, value)
 			|| grid_rows.load(property, value)
 			|| grid_density.load(property, value)

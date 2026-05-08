@@ -58,6 +58,7 @@ private:
 	void refresh_customized_indicator();
 	void refresh_preset_combo(const std::string& select_id = {});
 	void sync_preset_widgets();
+	void update_grid_controls_state();
 
 	GtkWidget* init_general_tab();
 	GtkWidget* init_appearance_tab();
@@ -108,6 +109,7 @@ private:
 	// Behavior layout (T071)
 	GtkWidget* m_panel_gap;
 	GtkWidget* m_layout_mode_combo;
+	GtkWidget* m_grid_auto_size;
 	GtkWidget* m_grid_columns;
 	GtkWidget* m_grid_rows;
 	GtkWidget* m_grid_density_combo;

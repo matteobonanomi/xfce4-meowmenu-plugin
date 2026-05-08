@@ -420,14 +420,25 @@ void SettingsDialog::refresh_customized_indicator()
 	}
 }
 
+void SettingsDialog::update_grid_controls_state()
+{
+	if (!m_grid_density_combo)
+	{
+		return;
+	}
+
+	const bool icons_view = (static_cast<int>(m_settings->view_mode) == Settings::ViewAsIcons);
+	gtk_widget_set_sensitive(m_grid_density_combo, icons_view);
+}
+
 void SettingsDialog::sync_preset_widgets()
 {
 	// Update all preset-governed widgets to match the current settings after a preset
 	// is applied. Programmatic updates may fire their normal signal handlers; those
 	// writes back to settings are no-ops (same value), but side effects like
-	// m_grid_section visibility and m_show_descriptions sensitivity are correct.
+	// grid control sensitivity and m_show_descriptions sensitivity are correct.
 
-	// Layout mode first — its handler also shows/hides m_grid_section.
+	// Layout mode first.
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo),
 		static_cast<const gchar*>(m_settings->layout_mode));
 
@@ -449,15 +460,13 @@ void SettingsDialog::sync_preset_widgets()
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_commands_position_combo),
 		static_cast<const gchar*>(m_settings->commands_position));
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_columns),
-		static_cast<int>(m_settings->grid_columns));
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_rows),
-		static_cast<int>(m_settings->grid_rows));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 		static_cast<const gchar*>(m_settings->grid_density));
 
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
 		static_cast<bool>(m_settings->category_hover_activate));
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_categories_horizontal),
+		static_cast<bool>(m_settings->position_categories_horizontal));
 
 	const int vm = static_cast<int>(m_settings->view_mode);
 	if (vm == Settings::ViewAsIcons)
@@ -466,6 +475,8 @@ void SettingsDialog::sync_preset_widgets()
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_tree), true);
 	else
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_list), true);
+
+	update_grid_controls_state();
 }
 
 void SettingsDialog::refresh_preset_combo(const std::string& select_id)
@@ -888,10 +899,31 @@ GtkWidget* SettingsDialog::init_general_tab()
 				_("All settings will be reset to defaults and the Modern preset will be applied."),
 				_("Reset all settings to defaults?")))
 			{
+				// Hard reset: clear all plugin properties except saved user presets.
+				GHashTable* props = xfconf_channel_get_properties(m_settings->channel, nullptr);
+				if (props)
+				{
+					GHashTableIter iter;
+					gpointer key_ptr, value_ptr;
+					g_hash_table_iter_init(&iter, props);
+					while (g_hash_table_iter_next(&iter, &key_ptr, &value_ptr))
+					{
+						(void)value_ptr;
+						const gchar* path = static_cast<const gchar*>(key_ptr);
+						if (g_str_has_prefix(path, "/presets"))
+						{
+							continue;
+						}
+						xfconf_channel_reset_property(m_settings->channel, path, FALSE);
+					}
+					g_hash_table_unref(props);
+				}
+
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_plugin->reload_menu();
 				sync_preset_widgets();
 				refresh_preset_combo("modern");
+				refresh_customized_indicator();
 			}
 		});
 
@@ -1119,6 +1151,7 @@ GtkWidget* SettingsDialog::init_appearance_tab()
 				m_settings->view_mode = Settings::ViewAsIcons;
 				m_plugin->reload_menu();
 				gtk_widget_set_sensitive(m_show_descriptions, false);
+				update_grid_controls_state();
 			}
 		});
 
@@ -1130,6 +1163,7 @@ GtkWidget* SettingsDialog::init_appearance_tab()
 				m_settings->view_mode = Settings::ViewAsList;
 				m_plugin->reload_menu();
 				gtk_widget_set_sensitive(m_show_descriptions, true);
+				update_grid_controls_state();
 			}
 		});
 
@@ -1141,6 +1175,7 @@ GtkWidget* SettingsDialog::init_appearance_tab()
 				m_settings->view_mode = Settings::ViewAsTree;
 				m_plugin->reload_menu();
 				gtk_widget_set_sensitive(m_show_descriptions, true);
+				update_grid_controls_state();
 			}
 		});
 
@@ -1740,59 +1775,21 @@ GtkWidget* SettingsDialog::init_behavior_tab()
 	gtk_grid_attach(layout_table, m_layout_mode_combo, 1, 1, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(layout_label), m_layout_mode_combo);
 
-	// FullScreen grid section (hidden when layout is docked)
+	m_grid_auto_size = nullptr;
+	m_grid_columns = nullptr;
+	m_grid_rows = nullptr;
+
+	// Grid section
 	m_grid_section = gtk_grid_new();
 	gtk_grid_set_column_spacing(GTK_GRID(m_grid_section), 12);
 	gtk_grid_set_row_spacing(GTK_GRID(m_grid_section), 6);
 	gtk_widget_set_margin_top(m_grid_section, 4);
 	gtk_grid_attach(layout_table, m_grid_section, 0, 2, 2, 1);
 
-	const bool is_fullscreen_mode = (g_strcmp0(
-		static_cast<const gchar*>(m_settings->layout_mode), "fullscreen") == 0);
-	gtk_widget_set_visible(m_grid_section, is_fullscreen_mode);
-
-	// Grid columns
-	GtkWidget* grid_label = gtk_label_new_with_mnemonic(_("Grid _columns:"));
+	// Grid density
+	GtkWidget* grid_label = gtk_label_new_with_mnemonic(_("Grid _density:"));
 	gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
 	gtk_grid_attach(GTK_GRID(m_grid_section), grid_label, 0, 0, 1, 1);
-
-	m_grid_columns = gtk_spin_button_new_with_range(2, 10, 1);
-	gtk_widget_set_halign(m_grid_columns, GTK_ALIGN_START);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_columns), m_settings->grid_columns);
-	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_columns, 1, 0, 1, 1);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(grid_label), m_grid_columns);
-
-	connect(m_grid_columns, "value-changed",
-		[this](GtkSpinButton* button)
-		{
-			m_settings->grid_columns = gtk_spin_button_get_value_as_int(button);
-			m_plugin->reload_menu();
-			refresh_customized_indicator();
-		});
-
-	// Grid rows
-	grid_label = gtk_label_new_with_mnemonic(_("Grid _rows:"));
-	gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
-	gtk_grid_attach(GTK_GRID(m_grid_section), grid_label, 0, 1, 1, 1);
-
-	m_grid_rows = gtk_spin_button_new_with_range(1, 8, 1);
-	gtk_widget_set_halign(m_grid_rows, GTK_ALIGN_START);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_grid_rows), m_settings->grid_rows);
-	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_rows, 1, 1, 1, 1);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(grid_label), m_grid_rows);
-
-	connect(m_grid_rows, "value-changed",
-		[this](GtkSpinButton* button)
-		{
-			m_settings->grid_rows = gtk_spin_button_get_value_as_int(button);
-			m_plugin->reload_menu();
-			refresh_customized_indicator();
-		});
-
-	// Grid density
-	grid_label = gtk_label_new_with_mnemonic(_("Grid _density:"));
-	gtk_widget_set_halign(grid_label, GTK_ALIGN_START);
-	gtk_grid_attach(GTK_GRID(m_grid_section), grid_label, 0, 2, 1, 1);
 
 	m_grid_density_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "low", _("Low"));
@@ -1800,7 +1797,7 @@ GtkWidget* SettingsDialog::init_behavior_tab()
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "high", _("High"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 		static_cast<const gchar*>(m_settings->grid_density));
-	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_density_combo, 1, 2, 1, 1);
+	gtk_grid_attach(GTK_GRID(m_grid_section), m_grid_density_combo, 1, 0, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(grid_label), m_grid_density_combo);
 
 	connect(m_grid_density_combo, "changed",
@@ -1815,7 +1812,7 @@ GtkWidget* SettingsDialog::init_behavior_tab()
 			}
 		});
 
-	// Show/hide grid section when layout mode changes
+	// Keep layout mode and grid control sensitivity in sync
 	connect(m_layout_mode_combo, "changed",
 		[this](GtkComboBox* combo)
 		{
@@ -1823,12 +1820,13 @@ GtkWidget* SettingsDialog::init_behavior_tab()
 			if (val)
 			{
 				m_settings->layout_mode = val;
-				gtk_widget_set_visible(m_grid_section,
-					g_strcmp0(val, "fullscreen") == 0);
+				update_grid_controls_state();
 				m_plugin->reload_menu();
 				refresh_customized_indicator();
 			}
 		});
+
+	update_grid_controls_state();
 
 
 	// Create command buttons section

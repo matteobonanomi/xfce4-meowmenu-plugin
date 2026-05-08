@@ -65,12 +65,17 @@ static TestPresetDef make_classic()
 			{ "panel-gap",             PV::from_int(0)       },
 			{ "categories-opacity",    PV::from_int(100)     },
 			{ "apps-opacity",          PV::from_int(100)     },
-			{ "sidebar-position",      PV::from_str("left")  },
+			{ "sidebar-position",      PV::from_str("right") },
+			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")   },
 			{ "profile-position",      PV::from_str("top")   },
+			{ "commands-position",     PV::from_str("top-right") },
 			{ "layout-mode",           PV::from_str("docked") },
+			{ "launcher-icon-size",    PV::from_int(2)       },
 			{ "hover-switch-category", PV::from_bool(false)  },
 			{ "view-mode-default",     PV::from_str("list")  },
+			{ "default-category",      PV::from_str("favorites") },
+			{ "stay-on-focus-out",     PV::from_bool(false)  },
 			{ "menu-width",            PV::from_int(450)     },
 			{ "menu-height",           PV::from_int(500)     },
 		}
@@ -87,12 +92,17 @@ static TestPresetDef make_modern()
 			{ "categories-opacity",    PV::from_int(80)       },
 			{ "apps-opacity",          PV::from_int(70)       },
 			{ "sidebar-position",      PV::from_str("left")   },
+			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("bottom") },
 			{ "profile-position",      PV::from_str("top")    },
+			{ "commands-position",     PV::from_str("top-right") },
 			{ "layout-mode",           PV::from_str("docked") },
+			{ "launcher-icon-size",    PV::from_int(3)        },
 			{ "grid-density",          PV::from_str("medium") },
 			{ "hover-switch-category", PV::from_bool(true)    },
 			{ "view-mode-default",     PV::from_str("icons")  },
+			{ "default-category",      PV::from_str("recent") },
+			{ "stay-on-focus-out",     PV::from_bool(false)   },
 			{ "menu-width",            PV::from_int(450)      },
 			{ "menu-height",           PV::from_int(500)      },
 		}
@@ -108,16 +118,18 @@ static TestPresetDef make_fullscreen()
 			{ "panel-gap",             PV::from_int(0)              },
 			{ "categories-opacity",    PV::from_int(100)            },
 			{ "apps-opacity",          PV::from_int(100)            },
-			{ "sidebar-position",      PV::from_str("hidden")       },
+			{ "sidebar-position",      PV::from_str("left")         },
+			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")          },
-			{ "profile-position",      PV::from_str("bottom-right") },
-			{ "commands-position",     PV::from_str("bottom-right") },
-			{ "grid-columns",          PV::from_int(6)              },
-			{ "grid-rows",             PV::from_int(3)              },
+			{ "profile-position",      PV::from_str("top")          },
+			{ "commands-position",     PV::from_str("top-right")    },
+			{ "launcher-icon-size",    PV::from_int(4)              },
 			{ "grid-density",          PV::from_str("medium")       },
 			{ "layout-mode",           PV::from_str("fullscreen")   },
 			{ "hover-switch-category", PV::from_bool(true)          },
 			{ "view-mode-default",     PV::from_str("icons")        },
+			{ "default-category",      PV::from_str("all")          },
+			{ "stay-on-focus-out",     PV::from_bool(false)         },
 		}
 	};
 }
@@ -133,15 +145,17 @@ struct SettingsShadow
 	int categories_opacity = 100;
 	int apps_opacity      = 100;
 	std::string sidebar_position    = "left";
+	bool position_categories_horizontal = false;
 	std::string search_bar_position = "top";
 	std::string profile_position    = "top";
 	std::string commands_position   = "top-right";
-	int grid_columns      = 4;
-	int grid_rows         = 3;
 	std::string grid_density = "medium";
 	std::string layout_mode  = "docked";
 	bool category_hover_activate = false;
+	int launcher_icon_size = 2;
 	int view_mode = 1; // ViewAsList
+	int default_category = 0; // Favorites
+	bool stay_on_focus_out = false;
 	int menu_width = 450;
 	int menu_height = 500;
 	std::string current_preset_id;
@@ -158,13 +172,14 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		else if (prop == "categories-opacity" && val.kind == PV::I)   s.categories_opacity = val.i;
 		else if (prop == "apps-opacity" && val.kind == PV::I)         s.apps_opacity = val.i;
 		else if (prop == "sidebar-position" && val.kind == PV::S)     s.sidebar_position = val.s;
+		else if (prop == "position-categories-horizontal" && val.kind == PV::B)
+			s.position_categories_horizontal = val.b;
 		else if (prop == "search-bar-position" && val.kind == PV::S)  s.search_bar_position = val.s;
 		else if (prop == "profile-position" && val.kind == PV::S)     s.profile_position = val.s;
 		else if (prop == "commands-position" && val.kind == PV::S)    s.commands_position = val.s;
-		else if (prop == "grid-columns" && val.kind == PV::I)         s.grid_columns = val.i;
-		else if (prop == "grid-rows" && val.kind == PV::I)            s.grid_rows = val.i;
 		else if (prop == "grid-density" && val.kind == PV::S)         s.grid_density = val.s;
 		else if (prop == "layout-mode" && val.kind == PV::S)          s.layout_mode = val.s;
+		else if (prop == "launcher-icon-size" && val.kind == PV::I)   s.launcher_icon_size = val.i;
 		else if (prop == "hover-switch-category" && val.kind == PV::B)s.category_hover_activate = val.b;
 		else if (prop == "menu-width" && val.kind == PV::I)           s.menu_width = val.i;
 		else if (prop == "menu-height" && val.kind == PV::I)          s.menu_height = val.i;
@@ -174,6 +189,13 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 			else if (val.s == "tree") s.view_mode = 2;
 			else s.view_mode = 1;
 		}
+		else if (prop == "default-category" && val.kind == PV::S)
+		{
+			if (val.s == "recent") s.default_category = 1;
+			else if (val.s == "all") s.default_category = 2;
+			else s.default_category = 0;
+		}
+		else if (prop == "stay-on-focus-out" && val.kind == PV::B)    s.stay_on_focus_out = val.b;
 	}
 	s.current_preset_id = preset.id;
 }
@@ -189,13 +211,14 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 		if (prop == "categories-opacity" && val.kind == PV::I && s.categories_opacity != val.i) return true;
 		if (prop == "apps-opacity" && val.kind == PV::I && s.apps_opacity != val.i) return true;
 		if (prop == "sidebar-position" && val.kind == PV::S && s.sidebar_position != val.s) return true;
+		if (prop == "position-categories-horizontal" && val.kind == PV::B
+				&& s.position_categories_horizontal != val.b) return true;
 		if (prop == "search-bar-position" && val.kind == PV::S && s.search_bar_position != val.s) return true;
 		if (prop == "profile-position" && val.kind == PV::S && s.profile_position != val.s) return true;
 		if (prop == "commands-position" && val.kind == PV::S && s.commands_position != val.s) return true;
-		if (prop == "grid-columns" && val.kind == PV::I && s.grid_columns != val.i) return true;
-		if (prop == "grid-rows" && val.kind == PV::I && s.grid_rows != val.i) return true;
 		if (prop == "grid-density" && val.kind == PV::S && s.grid_density != val.s) return true;
 		if (prop == "layout-mode" && val.kind == PV::S && s.layout_mode != val.s) return true;
+		if (prop == "launcher-icon-size" && val.kind == PV::I && s.launcher_icon_size != val.i) return true;
 		if (prop == "hover-switch-category" && val.kind == PV::B && s.category_hover_activate != val.b) return true;
 		if (prop == "menu-width" && val.kind == PV::I && s.menu_width != val.i) return true;
 		if (prop == "menu-height" && val.kind == PV::I && s.menu_height != val.i) return true;
@@ -207,6 +230,14 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 					|| (sv == "tree" && s.view_mode != 2))
 				return true;
 		}
+		if (prop == "default-category" && val.kind == PV::S)
+		{
+			if ((val.s == "favorites" && s.default_category != 0)
+					|| (val.s == "recent" && s.default_category != 1)
+					|| (val.s == "all" && s.default_category != 2))
+				return true;
+		}
+		if (prop == "stay-on-focus-out" && val.kind == PV::B && s.stay_on_focus_out != val.b) return true;
 	}
 	return false;
 }
@@ -218,22 +249,19 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 static void test_classic_property_count()
 {
 	auto c = make_classic();
-	// Classic governs 12 properties
-	assert(c.values.size() == 12);
+	assert(c.values.size() == 17);
 }
 
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	// Modern governs 13 properties
-	assert(m.values.size() == 13);
+	assert(m.values.size() == 18);
 }
 
 static void test_fullscreen_property_count()
 {
 	auto f = make_fullscreen();
-	// FullScreen governs 14 properties
-	assert(f.values.size() == 14);
+	assert(f.values.size() == 16);
 }
 
 static void test_apply_then_no_diff()
@@ -291,14 +319,22 @@ static void test_fullscreen_layout_mode()
 	auto it = f.values.find("layout-mode");
 	assert(it != f.values.end());
 	assert(it->second.s == "fullscreen");
+	auto it_icons = f.values.find("launcher-icon-size");
+	assert(it_icons != f.values.end());
+	assert(it_icons->second.kind == PV::I);
+	assert(it_icons->second.i == 4);
+	auto it_horizontal = f.values.find("position-categories-horizontal");
+	assert(it_horizontal != f.values.end());
+	assert(it_horizontal->second.kind == PV::B);
+	assert(it_horizontal->second.b == false);
 }
 
-static void test_fullscreen_sidebar_hidden()
+static void test_fullscreen_sidebar_left()
 {
 	auto f = make_fullscreen();
 	auto it = f.values.find("sidebar-position");
 	assert(it != f.values.end());
-	assert(it->second.s == "hidden");
+	assert(it->second.s == "left");
 }
 
 static void test_fullscreen_to_docked_restores_menu_size()
@@ -497,7 +533,7 @@ int main()
 	test_modern_apps_opacity();
 	test_modern_categories_opacity();
 	test_fullscreen_layout_mode();
-	test_fullscreen_sidebar_hidden();
+	test_fullscreen_sidebar_left();
 	test_fullscreen_to_docked_restores_menu_size();
 	test_find_by_id();
 	// T084: user preset CRUD

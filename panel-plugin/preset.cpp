@@ -60,10 +60,12 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "categories-opacity",   PresetValue::from_int(100)            },
 			{ "apps-opacity",         PresetValue::from_int(100)            },
 			{ "sidebar-position",     PresetValue::from_str("right")        },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
 			{ "profile-position",     PresetValue::from_str("top")          },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "layout-mode",          PresetValue::from_str("docked")       },
+			{ "launcher-icon-size",   PresetValue::from_int(2)              }, // Small
 			{ "hover-switch-category",PresetValue::from_bool(false)         },
 			{ "view-mode-default",    PresetValue::from_str("list")         },
 			{ "default-category",     PresetValue::from_str("favorites")    },
@@ -84,10 +86,12 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "categories-opacity",   PresetValue::from_int(80)            },
 			{ "apps-opacity",         PresetValue::from_int(70)            },
 			{ "sidebar-position",     PresetValue::from_str("left")        },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("bottom")      },
 			{ "profile-position",     PresetValue::from_str("top")         },
 			{ "commands-position",    PresetValue::from_str("top-right")   },
 			{ "layout-mode",          PresetValue::from_str("docked")      },
+			{ "launcher-icon-size",   PresetValue::from_int(3)             }, // Normal
 			{ "grid-density",         PresetValue::from_str("medium")      },
 			{ "hover-switch-category",PresetValue::from_bool(true)         },
 			{ "view-mode-default",    PresetValue::from_str("icons")       },
@@ -101,7 +105,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 	{
 		"fullscreen",
 		N_("Full Screen"),
-		N_("Launcher fills the whole screen. Grid of icons with a hidden sidebar."),
+		N_("Launcher fills the whole screen with a centered grid and categories on the left."),
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
@@ -109,11 +113,11 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "categories-opacity",   PresetValue::from_int(100)            },
 			{ "apps-opacity",         PresetValue::from_int(100)            },
 			{ "sidebar-position",     PresetValue::from_str("left")         },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
 			{ "profile-position",     PresetValue::from_str("top")          },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
-			{ "grid-columns",         PresetValue::from_int(6)              },
-			{ "grid-rows",            PresetValue::from_int(3)              },
+			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
 			{ "hover-switch-category",PresetValue::from_bool(true)          },
@@ -146,20 +150,20 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.apps_opacity = val.i;
 		else if (prop == "sidebar-position" && val.kind == PresetValue::Str)
 			settings.sidebar_position = val.s;
+		else if (prop == "position-categories-horizontal" && val.kind == PresetValue::Bool)
+			settings.position_categories_horizontal = val.b;
 		else if (prop == "search-bar-position" && val.kind == PresetValue::Str)
 			settings.search_bar_position = val.s;
 		else if (prop == "profile-position" && val.kind == PresetValue::Str)
 			settings.profile_position = val.s;
 		else if (prop == "commands-position" && val.kind == PresetValue::Str)
 			settings.commands_position = val.s;
-		else if (prop == "grid-columns" && val.kind == PresetValue::Int)
-			settings.grid_columns = val.i;
-		else if (prop == "grid-rows" && val.kind == PresetValue::Int)
-			settings.grid_rows = val.i;
 		else if (prop == "grid-density" && val.kind == PresetValue::Str)
 			settings.grid_density = val.s;
 		else if (prop == "layout-mode" && val.kind == PresetValue::Str)
 			settings.layout_mode = val.s;
+		else if (prop == "launcher-icon-size" && val.kind == PresetValue::Int)
+			settings.launcher_icon_size = val.i;
 		else if (prop == "hover-switch-category" && val.kind == PresetValue::Bool)
 			settings.category_hover_activate = val.b;
 		else if (prop == "view-mode-default" && val.kind == PresetValue::Str)
@@ -246,6 +250,12 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 			if (val.kind == PresetValue::Str && !(settings.sidebar_position == val.s.c_str()))
 				return true;
 		}
+		else if (prop == "position-categories-horizontal")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.position_categories_horizontal) != val.b)
+				return true;
+		}
 		else if (prop == "search-bar-position")
 		{
 			if (val.kind == PresetValue::Str && !(settings.search_bar_position == val.s.c_str()))
@@ -261,16 +271,6 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 			if (val.kind == PresetValue::Str && !(settings.commands_position == val.s.c_str()))
 				return true;
 		}
-		else if (prop == "grid-columns")
-		{
-			if (val.kind == PresetValue::Int && static_cast<int>(settings.grid_columns) != val.i)
-				return true;
-		}
-		else if (prop == "grid-rows")
-		{
-			if (val.kind == PresetValue::Int && static_cast<int>(settings.grid_rows) != val.i)
-				return true;
-		}
 		else if (prop == "grid-density")
 		{
 			if (val.kind == PresetValue::Str && !(settings.grid_density == val.s.c_str()))
@@ -279,6 +279,11 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 		else if (prop == "layout-mode")
 		{
 			if (val.kind == PresetValue::Str && !(settings.layout_mode == val.s.c_str()))
+				return true;
+		}
+		else if (prop == "launcher-icon-size")
+		{
+			if (val.kind == PresetValue::Int && static_cast<int>(settings.launcher_icon_size) != val.i)
 				return true;
 		}
 		else if (prop == "hover-switch-category")
@@ -468,13 +473,14 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	xfconf_channel_set_int(ch, (prefix + "categories-opacity").c_str(), settings.categories_opacity);
 	xfconf_channel_set_int(ch, (prefix + "apps-opacity").c_str(), settings.apps_opacity);
 	xfconf_channel_set_string(ch, (prefix + "sidebar-position").c_str(), settings.sidebar_position);
+	xfconf_channel_set_bool(ch, (prefix + "position-categories-horizontal").c_str(),
+		static_cast<bool>(settings.position_categories_horizontal));
 	xfconf_channel_set_string(ch, (prefix + "search-bar-position").c_str(), settings.search_bar_position);
 	xfconf_channel_set_string(ch, (prefix + "profile-position").c_str(), settings.profile_position);
 	xfconf_channel_set_string(ch, (prefix + "commands-position").c_str(), settings.commands_position);
-	xfconf_channel_set_int(ch, (prefix + "grid-columns").c_str(), settings.grid_columns);
-	xfconf_channel_set_int(ch, (prefix + "grid-rows").c_str(), settings.grid_rows);
 	xfconf_channel_set_string(ch, (prefix + "grid-density").c_str(), settings.grid_density);
 	xfconf_channel_set_string(ch, (prefix + "layout-mode").c_str(), settings.layout_mode);
+	xfconf_channel_set_int(ch, (prefix + "launcher-icon-size").c_str(), settings.launcher_icon_size);
 	xfconf_channel_set_bool(ch, (prefix + "hover-switch-category").c_str(),
 		static_cast<bool>(settings.category_hover_activate));
 	const gchar* vm_str = "list";
