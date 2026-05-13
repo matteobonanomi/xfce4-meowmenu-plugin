@@ -1,0 +1,27 @@
+# FullScreen preset — launcher fills the whole screen with a centered icon grid.
+# Full-screen layout, sidebar on the left, larger icons, lower grid density.
+# Source of truth for all keys: .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+
+[Preset]
+Name=Full Screen
+SchemaVersion=1
+Id=fullscreen
+Description=Launcher fills the whole screen with a centered grid and categories on the left.
+
+[Settings]
+layout-mode=fullscreen
+corner-radius=0
+panel-gap=0
+launcher-icon-size=4
+view-mode-default=icons
+grid-density=medium
+sidebar-position=left
+search-bar-position=top
+profile-position=top
+commands-position=top-right
+categories-opacity=100
+apps-opacity=100
+full-screen-opacity=100
+hover-switch-category=true
+stay-on-focus-out=false
+default-category=all

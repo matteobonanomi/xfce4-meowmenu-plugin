@@ -16,6 +16,7 @@
  */
 
 #include "preset.h"
+#include "preset-io.h"
 #include "settings.h"
 
 #include <cstring>
@@ -29,6 +30,12 @@ using namespace WhiskerMenu;
 // In-memory cache of user presets (rebuilt by enumerate_user_presets).
 // ---------------------------------------------------------------------------
 static std::vector<LayoutPreset> g_user_presets;
+
+// ---------------------------------------------------------------------------
+// In-memory cache of file-seeded built-in presets (filled by initialize_file_presets).
+// When non-empty, these shadow BUILTIN_PRESETS[] for matching ids.
+// ---------------------------------------------------------------------------
+static std::vector<LayoutPreset> g_file_presets;
 
 // ---------------------------------------------------------------------------
 // Helper: build a PresetValueMap from a brace-enclosed initializer list.
@@ -190,17 +197,70 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.menu_width = val.i;
 		else if (prop == "menu-height" && val.kind == PresetValue::Int)
 			settings.menu_height = val.i;
+		else if (prop == "full-screen-opacity" && val.kind == PresetValue::Int)
+			settings.full_screen_opacity = val.i;
 	}
 
 	settings.current_preset_id = preset.id;
 }
 
 // ---------------------------------------------------------------------------
-// find_preset_by_id: built-in lookup only (Phase 2); Phase 5 extends for user.
+// initialize_file_presets / get_file_presets — T040
+// ---------------------------------------------------------------------------
+
+/* initialize_file_presets:
+ *
+ * Loads built-in .meowpreset files from the system data directory and from
+ * the user-level drop-in folder. File-loaded entries shadow BUILTIN_PRESETS[]
+ * by id; BUILTIN_PRESETS[] remains the fallback when files are absent or all
+ * malformed (FR-063).
+ *
+ * Call once at startup (SettingsDialog constructor) before the preset combo
+ * is populated.
+ */
+void WhiskerMenu::initialize_file_presets()
+{
+	std::string sys_dir  = std::string(PACKAGE_DATADIR) + G_DIR_SEPARATOR_S + "presets";
+	std::string user_dir = std::string(g_get_user_data_dir())
+		+ G_DIR_SEPARATOR_S + "meowmenu" + G_DIR_SEPARATOR_S + "presets";
+
+	g_file_presets = enumerate_preset_files(sys_dir, user_dir);
+
+	// Merge any built-in id not covered by a file entry from BUILTIN_PRESETS[].
+	for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
+	{
+		bool covered = false;
+		for (const auto& p : g_file_presets)
+		{
+			if (p.id == BUILTIN_PRESETS[i].id)
+			{
+				covered = true;
+				break;
+			}
+		}
+		if (!covered)
+			g_file_presets.push_back(BUILTIN_PRESETS[i]);
+	}
+}
+
+const std::vector<LayoutPreset>& WhiskerMenu::get_file_presets()
+{
+	return g_file_presets;
+}
+
+// ---------------------------------------------------------------------------
+// find_preset_by_id: file presets first, then C++ fallback, then user presets.
 // ---------------------------------------------------------------------------
 
 const LayoutPreset* WhiskerMenu::find_preset_by_id(const std::string& id)
 {
+	// NOTE: g_file_presets already contains merged fallbacks from initialize_file_presets().
+	for (const auto& p : g_file_presets)
+	{
+		if (id == p.id)
+			return &p;
+	}
+	// Fallback for callers that query before initialize_file_presets() runs.
 	for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
 	{
 		if (id == BUILTIN_PRESETS[i].id)

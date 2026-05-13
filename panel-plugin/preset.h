@@ -67,9 +67,18 @@ extern const LayoutPreset BUILTIN_PRESETS[PRESET_BUILTIN_COUNT];
 // Apply all values from preset to settings; set current_preset_id at the end.
 void apply_preset(const LayoutPreset& preset, Settings& settings);
 
-// Find a preset by id (built-ins first, then user presets in cache).
+// Find a preset by id (file presets first, then C++ fallback table, then user presets).
 // Returns nullptr if not found.
 const LayoutPreset* find_preset_by_id(const std::string& id);
+
+// Load or reload built-in presets from on-disk .meowpreset files.
+// Falls back per-id to BUILTIN_PRESETS[] when a file is absent or malformed.
+// Should be called once at startup, e.g. from SettingsDialog constructor.
+void initialize_file_presets();
+
+// Return the in-memory cache of file-seeded built-in presets.
+// Empty before initialize_file_presets() is called.
+const std::vector<LayoutPreset>& get_file_presets();
 
 // True if any setting governed by preset differs from the live settings values.
 bool compute_preset_diff(const LayoutPreset& preset, const Settings& settings);

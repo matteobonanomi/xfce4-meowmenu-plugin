@@ -101,7 +101,12 @@ void CategoryButton::reload_icon_size()
 	gtk_image_set_pixel_size(GTK_IMAGE(m_icon), size);
 	gtk_widget_set_visible(m_icon, size > 1);
 
-	if (m_settings->category_show_name && !m_settings->position_categories_horizontal)
+	// NOTE: schema v2 — categories are rendered icon-only whenever the sidebar is
+	// laid out horizontally (sidebar-position ∈ {top, bottom}); the legacy
+	// /position-categories-horizontal key is migrated away (see migrate_schema).
+	const bool sidebar_horizontal = (g_strcmp0(m_settings->sidebar_position, "top") == 0
+			|| g_strcmp0(m_settings->sidebar_position, "bottom") == 0);
+	if (m_settings->category_show_name && !sidebar_horizontal)
 	{
 		gtk_widget_set_has_tooltip(GTK_WIDGET(m_button), false);
 		gtk_box_set_child_packing(m_box, m_icon, false, false, 0, GTK_PACK_START);

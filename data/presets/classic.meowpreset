@@ -1,0 +1,28 @@
+# Classic preset — traditional Whisker Menu layout.
+# Docked, no rounded corners, app list, sidebar on the right.
+# Source of truth for all keys: .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+
+[Preset]
+Name=Classic
+SchemaVersion=1
+Id=classic
+Description=Traditional Whisker Menu layout. Compact window, sidebar on the right, apps as a list.
+
+[Settings]
+layout-mode=docked
+corner-radius=0
+panel-gap=0
+menu-width=450
+menu-height=500
+launcher-icon-size=2
+view-mode-default=list
+sidebar-position=right
+search-bar-position=top
+profile-position=top
+commands-position=top-right
+categories-opacity=100
+apps-opacity=100
+full-screen-opacity=100
+hover-switch-category=false
+stay-on-focus-out=false
+default-category=favorites

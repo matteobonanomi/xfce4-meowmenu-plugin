@@ -6,3 +6,13 @@
 .codex
 AGENTS.md
 CLAUDE.md
+
+# Meson build artifacts
+build/
+_build/
+*.o
+*.so
+*.a
+*.dll
+*.exe
+.DS_Store

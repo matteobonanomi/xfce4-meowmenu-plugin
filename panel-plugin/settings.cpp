@@ -118,6 +118,7 @@ Settings::Settings(Plugin* plugin) :
 	panel_gap(this, "/panel-gap", 0, 0, 50),
 	categories_opacity(this, "/categories-opacity", 100, 0, 100),
 	apps_opacity(this, "/apps-opacity", 100, 0, 100),
+	full_screen_opacity(this, "/full-screen-opacity", 100, 0, 100),
 
 	sidebar_position(this, "/sidebar-position", "left"),
 	search_bar_position(this, "/search-bar-position", "top"),
@@ -454,6 +455,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| panel_gap.load(property, value)
 			|| categories_opacity.load(property, value)
 			|| apps_opacity.load(property, value)
+			|| full_screen_opacity.load(property, value)
 			|| sidebar_position.load(property, value)
 			|| search_bar_position.load(property, value)
 			|| profile_position.load(property, value)
@@ -1284,61 +1286,116 @@ void Settings::save_aliases(XfconfChannel* ch)
 
 //-----------------------------------------------------------------------------
 
+/* migrate_schema:
+ * @is_fresh_install: true when no Xfconf properties were present at load.
+ *
+ * Walks the channel forward through every known schema version, applying
+ * additive migrations. Versions are cumulative: each block runs once per
+ * upgrade. See .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+ * for the v2 contract.
+ */
 void Settings::migrate_schema(bool is_fresh_install)
 {
 	if (!channel)
 		return;
 
-	// Already migrated
-	if (schema_version >= 1)
+	const int current_schema = 2;
+	if (schema_version >= current_schema)
 		return;
 
 	begin_property_update();
 
-	// Map legacy menu-opacity → categories-opacity if present and categories-opacity missing
-	if (xfconf_channel_has_property(channel, "/menu-opacity")
-			&& !xfconf_channel_has_property(channel, "/categories-opacity"))
+	if (schema_version < 1)
 	{
-		const int legacy_opacity = xfconf_channel_get_int(channel, "/menu-opacity", 100);
-		xfconf_channel_set_int(channel, "/categories-opacity", legacy_opacity);
-		categories_opacity = legacy_opacity;
+		// Map legacy menu-opacity → categories-opacity if present and categories-opacity missing
+		if (xfconf_channel_has_property(channel, "/menu-opacity")
+				&& !xfconf_channel_has_property(channel, "/categories-opacity"))
+		{
+			const int legacy_opacity = xfconf_channel_get_int(channel, "/menu-opacity", 100);
+			xfconf_channel_set_int(channel, "/categories-opacity", legacy_opacity);
+			categories_opacity = legacy_opacity;
+		}
+
+		// Write defaults for V1 properties not yet in the channel
+		struct { const char* prop; int val; } int_props[] = {
+			{ "/corner-radius",       0   },
+			{ "/panel-gap",           0   },
+			{ "/categories-opacity",  100 },
+			{ "/apps-opacity",        100 },
+			{ "/grid-columns",        4   },
+			{ "/grid-rows",           3   },
+		};
+		for (auto& p : int_props)
+		{
+			if (!xfconf_channel_has_property(channel, p.prop))
+				xfconf_channel_set_int(channel, p.prop, p.val);
+		}
+
+		struct { const char* prop; const char* val; } str_props[] = {
+			{ "/sidebar-position",     "left"      },
+			{ "/search-bar-position",  "top"       },
+			{ "/profile-position",     "top"       },
+			{ "/commands-position",    "top-right" },
+			{ "/grid-density",         "medium"    },
+			{ "/layout-mode",          "docked"    },
+		};
+		for (auto& p : str_props)
+		{
+			if (!xfconf_channel_has_property(channel, p.prop))
+				xfconf_channel_set_string(channel, p.prop, p.val);
+		}
+
+		if (is_fresh_install)
+			apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *this);
+		else
+			current_preset_id = "classic";
+
+		schema_version = 1;
 	}
 
-	// Write defaults for V1 properties not yet in the channel
-	struct { const char* prop; int val; } int_props[] = {
-		{ "/corner-radius",       0   },
-		{ "/panel-gap",           0   },
-		{ "/categories-opacity",  100 },
-		{ "/apps-opacity",        100 },
-		{ "/grid-columns",        4   },
-		{ "/grid-rows",           3   },
-	};
-	for (auto& p : int_props)
+	if (schema_version < 2)
 	{
-		if (!xfconf_channel_has_property(channel, p.prop))
-			xfconf_channel_set_int(channel, p.prop, p.val);
+		// Seed /full-screen-opacity (new key). Default 100; honour active preset if it pins one.
+		// NOTE: at this point preset.cpp's file-seeded values are not yet read — the active
+		// preset's compiled default is used as the fallback. Users who want a custom value
+		// can edit it via the Properties dialog after upgrade.
+		if (!xfconf_channel_has_property(channel, "/full-screen-opacity"))
+			xfconf_channel_set_int(channel, "/full-screen-opacity", 100);
+
+		// Deprecate /position-categories-horizontal: subsumed by /sidebar-position ∈ {top, bottom}.
+		// If the user had it on AND sidebar-position is left|right (or unset), promote sidebar-position
+		// to "top". Then reset the dead key to false so future reads are inert.
+		if (xfconf_channel_has_property(channel, "/position-categories-horizontal")
+				&& xfconf_channel_get_bool(channel, "/position-categories-horizontal", false))
+		{
+			gchar* current_sidebar = xfconf_channel_get_string(channel, "/sidebar-position", nullptr);
+			const bool sidebar_is_vertical = !current_sidebar
+					|| g_strcmp0(current_sidebar, "left") == 0
+					|| g_strcmp0(current_sidebar, "right") == 0;
+			if (sidebar_is_vertical)
+			{
+				xfconf_channel_set_string(channel, "/sidebar-position", "top");
+				sidebar_position = "top";
+			}
+			g_free(current_sidebar);
+			xfconf_channel_set_bool(channel, "/position-categories-horizontal", false);
+			position_categories_horizontal = false;
+		}
+
+		// Deprecate profile-shape = Hidden (enum value 2): subsumed by /profile-position = "hidden".
+		// HACK: we keep the ProfileHidden enum value compiled in to avoid breaking any third-party
+		// preset file that still references the integer 2, but the UI no longer exposes it.
+		if (xfconf_channel_has_property(channel, "/profile-shape")
+				&& xfconf_channel_get_int(channel, "/profile-shape", ProfileRound) == ProfileHidden)
+		{
+			xfconf_channel_set_string(channel, "/profile-position", "hidden");
+			profile_position = "hidden";
+			xfconf_channel_set_int(channel, "/profile-shape", ProfileRound);
+			profile_shape = ProfileRound;
+		}
+
+		schema_version = 2;
 	}
-
-	struct { const char* prop; const char* val; } str_props[] = {
-		{ "/sidebar-position",     "left"      },
-		{ "/search-bar-position",  "top"       },
-		{ "/profile-position",     "top"       },
-		{ "/commands-position",    "top-right" },
-		{ "/grid-density",         "medium"    },
-		{ "/layout-mode",          "docked"    },
-	};
-	for (auto& p : str_props)
-	{
-		if (!xfconf_channel_has_property(channel, p.prop))
-			xfconf_channel_set_string(channel, p.prop, p.val);
-	}
-
-	if (is_fresh_install)
-		apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *this);
-	else
-		current_preset_id = "classic";
-
-	schema_version = 1;
 
 	end_property_update();
 }

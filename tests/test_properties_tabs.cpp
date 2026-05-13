@@ -1,0 +1,235 @@
+/* test_properties_tabs:
+ *
+ * Encodes the placement grid from
+ * .specify/specs/003-properties-refactor/contracts/tab-inventory.md and
+ * asserts the four invariants listed under §Invariants:
+ *   1. No duplication — each Xfconf key appears in exactly one row.
+ *   2. No omission — every key in xfconf-keys.md is on the grid.
+ *   3. Exactly five tabs in the known dictionary.
+ *   4. Sane enable-when values — docked|fullscreen rows correspond to widgets
+ *      whose live behaviour is driven by /layout-mode (FR-003).
+ *
+ * This is a pure-data test: it does not link against GTK or Xfconf. The
+ * placement table mirrors what panel-plugin/settings-dialog.cpp consumes
+ * when building the five init_*_tab() functions. Failures (1) or (2) block
+ * merge per the no-loss guarantee (SC-001 / SC-002).
+ */
+
+#include <cassert>
+#include <cstring>
+#include <set>
+#include <string>
+#include <vector>
+
+namespace
+{
+
+enum class Tab
+{
+	General,
+	UserSession,
+	SearchBar,
+	AppGrid,
+	Sidebar,
+};
+
+enum class EnableWhen
+{
+	Always,
+	Docked,
+	Fullscreen,
+	// Sub-enables tied to a sibling key, not to /layout-mode:
+	SidebarLeftRight,    // category-show-name: greyed when sidebar-position ∈ {top, bottom}
+	ProfileVisible,      // profile-shape: greyed when profile-position == hidden
+	ViewModeIcons,       // grid-density, launcher-icon-size: greyed when view-mode != icons
+	ViewModeList,        // launcher-show-description: greyed when view-mode != list
+};
+
+struct Row
+{
+	const char* setting_id;   // matches Xfconf key for keyed settings
+	Tab         tab;
+	EnableWhen  enable_when;
+	bool        layout_mode_driven; // true iff enable_when uses /layout-mode
+};
+
+// The placement grid. Order is informational; the invariant checks are
+// order-independent.
+const Row kPlacementGrid[] = {
+	// General
+	{ "current-preset-id",         Tab::General,     EnableWhen::Always,     false },
+	{ "button-title-visible",      Tab::General,     EnableWhen::Always,     false },
+	{ "button-title",              Tab::General,     EnableWhen::Always,     false },
+	{ "button-icon-visible",       Tab::General,     EnableWhen::Always,     false },
+	{ "button-icon-name",          Tab::General,     EnableWhen::Always,     false },
+	{ "button-single-row",         Tab::General,     EnableWhen::Always,     false },
+	{ "layout-mode",               Tab::General,     EnableWhen::Always,     false },
+	{ "panel-gap",                 Tab::General,     EnableWhen::Always,     false },
+	{ "menu-width",                Tab::General,     EnableWhen::Docked,     true  },
+	{ "menu-height",               Tab::General,     EnableWhen::Docked,     true  },
+	{ "corner-radius",             Tab::General,     EnableWhen::Always,     false },
+	{ "full-screen-opacity",       Tab::General,     EnableWhen::Fullscreen, true  },
+	{ "stay-on-focus-out",         Tab::General,     EnableWhen::Always,     false },
+
+	// User / Session
+	{ "profile-position",          Tab::UserSession, EnableWhen::Always,         false },
+	{ "profile-shape",             Tab::UserSession, EnableWhen::ProfileVisible, false },
+	{ "commands-position",         Tab::UserSession, EnableWhen::Always,         false },
+	{ "confirm-session-command",   Tab::UserSession, EnableWhen::Always,         false },
+
+	// Search Bar
+	{ "search-bar-position",       Tab::SearchBar,   EnableWhen::Always, false },
+	{ "fuzzy-enabled",             Tab::SearchBar,   EnableWhen::Always, false },
+	{ "fuzzy-threshold",           Tab::SearchBar,   EnableWhen::Always, false },
+	{ "favorites-boost-enabled",   Tab::SearchBar,   EnableWhen::Always, false },
+	{ "favorites-boost-level",     Tab::SearchBar,   EnableWhen::Always, false },
+	{ "frecency-alpha",            Tab::SearchBar,   EnableWhen::Always, false },
+
+	// App Grid
+	{ "view-mode",                 Tab::AppGrid,     EnableWhen::Always,        false },
+	{ "grid-density",              Tab::AppGrid,     EnableWhen::ViewModeIcons, false },
+	{ "launcher-icon-size",        Tab::AppGrid,     EnableWhen::ViewModeIcons, false },
+	{ "launcher-show-name",        Tab::AppGrid,     EnableWhen::Always,        false },
+	{ "launcher-show-tooltip",     Tab::AppGrid,     EnableWhen::Always,        false },
+	{ "launcher-show-description", Tab::AppGrid,     EnableWhen::ViewModeList,  false },
+	{ "apps-opacity",              Tab::AppGrid,     EnableWhen::Docked,        true  },
+
+	// Sidebar
+	{ "category-show-name",        Tab::Sidebar,     EnableWhen::SidebarLeftRight, false },
+	{ "category-icon-size",        Tab::Sidebar,     EnableWhen::Always,           false },
+	{ "categories-opacity",        Tab::Sidebar,     EnableWhen::Docked,           true  },
+	{ "sidebar-position",          Tab::Sidebar,     EnableWhen::Always,           false },
+	{ "category-hover-activate",   Tab::Sidebar,     EnableWhen::Always,           false },
+	{ "sort-categories",           Tab::Sidebar,     EnableWhen::Always,           false },
+	{ "default-category",          Tab::Sidebar,     EnableWhen::Always,           false },
+	{ "recent-items-max",          Tab::Sidebar,     EnableWhen::Always,           false },
+	{ "favorites-in-recent",       Tab::Sidebar,     EnableWhen::Always,           false },
+};
+
+// Every Xfconf key documented in contracts/xfconf-keys.md that surfaces in
+// the new dialog. Must be a superset of the placement grid's setting_ids.
+const char* const kRequiredKeys[] = {
+	"current-preset-id",
+	"button-title", "button-title-visible",
+	"button-icon-name", "button-icon-visible",
+	"button-single-row",
+	"layout-mode", "panel-gap",
+	"menu-width", "menu-height", "corner-radius",
+	"full-screen-opacity", "stay-on-focus-out",
+	"profile-position", "profile-shape", "commands-position",
+	"confirm-session-command",
+	"search-bar-position",
+	"fuzzy-enabled", "fuzzy-threshold",
+	"favorites-boost-enabled", "favorites-boost-level",
+	"frecency-alpha",
+	"view-mode", "grid-density",
+	"launcher-icon-size", "launcher-show-name",
+	"launcher-show-tooltip", "launcher-show-description",
+	"apps-opacity",
+	"category-show-name", "category-icon-size",
+	"categories-opacity", "sidebar-position",
+	"category-hover-activate", "sort-categories",
+	"default-category", "recent-items-max", "favorites-in-recent",
+};
+
+constexpr size_t kRowCount = sizeof(kPlacementGrid) / sizeof(kPlacementGrid[0]);
+constexpr size_t kRequiredCount = sizeof(kRequiredKeys) / sizeof(kRequiredKeys[0]);
+
+}  // namespace
+
+// Invariant 1: no Xfconf key appears in more than one placement row.
+static void test_no_duplication()
+{
+	std::set<std::string> seen;
+	for (const auto& row : kPlacementGrid)
+	{
+		const bool inserted = seen.insert(row.setting_id).second;
+		assert(inserted && "duplicate setting_id in placement grid");
+	}
+}
+
+// Invariant 2: every required Xfconf key is on the grid (no silent drops).
+static void test_no_omission()
+{
+	std::set<std::string> placed;
+	for (const auto& row : kPlacementGrid)
+		placed.insert(row.setting_id);
+
+	for (size_t i = 0; i < kRequiredCount; ++i)
+	{
+		assert(placed.count(kRequiredKeys[i]) == 1
+				&& "required Xfconf key missing from placement grid");
+	}
+}
+
+// Invariant 3: every row maps to one of the five known tabs, and all five
+// tabs are represented at least once.
+static void test_exactly_five_tabs()
+{
+	std::set<int> tabs_seen;
+	for (const auto& row : kPlacementGrid)
+	{
+		const int t = static_cast<int>(row.tab);
+		assert(t >= 0 && t <= 4 && "row.tab out of known range");
+		tabs_seen.insert(t);
+	}
+	assert(tabs_seen.size() == 5 && "not all five tabs are populated");
+}
+
+// Invariant 4: enable-when values are consistent with the live-wiring contract.
+//  - Docked / Fullscreen rows must be marked layout-mode-driven.
+//  - The sibling-driven sub-enables must NOT claim layout-mode binding.
+//  - Always rows must NOT claim layout-mode binding.
+static void test_sane_enable_when()
+{
+	for (const auto& row : kPlacementGrid)
+	{
+		switch (row.enable_when)
+		{
+		case EnableWhen::Always:
+		case EnableWhen::SidebarLeftRight:
+		case EnableWhen::ProfileVisible:
+		case EnableWhen::ViewModeIcons:
+		case EnableWhen::ViewModeList:
+			assert(!row.layout_mode_driven
+					&& "non-layout-mode row claims layout-mode driver");
+			break;
+		case EnableWhen::Docked:
+		case EnableWhen::Fullscreen:
+			assert(row.layout_mode_driven
+					&& "docked/fullscreen row missing layout-mode driver");
+			break;
+		}
+	}
+}
+
+// Invariant 5 (T013): the placement grid covers exactly the required keys and
+// nothing more — guards against the table silently growing stale.
+static void test_placement_grid_complete_and_no_extras()
+{
+	std::set<std::string> placed;
+	for (const auto& row : kPlacementGrid)
+		placed.insert(row.setting_id);
+
+	std::set<std::string> required;
+	for (size_t i = 0; i < kRequiredCount; ++i)
+		required.insert(kRequiredKeys[i]);
+
+	// Every required key must be placed.
+	for (const auto& k : required)
+		assert(placed.count(k) == 1 && "required key missing from placement grid");
+
+	// Every placed key must be in the required set (no extra/orphan rows).
+	for (const auto& k : placed)
+		assert(required.count(k) == 1 && "placement grid has orphan key not in required list");
+}
+
+int main()
+{
+	test_no_duplication();
+	test_no_omission();
+	test_exactly_five_tabs();
+	test_sane_enable_when();
+	test_placement_grid_complete_and_no_extras(); // T013
+	return 0;
+}

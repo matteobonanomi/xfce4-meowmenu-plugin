@@ -1,7 +1,7 @@
 # Serbian (Latin) translation of xfce4-whiskermenu-plugin.
 # Copyright (C) 2023 Graeme Gott
 # This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
-# 
+#
 # Translators:
 # kakonema <kakonema@gmail.com>, 2013
 # kakonema <kakonema@gmail.com>, 2013
@@ -14,579 +14,1027 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Whisker Menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-11 07:02-0400\n"
+"POT-Creation-Date: 2026-05-13 09:04+0200\n"
 "PO-Revision-Date: 2020-02-12 22:14+0000\n"
 "Last-Translator: Саша Петровић <salepetronije@gmail.com>, 2013\n"
-"Language-Team: Serbian (Latin) (http://app.transifex.com/gottcode/xfce4-whiskermenu-plugin/language/sr@latin/)\n"
+"Language-Team: Serbian (Latin) (http://app.transifex.com/gottcode/xfce4-"
+"whiskermenu-plugin/language/sr@latin/)\n"
+"Language: sr@latin\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: sr@latin\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: ../panel-plugin/settings-dialog.cpp:1028
-msgid "Add action"
-msgstr "Dodaj radnju"
-
-#: ../panel-plugin/page.cpp:472
-msgid "Add to Desktop"
-msgstr "Dodaj na radnu površ"
-
-#: ../panel-plugin/page.cpp:451
-msgid "Add to Favorites"
-msgstr "Dodaj u omiljene"
-
-#: ../panel-plugin/page.cpp:480
-msgid "Add to Panel"
-msgstr "Dodaj na policu"
-
-#: ../panel-plugin/applications-page.cpp:35 ../panel-plugin/category.cpp:51
-#: ../panel-plugin/settings-dialog.cpp:796
+#: panel-plugin/applications-page.cpp:35 panel-plugin/category.cpp:52
+#: panel-plugin/settings-dialog.cpp:2661
 msgid "All Applications"
 msgstr ""
 
-#: ../panel-plugin/plugin.cpp:413
-msgid "Alternate application launcher for Xfce"
-msgstr "alternativni pokretac aplikacije za Xfce"
-
-#: ../panel-plugin/settings-dialog.cpp:891
-msgid "Amount of _items:"
-msgstr "Kolicina stvari:"
-
-#: ../panel-plugin/settings-dialog.cpp:476
-msgid "Application icon si_ze:"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:42
-msgid "Applications"
-msgstr "Aplikacije"
-
-#: ../panel-plugin/launcher.cpp:272
-#, c-format
-msgid "Are you sure you want to hide \"%s\"?"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:128
-msgid "Are you sure you want to log out?"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:135
-msgid "Are you sure you want to restart?"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:142
-msgid "Are you sure you want to shut down?"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:569
-msgid "Background opacit_y:"
-msgstr "Pozadinska prozirnost:"
-
-#: ../panel-plugin/command-edit.cpp:65
+#: panel-plugin/command-edit.cpp:65
 msgid "Browse the file system to choose a custom command."
 msgstr "Razgledaj sistem datoteka radi odabira proizvoljne naredbe."
 
-#: ../panel-plugin/settings-dialog.cpp:1110
-msgid "C_ommand:"
-msgstr "Naredba"
+#: panel-plugin/command-edit.cpp:75
+msgid "Select Command"
+msgstr "Izaberite naredbu"
 
-#: ../panel-plugin/settings-dialog.cpp:499
-msgid "Categ_ory icon size:"
-msgstr "Veličina ikonica _vrsta:"
+#: panel-plugin/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:268
+#: panel-plugin/settings-dialog.cpp:441 panel-plugin/settings-dialog.cpp:866
+#: panel-plugin/settings-dialog.cpp:922 panel-plugin/settings-dialog.cpp:1012
+#: panel-plugin/settings-dialog.cpp:1048 panel-plugin/settings-dialog.cpp:1082
+#: panel-plugin/settings-dialog.cpp:1096 panel-plugin/settings-dialog.cpp:1986
+msgid "_Cancel"
+msgstr "_Obustavi"
 
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:107
-msgid "Choose which menu to popup by instance ID"
-msgstr ""
+#: panel-plugin/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:269
+#: panel-plugin/settings-dialog.cpp:442
+msgid "_OK"
+msgstr "_U redu"
 
-#: ../panel-plugin/recent-page.cpp:170
-msgid "Clear Recently Used"
-msgstr "Očisti nedavno korišćeno"
-
-#: ../panel-plugin/plugin.cpp:414
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:126
-msgid "Copyright © 2013-2025 Graeme Gott"
-msgstr "Autorska prava © 2013-2025 Graeme Gott"
-
-#: ../panel-plugin/settings-dialog.cpp:783
-msgid "Default Category"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:1061
-msgid "Details"
-msgstr "Pojedinosti"
-
-#: ../panel-plugin/settings-dialog.cpp:696
-msgid "Di_splay:"
-msgstr "Prikaz:"
-
-#: ../panel-plugin/settings.cpp:149
-msgid "Do you want to suspend to RAM?"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:156
-msgid "Do you want to suspend to disk?"
-msgstr ""
-
-#: ../panel-plugin/page.cpp:491
-msgid "Edit Application..."
-msgstr "Urediti aplikaciju"
-
-#: ../panel-plugin/settings.cpp:170
-msgid "Edit _Profile"
-msgstr "Urediti profil"
-
-#: ../panel-plugin/settings.cpp:172
-msgid "Failed to edit profile."
-msgstr "Neuspjeh izmjene profila"
-
-#: ../panel-plugin/element.cpp:106
+#: panel-plugin/element.cpp:98
 #, c-format
 msgid "Failed to execute command \"%s\"."
 msgstr "Nisam uspeo da izvršim naredbu „%s“."
 
-#: ../panel-plugin/settings.cpp:155
-msgid "Failed to hibernate."
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:167
-msgid "Failed to launch menu editor."
-msgstr "Nisam uspeo da pokrenem uređivača izbornika."
-
-#: ../panel-plugin/settings.cpp:117
-msgid "Failed to lock screen."
-msgstr "Nisam uspeo da zaključam ekran."
-
-#: ../panel-plugin/settings.cpp:127 ../panel-plugin/settings.cpp:162
-msgid "Failed to log out."
-msgstr "Nisam uspeo da se odjavim."
-
-#: ../panel-plugin/settings.cpp:112
-msgid "Failed to open settings manager."
-msgstr "Nisam uspeo da otvorim upravnika postavki."
-
-#: ../panel-plugin/settings.cpp:134
-msgid "Failed to restart."
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:141
-msgid "Failed to shut down."
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:148
-msgid "Failed to suspend."
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:122
-msgid "Failed to switch user."
-msgstr ""
-
-#: ../panel-plugin/favorites-page.cpp:37
-#: ../panel-plugin/settings-dialog.cpp:787
+#: panel-plugin/favorites-page.cpp:37 panel-plugin/settings-dialog.cpp:2652
 msgid "Favorites"
 msgstr "Omiljeno"
 
-#: ../panel-plugin/settings.cpp:157
-#, c-format
-msgid "Hibernating computer in %d seconds."
+#: panel-plugin/favorites-page.cpp:152
+msgid "Move Up"
 msgstr ""
 
-#: ../panel-plugin/settings-dialog.cpp:672
-msgid "Hidden"
+#: panel-plugin/favorites-page.cpp:164
+msgid "Move Down"
 msgstr ""
 
-#: ../panel-plugin/launcher.cpp:271 ../panel-plugin/page.cpp:499
-msgid "Hide Application"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:701
-msgid "Icon"
-msgstr "Ikonica"
-
-#: ../panel-plugin/settings-dialog.cpp:703
-msgid "Icon and title"
-msgstr "Ikonica i naslov"
-
-#: ../panel-plugin/settings-dialog.cpp:914
-msgid "Include _favorites"
-msgstr ""
-
-#: ../panel-plugin/icon-size.cpp:65
-msgid "Large"
-msgstr "Velike"
-
-#: ../panel-plugin/icon-size.cpp:66
-msgid "Larger"
-msgstr "Veće"
-
-#: ../panel-plugin/settings.cpp:160
-msgid "Log Ou_t..."
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:125
-msgid "Log _Out"
-msgstr "Odja_va"
-
-#: ../panel-plugin/settings.cpp:129
-#, c-format
-msgid "Logging out in %d seconds."
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:96
-msgid "Man Pages"
-msgstr "Uputne stranice"
-
-#: ../panel-plugin/settings-dialog.cpp:612
-#: ../panel-plugin/settings-dialog.cpp:844
-msgid "Menu"
-msgstr "Izbornik"
-
-#: ../panel-plugin/settings-dialog.cpp:551
-msgid "Menu _height:"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:533
-msgid "Menu _width:"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:1065
-msgid "Nam_e:"
-msgstr "I_me:"
-
-#: ../panel-plugin/settings-dialog.cpp:1006
-msgid "Name"
-msgstr "Ime"
-
-#: ../panel-plugin/icon-size.cpp:60
-msgid "None"
-msgstr "Ništa"
-
-#: ../panel-plugin/icon-size.cpp:64
-msgid "Normal"
-msgstr "Obične"
-
-#: ../panel-plugin/settings.cpp:101
-msgid "Open URI"
-msgstr "Otvori adresu"
-
-#: ../panel-plugin/settings-dialog.cpp:663
-msgid "P_rofile:"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:692
-msgid "Panel Button"
-msgstr "Dugme police"
-
-#: ../panel-plugin/settings-dialog.cpp:1011
-msgid "Pattern"
-msgstr "Obrazac"
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:105
-msgid "Popup menu at current mouse position"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:640
-msgid "Position _search entry next to panel button"
-msgstr "Položaj kućice za unos pretrage u odnosu na dugme police"
-
-#: ../panel-plugin/settings-dialog.cpp:629
-msgid "Position cate_gories next to panel button"
-msgstr "Polozaj kate_gorija do izbornika police"
-
-#: ../panel-plugin/settings-dialog.cpp:616
-msgid "Position categories _horizontally"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:651
-msgid "Position commands next to search _entry"
-msgstr "Položaj kućice za naredbe u odnosu na kućicu pretrage"
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:106
-msgid "Print available menu instance IDs"
-msgstr ""
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:108
-msgid "Print version information and exit"
-msgstr ""
-
-#: ../panel-plugin/recent-page.cpp:37 ../panel-plugin/settings-dialog.cpp:791
-#: ../panel-plugin/settings-dialog.cpp:887
-msgid "Recently Used"
-msgstr "Nedavno korišćeno"
-
-#: ../panel-plugin/settings-dialog.cpp:218
-#, c-format
-msgid "Remove action \"%s\"?"
-msgstr "Da li da uklonim radnju „%s“?"
-
-#: ../panel-plugin/page.cpp:462
-msgid "Remove from Favorites"
-msgstr "Ukloni iz omiljenih"
-
-#: ../panel-plugin/settings-dialog.cpp:1040
-msgid "Remove selected action"
-msgstr "Ukloni označenu radnju"
-
-#: ../panel-plugin/settings.cpp:136
-#, c-format
-msgid "Restarting computer in %d seconds."
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:670
-msgid "Round Picture"
-msgstr ""
-
-#: ../panel-plugin/run-action.cpp:64
-#, c-format
-msgid "Run %s"
-msgstr "Pokreni %s"
-
-#: ../panel-plugin/settings.cpp:100
-msgid "Run in Terminal"
-msgstr "Pokreni u terminalu"
-
-#: ../panel-plugin/settings-dialog.cpp:102
-msgid "Search Actio_ns"
-msgstr "R_adnje pretrage"
-
-#: ../panel-plugin/search-action.cpp:260
-msgid "Search Action"
-msgstr "Radnje pretrage"
-
-#: ../panel-plugin/settings.cpp:98
-msgid "Search for Files"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:97
-msgid "Search the Web"
-msgstr ""
-
-#: ../panel-plugin/command-edit.cpp:75
-msgid "Select Command"
-msgstr "Izaberite naredbu"
-
-#: ../panel-plugin/settings-dialog.cpp:135
-msgid "Select an Icon"
-msgstr "Izaberite ikonicu"
-
-#: ../panel-plugin/settings-dialog.cpp:927
-msgid "Session Commands"
-msgstr ""
-
-#: ../panel-plugin/whiskermenu.desktop.in:6
-msgid "Show a menu to easily access installed applications"
-msgstr "Prikazuj izbornik za brzi pristup ugrađenim programima"
-
-#: ../panel-plugin/settings-dialog.cpp:459
-msgid "Show application _descriptions"
-msgstr "Prikazuj _opise programa"
-
-#: ../panel-plugin/settings-dialog.cpp:448
-msgid "Show application too_ltips"
-msgstr "Pokazi aplikacijske napomene"
-
-#: ../panel-plugin/settings-dialog.cpp:318
-msgid "Show as _icons"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:335
-msgid "Show as lis_t"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:353
-msgid "Show as t_ree"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:931
-msgid "Show c_onfirmation dialog"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:436
-msgid "Show cate_gory names"
-msgstr "Pokazi imena kategorija"
-
-#: ../panel-plugin/settings-dialog.cpp:424
-msgid "Show generic application _names"
-msgstr "Prikazuj uopštene _nazive programa"
-
-#: ../panel-plugin/settings.cpp:139
-msgid "Shut _Down"
-msgstr ""
-
-#: ../panel-plugin/icon-size.cpp:63
-msgid "Small"
-msgstr "Male"
-
-#: ../panel-plugin/icon-size.cpp:62
-msgid "Smaller"
-msgstr "Malecne"
-
-#: ../panel-plugin/favorites-page.cpp:163
+#: panel-plugin/favorites-page.cpp:180
 msgid "Sort Alphabetically A-Z"
 msgstr "Poređaj abecedno A-Š"
 
-#: ../panel-plugin/favorites-page.cpp:171
+#: panel-plugin/favorites-page.cpp:188
 msgid "Sort Alphabetically Z-A"
 msgstr "Poređaj abecedno Š-A"
 
-#: ../panel-plugin/settings-dialog.cpp:870
-msgid "Sort ca_tegories"
-msgstr ""
+#: panel-plugin/icon-size.cpp:61
+msgid "None"
+msgstr "Ništa"
 
-#: ../panel-plugin/settings-dialog.cpp:671
-msgid "Square Picture"
-msgstr ""
+#: panel-plugin/icon-size.cpp:62
+msgid "Very Small"
+msgstr "Vrlo male"
 
-#: ../panel-plugin/settings-dialog.cpp:859
-msgid "Stay _visible when focus is lost"
-msgstr ""
+#: panel-plugin/icon-size.cpp:63
+msgid "Smaller"
+msgstr "Malecne"
 
-#: ../panel-plugin/settings.cpp:146
-msgid "Suspe_nd"
-msgstr ""
+#: panel-plugin/icon-size.cpp:64
+msgid "Small"
+msgstr "Male"
 
-#: ../panel-plugin/settings.cpp:150
-#, c-format
-msgid "Suspending computer in %d seconds."
-msgstr ""
+#: panel-plugin/icon-size.cpp:65
+msgid "Normal"
+msgstr "Obične"
 
-#: ../panel-plugin/settings.cpp:120
-msgid "Switch _User"
-msgstr ""
+#: panel-plugin/icon-size.cpp:66
+msgid "Large"
+msgstr "Velike"
 
-#: ../panel-plugin/settings-dialog.cpp:848
-msgid "Switch categories by _hovering"
-msgstr "Menjaj vrste _nadnošenjem miša"
+#: panel-plugin/icon-size.cpp:67
+msgid "Larger"
+msgstr "Veće"
 
-#: ../panel-plugin/settings-dialog.cpp:217
-msgid "The action will be deleted permanently."
-msgstr "Radnja će biti trajno izbrisana."
+#: panel-plugin/icon-size.cpp:68
+msgid "Very Large"
+msgstr "Vrlo velike"
 
-#: ../panel-plugin/settings-dialog.cpp:702
-msgid "Title"
-msgstr "Naslov"
-
-#: ../panel-plugin/launcher.cpp:267
+#. I18N: the first %s will be replaced with desktop file path, the second with Hidden=true
+#: panel-plugin/launcher.cpp:207
 #, c-format
 msgid ""
 "To unhide it you have to manually remove the file \"%s\" or open the file "
 "and remove the line \"%s\"."
 msgstr ""
 
-#: ../panel-plugin/settings.cpp:143
-#, c-format
-msgid "Turning off computer in %d seconds."
+#: panel-plugin/launcher.cpp:211 panel-plugin/page.cpp:524
+msgid "Hide Application"
 msgstr ""
 
-#: ../panel-plugin/page.cpp:598
+#: panel-plugin/launcher.cpp:212
+#, c-format
+msgid "Are you sure you want to hide \"%s\"?"
+msgstr ""
+
+#: panel-plugin/page.cpp:453
+msgid "Add to Favorites"
+msgstr "Dodaj u omiljene"
+
+#: panel-plugin/page.cpp:464
+msgid "Remove from Favorites"
+msgstr "Ukloni iz omiljenih"
+
+#: panel-plugin/page.cpp:474
+msgid "Add to Desktop"
+msgstr "Dodaj na radnu površ"
+
+#: panel-plugin/page.cpp:482
+msgid "Add to Panel"
+msgstr "Dodaj na policu"
+
+#: panel-plugin/page.cpp:492
+#, fuzzy
+msgid "Add to Autostart"
+msgstr "Dodaj u omiljene"
+
+#: panel-plugin/page.cpp:503
+#, fuzzy
+msgid "Remove from Autostart"
+msgstr "Ukloni iz omiljenih"
+
+#: panel-plugin/page.cpp:516
+msgid "Edit Application..."
+msgstr "Urediti aplikaciju"
+
+#: panel-plugin/page.cpp:587
 msgid "Unable to add launcher to desktop."
 msgstr "Nisam uspeo da dodam pokretač na radnu površ."
 
-#: ../panel-plugin/page.cpp:643 ../panel-plugin/page.cpp:656
+#: panel-plugin/page.cpp:627 panel-plugin/page.cpp:640
 msgid "Unable to add launcher to panel."
 msgstr "Nisam uspeo da dodam pokretač na policu."
 
-#: ../panel-plugin/page.cpp:676
+#: panel-plugin/page.cpp:664
 msgid "Unable to edit launcher."
 msgstr "Nisam uspjeo da izmjenim pokretac"
 
-#: ../panel-plugin/settings-dialog.cpp:277
+#: panel-plugin/plugin.cpp:430
+msgid "Alternate application launcher for Xfce"
+msgstr "alternativni pokretac aplikacije za Xfce"
+
+#: panel-plugin/plugin.cpp:435
+msgid "translator-credits"
+msgstr "zasluge -prevodioca"
+
+#: panel-plugin/recent-page.cpp:37 panel-plugin/settings-dialog.cpp:2656
+msgid "Recently Used"
+msgstr "Nedavno korišćeno"
+
+#: panel-plugin/recent-page.cpp:147
+msgid "Clear Recently Used"
+msgstr "Očisti nedavno korišćeno"
+
+#: panel-plugin/run-action.cpp:65
+#, c-format
+msgid "Run %s"
+msgstr "Pokreni %s"
+
+#: panel-plugin/search-action.cpp:262
+msgid "Search Action"
+msgstr "Radnje pretrage"
+
+#: panel-plugin/search-page.cpp:85
+#, fuzzy
+msgid "No applications found"
+msgstr "Aplikacije"
+
+#. Create dialog window
+#: panel-plugin/settings-dialog.cpp:156 panel-plugin/whiskermenu.desktop.in:4
+#, fuzzy
+msgid "Meow Menu"
+msgstr "Izbornik"
+
+#: panel-plugin/settings-dialog.cpp:159
+msgid "_Help"
+msgstr "_Pomoc"
+
+#: panel-plugin/settings-dialog.cpp:160
+msgid "_Close"
+msgstr "_Zatvori"
+
+#: panel-plugin/settings-dialog.cpp:187
+msgid "General"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:188
+msgid "User / Session"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:189
+#, fuzzy
+msgid "Search Bar"
+msgstr "Radnje pretrage"
+
+#: panel-plugin/settings-dialog.cpp:190
+msgid "App Grid"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:191
+msgid "Sidebar"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:263 panel-plugin/settings-dialog.cpp:265
+msgid "Select an Icon"
+msgstr "Izaberite ikonicu"
+
+#: panel-plugin/settings-dialog.cpp:362 panel-plugin/settings-dialog.cpp:960
+#: panel-plugin/settings-dialog.cpp:975
+msgid "_Delete"
+msgstr "_Obrisi"
+
+#: panel-plugin/settings-dialog.cpp:363
+msgid "The action will be deleted permanently."
+msgstr "Radnja će biti trajno izbrisana."
+
+#: panel-plugin/settings-dialog.cpp:364
+#, c-format
+msgid "Remove action \"%s\"?"
+msgstr "Da li da uklonim radnju „%s“?"
+
+#: panel-plugin/settings-dialog.cpp:438
+#, fuzzy
+msgid "Edit search action"
+msgstr "Radnje pretrage"
+
+#: panel-plugin/settings-dialog.cpp:453
+msgid "Nam_e:"
+msgstr "I_me:"
+
+#: panel-plugin/settings-dialog.cpp:463
+msgid "_Pattern:"
+msgstr "_Obrazac:"
+
+#: panel-plugin/settings-dialog.cpp:473
+msgid "C_ommand:"
+msgstr "Naredba"
+
+#: panel-plugin/settings-dialog.cpp:483
+#, fuzzy
+msgid "Is _regular expression"
+msgstr "Opšti iz_raz"
+
+#: panel-plugin/settings-dialog.cpp:527
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr "Nisam uspjeo da otvorim sljedeci url: %s"
 
-#: ../panel-plugin/settings-dialog.cpp:757
-msgid "Use a single _panel row"
+#. NOTE: fallback if initialize_file_presets() was not called or all files missing.
+#: panel-plugin/settings-dialog.cpp:689
+msgid "Classic"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:690
+msgid "Modern"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:691
+#, fuzzy
+msgid "Full Screen"
+msgstr "_Zaključaj ekran"
+
+#: panel-plugin/settings-dialog.cpp:807
+msgid "Preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:810
+msgid "_Preset:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:825
+msgid "● Customized"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:835
+msgid "_Reset preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:846 panel-plugin/settings-dialog.cpp:1155
+msgid "_Reset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:847
+msgid "All customizations will be discarded and the preset values restored."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:848
+#, c-format
+msgid "Reset preset \"%s\"?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:857
+msgid "_Save as new…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:863
+msgid "Save as new preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:867
+msgid "_Save"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:876 panel-plugin/settings-dialog.cpp:932
+#: panel-plugin/settings-dialog.cpp:1104
+#, fuzzy
+msgid "_Name:"
+msgstr "Ime"
+
+#: panel-plugin/settings-dialog.cpp:892 panel-plugin/settings-dialog.cpp:949
+msgid "A preset with that name already exists or the name is empty."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:893
+msgid "Could not save preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:905
+msgid "Re_name…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:919
+msgid "Rename preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:923
+msgid "_Rename"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:950
+msgid "Could not rename preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:976
+#, fuzzy
+msgid "This preset will be permanently removed."
+msgstr "Radnja će biti trajno izbrisana."
+
+#: panel-plugin/settings-dialog.cpp:977
+#, c-format
+msgid "Delete preset \"%s\"?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:994
+msgid "E_xport…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1009
+msgid "Export preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1012
+msgid "_Export"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1018 panel-plugin/settings-dialog.cpp:1051
+msgid "MeowMenu preset (*.meowpreset)"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1030
+msgid "Could not export preset."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1038
+msgid "_Import…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1045
+msgid "Import preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1048 panel-plugin/settings-dialog.cpp:1097
+msgid "_Import"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1077
+#, c-format
+msgid "A preset named \"%s\" already exists. What would you like to do?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1080
+msgid "_Overwrite"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1081
+msgid "Re_name"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1093
+msgid "Rename imported preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1139
+msgid "Could not import preset"
+msgstr ""
+
+#. Reset to defaults — full channel reset, kept here as the most logical
+#. action button for the Preset hub.
+#: panel-plugin/settings-dialog.cpp:1146
+msgid "Reset to _defaults"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1156
+msgid ""
+"All settings will be reset to defaults and the Modern preset will be applied."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1157
+msgid "Reset all settings to defaults?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1230
+msgid ""
+"FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
+"regular window instead."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1252
+#, fuzzy
+msgid "Panel plugin"
+msgstr "Dugme police"
+
+#. Show panel button title
+#: panel-plugin/settings-dialog.cpp:1258
+msgid "Show panel button _title"
+msgstr ""
+
+#. Title entry
+#: panel-plugin/settings-dialog.cpp:1265
+#, fuzzy
+msgid "T_itle:"
+msgstr "_Naslov:"
+
+#. Show panel button icon
+#: panel-plugin/settings-dialog.cpp:1302
+msgid "Show panel button _icon"
+msgstr ""
+
+#. Icon picker
+#: panel-plugin/settings-dialog.cpp:1309
+msgid "Ic_on:"
+msgstr ""
+
+#. Single-row panel layout
+#: panel-plugin/settings-dialog.cpp:1346
+#, fuzzy
+msgid "Use a single panel _row"
 msgstr "Koristi jedan red police "
 
-#: ../panel-plugin/icon-size.cpp:67
-msgid "Very Large"
-msgstr "Vrlo velike"
+#: panel-plugin/settings-dialog.cpp:1370
+msgid "General menu settings"
+msgstr ""
 
-#: ../panel-plugin/icon-size.cpp:61
-msgid "Very Small"
-msgstr "Vrlo male"
+#. Layout mode
+#: panel-plugin/settings-dialog.cpp:1376
+msgid "_Layout mode:"
+msgstr ""
 
-#: ../panel-plugin/settings-dialog.cpp:80
-#: ../panel-plugin/whiskermenu.desktop.in:5
-msgid "Whisker Menu"
-msgstr "Brkin izbornik"
+#: panel-plugin/settings-dialog.cpp:1381
+msgid "Docked"
+msgstr ""
 
-#: ../panel-plugin/settings.cpp:99
+#: panel-plugin/settings-dialog.cpp:1382
+msgid "FullScreen"
+msgstr ""
+
+#. Panel gap
+#: panel-plugin/settings-dialog.cpp:1409
+msgid "_Panel gap:"
+msgstr ""
+
+#. Menu width (enable-when-docked)
+#: panel-plugin/settings-dialog.cpp:1431
+msgid "Menu _width:"
+msgstr ""
+
+#. Menu height (enable-when-docked)
+#: panel-plugin/settings-dialog.cpp:1451
+msgid "Menu _height:"
+msgstr ""
+
+#. Corner radius
+#: panel-plugin/settings-dialog.cpp:1471
+msgid "_Corner radius:"
+msgstr ""
+
+#. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
+#: panel-plugin/settings-dialog.cpp:1493
+msgid "F_ull-screen opacity:"
+msgstr ""
+
+#. Stay visible when focus is lost (FR-013: lives only in General).
+#: panel-plugin/settings-dialog.cpp:1515
+msgid "Stay _visible when focus is lost"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1563
+#, fuzzy
+msgid "Profile"
+msgstr "Urediti profil"
+
+#. Profile position
+#: panel-plugin/settings-dialog.cpp:1567
+msgid "_Position:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1572 panel-plugin/settings-dialog.cpp:1731
+msgid "Top"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1573 panel-plugin/settings-dialog.cpp:1732
+msgid "Bottom"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1574 panel-plugin/settings-dialog.cpp:1644
+msgid "Bottom Right"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1575 panel-plugin/settings-dialog.cpp:1645
+#: panel-plugin/settings-dialog.cpp:2589
+msgid "Hidden"
+msgstr ""
+
+#. Avatar shape (sub-enabled when profile-position != hidden).
+#: panel-plugin/settings-dialog.cpp:1585
+msgid "Avatar _shape:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1590
+msgid "Round Picture"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1591
+msgid "Square Picture"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1635
+#, fuzzy
+msgid "Commands"
+msgstr "_Komande"
+
+#: panel-plugin/settings-dialog.cpp:1638
+#, fuzzy
+msgid "_Commands position:"
+msgstr "_Komande"
+
+#: panel-plugin/settings-dialog.cpp:1643
+msgid "Top Right"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1665
+msgid "Show c_onfirmation dialog"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1680
+#, fuzzy
+msgid "Session commands"
+msgstr "Izaberite naredbu"
+
+#: panel-plugin/settings-dialog.cpp:1723 panel-plugin/settings-dialog.cpp:2579
+msgid "Position"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1726
+#, fuzzy
+msgid "_Search bar position:"
+msgstr "Radnje pretrage"
+
+#: panel-plugin/settings-dialog.cpp:1758
+msgid "_Fuzzy matching:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1781
+msgid "Max _errors (0=auto):"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1802
+msgid "Fuzzy Search"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1803
+msgid ""
+"Finds apps even when you mistype a word.\n"
+"Example: \"firfox\" still finds Firefox.\n"
+"Max errors 0 = automatic (1 for short queries, 2 for longer ones)."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1816
+#, fuzzy
+msgid "_Boost favorites:"
+msgstr "Omiljeno"
+
+#: panel-plugin/settings-dialog.cpp:1839
+msgid "Boost _level:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1846 panel-plugin/settings-dialog.cpp:2310
+msgid "Low"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1847 panel-plugin/settings-dialog.cpp:2311
+msgid "Medium"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1848 panel-plugin/settings-dialog.cpp:2312
+msgid "High"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1864
+msgid "Recency _weight (%):"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1884
+msgid "Usage Boost"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1885
+msgid ""
+"Promotes apps you use frequently or marked as favorites.\n"
+"Recency weight controls the balance between how recently vs.\n"
+"how often you launched an app."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1927 panel-plugin/settings-dialog.cpp:2003
+#, fuzzy
+msgid "Application"
+msgstr "Aplikacije"
+
+#: panel-plugin/settings-dialog.cpp:1934
+msgid "Aliases (comma-separated)"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1973 panel-plugin/settings-dialog.cpp:1987
+msgid "_Add"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1974
+msgid "_Remove"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1983
+#, fuzzy
+msgid "Choose Application"
+msgstr "Aplikacije"
+
+#: panel-plugin/settings-dialog.cpp:2075
+msgid "Aliases"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2103
+msgid "Name"
+msgstr "Ime"
+
+#: panel-plugin/settings-dialog.cpp:2109
+msgid "Pattern"
+msgstr "Obrazac"
+
+#: panel-plugin/settings-dialog.cpp:2129
+msgid "Add action"
+msgstr "Dodaj radnju"
+
+#: panel-plugin/settings-dialog.cpp:2136
+msgid "Remove selected action"
+msgstr "Ukloni označenu radnju"
+
+#: panel-plugin/settings-dialog.cpp:2145
+#, fuzzy
+msgid "Edit selected action…"
+msgstr "Ukloni označenu radnju"
+
+#: panel-plugin/settings-dialog.cpp:2202
+#, fuzzy
+msgid "Search actions"
+msgstr "R_adnje pretrage"
+
+#: panel-plugin/settings-dialog.cpp:2238
+msgid "View"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2247
+msgid "Show as _icons"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2260
+msgid "Show as lis_t"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2273
+msgid "Show as t_ree"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2299
+msgid "Layout"
+msgstr ""
+
+#. Grid density (icons-only sub-enable)
+#: panel-plugin/settings-dialog.cpp:2305
+msgid "Grid _density:"
+msgstr ""
+
+#. Application icon size (icons-only sub-enable)
+#: panel-plugin/settings-dialog.cpp:2334
+msgid "Application icon si_ze:"
+msgstr ""
+
+#. NOTE: launcher_show_name stores "show the real (non-generic) name"; the
+#. checkbox is therefore inverted — checked means "Show generic" (false).
+#: panel-plugin/settings-dialog.cpp:2358
+msgid "Show generic application _names"
+msgstr "Prikazuj uopštene _nazive programa"
+
+#: panel-plugin/settings-dialog.cpp:2370
+msgid "Show application too_ltips"
+msgstr "Pokazi aplikacijske napomene"
+
+#. Show descriptions — list-only sub-enable.
+#: panel-plugin/settings-dialog.cpp:2382
+msgid "Show application _descriptions"
+msgstr "Prikazuj _opise programa"
+
+#: panel-plugin/settings-dialog.cpp:2447
+msgid "Opacity"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2450
+msgid "App _box opacity:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2506
+msgid "Visuals"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2511
+msgid "Show cate_gory names"
+msgstr "Pokazi imena kategorija"
+
+#. Category icon size
+#: panel-plugin/settings-dialog.cpp:2524
+msgid "Categ_ory icon size:"
+msgstr "Veličina ikonica _vrsta:"
+
+#. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
+#: panel-plugin/settings-dialog.cpp:2548
+msgid "_Sidebar opacity:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2582
+msgid "Sidebar _position:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2587
+msgid "Left"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2588
+msgid "Right"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2622
+#, fuzzy
+msgid "Behaviour"
+msgstr "_Ponašanje"
+
+#: panel-plugin/settings-dialog.cpp:2625
+msgid "Switch categories by _hovering"
+msgstr "Menjaj vrste _nadnošenjem miša"
+
+#: panel-plugin/settings-dialog.cpp:2636
+msgid "Sort ca_tegories"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2649
+msgid "Default category"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2705
+#, fuzzy
+msgid "Recently used"
+msgstr "Nedavno korišćeno"
+
+#: panel-plugin/settings-dialog.cpp:2708
+#, fuzzy
+msgid "Maximum _items:"
+msgstr "Kolicina stvari:"
+
+#: panel-plugin/settings-dialog.cpp:2729
+msgid "Include _favorites in \"Recent\""
+msgstr ""
+
+#: panel-plugin/settings.cpp:39
+msgid "Applications"
+msgstr "Aplikacije"
+
+#: panel-plugin/settings.cpp:88 panel-plugin/settings.cpp:95
+msgid "Man Pages"
+msgstr "Uputne stranice"
+
+#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+msgid "Search the Web"
+msgstr ""
+
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+msgid "Search for Files"
+msgstr ""
+
+#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
 msgid "Wikipedia"
 msgstr "Vikipedija"
 
-#: ../panel-plugin/settings-dialog.cpp:99
-msgid "_Appearance"
-msgstr "_Izgled"
+#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+msgid "Run in Terminal"
+msgstr "Pokreni u terminalu"
 
-#: ../panel-plugin/settings-dialog.cpp:100
-msgid "_Behavior"
-msgstr "_Ponašanje"
+#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+msgid "Open URI"
+msgstr "Otvori adresu"
 
-#: ../panel-plugin/command-edit.cpp:78 ../panel-plugin/settings-dialog.cpp:137
-msgid "_Cancel"
-msgstr "_Obustavi"
-
-#: ../panel-plugin/settings-dialog.cpp:84
-msgid "_Close"
-msgstr "_Zatvori"
-
-#: ../panel-plugin/settings-dialog.cpp:101
-msgid "_Commands"
-msgstr "_Komande"
-
-#: ../panel-plugin/settings-dialog.cpp:216
-msgid "_Delete"
-msgstr "_Obrisi"
-
-#: ../panel-plugin/settings.cpp:165
-msgid "_Edit Applications"
-msgstr "_Uredi programe"
-
-#: ../panel-plugin/settings-dialog.cpp:98
-msgid "_General"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:83
-msgid "_Help"
-msgstr "_Pomoc"
-
-#: ../panel-plugin/settings.cpp:153
-msgid "_Hibernate"
-msgstr ""
-
-#: ../panel-plugin/settings-dialog.cpp:739
-msgid "_Icon:"
-msgstr "_Ikonica:"
-
-#: ../panel-plugin/settings.cpp:115
-msgid "_Lock Screen"
-msgstr "_Zaključaj ekran"
-
-#: ../panel-plugin/command-edit.cpp:79 ../panel-plugin/settings-dialog.cpp:138
-msgid "_OK"
-msgstr "_U redu"
-
-#: ../panel-plugin/settings-dialog.cpp:1088
-msgid "_Pattern:"
-msgstr "_Obrazac:"
-
-#: ../panel-plugin/settings-dialog.cpp:1129
-msgid "_Regular expression"
-msgstr "Opšti iz_raz"
-
-#: ../panel-plugin/settings.cpp:132
-msgid "_Restart"
-msgstr ""
-
-#: ../panel-plugin/settings.cpp:110
+#: panel-plugin/settings.cpp:137
 msgid "_Settings Manager"
 msgstr ""
 
-#: ../panel-plugin/settings-dialog.cpp:721
-msgid "_Title:"
-msgstr "_Naslov:"
+#: panel-plugin/settings.cpp:139
+msgid "Failed to open settings manager."
+msgstr "Nisam uspeo da otvorim upravnika postavki."
 
-#: ../panel-plugin/plugin.cpp:418
-msgid "translator-credits"
-msgstr "zasluge -prevodioca"
+#: panel-plugin/settings.cpp:142
+msgid "_Lock Screen"
+msgstr "_Zaključaj ekran"
+
+#: panel-plugin/settings.cpp:144
+msgid "Failed to lock screen."
+msgstr "Nisam uspeo da zaključam ekran."
+
+#: panel-plugin/settings.cpp:147
+msgid "Switch _User"
+msgstr ""
+
+#: panel-plugin/settings.cpp:149
+msgid "Failed to switch user."
+msgstr ""
+
+#: panel-plugin/settings.cpp:152
+msgid "Log _Out"
+msgstr "Odja_va"
+
+#: panel-plugin/settings.cpp:154 panel-plugin/settings.cpp:189
+msgid "Failed to log out."
+msgstr "Nisam uspeo da se odjavim."
+
+#: panel-plugin/settings.cpp:155
+msgid "Are you sure you want to log out?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:156
+#, c-format
+msgid "Logging out in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:159
+msgid "_Restart"
+msgstr ""
+
+#: panel-plugin/settings.cpp:161
+msgid "Failed to restart."
+msgstr ""
+
+#: panel-plugin/settings.cpp:162
+msgid "Are you sure you want to restart?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:163
+#, c-format
+msgid "Restarting computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:166
+msgid "Shut _Down"
+msgstr ""
+
+#: panel-plugin/settings.cpp:168
+msgid "Failed to shut down."
+msgstr ""
+
+#: panel-plugin/settings.cpp:169
+msgid "Are you sure you want to shut down?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:170
+#, c-format
+msgid "Turning off computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:173
+msgid "Suspe_nd"
+msgstr ""
+
+#: panel-plugin/settings.cpp:175
+msgid "Failed to suspend."
+msgstr ""
+
+#: panel-plugin/settings.cpp:176
+msgid "Do you want to suspend to RAM?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:177
+#, c-format
+msgid "Suspending computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:180
+msgid "_Hibernate"
+msgstr ""
+
+#: panel-plugin/settings.cpp:182
+msgid "Failed to hibernate."
+msgstr ""
+
+#: panel-plugin/settings.cpp:183
+msgid "Do you want to suspend to disk?"
+msgstr ""
+
+#: panel-plugin/settings.cpp:184
+#, c-format
+msgid "Hibernating computer in %d seconds."
+msgstr ""
+
+#: panel-plugin/settings.cpp:187
+msgid "Log Ou_t..."
+msgstr ""
+
+#: panel-plugin/settings.cpp:192
+msgid "_Edit Applications"
+msgstr "_Uredi programe"
+
+#: panel-plugin/settings.cpp:194
+msgid "Failed to launch menu editor."
+msgstr "Nisam uspeo da pokrenem uređivača izbornika."
+
+#: panel-plugin/settings.cpp:197
+msgid "Edit _Profile"
+msgstr "Urediti profil"
+
+#: panel-plugin/settings.cpp:199
+msgid "Failed to edit profile."
+msgstr "Neuspjeh izmjene profila"
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:110
+msgid "Popup menu at current mouse position"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:111
+msgid "Popup menu at center of screen"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:112
+msgid "Print available menu instance IDs"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:113
+msgid "Choose which menu to popup by instance ID"
+msgstr ""
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:114
+msgid "Print version information and exit"
+msgstr ""
+
+#: panel-plugin/whiskermenu.desktop.in:5
+msgid "Show a menu to easily access installed applications"
+msgstr "Prikazuj izbornik za brzi pristup ugrađenim programima"
+
+#~ msgid "Background opacit_y:"
+#~ msgstr "Pozadinska prozirnost:"
+
+#~ msgid "Copyright © 2013-2025 Graeme Gott"
+#~ msgstr "Autorska prava © 2013-2025 Graeme Gott"
+
+#~ msgid "Details"
+#~ msgstr "Pojedinosti"
+
+#~ msgid "Di_splay:"
+#~ msgstr "Prikaz:"
+
+#~ msgid "Icon"
+#~ msgstr "Ikonica"
+
+#~ msgid "Icon and title"
+#~ msgstr "Ikonica i naslov"
+
+#~ msgid "Position _search entry next to panel button"
+#~ msgstr "Položaj kućice za unos pretrage u odnosu na dugme police"
+
+#~ msgid "Position cate_gories next to panel button"
+#~ msgstr "Polozaj kate_gorija do izbornika police"
+
+#~ msgid "Position commands next to search _entry"
+#~ msgstr "Položaj kućice za naredbe u odnosu na kućicu pretrage"
+
+#~ msgid "Title"
+#~ msgstr "Naslov"
+
+#~ msgid "Whisker Menu"
+#~ msgstr "Brkin izbornik"
+
+#~ msgid "_Appearance"
+#~ msgstr "_Izgled"
+
+#~ msgid "_Icon:"
+#~ msgstr "_Ikonica:"
