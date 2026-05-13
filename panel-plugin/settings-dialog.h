@@ -79,6 +79,13 @@ private:
 	std::vector<GtkWidget*> m_layout_enable_when_fullscreen;
 	gulong m_layout_mode_slot = 0;
 
+	// Unified-bar (spec 004) — live sensitivity & tooltip rules in
+	// contracts/settings-dialog.md. Updated whenever /layout-mode or any
+	// of /search-bar-position, /profile-position, /commands-position changes.
+	GtkWidget* m_unified_bar = nullptr;
+	gulong m_unified_bar_slot = 0;
+	void apply_unified_bar_sensitivity();
+
 private:
 	Settings* const m_settings;
 	Plugin* m_plugin;

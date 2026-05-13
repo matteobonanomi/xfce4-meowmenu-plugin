@@ -75,6 +75,7 @@ Settings::Settings(Plugin* plugin) :
 	position_profile_alternate(this, "/position-profile-alternate", false),
 	position_search_alternate(this, "/position-search-alternate", false),
 	position_commands_alternate(this, "/position-commands-alternate", false),
+	unified_bar(this, "/unified-bar", false),
 	position_categories_alternate(this, "/position-categories-alternate", false),
 	position_categories_horizontal(this, "/position-categories-horizontal", false),
 	stay_on_focus_out(this, "/stay-on-focus-out", false),
@@ -435,6 +436,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| position_profile_alternate.load(property, value)
 			|| position_search_alternate.load(property, value)
 			|| position_commands_alternate.load(property, value)
+			|| unified_bar.load(property, value)
 			|| position_categories_alternate.load(property, value)
 			|| position_categories_horizontal.load(property, value)
 			|| stay_on_focus_out.load(property, value)
@@ -1329,6 +1331,18 @@ void Settings::migrate_schema(bool is_fresh_install)
 		{
 			if (!xfconf_channel_has_property(channel, p.prop))
 				xfconf_channel_set_int(channel, p.prop, p.val);
+		}
+
+		// NOTE: defaults for V1 Boolean properties not yet in the channel;
+		// /unified-bar default false matches the C++ Settings ctor and lets
+		// downstream consumers read the key explicitly after first migration.
+		struct { const char* prop; gboolean val; } bool_props[] = {
+			{ "/unified-bar", FALSE },
+		};
+		for (auto& p : bool_props)
+		{
+			if (!xfconf_channel_has_property(channel, p.prop))
+				xfconf_channel_set_bool(channel, p.prop, p.val);
 		}
 
 		struct { const char* prop; const char* val; } str_props[] = {
