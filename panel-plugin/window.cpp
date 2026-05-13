@@ -412,7 +412,6 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_grid_set_column_spacing(m_contents_box, 6);
 	gtk_grid_set_row_spacing(m_contents_box, 0);
 	gtk_stack_add_named(m_contents_stack, GTK_WIDGET(m_contents_box), "contents");
-	gtk_stack_add_named(m_contents_stack, GTK_WIDGET(search_results), "search");
 	gtk_box_pack_start(m_vbox, GTK_WIDGET(m_contents_stack), true, true, 0);
 
 	// Create box for packing categories horizontally
@@ -429,6 +428,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_stack_add_named(m_panels_stack, m_favorites->get_widget(), "favorites");
 	gtk_stack_add_named(m_panels_stack, m_recent->get_widget(), "recent");
 	gtk_stack_add_named(m_panels_stack, m_applications->get_widget(), "applications");
+	// Search results live inside the applications area so the sidebar remains visible
+	// while the user types. This applies to all layout modes, not just fullscreen.
+	gtk_stack_add_named(m_panels_stack, GTK_WIDGET(search_results), "search");
 
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
@@ -558,7 +560,7 @@ WhiskerMenu::Window::~Window()
 Page* WhiskerMenu::Window::get_active_page()
 {
 	Page* page = nullptr;
-	if (g_strcmp0(gtk_stack_get_visible_child_name(m_contents_stack), "search") == 0)
+	if (g_strcmp0(gtk_stack_get_visible_child_name(m_panels_stack), "search") == 0)
 	{
 		page = m_search_results;
 	}
@@ -1506,13 +1508,18 @@ void WhiskerMenu::Window::search()
 
 	if (text)
 	{
-		// Show search results
-		gtk_stack_set_visible_child_name(m_contents_stack, "search");
+		// Switch the applications area to search results; the sidebar stays visible.
+		gtk_stack_set_visible_child_name(m_panels_stack, "search");
 	}
 	else
 	{
-		// Show active panel
-		gtk_stack_set_visible_child_name(m_contents_stack, "contents");
+		// Restore the panel that matches the currently active category button.
+		if (m_favorites->get_button()->get_active())
+			gtk_stack_set_visible_child_name(m_panels_stack, "favorites");
+		else if (m_recent->get_button()->get_active())
+			gtk_stack_set_visible_child_name(m_panels_stack, "recent");
+		else
+			gtk_stack_set_visible_child_name(m_panels_stack, "applications");
 	}
 
 	// Apply filter
@@ -1773,9 +1780,11 @@ void WhiskerMenu::Window::update_layout()
 		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
 		gtk_box_pack_start(m_title_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
-		// Order: picture, username (hidden), search_entry, commands_box.
+		// Order: picture, username, search_entry, commands_box.
 		gtk_box_reorder_child(m_title_box, GTK_WIDGET(m_search_entry), 2);
-		gtk_widget_set_visible(m_profile->get_username(), FALSE);
+		// Username must not expand so the per-pass margin calculation can place the
+		// search entry precisely over the applications panel (FR-002/FR-004).
+		gtk_widget_set_hexpand(m_profile->get_username(), FALSE);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), FALSE);
 		gtk_style_context_add_class(title_ctx, "unified-bar");
 		g_object_unref(m_search_entry);
@@ -1787,24 +1796,33 @@ void WhiskerMenu::Window::update_layout()
 		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
 		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
-		// Restore username visibility per the existing profile-shape rule.
+		// Restore username visibility and expand per the existing profile-shape rule.
 		gtk_widget_set_visible(m_profile->get_username(),
 				m_profile_shape != Settings::ProfileHidden);
+		gtk_widget_set_hexpand(m_profile->get_username(), TRUE);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
 		gtk_style_context_remove_class(title_ctx, "unified-bar");
-		// Reset leading margin that was applied to constrain search width (FR-004).
+		// Reset both margins that were applied to align the search entry (FR-004).
 		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
 		g_object_unref(m_search_entry);
 	}
 
-	// Search entry leading margin: align search start with the applications panel
-	// so the entry width ≈ app-box width rather than the full bar width (FR-002/FR-004).
-	// Re-read the sidebar allocation on every pass so the margin stays current
-	// if the sidebar width changes (e.g. category labels added/removed).
+	// Align search entry with the applications panel using start and end margins
+	// computed from the allocated widths of the flanking widgets (FR-002/FR-004).
+	// Re-read every layout pass so the values track live changes to icon size,
+	// username text, or command button visibility.
 	if (eff)
 	{
-		const int sidebar_px = gtk_widget_get_allocated_width(GTK_WIDGET(m_sidebar));
-		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), MAX(0, sidebar_px));
+		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;
+		const int sp        = 6; // m_title_box inter-child spacing
+		const int pic_w     = gtk_widget_get_allocated_width(m_profile->get_picture());
+		const bool user_vis = gtk_widget_is_visible(m_profile->get_username());
+		const int user_w    = user_vis ? gtk_widget_get_allocated_width(m_profile->get_username()) : 0;
+		const int cmd_w     = gtk_widget_get_allocated_width(GTK_WIDGET(m_commands_box));
+		const int left_used = pic_w + sp + (user_vis ? user_w + sp : 0);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), MAX(0, sidebar_w - left_used));
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry),   MAX(0, sidebar_w - sp - cmd_w));
 	}
 
 	// Three void bands: top (above unified bar), middle (between bar and content),
