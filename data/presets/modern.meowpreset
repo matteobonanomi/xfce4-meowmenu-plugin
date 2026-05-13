@@ -21,6 +21,7 @@ sidebar-position=left
 search-bar-position=bottom
 profile-position=top
 commands-position=top-right
+unified-bar=false
 categories-opacity=80
 apps-opacity=70
 full-screen-opacity=100

@@ -348,6 +348,7 @@ public:
 	Boolean position_profile_alternate;
 	Boolean position_search_alternate;
 	Boolean position_commands_alternate;
+	Boolean unified_bar;
 	Boolean position_categories_alternate;
 	Boolean position_categories_horizontal;
 	Boolean stay_on_focus_out;

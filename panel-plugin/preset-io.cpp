@@ -69,6 +69,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "launcher-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },
 	{ "view-mode-default",     PresetValue::Str, 0, 0, STR_DOMAIN(VIEW_MODE_DOMAIN) },
 	{ "hover-switch-category", PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "unified-bar",           PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "stay-on-focus-out",     PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "menu-width",            PresetValue::Int, INT_RANGE(200, 2000) },
 	{ "menu-height",           PresetValue::Int, INT_RANGE(200, 2000) },

@@ -86,5 +86,7 @@ Exactly how the original Whisker Menu looks like. Docked layout, no radius borde
 Docker layout, with rounded bordrs and panel gap. yes hovering, only icon for the menu in xfce4 panel, icon grid instead of list. Sidebar on the left, search bar at the bottom, action bar and profile at the top
 ### FullScreen Preset
 Full screen layout, no opacity. Side bar on the left. Search bar on top at the center. There is an empty space at the right of the same size of the side bar on the left. Profile icon at the left of the search bar, session buttons at the right of the centered search bar. Scrolling application icon-style grid. app icons are larger and less dense grid than Modern laouyt to be consistent with a full screen view.
+
+**Unified bar** (spec 004): when the FullScreen preset is active, the profile picture, search entry and session commands are collapsed into a single horizontal row ("unified bar"). A decorative void band of identical height appears at the opposite vertical end, ensuring the application grid is visually centred. The unified bar can be toggled off in Properties → User/Session via the "Place profile, search and session on a single line" switch; the switch is automatically disabled for non-FullScreen layouts or when the three regions are not aligned to the same vertical end. See `.specify/specs/004-improve-fullscreen/` for the full specification.
 ### Disclaimer
 I could ask you to change these defaults or add more differences.

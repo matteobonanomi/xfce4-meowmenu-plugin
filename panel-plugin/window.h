@@ -147,6 +147,9 @@ private:
 
 	GtkEntry* m_search_entry;
 
+	GtkWidget* m_void_spacer;
+	GtkSizeGroup* m_void_size_group;
+
 	SearchPage* m_search_results;
 	FavoritesPage* m_favorites;
 	RecentPage* m_recent;
@@ -164,6 +167,7 @@ private:
 	bool m_layout_search_alternate;
 	bool m_layout_commands_alternate;
 	bool m_layout_profile_alternate;
+	bool m_layout_unified_bar;
 	int m_profile_shape;
 	bool m_supports_alpha;
 	bool m_child_has_focus;
