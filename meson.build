@@ -165,6 +165,11 @@ if meowmenu_preset_files.length() > 0 and meowmenu_preset_files[0] != ''
   )
 endif
 
+install_data(
+  'NEWS',
+  install_dir: pkgdatadir,
+)
+
 if get_option('enable_tests')
   subdir('tests')
 endif

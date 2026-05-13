@@ -418,24 +418,109 @@ gboolean Plugin::remote_event(const gchar* name, const GValue* value)
 
 //-----------------------------------------------------------------------------
 
+/* Plugin::show_news_dialog:
+ * @parent: transient parent window for the dialog.
+ *
+ * Reads the installed NEWS file from PACKAGE_DATADIR and shows its content
+ * in a scrollable, read-only text dialog. Falls back to a short message when
+ * the file cannot be found (e.g. during an uninstalled development build).
+ */
+static void show_news_dialog(GtkWindow* parent)
+{
+	gchar* news_text = nullptr;
+	gchar* news_path = g_build_filename(PACKAGE_DATADIR, "NEWS", nullptr);
+
+	if (!g_file_get_contents(news_path, &news_text, nullptr, nullptr))
+	{
+		news_text = g_strdup(_("News file not found.\n"
+			"Run 'meson install' to make it available."));
+	}
+	g_free(news_path);
+
+	GtkWidget* dialog = gtk_dialog_new_with_buttons(
+		_("What's New"),
+		parent,
+		static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
+		_("Close"), GTK_RESPONSE_CLOSE,
+		nullptr);
+	gtk_window_set_default_size(GTK_WINDOW(dialog), 520, 420);
+
+	GtkWidget* scrolled = gtk_scrolled_window_new(nullptr, nullptr);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+		GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_widget_set_margin_start(scrolled, 6);
+	gtk_widget_set_margin_end(scrolled, 6);
+	gtk_widget_set_margin_top(scrolled, 6);
+	gtk_widget_set_margin_bottom(scrolled, 6);
+
+	GtkWidget* text_view = gtk_text_view_new();
+	gtk_text_view_set_editable(GTK_TEXT_VIEW(text_view), false);
+	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text_view), false);
+	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text_view), GTK_WRAP_WORD_CHAR);
+	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text_view), 8);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text_view), 8);
+
+	GtkTextBuffer* buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+	gtk_text_buffer_set_text(buffer, news_text, -1);
+	g_free(news_text);
+
+	gtk_container_add(GTK_CONTAINER(scrolled), text_view);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
+		scrolled, true, true, 0);
+	gtk_widget_show_all(dialog);
+
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
+}
+
+/* Plugin::show_about:
+ *
+ * Shows the MeowMenu About dialog. Adds a "What's New" button that opens
+ * the NEWS file in a separate scrollable dialog without closing the About
+ * dialog. Credits section acknowledges the original Whisker Menu project.
+ */
 void Plugin::show_about()
 {
+	// NOTE: response ID 1 is user-defined; avoids collisions with GTK built-in IDs.
+	static const gint RESPONSE_NEWS = 1;
+
 	const gchar* authors[] = {
-		"Graeme Gott <graeme@gottcode.org>",
+		"Matteo Bonanomi",
 		nullptr };
 
-	gtk_show_about_dialog
-		(nullptr,
-		"authors", authors,
-		"comments", _("Alternate application launcher for Xfce"),
-		"copyright", "Copyright \302\251 2013-" COPYRIGHT_YEAR " Graeme Gott",
-		"license", XFCE_LICENSE_GPL,
-		"logo-icon-name", "org.xfce.panel.whiskermenu",
-		"program-name", PACKAGE_NAME,
-		"translator-credits", _("translator-credits"),
-		"version", VERSION_FULL,
-		"website", PLUGIN_WEBSITE,
-		nullptr);
+	const gchar* whisker_credits[] = {
+		"Graeme Gott <graeme@gottcode.org>",
+		"https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin",
+		"https://gottcode.org",
+		nullptr };
+
+	GtkWidget* dialog = gtk_about_dialog_new();
+	GtkAboutDialog* about = GTK_ABOUT_DIALOG(dialog);
+
+	gtk_about_dialog_set_program_name(about, "xfce4-meowmenu-plugin");
+	gtk_about_dialog_set_version(about, "0.2.2 (2026-05-13)");
+	gtk_about_dialog_set_comments(about, _("Alternate launcher for XFCE4"));
+	gtk_about_dialog_set_website(about, PLUGIN_WEBSITE);
+	gtk_about_dialog_set_copyright(about, "Copyright \302\251 2026 Matteo Bonanomi");
+	gtk_about_dialog_set_license_type(about, GTK_LICENSE_GPL_2_0);
+	gtk_about_dialog_set_authors(about, authors);
+	gtk_about_dialog_set_logo_icon_name(about, "org.xfce.panel.whiskermenu");
+	gtk_about_dialog_add_credit_section(about, _("Based on Whisker Menu"), whisker_credits);
+
+	gtk_dialog_add_button(GTK_DIALOG(dialog), _("What's New"), RESPONSE_NEWS);
+
+	gint response;
+	do
+	{
+		response = gtk_dialog_run(GTK_DIALOG(dialog));
+		if (response == RESPONSE_NEWS)
+		{
+			show_news_dialog(GTK_WINDOW(dialog));
+		}
+	}
+	while (response == RESPONSE_NEWS);
+
+	gtk_widget_destroy(dialog);
 }
 
 //-----------------------------------------------------------------------------

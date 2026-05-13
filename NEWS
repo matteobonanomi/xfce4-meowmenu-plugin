@@ -1,14 +1,24 @@
 MEOW MENU DEVELOPMENT
 
-0.1.0 (2026-05-04)
+0.2.2 (2026-05-13)
 ======
-- first release from Whisker fork
-- add advanced search options
+- complete refactor of Properties window for an easier customization
+- adding simple conf files to edit default presets without Properties UI
+
+0.2.1 (2026-05-12)
+======
+- bugfixing opacity issues in default presets
+- improve FullScreen preset layout
 
 0.2.0 (2026-05-09)
 ======
 - add Presets: Classic, Modern (default), FullScreen
 - more customization options
+
+0.1.0 (2026-05-04)
+======
+- first release from Whisker fork
+- add advanced search options
 
 WHISKER MENU DEVELOPMENT BEFORE FORK
 
