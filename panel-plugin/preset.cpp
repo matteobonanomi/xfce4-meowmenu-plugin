@@ -72,6 +72,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "profile-position",     PresetValue::from_str("top")          },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "layout-mode",          PresetValue::from_str("docked")       },
+			{ "unified-bar",          PresetValue::from_bool(false)         },
 			{ "launcher-icon-size",   PresetValue::from_int(2)              }, // Small
 			{ "hover-switch-category",PresetValue::from_bool(false)         },
 			{ "view-mode-default",    PresetValue::from_str("list")         },
@@ -98,6 +99,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "profile-position",     PresetValue::from_str("top")         },
 			{ "commands-position",    PresetValue::from_str("top-right")   },
 			{ "layout-mode",          PresetValue::from_str("docked")      },
+			{ "unified-bar",          PresetValue::from_bool(false)        },
 			{ "launcher-icon-size",   PresetValue::from_int(3)             }, // Normal
 			{ "grid-density",         PresetValue::from_str("medium")      },
 			{ "hover-switch-category",PresetValue::from_bool(true)         },
@@ -127,6 +129,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
+			{ "unified-bar",          PresetValue::from_bool(true)          },
 			{ "hover-switch-category",PresetValue::from_bool(true)          },
 			{ "view-mode-default",    PresetValue::from_str("icons")        },
 			{ "default-category",     PresetValue::from_str("all")          },
@@ -165,6 +168,8 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.profile_position = val.s;
 		else if (prop == "commands-position" && val.kind == PresetValue::Str)
 			settings.commands_position = val.s;
+		else if (prop == "unified-bar" && val.kind == PresetValue::Bool)
+			settings.unified_bar = val.b;
 		else if (prop == "grid-density" && val.kind == PresetValue::Str)
 			settings.grid_density = val.s;
 		else if (prop == "layout-mode" && val.kind == PresetValue::Str)
@@ -329,6 +334,12 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 		else if (prop == "commands-position")
 		{
 			if (val.kind == PresetValue::Str && !(settings.commands_position == val.s.c_str()))
+				return true;
+		}
+		else if (prop == "unified-bar")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.unified_bar) != val.b)
 				return true;
 		}
 		else if (prop == "grid-density")
@@ -540,6 +551,8 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	xfconf_channel_set_string(ch, (prefix + "commands-position").c_str(), settings.commands_position);
 	xfconf_channel_set_string(ch, (prefix + "grid-density").c_str(), settings.grid_density);
 	xfconf_channel_set_string(ch, (prefix + "layout-mode").c_str(), settings.layout_mode);
+	xfconf_channel_set_bool(ch, (prefix + "unified-bar").c_str(),
+		static_cast<bool>(settings.unified_bar));
 	xfconf_channel_set_int(ch, (prefix + "launcher-icon-size").c_str(), settings.launcher_icon_size);
 	xfconf_channel_set_bool(ch, (prefix + "hover-switch-category").c_str(),
 		static_cast<bool>(settings.category_hover_activate));

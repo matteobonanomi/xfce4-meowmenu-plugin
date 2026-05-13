@@ -177,6 +177,26 @@ static void test_legacy_opacity_mapping()
 	assert(map_legacy_opacity(1, 75) == -1);
 }
 
+/* unified_bar_default:
+ * @has_key: whether the channel already has /unified-bar.
+ *
+ * Returns the value to write during fresh-install / migration, or -1 to
+ * leave the key untouched. On a fresh channel /unified-bar resolves to
+ * false (the C++ Settings ctor default and the explicit defaults table).
+ */
+static int unified_bar_default(bool has_key)
+{
+	return has_key ? -1 : 0; // false
+}
+
+static void test_unified_bar_default_fresh_install()
+{
+	// Fresh channel → write explicit false.
+	assert(unified_bar_default(false) == 0);
+	// Already present → leave alone.
+	assert(unified_bar_default(true)  == -1);
+}
+
 static void test_idempotent_guard()
 {
 	// Running migration twice: second call must be no-op because
@@ -204,6 +224,7 @@ int main()
 	test_full_screen_opacity_default();
 	test_position_categories_horizontal_migration();
 	test_profile_shape_hidden_migration();
+	test_unified_bar_default_fresh_install();
 	test_idempotent_guard();
 	return 0;
 }

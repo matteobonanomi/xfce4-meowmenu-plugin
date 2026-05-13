@@ -48,6 +48,16 @@ test_properties_tabs = executable(
 
 test('properties_tabs', test_properties_tabs)
 
+test_unified_bar_sources = ['test_unified_bar.cpp']
+
+test_unified_bar = executable(
+  'test_unified_bar',
+  test_unified_bar_sources,
+  dependencies: [],
+)
+
+test('unified_bar', test_unified_bar)
+
 test_search_action_edit_sources = ['test_search_action_edit.cpp']
 
 test_search_action_edit = executable(
