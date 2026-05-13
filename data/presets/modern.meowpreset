@@ -1,0 +1,29 @@
+# Modern preset — contemporary layout with rounded corners, icon grid, sidebar on the left.
+# Docked, hover-to-switch categories, search bar at the bottom.
+# Source of truth for all keys: .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+
+[Preset]
+Name=Modern
+SchemaVersion=1
+Id=modern
+Description=Contemporary layout with rounded corners, categories on the left, and hover-to-switch enabled.
+
+[Settings]
+layout-mode=docked
+corner-radius=12
+panel-gap=8
+menu-width=450
+menu-height=500
+launcher-icon-size=3
+view-mode-default=icons
+grid-density=medium
+sidebar-position=left
+search-bar-position=bottom
+profile-position=top
+commands-position=top-right
+categories-opacity=80
+apps-opacity=70
+full-screen-opacity=100
+hover-switch-category=true
+stay-on-focus-out=false
+default-category=recent

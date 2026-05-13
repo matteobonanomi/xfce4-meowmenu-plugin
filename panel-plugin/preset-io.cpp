@@ -20,6 +20,7 @@
 #include "settings.h"
 
 #include <cstring>
+#include <map>
 
 #include <glib.h>
 
@@ -40,13 +41,14 @@ struct PropDef
 	int domain_len;
 };
 
-static const char* SIDEBAR_DOMAIN[]       = { "left", "right", "hidden" };
-static const char* SEARCHBAR_DOMAIN[]     = { "top", "bottom" };
-static const char* PROFILE_DOMAIN[]       = { "top", "bottom", "bottom-right", "hidden" };
-static const char* COMMANDS_DOMAIN[]      = { "top-right", "bottom-right", "hidden" };
-static const char* GRID_DENSITY_DOMAIN[]  = { "low", "medium", "high" };
-static const char* LAYOUT_MODE_DOMAIN[]   = { "docked", "fullscreen" };
-static const char* VIEW_MODE_DOMAIN[]     = { "icons", "list", "tree" };
+static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "hidden" };
+static const char* SEARCHBAR_DOMAIN[]       = { "top", "bottom" };
+static const char* PROFILE_DOMAIN[]         = { "top", "bottom", "bottom-right", "hidden" };
+static const char* COMMANDS_DOMAIN[]        = { "top-right", "bottom-right", "hidden" };
+static const char* GRID_DENSITY_DOMAIN[]    = { "low", "medium", "high" };
+static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "fullscreen" };
+static const char* VIEW_MODE_DOMAIN[]       = { "icons", "list", "tree" };
+static const char* DEFAULT_CATEGORY_DOMAIN[] = { "favorites", "recent", "all" };
 
 #define STR_DOMAIN(arr) (arr), (int)(sizeof(arr)/sizeof(arr[0]))
 #define INT_RANGE(lo, hi) (lo), (hi), nullptr, 0
@@ -56,6 +58,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "panel-gap",             PresetValue::Int, INT_RANGE(0, 50) },
 	{ "categories-opacity",    PresetValue::Int, INT_RANGE(0, 100) },
 	{ "apps-opacity",          PresetValue::Int, INT_RANGE(0, 100) },
+	{ "full-screen-opacity",   PresetValue::Int, INT_RANGE(0, 100) },
 	{ "sidebar-position",      PresetValue::Str, 0, 0, STR_DOMAIN(SIDEBAR_DOMAIN) },
 	{ "position-categories-horizontal", PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "search-bar-position",   PresetValue::Str, 0, 0, STR_DOMAIN(SEARCHBAR_DOMAIN) },
@@ -66,6 +69,10 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "launcher-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },
 	{ "view-mode-default",     PresetValue::Str, 0, 0, STR_DOMAIN(VIEW_MODE_DOMAIN) },
 	{ "hover-switch-category", PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "stay-on-focus-out",     PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "menu-width",            PresetValue::Int, INT_RANGE(200, 2000) },
+	{ "menu-height",           PresetValue::Int, INT_RANGE(200, 2000) },
+	{ "default-category",      PresetValue::Str, 0, 0, STR_DOMAIN(DEFAULT_CATEGORY_DOMAIN) },
 };
 static const int GOVERNED_PROPS_COUNT = (int)(sizeof(GOVERNED_PROPS) / sizeof(GOVERNED_PROPS[0]));
 
@@ -314,5 +321,237 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 
 	result.status = ImportStatus::Ok;
 	result.new_uuid = uuid;
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+// enumerate_preset_files: walk system_dir then user_dir, parse every
+// .meowpreset file, deduplicate by id (user wins), return the result list.
+// ---------------------------------------------------------------------------
+
+/* parse_preset_file_internal:
+ * @path:   absolute path to the .meowpreset file to parse.
+ * @out:    filled on success.
+ *
+ * Parses a single .meowpreset GKeyFile. On any validation failure the file
+ * is silently ignored (g_debug() only) and false is returned. The [Settings]
+ * section is parsed with the same per-key validation used by import_user_preset.
+ *
+ * Returns: true on success; false if the file should be skipped.
+ */
+static bool parse_preset_file_internal(const std::string& path, LayoutPreset& out)
+{
+	GKeyFile* kf = g_key_file_new();
+	GError* err = nullptr;
+
+	if (!g_key_file_load_from_file(kf, path.c_str(), G_KEY_FILE_NONE, &err))
+	{
+		g_debug("meowmenu: preset file '%s': GKeyFile parse failed: %s",
+			path.c_str(), err ? err->message : "unknown");
+		if (err) g_error_free(err);
+		g_key_file_free(kf);
+		return false;
+	}
+
+	if (!g_key_file_has_group(kf, "Preset") || !g_key_file_has_group(kf, "Settings"))
+	{
+		g_debug("meowmenu: preset file '%s': missing [Preset] or [Settings] section", path.c_str());
+		g_key_file_free(kf);
+		return false;
+	}
+
+	if (!g_key_file_has_key(kf, "Preset", "Name", nullptr) ||
+		!g_key_file_has_key(kf, "Preset", "SchemaVersion", nullptr))
+	{
+		g_debug("meowmenu: preset file '%s': missing Name or SchemaVersion", path.c_str());
+		g_key_file_free(kf);
+		return false;
+	}
+
+	GError* verr = nullptr;
+	int schema_ver = g_key_file_get_integer(kf, "Preset", "SchemaVersion", &verr);
+	if (verr || schema_ver < 1)
+	{
+		g_debug("meowmenu: preset file '%s': invalid SchemaVersion", path.c_str());
+		if (verr) g_error_free(verr);
+		g_key_file_free(kf);
+		return false;
+	}
+	if (schema_ver > 1)
+	{
+		g_message("meowmenu: preset file '%s' requires schema version %d (we know 1); skipping — upgrade meowmenu",
+			path.c_str(), schema_ver);
+		g_key_file_free(kf);
+		return false;
+	}
+
+	gchar* name_raw = g_key_file_get_string(kf, "Preset", "Name", nullptr);
+	if (!name_raw || !*name_raw)
+	{
+		g_debug("meowmenu: preset file '%s': empty Name", path.c_str());
+		g_free(name_raw);
+		g_key_file_free(kf);
+		return false;
+	}
+	std::string display_name(name_raw);
+	g_free(name_raw);
+
+	// Derive id from filename stem (everything before the last dot).
+	std::string id;
+	{
+		const gchar* base = g_path_get_basename(path.c_str());
+		std::string bname(base ? base : "");
+		g_free((gpointer)base);
+		const size_t dot = bname.rfind('.');
+		id = (dot != std::string::npos) ? bname.substr(0, dot) : bname;
+	}
+
+	// NOTE: If the optional Id key is present it MUST match the filename stem.
+	if (g_key_file_has_key(kf, "Preset", "Id", nullptr))
+	{
+		gchar* file_id = g_key_file_get_string(kf, "Preset", "Id", nullptr);
+		bool match = file_id && (id == file_id);
+		g_free(file_id);
+		if (!match)
+		{
+			g_debug("meowmenu: preset file '%s': Id key does not match filename stem '%s'",
+				path.c_str(), id.c_str());
+			g_key_file_free(kf);
+			return false;
+		}
+	}
+
+	gchar* desc_raw = g_key_file_get_string(kf, "Preset", "Description", nullptr);
+	std::string description = desc_raw ? desc_raw : "";
+	g_free(desc_raw);
+
+	// Parse [Settings] — same per-key validation as import_user_preset.
+	PresetValueMap values;
+	gsize nkeys = 0;
+	gchar** keys = g_key_file_get_keys(kf, "Settings", &nkeys, nullptr);
+	if (keys)
+	{
+		for (gsize ki = 0; ki < nkeys; ++ki)
+		{
+			const gchar* key = keys[ki];
+			const PropDef* pd = find_prop_def(key);
+			if (!pd)
+			{
+				g_debug("meowmenu: preset file '%s': unknown key '%s', skipping",
+					path.c_str(), key);
+				continue;
+			}
+			if (pd->kind == PresetValue::Int)
+			{
+				GError* ke = nullptr;
+				int v = g_key_file_get_integer(kf, "Settings", key, &ke);
+				if (ke || v < pd->min_i || v > pd->max_i)
+				{
+					g_debug("meowmenu: preset file '%s': invalid int for '%s', skipping", path.c_str(), key);
+					if (ke) g_error_free(ke);
+					continue;
+				}
+				values[key] = PresetValue::from_int(v);
+			}
+			else if (pd->kind == PresetValue::Bool)
+			{
+				GError* ke = nullptr;
+				gboolean v = g_key_file_get_boolean(kf, "Settings", key, &ke);
+				if (ke)
+				{
+					g_debug("meowmenu: preset file '%s': invalid bool for '%s', skipping", path.c_str(), key);
+					g_error_free(ke);
+					continue;
+				}
+				values[key] = PresetValue::from_bool(v != FALSE);
+			}
+			else // Str
+			{
+				gchar* sv = g_key_file_get_string(kf, "Settings", key, nullptr);
+				bool valid = false;
+				for (int di = 0; di < pd->domain_len; ++di)
+				{
+					if (sv && strcmp(sv, pd->domain[di]) == 0)
+					{
+						valid = true;
+						break;
+					}
+				}
+				if (!valid)
+				{
+					g_debug("meowmenu: preset file '%s': invalid value '%s' for '%s', skipping",
+						path.c_str(), sv ? sv : "(null)", key);
+					g_free(sv);
+					continue;
+				}
+				values[key] = PresetValue::from_str(sv);
+				g_free(sv);
+			}
+		}
+		g_strfreev(keys);
+	}
+
+	g_key_file_free(kf);
+
+	out.id           = id;
+	out.display_name = display_name;
+	out.description  = description;
+	out.is_builtin   = true;
+	out.values       = std::move(values);
+	return true;
+}
+
+/* enumerate_preset_files:
+ * @system_dir: path to the installed read-only preset directory.
+ * @user_dir:   path to the user-writable preset directory.
+ *
+ * Walks system_dir then user_dir, parsing every .meowpreset file. Entries
+ * with the same id are deduplicated: user_dir wins (FR-061). Files that
+ * fail validation are silently skipped — no error dialog, no crash (FR-063).
+ *
+ * Returns: list of successfully parsed LayoutPreset objects; may be empty.
+ */
+std::vector<LayoutPreset> WhiskerMenu::enumerate_preset_files(const std::string& system_dir,
+	const std::string& user_dir)
+{
+	// keyed by id; second pass (user dir) overwrites first pass (system dir).
+	std::map<std::string, LayoutPreset> by_id;
+
+	auto scan_dir = [&](const std::string& dir_path)
+	{
+		GError* err = nullptr;
+		GDir* d = g_dir_open(dir_path.c_str(), 0, &err);
+		if (!d)
+		{
+			if (err)
+			{
+				g_debug("meowmenu: enumerate_preset_files: cannot open '%s': %s",
+					dir_path.c_str(), err->message);
+				g_error_free(err);
+			}
+			return;
+		}
+
+		const gchar* fname;
+		while ((fname = g_dir_read_name(d)) != nullptr)
+		{
+			if (!g_str_has_suffix(fname, ".meowpreset"))
+				continue;
+
+			std::string full = dir_path + G_DIR_SEPARATOR_S + fname;
+			LayoutPreset p;
+			if (parse_preset_file_internal(full, p))
+				by_id[p.id] = std::move(p);
+		}
+		g_dir_close(d);
+	};
+
+	scan_dir(system_dir);
+	scan_dir(user_dir); // user wins on id collision
+
+	std::vector<LayoutPreset> result;
+	result.reserve(by_id.size());
+	for (auto& pair : by_id)
+		result.push_back(std::move(pair.second));
 	return result;
 }

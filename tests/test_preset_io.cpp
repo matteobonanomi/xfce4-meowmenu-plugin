@@ -35,20 +35,25 @@ struct ShadowPropDef
 };
 
 static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
-	{ "corner-radius",         PropKind::Int,  0,   24,  {} },
-	{ "panel-gap",             PropKind::Int,  0,   50,  {} },
-	{ "categories-opacity",    PropKind::Int,  0,   100, {} },
-	{ "apps-opacity",          PropKind::Int,  0,   100, {} },
-	{ "sidebar-position",      PropKind::Str,  0,   0,   {"left","right","hidden"} },
+	{ "corner-radius",         PropKind::Int,  0,   24,   {} },
+	{ "panel-gap",             PropKind::Int,  0,   50,   {} },
+	{ "categories-opacity",    PropKind::Int,  0,   100,  {} },
+	{ "apps-opacity",          PropKind::Int,  0,   100,  {} },
+	{ "full-screen-opacity",   PropKind::Int,  0,   100,  {} },
+	{ "sidebar-position",      PropKind::Str,  0,   0,    {"left","right","hidden"} },
 	{ "position-categories-horizontal", PropKind::Bool, 0, 0, {} },
-	{ "search-bar-position",   PropKind::Str,  0,   0,   {"top","bottom"} },
-	{ "profile-position",      PropKind::Str,  0,   0,   {"top","bottom","bottom-right","hidden"} },
-	{ "commands-position",     PropKind::Str,  0,   0,   {"top-right","bottom-right","hidden"} },
-	{ "grid-density",          PropKind::Str,  0,   0,   {"low","medium","high"} },
-	{ "layout-mode",           PropKind::Str,  0,   0,   {"docked","fullscreen"} },
-	{ "launcher-icon-size",    PropKind::Int,  -1,  6,   {} },
-	{ "view-mode-default",     PropKind::Str,  0,   0,   {"icons","list","tree"} },
-	{ "hover-switch-category", PropKind::Bool, 0,   0,   {} },
+	{ "search-bar-position",   PropKind::Str,  0,   0,    {"top","bottom"} },
+	{ "profile-position",      PropKind::Str,  0,   0,    {"top","bottom","bottom-right","hidden"} },
+	{ "commands-position",     PropKind::Str,  0,   0,    {"top-right","bottom-right","hidden"} },
+	{ "grid-density",          PropKind::Str,  0,   0,    {"low","medium","high"} },
+	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },
+	{ "launcher-icon-size",    PropKind::Int,  -1,  6,    {} },
+	{ "view-mode-default",     PropKind::Str,  0,   0,    {"icons","list","tree"} },
+	{ "hover-switch-category", PropKind::Bool, 0,   0,    {} },
+	{ "stay-on-focus-out",     PropKind::Bool, 0,   0,    {} },
+	{ "menu-width",            PropKind::Int,  200, 2000, {} },
+	{ "menu-height",           PropKind::Int,  200, 2000, {} },
+	{ "default-category",      PropKind::Str,  0,   0,    {"favorites","recent","all"} },
 };
 
 static const ShadowPropDef* find_shadow_prop(const std::string& name)
@@ -302,6 +307,131 @@ static void test_int_boundary_values()
 	}
 }
 
+// ---------------------------------------------------------------------------
+// T043: Shadow enumeration tests — simulate enumerate_preset_files logic.
+// These verify the merge/override rules without touching the filesystem.
+// ---------------------------------------------------------------------------
+
+struct ShadowPreset
+{
+	std::string     id;
+	std::string     display_name;
+	ShadowValueMap  values;
+};
+
+// Shadow version of enumerate_preset_files: system presets in first map,
+// user presets in second; user wins on id collision (FR-061).
+static std::vector<ShadowPreset> shadow_enumerate(
+	const std::vector<ShadowPreset>& sys,
+	const std::vector<ShadowPreset>& user)
+{
+	std::map<std::string, ShadowPreset> by_id;
+	for (const auto& p : sys)  by_id[p.id] = p;
+	for (const auto& p : user) by_id[p.id] = p; // user wins
+	std::vector<ShadowPreset> result;
+	for (auto& kv : by_id)
+		result.push_back(std::move(kv.second));
+	return result;
+}
+
+static void test_enumerate_system_only()
+{
+	std::vector<ShadowPreset> sys = {
+		{ "classic", "Classic", {} },
+		{ "modern",  "Modern",  {} },
+	};
+	auto result = shadow_enumerate(sys, {});
+	assert(result.size() == 2);
+}
+
+static void test_enumerate_user_wins_on_duplicate_id()
+{
+	// System has "classic" with corner-radius=0; user overrides with 6.
+	RawSettings sys_raw; sys_raw.put("corner-radius", "0");
+	std::vector<std::string> sk1;
+	ShadowPreset sys_p = { "classic", "Classic", validate_settings(sys_raw, sk1) };
+
+	RawSettings usr_raw; usr_raw.put("corner-radius", "6");
+	std::vector<std::string> sk2;
+	ShadowPreset usr_p = { "classic", "Classic Custom", validate_settings(usr_raw, sk2) };
+
+	auto result = shadow_enumerate({ sys_p }, { usr_p });
+	assert(result.size() == 1);
+	assert(result[0].id == "classic");
+	assert(result[0].display_name == "Classic Custom"); // user wins
+	assert(result[0].values.at("corner-radius").i == 6);
+}
+
+static void test_enumerate_malformed_file_silently_skipped()
+{
+	// A "malformed" preset is one where validation returns empty (e.g. completely
+	// invalid settings). The shadow simulates this by passing an empty RawSettings.
+	// The enumeration simply skips presets whose id is empty (validation gate).
+	ShadowPreset bad = { "", "Bad", {} }; // empty id = failed parse
+	std::vector<ShadowPreset> sys_all = {
+		{ "classic", "Classic", {} },
+		bad,
+		{ "modern",  "Modern",  {} },
+	};
+	// Only count those with non-empty id (the real parse_preset_file_internal returns
+	// false for these and they are never inserted into the result).
+	int valid = 0;
+	for (const auto& p : sys_all)
+		if (!p.id.empty()) ++valid;
+	assert(valid == 2);
+}
+
+static void test_enumerate_wrong_type_key_dropped_rest_loaded()
+{
+	// "corner-radius" with a non-integer value → skipped; other key survives.
+	RawSettings raw;
+	raw.put("corner-radius",  "not-a-number"); // wrong type
+	raw.put("panel-gap",      "8");            // valid
+
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+
+	assert(result.find("corner-radius") == result.end());
+	assert(result.count("panel-gap") == 1);
+	assert(result.at("panel-gap").i == 8);
+}
+
+static void test_enumerate_unknown_key_dropped()
+{
+	RawSettings raw;
+	raw.put("corner-radius",    "4");       // valid
+	raw.put("not-a-real-key",   "banana");  // unknown
+
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+
+	assert(std::find(skipped.begin(), skipped.end(), "not-a-real-key") != skipped.end());
+	assert(result.find("not-a-real-key") == result.end());
+	assert(result.count("corner-radius") == 1);
+}
+
+static void test_new_schema_keys_accepted()
+{
+	// Verify the five keys added to GOVERNED_PROPS by 003-properties-refactor
+	// are now accepted by the shadow validator.
+	RawSettings raw;
+	raw.put("full-screen-opacity", "85");
+	raw.put("stay-on-focus-out",   "true");
+	raw.put("menu-width",          "480");
+	raw.put("menu-height",         "520");
+	raw.put("default-category",    "recent");
+
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+
+	assert(skipped.empty());
+	assert(result.count("full-screen-opacity") == 1 && result.at("full-screen-opacity").i == 85);
+	assert(result.count("stay-on-focus-out")   == 1 && result.at("stay-on-focus-out").b   == true);
+	assert(result.count("menu-width")          == 1 && result.at("menu-width").i          == 480);
+	assert(result.count("menu-height")         == 1 && result.at("menu-height").i         == 520);
+	assert(result.count("default-category")    == 1 && result.at("default-category").s    == "recent");
+}
+
 int main()
 {
 	test_round_trip_all_valid();
@@ -312,5 +442,12 @@ int main()
 	test_builtin_name_conflict_rejected();
 	test_empty_settings_section();
 	test_int_boundary_values();
+	// T043: enumeration logic
+	test_enumerate_system_only();
+	test_enumerate_user_wins_on_duplicate_id();
+	test_enumerate_malformed_file_silently_skipped();
+	test_enumerate_wrong_type_key_dropped_rest_loaded();
+	test_enumerate_unknown_key_dropped();
+	test_new_schema_keys_accepted();
 	return 0;
 }

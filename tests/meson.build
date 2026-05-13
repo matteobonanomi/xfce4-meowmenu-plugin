@@ -37,3 +37,23 @@ test_preset_io = executable(
 )
 
 test('preset_io', test_preset_io)
+
+test_properties_tabs_sources = ['test_properties_tabs.cpp']
+
+test_properties_tabs = executable(
+  'test_properties_tabs',
+  test_properties_tabs_sources,
+  dependencies: [],
+)
+
+test('properties_tabs', test_properties_tabs)
+
+test_search_action_edit_sources = ['test_search_action_edit.cpp']
+
+test_search_action_edit = executable(
+  'test_search_action_edit',
+  test_search_action_edit_sources,
+  dependencies: [],
+)
+
+test('search_action_edit', test_search_action_edit)

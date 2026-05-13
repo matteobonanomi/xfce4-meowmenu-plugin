@@ -150,6 +150,21 @@ xfce_revision_h = vcs_tag(
 subdir('panel-plugin')
 subdir('icons')
 subdir('po')
+
+# Built-in preset files. Per contracts/preset-file.md §Locations, these are
+# installed read-only under ${datadir}/meowmenu/presets/ and enumerated at
+# runtime by panel-plugin/preset-io.cpp.
+meowmenu_preset_files = run_command(
+  'sh', '-c', 'ls data/presets/*.meowpreset 2>/dev/null || true',
+  check: false,
+).stdout().strip().split('\n')
+if meowmenu_preset_files.length() > 0 and meowmenu_preset_files[0] != ''
+  install_data(
+    meowmenu_preset_files,
+    install_dir: get_option('prefix') / get_option('datadir') / 'meowmenu' / 'presets',
+  )
+endif
+
 if get_option('enable_tests')
   subdir('tests')
 endif

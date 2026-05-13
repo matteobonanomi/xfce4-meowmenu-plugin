@@ -22,6 +22,6 @@ panel-plugin/search-page.cpp
 panel-plugin/settings-dialog.cpp
 panel-plugin/settings.cpp
 panel-plugin/window.cpp
-panel-plugin/xfce4-popup-whiskermenu.cpp
+panel-plugin/xfce4-popup-meowmenu.cpp
 
 panel-plugin/whiskermenu.desktop.in

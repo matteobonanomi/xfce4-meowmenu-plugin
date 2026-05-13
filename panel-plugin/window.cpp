@@ -660,8 +660,13 @@ void WhiskerMenu::Window::show(const Position position)
 			|| (g_strcmp0(commands_pos, "top-right") != 0 && g_strcmp0(commands_pos, "hidden") != 0
 				&& m_settings->position_commands_alternate);
 
+	// NOTE: schema v2 — horizontal-categories is derived from sidebar-position
+	// (top|bottom); the legacy /position-categories-horizontal key is migrated
+	// away in Settings::migrate_schema().
+	const bool cats_horizontal = (g_strcmp0(sidebar_pos, "top") == 0)
+			|| (g_strcmp0(sidebar_pos, "bottom") == 0);
 	if ((m_layout_ltr != layout_ltr)
-			|| (m_layout_categories_horizontal != m_settings->position_categories_horizontal)
+			|| (m_layout_categories_horizontal != cats_horizontal)
 			|| (m_layout_categories_alternate != cats_alt)
 			|| (m_layout_search_alternate != search_alt)
 			|| (m_layout_commands_alternate != commands_alt)
@@ -669,7 +674,7 @@ void WhiskerMenu::Window::show(const Position position)
 			|| (m_profile_shape != m_settings->profile_shape))
 	{
 		m_layout_ltr = layout_ltr;
-		m_layout_categories_horizontal = m_settings->position_categories_horizontal;
+		m_layout_categories_horizontal = cats_horizontal;
 		m_layout_categories_alternate = cats_alt;
 		m_layout_search_alternate = search_alt;
 		m_layout_commands_alternate = commands_alt;
@@ -1624,8 +1629,11 @@ void WhiskerMenu::Window::update_layout()
 		gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_contents_stack), 2);
 	}
 
-	// Handle size group to category buttons
-	const bool category_show_name = m_settings->category_show_name && !m_settings->position_categories_horizontal;
+	// Handle size group to category buttons. NOTE: schema v2 — sidebar-position
+	// top|bottom forces icon-only categories regardless of category-show-name.
+	const bool sidebar_horizontal = (g_strcmp0(m_settings->sidebar_position, "top") == 0
+			|| g_strcmp0(m_settings->sidebar_position, "bottom") == 0);
+	const bool category_show_name = m_settings->category_show_name && !sidebar_horizontal;
 	if (!m_sidebar_size_group && m_layout_commands_alternate && category_show_name)
 	{
 		m_sidebar_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);

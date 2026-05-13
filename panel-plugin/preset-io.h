@@ -19,6 +19,9 @@
 #define WHISKERMENU_PRESET_IO_H
 
 #include <string>
+#include <vector>
+
+#include "preset.h"
 
 namespace WhiskerMenu
 {
@@ -57,6 +60,13 @@ ImportResult import_user_preset(const std::string& file_path,
 	Settings& settings,
 	const std::string& display_name_override = {},
 	const std::string& overwrite_uuid = {});
+
+// Enumerate .meowpreset files from system_dir (first) then user_dir.
+// Files with the same id (filename stem without extension) are deduplicated: user wins.
+// Malformed or unreadable files are silently skipped (g_debug() only).
+// Never crashes, never shows an error dialog (FR-063).
+std::vector<LayoutPreset> enumerate_preset_files(const std::string& system_dir,
+	const std::string& user_dir);
 
 } // namespace WhiskerMenu
 

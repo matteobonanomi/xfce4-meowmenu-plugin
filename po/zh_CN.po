@@ -1,7 +1,7 @@
 # Chinese (China) translation of xfce4-whiskermenu-plugin.
 # Copyright (C) 2025 Graeme Gott
 # This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
-# 
+#
 # Translators:
 # Mingcong Bai <jeffbai@aosc.xyz>, 2014
 # Mingcong Bai <jeffbai@aosc.xyz>, 2014
@@ -12,605 +12,1042 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Whisker Menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-16 14:38-0500\n"
+"POT-Creation-Date: 2026-05-13 09:04+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: 玉堂白鹤 <yjwork@qq.com>, 2015-2021,2024-2025\n"
-"Language-Team: Chinese (China) (http://app.transifex.com/gottcode/xfce4-whiskermenu-plugin/language/zh_CN/)\n"
+"Language-Team: Chinese (China) (http://app.transifex.com/gottcode/xfce4-"
+"whiskermenu-plugin/language/zh_CN/)\n"
+"Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: zh_CN\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: ../panel-plugin/settings-dialog.cpp:1041
-msgid "Add action"
-msgstr "添加动作"
-
-#: ../panel-plugin/page.cpp:513
-msgid "Add to Autostart"
-msgstr "添加到自启动"
-
-#: ../panel-plugin/page.cpp:494
-msgid "Add to Desktop"
-msgstr "添加到桌面"
-
-#: ../panel-plugin/page.cpp:473
-msgid "Add to Favorites"
-msgstr "添加到收藏夹"
-
-#: ../panel-plugin/page.cpp:502
-msgid "Add to Panel"
-msgstr "添加到面板"
-
-#: ../panel-plugin/applications-page.cpp:35 ../panel-plugin/category.cpp:51
-#: ../panel-plugin/settings-dialog.cpp:809
+#: panel-plugin/applications-page.cpp:35 panel-plugin/category.cpp:52
+#: panel-plugin/settings-dialog.cpp:2661
 msgid "All Applications"
 msgstr "全部应用程序"
 
-#: ../panel-plugin/plugin.cpp:418
-msgid "Alternate application launcher for Xfce"
-msgstr "Xfce 应用程序启动器替代品"
-
-#: ../panel-plugin/settings-dialog.cpp:904
-msgid "Amount of _items:"
-msgstr "项目合计(_I):"
-
-#: ../panel-plugin/settings-dialog.cpp:476
-msgid "Application icon si_ze:"
-msgstr "应用图标大小(_Z): "
-
-#: ../panel-plugin/settings.cpp:42
-msgid "Applications"
-msgstr "应用程序"
-
-#: ../panel-plugin/launcher.cpp:181
-#, c-format
-msgid "Are you sure you want to hide \"%s\"?"
-msgstr "您确定要隐藏\"%s\"?"
-
-#: ../panel-plugin/settings.cpp:122
-msgid "Are you sure you want to log out?"
-msgstr "您确定要注销吗？"
-
-#: ../panel-plugin/settings.cpp:129
-msgid "Are you sure you want to restart?"
-msgstr "您确定要重启吗？"
-
-#: ../panel-plugin/settings.cpp:136
-msgid "Are you sure you want to shut down?"
-msgstr "您确定要关机吗？"
-
-#: ../panel-plugin/settings-dialog.cpp:569
-msgid "Background opacit_y:"
-msgstr "背景不透明度(_Y):"
-
-#: ../panel-plugin/command-edit.cpp:65
+#: panel-plugin/command-edit.cpp:65
 msgid "Browse the file system to choose a custom command."
 msgstr "浏览文件系统以选择一个自定义命令。"
 
-#: ../panel-plugin/settings-dialog.cpp:1123
-msgid "C_ommand:"
-msgstr "命令 (_O): "
+#: panel-plugin/command-edit.cpp:75
+msgid "Select Command"
+msgstr "选择命令"
 
-#: ../panel-plugin/settings-dialog.cpp:499
-msgid "Categ_ory icon size:"
-msgstr "类目图标大小 (_O): "
+#: panel-plugin/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:268
+#: panel-plugin/settings-dialog.cpp:441 panel-plugin/settings-dialog.cpp:866
+#: panel-plugin/settings-dialog.cpp:922 panel-plugin/settings-dialog.cpp:1012
+#: panel-plugin/settings-dialog.cpp:1048 panel-plugin/settings-dialog.cpp:1082
+#: panel-plugin/settings-dialog.cpp:1096 panel-plugin/settings-dialog.cpp:1986
+msgid "_Cancel"
+msgstr "取消(_C)"
 
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:109
-msgid "Choose which menu to popup by instance ID"
-msgstr "根据实例 ID 选择要弹出的菜单"
+#: panel-plugin/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:269
+#: panel-plugin/settings-dialog.cpp:442
+msgid "_OK"
+msgstr "确定(_O)"
 
-#: ../panel-plugin/recent-page.cpp:147
-msgid "Clear Recently Used"
-msgstr "清除最近使用项"
-
-#: ../panel-plugin/plugin.cpp:419
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:128
-msgid "Copyright © 2013-2025 Graeme Gott"
-msgstr "版权所有© 2013-2025 Graeme Gott"
-
-#: ../panel-plugin/settings-dialog.cpp:796
-msgid "Default Category"
-msgstr "默认分类"
-
-#: ../panel-plugin/settings-dialog.cpp:1074
-msgid "Details"
-msgstr "细节"
-
-#: ../panel-plugin/settings-dialog.cpp:709
-msgid "Di_splay:"
-msgstr "显示 (_S): "
-
-#: ../panel-plugin/settings.cpp:143
-msgid "Do you want to suspend to RAM?"
-msgstr "您确定要挂起到内存吗？"
-
-#: ../panel-plugin/settings.cpp:150
-msgid "Do you want to suspend to disk?"
-msgstr "您确定要挂起到硬盘吗？"
-
-#: ../panel-plugin/page.cpp:535
-msgid "Edit Application..."
-msgstr "编辑应用程序..."
-
-#: ../panel-plugin/settings.cpp:164
-msgid "Edit _Profile"
-msgstr "编辑个人资料(_P)"
-
-#: ../panel-plugin/settings.cpp:166
-msgid "Failed to edit profile."
-msgstr "编辑个人资料失败"
-
-#: ../panel-plugin/element.cpp:98
+#: panel-plugin/element.cpp:98
 #, c-format
 msgid "Failed to execute command \"%s\"."
 msgstr "执行命令 \"%s\" 失败。"
 
-#: ../panel-plugin/settings.cpp:149
-msgid "Failed to hibernate."
-msgstr "休眠失败。"
-
-#: ../panel-plugin/settings.cpp:161
-msgid "Failed to launch menu editor."
-msgstr "执行菜单编辑器失败。"
-
-#: ../panel-plugin/settings.cpp:111
-msgid "Failed to lock screen."
-msgstr "锁定屏幕失败。"
-
-#: ../panel-plugin/settings.cpp:121 ../panel-plugin/settings.cpp:156
-msgid "Failed to log out."
-msgstr "注销失败。"
-
-#: ../panel-plugin/settings.cpp:106
-msgid "Failed to open settings manager."
-msgstr "打开设置管理器失败。"
-
-#: ../panel-plugin/settings.cpp:128
-msgid "Failed to restart."
-msgstr "重启失败。"
-
-#: ../panel-plugin/settings.cpp:135
-msgid "Failed to shut down."
-msgstr "关机失败。"
-
-#: ../panel-plugin/settings.cpp:142
-msgid "Failed to suspend."
-msgstr "挂起失败。"
-
-#: ../panel-plugin/settings.cpp:116
-msgid "Failed to switch user."
-msgstr "切换用户失败。"
-
-#: ../panel-plugin/favorites-page.cpp:37
-#: ../panel-plugin/settings-dialog.cpp:800
+#: panel-plugin/favorites-page.cpp:37 panel-plugin/settings-dialog.cpp:2652
 msgid "Favorites"
 msgstr "收藏夹"
 
-#: ../panel-plugin/settings.cpp:151
-#, c-format
-msgid "Hibernating computer in %d seconds."
-msgstr "计算机将在%d 秒内休眠。"
+#: panel-plugin/favorites-page.cpp:152
+msgid "Move Up"
+msgstr ""
 
-#: ../panel-plugin/settings-dialog.cpp:685
-msgid "Hidden"
-msgstr "隐藏"
+#: panel-plugin/favorites-page.cpp:164
+msgid "Move Down"
+msgstr ""
 
-#: ../panel-plugin/launcher.cpp:180 ../panel-plugin/page.cpp:543
-msgid "Hide Application"
-msgstr "隐藏应用程序"
-
-#: ../panel-plugin/settings-dialog.cpp:714
-msgid "Icon"
-msgstr "图标"
-
-#: ../panel-plugin/settings-dialog.cpp:716
-msgid "Icon and title"
-msgstr "图标和标题"
-
-#: ../panel-plugin/settings-dialog.cpp:927
-msgid "Include _favorites"
-msgstr "包含收藏夹(_F)"
-
-#: ../panel-plugin/icon-size.cpp:65
-msgid "Large"
-msgstr "大"
-
-#: ../panel-plugin/icon-size.cpp:66
-msgid "Larger"
-msgstr "非常大"
-
-#: ../panel-plugin/settings.cpp:154
-msgid "Log Ou_t..."
-msgstr "注销 (_T)..."
-
-#: ../panel-plugin/settings.cpp:119
-msgid "Log _Out"
-msgstr "注销 (_O)"
-
-#: ../panel-plugin/settings.cpp:123
-#, c-format
-msgid "Logging out in %d seconds."
-msgstr "将在%d 秒内注销。"
-
-#: ../panel-plugin/settings.cpp:90
-msgid "Man Pages"
-msgstr "Man 页面"
-
-#: ../panel-plugin/settings-dialog.cpp:612
-#: ../panel-plugin/settings-dialog.cpp:857
-msgid "Menu"
-msgstr "菜单"
-
-#: ../panel-plugin/settings-dialog.cpp:551
-msgid "Menu _height:"
-msgstr "菜单高度(_H):"
-
-#: ../panel-plugin/settings-dialog.cpp:533
-msgid "Menu _width:"
-msgstr "菜单宽度(_W):"
-
-#: ../panel-plugin/settings-dialog.cpp:1078
-msgid "Nam_e:"
-msgstr "名称 (_E): "
-
-#: ../panel-plugin/settings-dialog.cpp:1019
-msgid "Name"
-msgstr "名称"
-
-#: ../panel-plugin/search-page.cpp:71
-msgid "No applications found"
-msgstr "未找到应用程序"
-
-#: ../panel-plugin/icon-size.cpp:60
-msgid "None"
-msgstr "无"
-
-#: ../panel-plugin/icon-size.cpp:64
-msgid "Normal"
-msgstr "正常"
-
-#: ../panel-plugin/settings.cpp:95
-msgid "Open URI"
-msgstr "打开 URI"
-
-#: ../panel-plugin/settings-dialog.cpp:676
-msgid "P_rofile:"
-msgstr "配置(_R):"
-
-#: ../panel-plugin/settings-dialog.cpp:705
-msgid "Panel Button"
-msgstr "面板按钮"
-
-#: ../panel-plugin/settings-dialog.cpp:1024
-msgid "Pattern"
-msgstr "模式"
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:107
-msgid "Popup menu at center of screen"
-msgstr "在屏幕中心弹出菜单"
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:106
-msgid "Popup menu at current mouse position"
-msgstr "在当前鼠标位置弹出菜单"
-
-#: ../panel-plugin/settings-dialog.cpp:654
-msgid "Position _search entry on bottom"
-msgstr "将搜索条目置于底部(_S)"
-
-#: ../panel-plugin/settings-dialog.cpp:627
-#: ../panel-plugin/settings-dialog.cpp:632
-msgid "Position cate_gories on bottom"
-msgstr "将分类置于底部(_G)"
-
-#: ../panel-plugin/settings-dialog.cpp:627
-#: ../panel-plugin/settings-dialog.cpp:632
-msgid "Position cate_gories on left"
-msgstr "将分类置于左侧(_G)"
-
-#: ../panel-plugin/settings-dialog.cpp:616
-msgid "Position categories _horizontally"
-msgstr "将分类水平放置(_H)"
-
-#: ../panel-plugin/settings-dialog.cpp:665
-msgid "Position commands next to search _entry"
-msgstr "在搜索框旁放置命令列表 (_E)"
-
-#: ../panel-plugin/settings-dialog.cpp:643
-msgid "Position pro_file on bottom"
-msgstr "将配置置于底部(_F)"
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:108
-msgid "Print available menu instance IDs"
-msgstr "打印可用的菜单实例 ID"
-
-#: ../panel-plugin/xfce4-popup-whiskermenu.cpp:110
-msgid "Print version information and exit"
-msgstr "打印版本信息并退出"
-
-#: ../panel-plugin/recent-page.cpp:37 ../panel-plugin/settings-dialog.cpp:804
-#: ../panel-plugin/settings-dialog.cpp:900
-msgid "Recently Used"
-msgstr "最近使用"
-
-#: ../panel-plugin/settings-dialog.cpp:218
-#, c-format
-msgid "Remove action \"%s\"?"
-msgstr "移除动作 \"%s\" 吗？"
-
-#: ../panel-plugin/page.cpp:523
-msgid "Remove from Autostart"
-msgstr "从自启动中移除"
-
-#: ../panel-plugin/page.cpp:484
-msgid "Remove from Favorites"
-msgstr "从收藏夹移除"
-
-#: ../panel-plugin/settings-dialog.cpp:1053
-msgid "Remove selected action"
-msgstr "移除选中的动作"
-
-#: ../panel-plugin/settings.cpp:130
-#, c-format
-msgid "Restarting computer in %d seconds."
-msgstr "计算机将在%d 秒内重启。"
-
-#: ../panel-plugin/settings-dialog.cpp:683
-msgid "Round Picture"
-msgstr "圆形图片"
-
-#: ../panel-plugin/run-action.cpp:64
-#, c-format
-msgid "Run %s"
-msgstr "运行 %s"
-
-#: ../panel-plugin/settings.cpp:94
-msgid "Run in Terminal"
-msgstr "在终端模拟器运行"
-
-#: ../panel-plugin/settings-dialog.cpp:102
-msgid "Search Actio_ns"
-msgstr "搜索动作 (_N)"
-
-#: ../panel-plugin/search-action.cpp:260
-msgid "Search Action"
-msgstr "搜索动作"
-
-#: ../panel-plugin/settings.cpp:92
-msgid "Search for Files"
-msgstr "搜索文件"
-
-#: ../panel-plugin/settings.cpp:91
-msgid "Search the Web"
-msgstr "搜索网络"
-
-#: ../panel-plugin/command-edit.cpp:75
-msgid "Select Command"
-msgstr "选择命令"
-
-#: ../panel-plugin/settings-dialog.cpp:135
-msgid "Select an Icon"
-msgstr "选择一个图标"
-
-#: ../panel-plugin/settings-dialog.cpp:940
-msgid "Session Commands"
-msgstr "会话命令"
-
-#: ../panel-plugin/whiskermenu.desktop.in:5
-msgid "Show a menu to easily access installed applications"
-msgstr "显示一个易于访问已安装程序的菜单"
-
-#: ../panel-plugin/settings-dialog.cpp:459
-msgid "Show application _descriptions"
-msgstr "显示应用程序描述 (_D)"
-
-#: ../panel-plugin/settings-dialog.cpp:448
-msgid "Show application too_ltips"
-msgstr "显示应用程序工具提示(_L)"
-
-#: ../panel-plugin/settings-dialog.cpp:318
-msgid "Show as _icons"
-msgstr "显示为图标(_I)"
-
-#: ../panel-plugin/settings-dialog.cpp:335
-msgid "Show as lis_t"
-msgstr "显示为列表(_T)"
-
-#: ../panel-plugin/settings-dialog.cpp:353
-msgid "Show as t_ree"
-msgstr "显示为树(_R)"
-
-#: ../panel-plugin/settings-dialog.cpp:944
-msgid "Show c_onfirmation dialog"
-msgstr "显示确认对话框(_C)"
-
-#: ../panel-plugin/settings-dialog.cpp:436
-msgid "Show cate_gory names"
-msgstr "显示类别名称(_G)"
-
-#: ../panel-plugin/settings-dialog.cpp:424
-msgid "Show generic application _names"
-msgstr "显示通用应用程序名称 (_N)"
-
-#: ../panel-plugin/settings.cpp:133
-msgid "Shut _Down"
-msgstr "关机(_D)"
-
-#: ../panel-plugin/icon-size.cpp:63
-msgid "Small"
-msgstr "小"
-
-#: ../panel-plugin/icon-size.cpp:62
-msgid "Smaller"
-msgstr "非常小"
-
-#: ../panel-plugin/favorites-page.cpp:147
+#: panel-plugin/favorites-page.cpp:180
 msgid "Sort Alphabetically A-Z"
 msgstr "以 A-Z 排列"
 
-#: ../panel-plugin/favorites-page.cpp:155
+#: panel-plugin/favorites-page.cpp:188
 msgid "Sort Alphabetically Z-A"
 msgstr "以 Z-A 排列"
 
-#: ../panel-plugin/settings-dialog.cpp:883
-msgid "Sort ca_tegories"
-msgstr "分类排序(_T)"
+#: panel-plugin/icon-size.cpp:61
+msgid "None"
+msgstr "无"
 
-#: ../panel-plugin/settings-dialog.cpp:684
-msgid "Square Picture"
-msgstr "方形图片"
+#: panel-plugin/icon-size.cpp:62
+msgid "Very Small"
+msgstr "极小"
 
-#: ../panel-plugin/settings-dialog.cpp:872
-msgid "Stay _visible when focus is lost"
-msgstr "焦点丢失时保持可见(_V)"
+#: panel-plugin/icon-size.cpp:63
+msgid "Smaller"
+msgstr "非常小"
 
-#: ../panel-plugin/settings.cpp:140
-msgid "Suspe_nd"
-msgstr "挂起(_N)"
+#: panel-plugin/icon-size.cpp:64
+msgid "Small"
+msgstr "小"
 
-#: ../panel-plugin/settings.cpp:144
-#, c-format
-msgid "Suspending computer in %d seconds."
-msgstr "计算机将在%d 秒内挂起。"
+#: panel-plugin/icon-size.cpp:65
+msgid "Normal"
+msgstr "正常"
 
-#: ../panel-plugin/settings.cpp:114
-msgid "Switch _User"
-msgstr "切换用户(_U)"
+#: panel-plugin/icon-size.cpp:66
+msgid "Large"
+msgstr "大"
 
-#: ../panel-plugin/settings-dialog.cpp:861
-msgid "Switch categories by _hovering"
-msgstr "悬浮鼠标以切换类目 (_H)"
+#: panel-plugin/icon-size.cpp:67
+msgid "Larger"
+msgstr "非常大"
 
-#: ../panel-plugin/settings-dialog.cpp:217
-msgid "The action will be deleted permanently."
-msgstr "此动作将被永久删除。"
+#: panel-plugin/icon-size.cpp:68
+msgid "Very Large"
+msgstr "极大"
 
-#: ../panel-plugin/settings-dialog.cpp:715
-msgid "Title"
-msgstr "标题"
-
-#: ../panel-plugin/launcher.cpp:176
+#. I18N: the first %s will be replaced with desktop file path, the second with Hidden=true
+#: panel-plugin/launcher.cpp:207
 #, c-format
 msgid ""
 "To unhide it you have to manually remove the file \"%s\" or open the file "
 "and remove the line \"%s\"."
 msgstr "要取消隐藏，您必须手动删除文件 \"%s\" ，或打开文件并删除行 \"%s\"。"
 
-#: ../panel-plugin/settings.cpp:137
-#, c-format
-msgid "Turning off computer in %d seconds."
-msgstr "计算机将在%d 秒内关闭。"
+#: panel-plugin/launcher.cpp:211 panel-plugin/page.cpp:524
+msgid "Hide Application"
+msgstr "隐藏应用程序"
 
-#: ../panel-plugin/page.cpp:606
+#: panel-plugin/launcher.cpp:212
+#, c-format
+msgid "Are you sure you want to hide \"%s\"?"
+msgstr "您确定要隐藏\"%s\"?"
+
+#: panel-plugin/page.cpp:453
+msgid "Add to Favorites"
+msgstr "添加到收藏夹"
+
+#: panel-plugin/page.cpp:464
+msgid "Remove from Favorites"
+msgstr "从收藏夹移除"
+
+#: panel-plugin/page.cpp:474
+msgid "Add to Desktop"
+msgstr "添加到桌面"
+
+#: panel-plugin/page.cpp:482
+msgid "Add to Panel"
+msgstr "添加到面板"
+
+#: panel-plugin/page.cpp:492
+msgid "Add to Autostart"
+msgstr "添加到自启动"
+
+#: panel-plugin/page.cpp:503
+msgid "Remove from Autostart"
+msgstr "从自启动中移除"
+
+#: panel-plugin/page.cpp:516
+msgid "Edit Application..."
+msgstr "编辑应用程序..."
+
+#: panel-plugin/page.cpp:587
 msgid "Unable to add launcher to desktop."
 msgstr "无法添加启动器到桌面。"
 
-#: ../panel-plugin/page.cpp:646 ../panel-plugin/page.cpp:659
+#: panel-plugin/page.cpp:627 panel-plugin/page.cpp:640
 msgid "Unable to add launcher to panel."
 msgstr "无法添加启动器到面板/"
 
-#: ../panel-plugin/page.cpp:700
+#: panel-plugin/page.cpp:664
 msgid "Unable to edit launcher."
 msgstr "无法编辑启动器。"
 
-#: ../panel-plugin/settings-dialog.cpp:277
+#: panel-plugin/plugin.cpp:430
+msgid "Alternate application launcher for Xfce"
+msgstr "Xfce 应用程序启动器替代品"
+
+#: panel-plugin/plugin.cpp:435
+msgid "translator-credits"
+msgstr ""
+"白铭骢 <jeffbaichina@members.fsf.org>, 2014\\n\n"
+"Tao Lin <lintao51@gmail.com>, 2015\\n\n"
+"玉堂白鹤 <yjwork@qq.com>, 2015"
+
+#: panel-plugin/recent-page.cpp:37 panel-plugin/settings-dialog.cpp:2656
+msgid "Recently Used"
+msgstr "最近使用"
+
+#: panel-plugin/recent-page.cpp:147
+msgid "Clear Recently Used"
+msgstr "清除最近使用项"
+
+#: panel-plugin/run-action.cpp:65
+#, c-format
+msgid "Run %s"
+msgstr "运行 %s"
+
+#: panel-plugin/search-action.cpp:262
+msgid "Search Action"
+msgstr "搜索动作"
+
+#: panel-plugin/search-page.cpp:85
+msgid "No applications found"
+msgstr "未找到应用程序"
+
+#. Create dialog window
+#: panel-plugin/settings-dialog.cpp:156 panel-plugin/whiskermenu.desktop.in:4
+#, fuzzy
+msgid "Meow Menu"
+msgstr "菜单"
+
+#: panel-plugin/settings-dialog.cpp:159
+msgid "_Help"
+msgstr "帮助(_H)"
+
+#: panel-plugin/settings-dialog.cpp:160
+msgid "_Close"
+msgstr "关闭(_C)"
+
+#: panel-plugin/settings-dialog.cpp:187
+#, fuzzy
+msgid "General"
+msgstr "通用(_G)"
+
+#: panel-plugin/settings-dialog.cpp:188
+msgid "User / Session"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:189
+#, fuzzy
+msgid "Search Bar"
+msgstr "搜索文件"
+
+#: panel-plugin/settings-dialog.cpp:190
+msgid "App Grid"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:191
+msgid "Sidebar"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:263 panel-plugin/settings-dialog.cpp:265
+msgid "Select an Icon"
+msgstr "选择一个图标"
+
+#: panel-plugin/settings-dialog.cpp:362 panel-plugin/settings-dialog.cpp:960
+#: panel-plugin/settings-dialog.cpp:975
+msgid "_Delete"
+msgstr "删除(_D)"
+
+#: panel-plugin/settings-dialog.cpp:363
+msgid "The action will be deleted permanently."
+msgstr "此动作将被永久删除。"
+
+#: panel-plugin/settings-dialog.cpp:364
+#, c-format
+msgid "Remove action \"%s\"?"
+msgstr "移除动作 \"%s\" 吗？"
+
+#: panel-plugin/settings-dialog.cpp:438
+#, fuzzy
+msgid "Edit search action"
+msgstr "搜索动作"
+
+#: panel-plugin/settings-dialog.cpp:453
+msgid "Nam_e:"
+msgstr "名称 (_E): "
+
+#: panel-plugin/settings-dialog.cpp:463
+msgid "_Pattern:"
+msgstr "模式 (_P): "
+
+#: panel-plugin/settings-dialog.cpp:473
+msgid "C_ommand:"
+msgstr "命令 (_O): "
+
+#: panel-plugin/settings-dialog.cpp:483
+#, fuzzy
+msgid "Is _regular expression"
+msgstr "正则表达式 (_R)"
+
+#: panel-plugin/settings-dialog.cpp:527
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr "无法打开url: %s"
 
-#: ../panel-plugin/settings-dialog.cpp:770
-msgid "Use a single _panel row"
+#. NOTE: fallback if initialize_file_presets() was not called or all files missing.
+#: panel-plugin/settings-dialog.cpp:689
+msgid "Classic"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:690
+msgid "Modern"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:691
+#, fuzzy
+msgid "Full Screen"
+msgstr "锁定屏幕 (_L)"
+
+#: panel-plugin/settings-dialog.cpp:807
+msgid "Preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:810
+msgid "_Preset:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:825
+msgid "● Customized"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:835
+#, fuzzy
+msgid "_Reset preset"
+msgstr "重启(_R)"
+
+#: panel-plugin/settings-dialog.cpp:846 panel-plugin/settings-dialog.cpp:1155
+#, fuzzy
+msgid "_Reset"
+msgstr "重启(_R)"
+
+#: panel-plugin/settings-dialog.cpp:847
+msgid "All customizations will be discarded and the preset values restored."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:848
+#, c-format
+msgid "Reset preset \"%s\"?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:857
+msgid "_Save as new…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:863
+msgid "Save as new preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:867
+msgid "_Save"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:876 panel-plugin/settings-dialog.cpp:932
+#: panel-plugin/settings-dialog.cpp:1104
+#, fuzzy
+msgid "_Name:"
+msgstr "名称"
+
+#: panel-plugin/settings-dialog.cpp:892 panel-plugin/settings-dialog.cpp:949
+msgid "A preset with that name already exists or the name is empty."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:893
+msgid "Could not save preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:905
+msgid "Re_name…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:919
+msgid "Rename preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:923
+msgid "_Rename"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:950
+msgid "Could not rename preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:976
+#, fuzzy
+msgid "This preset will be permanently removed."
+msgstr "此动作将被永久删除。"
+
+#: panel-plugin/settings-dialog.cpp:977
+#, c-format
+msgid "Delete preset \"%s\"?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:994
+msgid "E_xport…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1009
+msgid "Export preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1012
+msgid "_Export"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1018 panel-plugin/settings-dialog.cpp:1051
+msgid "MeowMenu preset (*.meowpreset)"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1030
+msgid "Could not export preset."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1038
+msgid "_Import…"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1045
+msgid "Import preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1048 panel-plugin/settings-dialog.cpp:1097
+msgid "_Import"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1077
+#, c-format
+msgid "A preset named \"%s\" already exists. What would you like to do?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1080
+msgid "_Overwrite"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1081
+msgid "Re_name"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1093
+msgid "Rename imported preset"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1139
+msgid "Could not import preset"
+msgstr ""
+
+#. Reset to defaults — full channel reset, kept here as the most logical
+#. action button for the Preset hub.
+#: panel-plugin/settings-dialog.cpp:1146
+msgid "Reset to _defaults"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1156
+msgid ""
+"All settings will be reset to defaults and the Modern preset will be applied."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1157
+msgid "Reset all settings to defaults?"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1230
+msgid ""
+"FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
+"regular window instead."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1252
+#, fuzzy
+msgid "Panel plugin"
+msgstr "面板按钮"
+
+#. Show panel button title
+#: panel-plugin/settings-dialog.cpp:1258
+msgid "Show panel button _title"
+msgstr ""
+
+#. Title entry
+#: panel-plugin/settings-dialog.cpp:1265
+#, fuzzy
+msgid "T_itle:"
+msgstr "标题 (_T): "
+
+#. Show panel button icon
+#: panel-plugin/settings-dialog.cpp:1302
+#, fuzzy
+msgid "Show panel button _icon"
+msgstr "显示为图标(_I)"
+
+#. Icon picker
+#: panel-plugin/settings-dialog.cpp:1309
+msgid "Ic_on:"
+msgstr ""
+
+#. Single-row panel layout
+#: panel-plugin/settings-dialog.cpp:1346
+#, fuzzy
+msgid "Use a single panel _row"
 msgstr "只占用面板中的一行(_P)"
 
-#: ../panel-plugin/icon-size.cpp:67
-msgid "Very Large"
-msgstr "极大"
+#: panel-plugin/settings-dialog.cpp:1370
+msgid "General menu settings"
+msgstr ""
 
-#: ../panel-plugin/icon-size.cpp:61
-msgid "Very Small"
-msgstr "极小"
+#. Layout mode
+#: panel-plugin/settings-dialog.cpp:1376
+msgid "_Layout mode:"
+msgstr ""
 
-#: ../panel-plugin/settings-dialog.cpp:80
-#: ../panel-plugin/whiskermenu.desktop.in:4
-msgid "Whisker Menu"
-msgstr "Whisker 菜单"
+#: panel-plugin/settings-dialog.cpp:1381
+msgid "Docked"
+msgstr ""
 
-#: ../panel-plugin/settings.cpp:93
+#: panel-plugin/settings-dialog.cpp:1382
+msgid "FullScreen"
+msgstr ""
+
+#. Panel gap
+#: panel-plugin/settings-dialog.cpp:1409
+msgid "_Panel gap:"
+msgstr ""
+
+#. Menu width (enable-when-docked)
+#: panel-plugin/settings-dialog.cpp:1431
+msgid "Menu _width:"
+msgstr "菜单宽度(_W):"
+
+#. Menu height (enable-when-docked)
+#: panel-plugin/settings-dialog.cpp:1451
+msgid "Menu _height:"
+msgstr "菜单高度(_H):"
+
+#. Corner radius
+#: panel-plugin/settings-dialog.cpp:1471
+msgid "_Corner radius:"
+msgstr ""
+
+#. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
+#: panel-plugin/settings-dialog.cpp:1493
+msgid "F_ull-screen opacity:"
+msgstr ""
+
+#. Stay visible when focus is lost (FR-013: lives only in General).
+#: panel-plugin/settings-dialog.cpp:1515
+msgid "Stay _visible when focus is lost"
+msgstr "焦点丢失时保持可见(_V)"
+
+#: panel-plugin/settings-dialog.cpp:1563
+#, fuzzy
+msgid "Profile"
+msgstr "配置(_R):"
+
+#. Profile position
+#: panel-plugin/settings-dialog.cpp:1567
+msgid "_Position:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1572 panel-plugin/settings-dialog.cpp:1731
+msgid "Top"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1573 panel-plugin/settings-dialog.cpp:1732
+msgid "Bottom"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1574 panel-plugin/settings-dialog.cpp:1644
+msgid "Bottom Right"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1575 panel-plugin/settings-dialog.cpp:1645
+#: panel-plugin/settings-dialog.cpp:2589
+msgid "Hidden"
+msgstr "隐藏"
+
+#. Avatar shape (sub-enabled when profile-position != hidden).
+#: panel-plugin/settings-dialog.cpp:1585
+msgid "Avatar _shape:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1590
+msgid "Round Picture"
+msgstr "圆形图片"
+
+#: panel-plugin/settings-dialog.cpp:1591
+msgid "Square Picture"
+msgstr "方形图片"
+
+#: panel-plugin/settings-dialog.cpp:1635
+#, fuzzy
+msgid "Commands"
+msgstr "命令(_C)"
+
+#: panel-plugin/settings-dialog.cpp:1638
+#, fuzzy
+msgid "_Commands position:"
+msgstr "命令(_C)"
+
+#: panel-plugin/settings-dialog.cpp:1643
+msgid "Top Right"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1665
+msgid "Show c_onfirmation dialog"
+msgstr "显示确认对话框(_C)"
+
+#: panel-plugin/settings-dialog.cpp:1680
+#, fuzzy
+msgid "Session commands"
+msgstr "会话命令"
+
+#: panel-plugin/settings-dialog.cpp:1723 panel-plugin/settings-dialog.cpp:2579
+msgid "Position"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1726
+#, fuzzy
+msgid "_Search bar position:"
+msgstr "搜索动作"
+
+#: panel-plugin/settings-dialog.cpp:1758
+msgid "_Fuzzy matching:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1781
+msgid "Max _errors (0=auto):"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1802
+msgid "Fuzzy Search"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1803
+msgid ""
+"Finds apps even when you mistype a word.\n"
+"Example: \"firfox\" still finds Firefox.\n"
+"Max errors 0 = automatic (1 for short queries, 2 for longer ones)."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1816
+#, fuzzy
+msgid "_Boost favorites:"
+msgstr "收藏夹"
+
+#: panel-plugin/settings-dialog.cpp:1839
+msgid "Boost _level:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1846 panel-plugin/settings-dialog.cpp:2310
+msgid "Low"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1847 panel-plugin/settings-dialog.cpp:2311
+msgid "Medium"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1848 panel-plugin/settings-dialog.cpp:2312
+msgid "High"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1864
+#, fuzzy
+msgid "Recency _weight (%):"
+msgstr "菜单高度(_H):"
+
+#: panel-plugin/settings-dialog.cpp:1884
+msgid "Usage Boost"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1885
+msgid ""
+"Promotes apps you use frequently or marked as favorites.\n"
+"Recency weight controls the balance between how recently vs.\n"
+"how often you launched an app."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1927 panel-plugin/settings-dialog.cpp:2003
+#, fuzzy
+msgid "Application"
+msgstr "应用程序"
+
+#: panel-plugin/settings-dialog.cpp:1934
+msgid "Aliases (comma-separated)"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1973 panel-plugin/settings-dialog.cpp:1987
+msgid "_Add"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1974
+msgid "_Remove"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:1983
+#, fuzzy
+msgid "Choose Application"
+msgstr "隐藏应用程序"
+
+#: panel-plugin/settings-dialog.cpp:2075
+msgid "Aliases"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2103
+msgid "Name"
+msgstr "名称"
+
+#: panel-plugin/settings-dialog.cpp:2109
+msgid "Pattern"
+msgstr "模式"
+
+#: panel-plugin/settings-dialog.cpp:2129
+msgid "Add action"
+msgstr "添加动作"
+
+#: panel-plugin/settings-dialog.cpp:2136
+msgid "Remove selected action"
+msgstr "移除选中的动作"
+
+#: panel-plugin/settings-dialog.cpp:2145
+#, fuzzy
+msgid "Edit selected action…"
+msgstr "移除选中的动作"
+
+#: panel-plugin/settings-dialog.cpp:2202
+#, fuzzy
+msgid "Search actions"
+msgstr "搜索动作 (_N)"
+
+#: panel-plugin/settings-dialog.cpp:2238
+msgid "View"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2247
+msgid "Show as _icons"
+msgstr "显示为图标(_I)"
+
+#: panel-plugin/settings-dialog.cpp:2260
+msgid "Show as lis_t"
+msgstr "显示为列表(_T)"
+
+#: panel-plugin/settings-dialog.cpp:2273
+msgid "Show as t_ree"
+msgstr "显示为树(_R)"
+
+#: panel-plugin/settings-dialog.cpp:2299
+msgid "Layout"
+msgstr ""
+
+#. Grid density (icons-only sub-enable)
+#: panel-plugin/settings-dialog.cpp:2305
+msgid "Grid _density:"
+msgstr ""
+
+#. Application icon size (icons-only sub-enable)
+#: panel-plugin/settings-dialog.cpp:2334
+msgid "Application icon si_ze:"
+msgstr "应用图标大小(_Z): "
+
+#. NOTE: launcher_show_name stores "show the real (non-generic) name"; the
+#. checkbox is therefore inverted — checked means "Show generic" (false).
+#: panel-plugin/settings-dialog.cpp:2358
+msgid "Show generic application _names"
+msgstr "显示通用应用程序名称 (_N)"
+
+#: panel-plugin/settings-dialog.cpp:2370
+msgid "Show application too_ltips"
+msgstr "显示应用程序工具提示(_L)"
+
+#. Show descriptions — list-only sub-enable.
+#: panel-plugin/settings-dialog.cpp:2382
+msgid "Show application _descriptions"
+msgstr "显示应用程序描述 (_D)"
+
+#: panel-plugin/settings-dialog.cpp:2447
+msgid "Opacity"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2450
+msgid "App _box opacity:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2506
+msgid "Visuals"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2511
+msgid "Show cate_gory names"
+msgstr "显示类别名称(_G)"
+
+#. Category icon size
+#: panel-plugin/settings-dialog.cpp:2524
+msgid "Categ_ory icon size:"
+msgstr "类目图标大小 (_O): "
+
+#. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
+#: panel-plugin/settings-dialog.cpp:2548
+msgid "_Sidebar opacity:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2582
+msgid "Sidebar _position:"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2587
+msgid "Left"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2588
+msgid "Right"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2622
+#, fuzzy
+msgid "Behaviour"
+msgstr "行为 (_B)"
+
+#: panel-plugin/settings-dialog.cpp:2625
+msgid "Switch categories by _hovering"
+msgstr "悬浮鼠标以切换类目 (_H)"
+
+#: panel-plugin/settings-dialog.cpp:2636
+msgid "Sort ca_tegories"
+msgstr "分类排序(_T)"
+
+#: panel-plugin/settings-dialog.cpp:2649
+#, fuzzy
+msgid "Default category"
+msgstr "默认分类"
+
+#: panel-plugin/settings-dialog.cpp:2705
+#, fuzzy
+msgid "Recently used"
+msgstr "最近使用"
+
+#: panel-plugin/settings-dialog.cpp:2708
+#, fuzzy
+msgid "Maximum _items:"
+msgstr "项目合计(_I):"
+
+#: panel-plugin/settings-dialog.cpp:2729
+#, fuzzy
+msgid "Include _favorites in \"Recent\""
+msgstr "包含收藏夹(_F)"
+
+#: panel-plugin/settings.cpp:39
+msgid "Applications"
+msgstr "应用程序"
+
+#: panel-plugin/settings.cpp:88 panel-plugin/settings.cpp:95
+msgid "Man Pages"
+msgstr "Man 页面"
+
+#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+msgid "Search the Web"
+msgstr "搜索网络"
+
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+msgid "Search for Files"
+msgstr "搜索文件"
+
+#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
 msgid "Wikipedia"
 msgstr "维基百科"
 
-#: ../panel-plugin/settings-dialog.cpp:99
-msgid "_Appearance"
-msgstr "外观 (_A)"
+#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+msgid "Run in Terminal"
+msgstr "在终端模拟器运行"
 
-#: ../panel-plugin/settings-dialog.cpp:100
-msgid "_Behavior"
-msgstr "行为 (_B)"
+#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+msgid "Open URI"
+msgstr "打开 URI"
 
-#: ../panel-plugin/command-edit.cpp:78 ../panel-plugin/settings-dialog.cpp:137
-msgid "_Cancel"
-msgstr "取消(_C)"
-
-#: ../panel-plugin/settings-dialog.cpp:84
-msgid "_Close"
-msgstr "关闭(_C)"
-
-#: ../panel-plugin/settings-dialog.cpp:101
-msgid "_Commands"
-msgstr "命令(_C)"
-
-#: ../panel-plugin/settings-dialog.cpp:216
-msgid "_Delete"
-msgstr "删除(_D)"
-
-#: ../panel-plugin/settings.cpp:159
-msgid "_Edit Applications"
-msgstr "编辑应用程序 (_E)"
-
-#: ../panel-plugin/settings-dialog.cpp:98
-msgid "_General"
-msgstr "通用(_G)"
-
-#: ../panel-plugin/settings-dialog.cpp:83
-msgid "_Help"
-msgstr "帮助(_H)"
-
-#: ../panel-plugin/settings.cpp:147
-msgid "_Hibernate"
-msgstr "休眠(_H)"
-
-#: ../panel-plugin/settings-dialog.cpp:752
-msgid "_Icon:"
-msgstr "图标 (_I): "
-
-#: ../panel-plugin/settings.cpp:109
-msgid "_Lock Screen"
-msgstr "锁定屏幕 (_L)"
-
-#: ../panel-plugin/command-edit.cpp:79 ../panel-plugin/settings-dialog.cpp:138
-msgid "_OK"
-msgstr "确定(_O)"
-
-#: ../panel-plugin/settings-dialog.cpp:1101
-msgid "_Pattern:"
-msgstr "模式 (_P): "
-
-#: ../panel-plugin/settings-dialog.cpp:1142
-msgid "_Regular expression"
-msgstr "正则表达式 (_R)"
-
-#: ../panel-plugin/settings.cpp:126
-msgid "_Restart"
-msgstr "重启(_R)"
-
-#: ../panel-plugin/settings.cpp:104
+#: panel-plugin/settings.cpp:137
 msgid "_Settings Manager"
 msgstr "设置管理(_S)"
 
-#: ../panel-plugin/settings-dialog.cpp:734
-msgid "_Title:"
-msgstr "标题 (_T): "
+#: panel-plugin/settings.cpp:139
+msgid "Failed to open settings manager."
+msgstr "打开设置管理器失败。"
 
-#: ../panel-plugin/plugin.cpp:423
-msgid "translator-credits"
-msgstr "白铭骢 <jeffbaichina@members.fsf.org>, 2014\\n\nTao Lin <lintao51@gmail.com>, 2015\\n\n玉堂白鹤 <yjwork@qq.com>, 2015"
+#: panel-plugin/settings.cpp:142
+msgid "_Lock Screen"
+msgstr "锁定屏幕 (_L)"
+
+#: panel-plugin/settings.cpp:144
+msgid "Failed to lock screen."
+msgstr "锁定屏幕失败。"
+
+#: panel-plugin/settings.cpp:147
+msgid "Switch _User"
+msgstr "切换用户(_U)"
+
+#: panel-plugin/settings.cpp:149
+msgid "Failed to switch user."
+msgstr "切换用户失败。"
+
+#: panel-plugin/settings.cpp:152
+msgid "Log _Out"
+msgstr "注销 (_O)"
+
+#: panel-plugin/settings.cpp:154 panel-plugin/settings.cpp:189
+msgid "Failed to log out."
+msgstr "注销失败。"
+
+#: panel-plugin/settings.cpp:155
+msgid "Are you sure you want to log out?"
+msgstr "您确定要注销吗？"
+
+#: panel-plugin/settings.cpp:156
+#, c-format
+msgid "Logging out in %d seconds."
+msgstr "将在%d 秒内注销。"
+
+#: panel-plugin/settings.cpp:159
+msgid "_Restart"
+msgstr "重启(_R)"
+
+#: panel-plugin/settings.cpp:161
+msgid "Failed to restart."
+msgstr "重启失败。"
+
+#: panel-plugin/settings.cpp:162
+msgid "Are you sure you want to restart?"
+msgstr "您确定要重启吗？"
+
+#: panel-plugin/settings.cpp:163
+#, c-format
+msgid "Restarting computer in %d seconds."
+msgstr "计算机将在%d 秒内重启。"
+
+#: panel-plugin/settings.cpp:166
+msgid "Shut _Down"
+msgstr "关机(_D)"
+
+#: panel-plugin/settings.cpp:168
+msgid "Failed to shut down."
+msgstr "关机失败。"
+
+#: panel-plugin/settings.cpp:169
+msgid "Are you sure you want to shut down?"
+msgstr "您确定要关机吗？"
+
+#: panel-plugin/settings.cpp:170
+#, c-format
+msgid "Turning off computer in %d seconds."
+msgstr "计算机将在%d 秒内关闭。"
+
+#: panel-plugin/settings.cpp:173
+msgid "Suspe_nd"
+msgstr "挂起(_N)"
+
+#: panel-plugin/settings.cpp:175
+msgid "Failed to suspend."
+msgstr "挂起失败。"
+
+#: panel-plugin/settings.cpp:176
+msgid "Do you want to suspend to RAM?"
+msgstr "您确定要挂起到内存吗？"
+
+#: panel-plugin/settings.cpp:177
+#, c-format
+msgid "Suspending computer in %d seconds."
+msgstr "计算机将在%d 秒内挂起。"
+
+#: panel-plugin/settings.cpp:180
+msgid "_Hibernate"
+msgstr "休眠(_H)"
+
+#: panel-plugin/settings.cpp:182
+msgid "Failed to hibernate."
+msgstr "休眠失败。"
+
+#: panel-plugin/settings.cpp:183
+msgid "Do you want to suspend to disk?"
+msgstr "您确定要挂起到硬盘吗？"
+
+#: panel-plugin/settings.cpp:184
+#, c-format
+msgid "Hibernating computer in %d seconds."
+msgstr "计算机将在%d 秒内休眠。"
+
+#: panel-plugin/settings.cpp:187
+msgid "Log Ou_t..."
+msgstr "注销 (_T)..."
+
+#: panel-plugin/settings.cpp:192
+msgid "_Edit Applications"
+msgstr "编辑应用程序 (_E)"
+
+#: panel-plugin/settings.cpp:194
+msgid "Failed to launch menu editor."
+msgstr "执行菜单编辑器失败。"
+
+#: panel-plugin/settings.cpp:197
+msgid "Edit _Profile"
+msgstr "编辑个人资料(_P)"
+
+#: panel-plugin/settings.cpp:199
+msgid "Failed to edit profile."
+msgstr "编辑个人资料失败"
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:110
+msgid "Popup menu at current mouse position"
+msgstr "在当前鼠标位置弹出菜单"
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:111
+msgid "Popup menu at center of screen"
+msgstr "在屏幕中心弹出菜单"
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:112
+msgid "Print available menu instance IDs"
+msgstr "打印可用的菜单实例 ID"
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:113
+msgid "Choose which menu to popup by instance ID"
+msgstr "根据实例 ID 选择要弹出的菜单"
+
+#: panel-plugin/xfce4-popup-meowmenu.cpp:114
+msgid "Print version information and exit"
+msgstr "打印版本信息并退出"
+
+#: panel-plugin/whiskermenu.desktop.in:5
+msgid "Show a menu to easily access installed applications"
+msgstr "显示一个易于访问已安装程序的菜单"
+
+#~ msgid "Background opacit_y:"
+#~ msgstr "背景不透明度(_Y):"
+
+#~ msgid "Copyright © 2013-2025 Graeme Gott"
+#~ msgstr "版权所有© 2013-2025 Graeme Gott"
+
+#~ msgid "Details"
+#~ msgstr "细节"
+
+#~ msgid "Di_splay:"
+#~ msgstr "显示 (_S): "
+
+#~ msgid "Icon"
+#~ msgstr "图标"
+
+#~ msgid "Icon and title"
+#~ msgstr "图标和标题"
+
+#~ msgid "Position _search entry on bottom"
+#~ msgstr "将搜索条目置于底部(_S)"
+
+#~ msgid "Position cate_gories on bottom"
+#~ msgstr "将分类置于底部(_G)"
+
+#~ msgid "Position cate_gories on left"
+#~ msgstr "将分类置于左侧(_G)"
+
+#~ msgid "Position categories _horizontally"
+#~ msgstr "将分类水平放置(_H)"
+
+#~ msgid "Position commands next to search _entry"
+#~ msgstr "在搜索框旁放置命令列表 (_E)"
+
+#~ msgid "Position pro_file on bottom"
+#~ msgstr "将配置置于底部(_F)"
+
+#~ msgid "Title"
+#~ msgstr "标题"
+
+#~ msgid "Whisker Menu"
+#~ msgstr "Whisker 菜单"
+
+#~ msgid "_Appearance"
+#~ msgstr "外观 (_A)"
+
+#~ msgid "_Icon:"
+#~ msgstr "图标 (_I): "
