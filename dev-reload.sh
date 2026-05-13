@@ -41,11 +41,24 @@ if [[ "${PREFIX}" != "${HOME}/.local" && -e "${USER_SO}" ]]; then
     rm -f "${USER_SO}"
 fi
 
-# 4. Kill the plugin wrapper so it reloads the new .so. `xfce4-panel -r`
+# 4. Reset plugin config so every dev run starts from a clean Modern-preset state.
+#    Delete the xfconf XML file, then kill xfconfd with SIGKILL so it cannot flush
+#    its in-memory state back to disk.  xfconfd restarts automatically via D-Bus
+#    activation; reading the (now absent) channel, it returns an empty property set
+#    which the plugin's schema migration treats as a fresh install and applies the
+#    Modern preset defaults (Settings::migrate_schema, PRESET_MODERN).
+XFCONF_FILE="${HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml"
+if [[ -f "${XFCONF_FILE}" ]]; then
+    echo "Removing ${XFCONF_FILE} to reset to Modern-preset defaults."
+    rm -f "${XFCONF_FILE}"
+fi
+pkill -9 xfconfd 2>/dev/null || true
+
+# 5. Kill the plugin wrapper so it reloads the new .so. `xfce4-panel -r`
 #    alone does NOT recycle wrappers reliably.
 pkill -f 'wrapper-2.0.*libmeowmenu\.so' 2>/dev/null || true
 
-# 5. Tell the panel to relaunch missing plugins.
+# 6. Tell the panel to relaunch missing plugins.
 xfce4-panel -r >/dev/null 2>&1 &
 disown || true
 

@@ -1766,10 +1766,11 @@ void WhiskerMenu::Window::update_layout()
 		m_sidebar_size_group = nullptr;
 	}
 
-	// Unified-bar transitions: re-parent m_search_entry between m_search_box
-	// and m_title_box. Preconditions are evaluated in unified_bar_effective();
-	// neither flip cares about the order of search_alt / profile_alt above —
-	// when the predicate is true those positions are guaranteed coherent.
+	// Unified-bar transitions: move m_search_entry between m_search_box (normal
+	// mode) and the centre-widget slot of m_title_box (unified-bar mode).
+	// gtk_box_set_center_widget positions the entry at the exact horizontal
+	// centre of m_title_box regardless of the profile or session-button widths,
+	// satisfying FR-002 without any per-widget size measurement (FR-004).
 	const bool eff = unified_bar_effective(*m_settings);
 	const bool was_unified = m_layout_unified_bar;
 	GtkStyleContext* title_ctx = gtk_widget_get_style_context(GTK_WIDGET(m_title_box));
@@ -1777,14 +1778,11 @@ void WhiskerMenu::Window::update_layout()
 	{
 		g_object_ref(m_search_entry);
 		gtk_container_remove(GTK_CONTAINER(m_search_box), GTK_WIDGET(m_search_entry));
-		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
+		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), FALSE);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
-		gtk_box_pack_start(m_title_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
-		// Order: picture, username, search_entry, commands_box.
-		gtk_box_reorder_child(m_title_box, GTK_WIDGET(m_search_entry), 2);
-		// Username must not expand so the per-pass margin calculation can place the
-		// search entry precisely over the applications panel (FR-002/FR-004).
-		gtk_widget_set_hexpand(m_profile->get_username(), FALSE);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
+		gtk_box_set_center_widget(m_title_box, GTK_WIDGET(m_search_entry));
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), FALSE);
 		gtk_style_context_add_class(title_ctx, "unified-bar");
 		g_object_unref(m_search_entry);
@@ -1792,9 +1790,12 @@ void WhiskerMenu::Window::update_layout()
 	else if (!eff && was_unified)
 	{
 		g_object_ref(m_search_entry);
-		gtk_container_remove(GTK_CONTAINER(m_title_box), GTK_WIDGET(m_search_entry));
+		gtk_box_set_center_widget(m_title_box, nullptr);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry), -1, -1);
 		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
 		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
 		// Restore username visibility and expand per the existing profile-shape rule.
 		gtk_widget_set_visible(m_profile->get_username(),
@@ -1802,27 +1803,35 @@ void WhiskerMenu::Window::update_layout()
 		gtk_widget_set_hexpand(m_profile->get_username(), TRUE);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
 		gtk_style_context_remove_class(title_ctx, "unified-bar");
-		// Reset both margins that were applied to align the search entry (FR-004).
-		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
-		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
 		g_object_unref(m_search_entry);
 	}
 
-	// Align search entry with the applications panel using start and end margins
-	// computed from the allocated widths of the flanking widgets (FR-002/FR-004).
-	// Re-read every layout pass so the values track live changes to icon size,
-	// username text, or command button visibility.
+	// Pin the search entry width to exactly match the applications panel (FR-004).
+	// The centre-widget slot guarantees screen-centre alignment; all that remains
+	// is setting the correct width so the entry lines up with the grid edges.
+	// Subtract the 6 px column-spacing of m_contents_box so the search entry does
+	// not overflow the app-grid boundary (sidebar_w + 6 + panels_stack + 6 + void
+	// == workarea, so each side effectively costs sidebar_w + 3; we subtract the
+	// full column gap once here to stay within the visual content column).
 	if (eff)
 	{
 		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;
-		const int sp        = 6; // m_title_box inter-child spacing
-		const int pic_w     = gtk_widget_get_allocated_width(m_profile->get_picture());
-		const bool user_vis = gtk_widget_is_visible(m_profile->get_username());
-		const int user_w    = user_vis ? gtk_widget_get_allocated_width(m_profile->get_username()) : 0;
-		const int cmd_w     = gtk_widget_get_allocated_width(GTK_WIDGET(m_commands_box));
-		const int left_used = pic_w + sp + (user_vis ? user_w + sp : 0);
-		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), MAX(0, sidebar_w - left_used));
-		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry),   MAX(0, sidebar_w - sp - cmd_w));
+		const int col_gap = 6; // m_contents_box column-spacing in vertical-sidebar mode
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry),
+				m_workarea.width - 2 * sidebar_w - col_gap, -1);
+	}
+
+	// Move commands_box to the right edge of the unified bar on every layout pass.
+	// update_layout() re-adds it as pack_start at the top of this function; we
+	// move it to pack_end here so it appears right-aligned (FR-002: session buttons
+	// at the trailing edge). Only relevant when commands are in title_box
+	// (m_layout_commands_alternate == false).
+	if (eff && !m_layout_commands_alternate)
+	{
+		g_object_ref(GTK_WIDGET(m_commands_box));
+		gtk_container_remove(GTK_CONTAINER(m_title_box), GTK_WIDGET(m_commands_box));
+		gtk_box_pack_end(m_title_box, GTK_WIDGET(m_commands_box), false, false, 0);
+		g_object_unref(GTK_WIDGET(m_commands_box));
 	}
 
 	// Three void bands: top (above unified bar), middle (between bar and content),
