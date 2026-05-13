@@ -384,20 +384,27 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_box_pack_start(m_vbox, GTK_WIDGET(m_search_box), false, true, 0);
 	gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), true, true, 0);
 
-	// Symmetric-void spacer (FullScreen unified-bar mode); always packed but
-	// hidden until update_layout() decides to show it. The vertical size group
-	// keeps its height locked to the title bar's so the bottom band matches.
-	m_void_spacer = gtk_label_new(nullptr);
-	gtk_widget_set_hexpand(m_void_spacer, TRUE);
-	gtk_widget_set_can_focus(m_void_spacer, FALSE);
-	atk_object_set_role(gtk_widget_get_accessible(m_void_spacer), ATK_ROLE_FILLER);
-	gtk_style_context_add_class(gtk_widget_get_style_context(m_void_spacer), "symmetric-void");
-	gtk_box_pack_end(m_vbox, m_void_spacer, FALSE, FALSE, 0);
-	gtk_widget_set_visible(m_void_spacer, FALSE);
-
-	m_void_size_group = gtk_size_group_new(GTK_SIZE_GROUP_VERTICAL);
-	gtk_size_group_add_widget(m_void_size_group, GTK_WIDGET(m_title_box));
-	gtk_size_group_add_widget(m_void_size_group, m_void_spacer);
+	// Three void bands for FullScreen unified-bar mode (FR-008, FR-017, FR-018).
+	// All three are hidden until update_layout() activates the unified bar.
+	// Fixed size_request heights give breathing room; theme authors can override
+	// the "symmetric-void" CSS class min-height. Top/bottom: 12 px; middle: 16 px.
+	auto make_void_band = [](int height_px) -> GtkWidget*
+	{
+		GtkWidget* w = gtk_label_new(nullptr);
+		gtk_widget_set_hexpand(w, TRUE);
+		gtk_widget_set_can_focus(w, FALSE);
+		atk_object_set_role(gtk_widget_get_accessible(w), ATK_ROLE_FILLER);
+		gtk_style_context_add_class(gtk_widget_get_style_context(w), "symmetric-void");
+		gtk_widget_set_size_request(w, -1, height_px);
+		gtk_widget_set_visible(w, FALSE);
+		return w;
+	};
+	m_void_top    = make_void_band(12);
+	m_void_middle = make_void_band(16);
+	m_void_bottom = make_void_band(12);
+	gtk_box_pack_start(m_vbox, m_void_top,    FALSE, FALSE, 0);
+	gtk_box_pack_start(m_vbox, m_void_middle, FALSE, FALSE, 0);
+	gtk_box_pack_start(m_vbox, m_void_bottom, FALSE, FALSE, 0);
 
 	// Create box for packing launcher pages and sidebar
 	m_contents_stack = GTK_STACK(gtk_stack_new());
@@ -542,12 +549,6 @@ WhiskerMenu::Window::~Window()
 		}
 		g_object_unref(m_css_provider);
 	}
-	if (m_void_size_group)
-	{
-		g_object_unref(m_void_size_group);
-		m_void_size_group = nullptr;
-	}
-
 	gtk_widget_destroy(GTK_WIDGET(m_window));
 	g_object_unref(m_window);
 }
@@ -1791,28 +1792,52 @@ void WhiskerMenu::Window::update_layout()
 				m_profile_shape != Settings::ProfileHidden);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
 		gtk_style_context_remove_class(title_ctx, "unified-bar");
+		// Reset leading margin that was applied to constrain search width (FR-004).
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
 		g_object_unref(m_search_entry);
 	}
 
-	// Symmetric-void spacer: anchored to the end of m_vbox opposite the
-	// title row, visible only when the unified bar is effective.
+	// Search entry leading margin: align search start with the applications panel
+	// so the entry width ≈ app-box width rather than the full bar width (FR-002/FR-004).
+	// Re-read the sidebar allocation on every pass so the margin stays current
+	// if the sidebar width changes (e.g. category labels added/removed).
 	if (eff)
 	{
-		const bool title_at_bottom = m_layout_search_alternate;
-		g_object_ref(m_void_spacer);
-		gtk_container_remove(GTK_CONTAINER(m_vbox), m_void_spacer);
-		if (title_at_bottom)
+		const int sidebar_px = gtk_widget_get_allocated_width(GTK_WIDGET(m_sidebar));
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), MAX(0, sidebar_px));
+	}
+
+	// Three void bands: top (above unified bar), middle (between bar and content),
+	// bottom (below content). All shown only when unified bar is effective (FR-008/FR-009).
+	// The vbox position numbers below account for the 3 main widgets (title_box,
+	// search_box, contents_stack) plus all 3 void widgets in the pack_start list.
+	const bool title_at_bottom = m_layout_search_alternate && m_layout_profile_alternate;
+	if (eff)
+	{
+		if (!title_at_bottom)
 		{
-			gtk_box_pack_start(m_vbox, m_void_spacer, FALSE, FALSE, 0);
-			gtk_box_reorder_child(m_vbox, m_void_spacer, 0);
+			// Top-bar layout: [void_top, title, search(hidden), void_middle, contents, void_bottom]
+			gtk_box_reorder_child(m_vbox, m_void_top,                    0);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_title_box),       1);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_search_box),      2);
+			gtk_box_reorder_child(m_vbox, m_void_middle,                  3);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_contents_stack),  4);
+			gtk_box_reorder_child(m_vbox, m_void_bottom,                  5);
 		}
 		else
 		{
-			gtk_box_pack_end(m_vbox, m_void_spacer, FALSE, FALSE, 0);
+			// Bottom-bar layout: [void_top, contents, void_middle, search(hidden), title, void_bottom]
+			gtk_box_reorder_child(m_vbox, m_void_top,                    0);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_contents_stack),  1);
+			gtk_box_reorder_child(m_vbox, m_void_middle,                  2);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_search_box),      3);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_title_box),       4);
+			gtk_box_reorder_child(m_vbox, m_void_bottom,                  5);
 		}
-		g_object_unref(m_void_spacer);
 	}
-	gtk_widget_set_visible(m_void_spacer, eff);
+	gtk_widget_set_visible(m_void_top,    eff);
+	gtk_widget_set_visible(m_void_middle, eff);
+	gtk_widget_set_visible(m_void_bottom, eff);
 
 	// FR-015 hook: warn once per layout pass if the merged row is too narrow.
 	if (eff)
