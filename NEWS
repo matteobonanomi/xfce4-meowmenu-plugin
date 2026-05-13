@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.2.3 (2026-05-14)
+=====
+- fix searchbar alignment in full screen layout
+- fix sidebar disappearing when search in full screen layout
+- update About window and README
 
 0.2.2 (2026-05-13)
 ======
