@@ -29,6 +29,7 @@
 #include "search-page.h"
 #include "settings.h"
 #include "slot.h"
+#include "unified-bar.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 #include <gdk/gdkkeysyms.h>
@@ -40,6 +41,91 @@
 #include <ctime>
 
 using namespace WhiskerMenu;
+
+namespace
+{
+
+/* vertical_end_of:
+ * @value: a position string ("top", "top-right", "bottom", "bottom-right",
+ *         "hidden", "left", "right", ...).
+ *
+ * Collapses a position key down to its vertical end. Anything that does not
+ * begin with "top" or "bottom" is treated as "neutral" (e.g. "hidden", "left",
+ * "right") and contributes no constraint to the unified-bar predicate.
+ *
+ * Returns: 't' for top, 'b' for bottom, 0 otherwise.
+ */
+static char vertical_end_of(const char* value)
+{
+	if (!value || !*value)
+		return 0;
+	if (g_str_has_prefix(value, "top"))
+		return 't';
+	if (g_str_has_prefix(value, "bottom"))
+		return 'b';
+	return 0;
+}
+
+} // namespace
+
+namespace WhiskerMenu
+{
+
+/* unified_bar_preconditions_raw:
+ * @layout_mode:         e.g. "fullscreen", "docked".
+ * @search_bar_position: e.g. "top", "bottom".
+ * @profile_position:    e.g. "top", "bottom", "hidden".
+ * @commands_position:   e.g. "top-right", "bottom-right", "hidden".
+ *
+ * Pure variant of unified_bar_preconditions_met() that takes raw strings so
+ * it can be unit-tested without a live Settings object. The unified bar is
+ * only coherent on FullScreen when all non-neutral vertical ends agree.
+ * "hidden" profile/commands are transparent — no constraint.
+ *
+ * Returns: true iff a unified bar would be coherent given these values.
+ */
+bool unified_bar_preconditions_raw(const char* layout_mode,
+                                    const char* search_bar_position,
+                                    const char* profile_position,
+                                    const char* commands_position)
+{
+	if (g_strcmp0(layout_mode, "fullscreen") != 0)
+		return false;
+	const char ends[] = {
+		vertical_end_of(search_bar_position),
+		vertical_end_of(profile_position),
+		vertical_end_of(commands_position),
+	};
+	char anchor = 0;
+	for (char e : ends)
+	{
+		if (!e)
+			continue;
+		if (!anchor)
+			anchor = e;
+		else if (anchor != e)
+			return false;
+	}
+	return vertical_end_of(search_bar_position) != 0;
+}
+
+bool unified_bar_preconditions_met(const Settings& s)
+{
+	return unified_bar_preconditions_raw(s.layout_mode,
+		s.search_bar_position, s.profile_position, s.commands_position);
+}
+
+/* unified_bar_effective:
+ * @s: current settings value-bag.
+ *
+ * Returns: true iff /unified-bar is on AND the preconditions are met.
+ */
+bool unified_bar_effective(const Settings& s)
+{
+	return s.unified_bar && unified_bar_preconditions_met(s);
+}
+
+} // namespace WhiskerMenu
 
 //-----------------------------------------------------------------------------
 
@@ -57,6 +143,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_layout_search_alternate(false),
 	m_layout_commands_alternate(false),
 	m_layout_profile_alternate(false),
+	m_layout_unified_bar(false),
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
@@ -297,13 +384,34 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_box_pack_start(m_vbox, GTK_WIDGET(m_search_box), false, true, 0);
 	gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), true, true, 0);
 
+	// Three void bands for FullScreen unified-bar mode (FR-008, FR-017, FR-018).
+	// All three are hidden until update_layout() activates the unified bar.
+	// Fixed size_request heights give breathing room; theme authors can override
+	// the "symmetric-void" CSS class min-height. Top/bottom: 12 px; middle: 16 px.
+	auto make_void_band = [](int height_px) -> GtkWidget*
+	{
+		GtkWidget* w = gtk_label_new(nullptr);
+		gtk_widget_set_hexpand(w, TRUE);
+		gtk_widget_set_can_focus(w, FALSE);
+		atk_object_set_role(gtk_widget_get_accessible(w), ATK_ROLE_FILLER);
+		gtk_style_context_add_class(gtk_widget_get_style_context(w), "symmetric-void");
+		gtk_widget_set_size_request(w, -1, height_px);
+		gtk_widget_set_visible(w, FALSE);
+		return w;
+	};
+	m_void_top    = make_void_band(12);
+	m_void_middle = make_void_band(16);
+	m_void_bottom = make_void_band(12);
+	gtk_box_pack_start(m_vbox, m_void_top,    FALSE, FALSE, 0);
+	gtk_box_pack_start(m_vbox, m_void_middle, FALSE, FALSE, 0);
+	gtk_box_pack_start(m_vbox, m_void_bottom, FALSE, FALSE, 0);
+
 	// Create box for packing launcher pages and sidebar
 	m_contents_stack = GTK_STACK(gtk_stack_new());
 	m_contents_box = GTK_GRID(gtk_grid_new());
 	gtk_grid_set_column_spacing(m_contents_box, 6);
 	gtk_grid_set_row_spacing(m_contents_box, 0);
 	gtk_stack_add_named(m_contents_stack, GTK_WIDGET(m_contents_box), "contents");
-	gtk_stack_add_named(m_contents_stack, GTK_WIDGET(search_results), "search");
 	gtk_box_pack_start(m_vbox, GTK_WIDGET(m_contents_stack), true, true, 0);
 
 	// Create box for packing categories horizontally
@@ -320,6 +428,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_stack_add_named(m_panels_stack, m_favorites->get_widget(), "favorites");
 	gtk_stack_add_named(m_panels_stack, m_recent->get_widget(), "recent");
 	gtk_stack_add_named(m_panels_stack, m_applications->get_widget(), "applications");
+	// Search results live inside the applications area so the sidebar remains visible
+	// while the user types. This applies to all layout modes, not just fullscreen.
+	gtk_stack_add_named(m_panels_stack, GTK_WIDGET(search_results), "search");
 
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
@@ -449,7 +560,7 @@ WhiskerMenu::Window::~Window()
 Page* WhiskerMenu::Window::get_active_page()
 {
 	Page* page = nullptr;
-	if (g_strcmp0(gtk_stack_get_visible_child_name(m_contents_stack), "search") == 0)
+	if (g_strcmp0(gtk_stack_get_visible_child_name(m_panels_stack), "search") == 0)
 	{
 		page = m_search_results;
 	}
@@ -665,12 +776,14 @@ void WhiskerMenu::Window::show(const Position position)
 	// away in Settings::migrate_schema().
 	const bool cats_horizontal = (g_strcmp0(sidebar_pos, "top") == 0)
 			|| (g_strcmp0(sidebar_pos, "bottom") == 0);
+	const bool unified_eff = unified_bar_effective(*m_settings);
 	if ((m_layout_ltr != layout_ltr)
 			|| (m_layout_categories_horizontal != cats_horizontal)
 			|| (m_layout_categories_alternate != cats_alt)
 			|| (m_layout_search_alternate != search_alt)
 			|| (m_layout_commands_alternate != commands_alt)
 			|| (m_layout_profile_alternate != profile_alt)
+			|| (m_layout_unified_bar != unified_eff)
 			|| (m_profile_shape != m_settings->profile_shape))
 	{
 		m_layout_ltr = layout_ltr;
@@ -1395,13 +1508,18 @@ void WhiskerMenu::Window::search()
 
 	if (text)
 	{
-		// Show search results
-		gtk_stack_set_visible_child_name(m_contents_stack, "search");
+		// Switch the applications area to search results; the sidebar stays visible.
+		gtk_stack_set_visible_child_name(m_panels_stack, "search");
 	}
 	else
 	{
-		// Show active panel
-		gtk_stack_set_visible_child_name(m_contents_stack, "contents");
+		// Restore the panel that matches the currently active category button.
+		if (m_favorites->get_button()->get_active())
+			gtk_stack_set_visible_child_name(m_panels_stack, "favorites");
+		else if (m_recent->get_button()->get_active())
+			gtk_stack_set_visible_child_name(m_panels_stack, "recent");
+		else
+			gtk_stack_set_visible_child_name(m_panels_stack, "applications");
 	}
 
 	// Apply filter
@@ -1647,6 +1765,121 @@ void WhiskerMenu::Window::update_layout()
 		g_object_unref(m_sidebar_size_group);
 		m_sidebar_size_group = nullptr;
 	}
+
+	// Unified-bar transitions: move m_search_entry between m_search_box (normal
+	// mode) and the centre-widget slot of m_title_box (unified-bar mode).
+	// gtk_box_set_center_widget positions the entry at the exact horizontal
+	// centre of m_title_box regardless of the profile or session-button widths,
+	// satisfying FR-002 without any per-widget size measurement (FR-004).
+	const bool eff = unified_bar_effective(*m_settings);
+	const bool was_unified = m_layout_unified_bar;
+	GtkStyleContext* title_ctx = gtk_widget_get_style_context(GTK_WIDGET(m_title_box));
+	if (eff && !was_unified)
+	{
+		g_object_ref(m_search_entry);
+		gtk_container_remove(GTK_CONTAINER(m_search_box), GTK_WIDGET(m_search_entry));
+		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), FALSE);
+		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
+		gtk_box_set_center_widget(m_title_box, GTK_WIDGET(m_search_entry));
+		gtk_widget_set_visible(GTK_WIDGET(m_search_box), FALSE);
+		gtk_style_context_add_class(title_ctx, "unified-bar");
+		g_object_unref(m_search_entry);
+	}
+	else if (!eff && was_unified)
+	{
+		g_object_ref(m_search_entry);
+		gtk_box_set_center_widget(m_title_box, nullptr);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry), -1, -1);
+		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
+		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
+		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
+		// Restore username visibility and expand per the existing profile-shape rule.
+		gtk_widget_set_visible(m_profile->get_username(),
+				m_profile_shape != Settings::ProfileHidden);
+		gtk_widget_set_hexpand(m_profile->get_username(), TRUE);
+		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
+		gtk_style_context_remove_class(title_ctx, "unified-bar");
+		g_object_unref(m_search_entry);
+	}
+
+	// Pin the search entry width to exactly match the applications panel (FR-004).
+	// The centre-widget slot guarantees screen-centre alignment; all that remains
+	// is setting the correct width so the entry lines up with the grid edges.
+	// Subtract the 6 px column-spacing of m_contents_box so the search entry does
+	// not overflow the app-grid boundary (sidebar_w + 6 + panels_stack + 6 + void
+	// == workarea, so each side effectively costs sidebar_w + 3; we subtract the
+	// full column gap once here to stay within the visual content column).
+	if (eff)
+	{
+		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;
+		const int col_gap = 6; // m_contents_box column-spacing in vertical-sidebar mode
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry),
+				m_workarea.width - 2 * sidebar_w - col_gap, -1);
+	}
+
+	// Move commands_box to the right edge of the unified bar on every layout pass.
+	// update_layout() re-adds it as pack_start at the top of this function; we
+	// move it to pack_end here so it appears right-aligned (FR-002: session buttons
+	// at the trailing edge). Only relevant when commands are in title_box
+	// (m_layout_commands_alternate == false).
+	if (eff && !m_layout_commands_alternate)
+	{
+		g_object_ref(GTK_WIDGET(m_commands_box));
+		gtk_container_remove(GTK_CONTAINER(m_title_box), GTK_WIDGET(m_commands_box));
+		gtk_box_pack_end(m_title_box, GTK_WIDGET(m_commands_box), false, false, 0);
+		g_object_unref(GTK_WIDGET(m_commands_box));
+	}
+
+	// Three void bands: top (above unified bar), middle (between bar and content),
+	// bottom (below content). All shown only when unified bar is effective (FR-008/FR-009).
+	// The vbox position numbers below account for the 3 main widgets (title_box,
+	// search_box, contents_stack) plus all 3 void widgets in the pack_start list.
+	const bool title_at_bottom = m_layout_search_alternate && m_layout_profile_alternate;
+	if (eff)
+	{
+		if (!title_at_bottom)
+		{
+			// Top-bar layout: [void_top, title, search(hidden), void_middle, contents, void_bottom]
+			gtk_box_reorder_child(m_vbox, m_void_top,                    0);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_title_box),       1);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_search_box),      2);
+			gtk_box_reorder_child(m_vbox, m_void_middle,                  3);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_contents_stack),  4);
+			gtk_box_reorder_child(m_vbox, m_void_bottom,                  5);
+		}
+		else
+		{
+			// Bottom-bar layout: [void_top, contents, void_middle, search(hidden), title, void_bottom]
+			gtk_box_reorder_child(m_vbox, m_void_top,                    0);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_contents_stack),  1);
+			gtk_box_reorder_child(m_vbox, m_void_middle,                  2);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_search_box),      3);
+			gtk_box_reorder_child(m_vbox, GTK_WIDGET(m_title_box),       4);
+			gtk_box_reorder_child(m_vbox, m_void_bottom,                  5);
+		}
+	}
+	gtk_widget_set_visible(m_void_top,    eff);
+	gtk_widget_set_visible(m_void_middle, eff);
+	gtk_widget_set_visible(m_void_bottom, eff);
+
+	// FR-015 hook: warn once per layout pass if the merged row is too narrow.
+	if (eff)
+	{
+		static int warn_count = 0;
+		const int min_w = gtk_entry_get_width_chars(m_search_entry) * 8;
+		if (gtk_widget_get_allocated_width(GTK_WIDGET(m_search_entry)) > 0
+				&& gtk_widget_get_allocated_width(GTK_WIDGET(m_search_entry)) < min_w
+				&& (warn_count++ & 0x3f) == 0)
+		{
+			g_debug("unified-bar: search entry below min content width; visual may clip");
+		}
+	}
+
+	m_layout_unified_bar = eff;
 }
 
 //-----------------------------------------------------------------------------

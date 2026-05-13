@@ -29,6 +29,7 @@
 #include "window.h"
 #include "preset.h"
 #include "preset-io.h"
+#include "unified-bar.h"
 
 #include <algorithm>
 
@@ -244,6 +245,12 @@ SettingsDialog::~SettingsDialog()
 	{
 		g_signal_handler_disconnect(m_settings->channel, m_layout_mode_slot);
 		m_layout_mode_slot = 0;
+	}
+
+	if (m_unified_bar_slot && m_settings && m_settings->channel)
+	{
+		g_signal_handler_disconnect(m_settings->channel, m_unified_bar_slot);
+		m_unified_bar_slot = 0;
 	}
 
 	for (auto command : m_commands)
@@ -767,6 +774,48 @@ void SettingsDialog::apply_layout_mode_sensitivity()
 	{
 		if (w)
 			gtk_widget_set_sensitive(w, is_fullscreen);
+	}
+}
+
+/* apply_unified_bar_sensitivity:
+ *
+ * Updates the live sensitivity, tooltip, and accessible description of the
+ * unified-bar toggle. Reasons for being disabled (per contracts/settings-
+ * dialog.md):
+ *   - layout mode is not FullScreen, OR
+ *   - profile/search/session resolve to different vertical ends.
+ */
+void SettingsDialog::apply_unified_bar_sensitivity()
+{
+	if (!m_unified_bar)
+		return;
+
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	const bool preconditions = unified_bar_preconditions_met(*m_settings);
+	const bool sensitive = preconditions;
+
+	const char* tip;
+	if (sensitive)
+		tip = _("Render profile, search and session on a single horizontal row.");
+	else if (!is_fullscreen)
+		tip = _("This option requires the FullScreen layout.");
+	else
+		tip = _("This option requires profile, search and session to be on the same end (all top or all bottom).");
+
+	gtk_widget_set_sensitive(m_unified_bar, sensitive);
+	gtk_widget_set_tooltip_text(m_unified_bar, tip);
+	atk_object_set_description(gtk_widget_get_accessible(m_unified_bar), tip);
+
+	// Keep the displayed state in sync with the stored value even if it was
+	// changed elsewhere (preset switch, xfconf-query, etc.).
+	const gboolean active = static_cast<bool>(m_settings->unified_bar);
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(m_unified_bar)) != active)
+	{
+		g_signal_handlers_block_matched(m_unified_bar, G_SIGNAL_MATCH_DATA,
+			0, 0, nullptr, nullptr, this);
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_unified_bar), active);
+		g_signal_handlers_unblock_matched(m_unified_bar, G_SIGNAL_MATCH_DATA,
+			0, 0, nullptr, nullptr, this);
 	}
 }
 
@@ -1662,8 +1711,42 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			refresh_customized_indicator();
 		});
 
+	// Unified-bar toggle (spec 004). Sits immediately under the
+	// commands-position combobox; live sensitivity drops in via
+	// apply_unified_bar_sensitivity(), which is invoked on any of the four
+	// position keys changing through the existing property-changed signal.
+	m_unified_bar = gtk_check_button_new_with_mnemonic(
+		_("Place profile, search and session on a single _line"));
+	gtk_grid_attach(commands_table, m_unified_bar, 0, 1, 2, 1);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_unified_bar),
+		static_cast<bool>(m_settings->unified_bar));
+	apply_unified_bar_sensitivity();
+
+	connect(m_unified_bar, "toggled",
+		[this](GtkToggleButton* button)
+		{
+			m_settings->unified_bar = gtk_toggle_button_get_active(button);
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+		});
+
+	if (m_settings && m_settings->channel)
+	{
+		m_unified_bar_slot = g_signal_connect(m_settings->channel, "property-changed",
+			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer data) -> void
+			{
+				if (g_strcmp0(property, "/layout-mode") != 0
+						&& g_strcmp0(property, "/search-bar-position") != 0
+						&& g_strcmp0(property, "/profile-position") != 0
+						&& g_strcmp0(property, "/commands-position") != 0
+						&& g_strcmp0(property, "/unified-bar") != 0)
+					return;
+				static_cast<SettingsDialog*>(data)->apply_unified_bar_sensitivity();
+			}), this);
+	}
+
 	m_confirm_session_command = gtk_check_button_new_with_mnemonic(_("Show c_onfirmation dialog"));
-	gtk_grid_attach(commands_table, m_confirm_session_command, 0, 1, 2, 1);
+	gtk_grid_attach(commands_table, m_confirm_session_command, 0, 2, 2, 1);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_confirm_session_command),
 		m_settings->confirm_session_command);
 
