@@ -149,6 +149,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_places_active(false),
 	m_mode_switch_in_progress(false),
 	m_places_property_slot(0),
+	m_mode_selector_separator(nullptr),
 	m_sidebar_size_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
@@ -535,6 +536,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
 	gtk_box_pack_start(m_category_buttons, GTK_WIDGET(m_mode_selector_box), false, false, 0);
+	m_mode_selector_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	gtk_box_pack_start(m_category_buttons, m_mode_selector_separator, false, false, 4);
 	gtk_box_pack_start(m_category_buttons, favorites_button->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, recent_button->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, applications_button->get_widget(), false, false, 0);
@@ -1116,16 +1119,28 @@ void WhiskerMenu::Window::set_child_has_focus()
 void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& categories)
 {
 	CategoryButton* last_button = m_applications->get_button();
+	m_app_category_widgets.clear();
 	for (auto button : categories)
 	{
 		button->join_group(last_button);
 		last_button = button;
 		gtk_box_pack_start(m_category_buttons, button->get_widget(), false, false, 0);
+		m_app_category_widgets.push_back(button->get_widget());
 		connect(button->get_widget(), "toggled",
 			[this](GtkToggleButton*)
 			{
 				category_toggled();
 			});
+	}
+
+	// NOTE: if Places mode is already active when categories arrive, keep
+	// the application categories hidden so the sidebar matches the mode.
+	if (m_places_active)
+	{
+		for (GtkWidget* w : m_app_category_widgets)
+		{
+			gtk_widget_set_visible(w, false);
+		}
 	}
 
 	show_default_page();
@@ -1631,6 +1646,18 @@ void WhiskerMenu::Window::reset_default_button()
 		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(), 2);
 		break;
 	}
+
+	// NOTE: the three reorders above push m_mode_selector_box (packed first
+	// in the ctor) past the category buttons. Restore it to the top so the
+	// Apps/Places switch stays above Recently Used/Favorites/All Applications.
+	if (m_mode_selector_box)
+	{
+		gtk_box_reorder_child(m_category_buttons, GTK_WIDGET(m_mode_selector_box), 0);
+	}
+	if (m_mode_selector_separator)
+	{
+		gtk_box_reorder_child(m_category_buttons, m_mode_selector_separator, 1);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1730,6 +1757,12 @@ void WhiskerMenu::Window::switch_mode(bool to_places)
 	gtk_widget_set_visible(m_places_history_btn->get_widget(),  to_places && history_visible);
 	gtk_widget_set_visible(m_places_fav_btn->get_widget(),      to_places && fav_visible);
 
+	// Hide app categories (Accessories, Development, ...) in Places mode.
+	for (GtkWidget* w : m_app_category_widgets)
+	{
+		gtk_widget_set_visible(w, !to_places);
+	}
+
 	gtk_entry_set_text(m_search_entry, "");
 	gtk_entry_set_placeholder_text(m_search_entry,
 			to_places ? _("Search places\xe2\x80\xa6")
@@ -1757,6 +1790,10 @@ void WhiskerMenu::Window::update_layout()
 	// Places mode (milestone 005) — mode selector and sidebar section buttons.
 	const bool places_enabled = m_settings->places_enabled;
 	gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box), places_enabled);
+	if (m_mode_selector_separator)
+	{
+		gtk_widget_set_visible(m_mode_selector_separator, places_enabled);
+	}
 	if (!places_enabled)
 	{
 		// Hide all Places-only sidebar buttons; show the Apps-mode buttons.
@@ -1767,6 +1804,10 @@ void WhiskerMenu::Window::update_layout()
 		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
 				m_settings->recent_items_max);
 		gtk_widget_set_visible(m_applications->get_button()->get_widget(), true);
+		for (GtkWidget* w : m_app_category_widgets)
+		{
+			gtk_widget_set_visible(w, true);
+		}
 	}
 	else
 	{
@@ -1782,6 +1823,10 @@ void WhiskerMenu::Window::update_layout()
 				to_places && m_settings->places_history_enabled);
 		gtk_widget_set_visible(m_places_fav_btn->get_widget(),
 				to_places && m_settings->places_favourites_enabled);
+		for (GtkWidget* w : m_app_category_widgets)
+		{
+			gtk_widget_set_visible(w, !to_places);
+		}
 	}
 
 	// Set vertical position of commands
