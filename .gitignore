@@ -4,6 +4,7 @@
 .specify/*
 .vscode/*
 .codex
+docs/*
 AGENTS.md
 CLAUDE.md
 
