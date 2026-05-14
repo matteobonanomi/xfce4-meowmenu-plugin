@@ -428,6 +428,17 @@ public:
 	// Layout Presets — window mode
 	String layout_mode;
 
+	// Places mode (milestone 005)
+	Boolean places_enabled;
+	Boolean places_history_enabled;
+	Boolean places_favourites_enabled;
+	String  places_favourite_sync;
+	Integer places_max_items;
+	Boolean places_remember_last_mode;
+	Boolean places_show_metadata;
+	String  places_last_mode;
+	StringList places_favourites;
+
 	void migrate_schema(bool is_fresh_install);
 
 	friend class Plugin;

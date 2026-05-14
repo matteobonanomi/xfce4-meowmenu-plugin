@@ -29,6 +29,7 @@ class ApplicationsPage;
 class CategoryButton;
 class FavoritesPage;
 class Page;
+class PlacesPage;
 class Plugin;
 class Profile;
 class Resizer;
@@ -80,6 +81,10 @@ public:
 	}
 
 	Page* get_active_page();
+
+	PlacesPage* get_places() const { return m_places; }
+	bool is_places_active() const { return m_places_active; }
+	void switch_mode(bool to_places);
 
 	void hide(bool lost_focus = false);
 	void show(const Position position);
@@ -156,6 +161,18 @@ private:
 	FavoritesPage* m_favorites;
 	RecentPage* m_recent;
 	ApplicationsPage* m_applications;
+
+	// Places mode (milestone 005)
+	PlacesPage* m_places;
+	GtkBox* m_mode_selector_box;
+	GtkToggleButton* m_mode_btn_apps;
+	GtkToggleButton* m_mode_btn_places;
+	CategoryButton* m_places_home_btn;
+	CategoryButton* m_places_history_btn;
+	CategoryButton* m_places_fav_btn;
+	bool m_places_active;
+	bool m_mode_switch_in_progress;
+	gulong m_places_property_slot;
 
 	GtkScrolledWindow* m_sidebar;
 	GtkBox* m_category_buttons;

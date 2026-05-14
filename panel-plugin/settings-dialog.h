@@ -68,6 +68,7 @@ private:
 	GtkWidget* init_search_bar_tab();
 	GtkWidget* init_app_grid_tab();
 	GtkWidget* init_sidebar_tab();
+	GtkWidget* init_places_tab();
 
 	// Layout-mode-driven live sensitivity (FR-003 / data-model E-6).
 	// Each tab builder pushes widgets onto exactly one of these vectors. The

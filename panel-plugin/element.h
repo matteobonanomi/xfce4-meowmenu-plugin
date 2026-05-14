@@ -79,6 +79,26 @@ protected:
 
 	void set_icon(const gchar* icon);
 
+	/* set_icon_gicon:
+	 * @icon: GIcon* (transfer none); pass nullptr to clear.
+	 *
+	 * Adopts a pre-built GIcon (e.g. one returned by GFileInfo's
+	 * G_FILE_ATTRIBUTE_STANDARD_ICON). Increments the reference so the caller
+	 * keeps ownership of its own reference.
+	 */
+	void set_icon_gicon(GIcon* icon)
+	{
+		if (m_icon)
+		{
+			g_object_unref(m_icon);
+			m_icon = nullptr;
+		}
+		if (icon)
+		{
+			m_icon = G_ICON(g_object_ref(icon));
+		}
+	}
+
 	void set_text(const gchar* text)
 	{
 		g_free(m_text);
