@@ -38,6 +38,7 @@ public:
 
 	GtkWidget* get_widget() const { return m_widget; }
 	GtkWidget* get_message() const { return m_empty_message; }
+	LauncherView* get_view() const { return m_view; }
 
 	HomeSection* get_home_section() const             { return m_home; }
 	HistorySection* get_history_section() const       { return m_history; }
