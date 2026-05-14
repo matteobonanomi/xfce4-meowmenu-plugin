@@ -150,6 +150,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_mode_switch_in_progress(false),
 	m_places_property_slot(0),
 	m_mode_selector_separator(nullptr),
+	m_category_width_group(nullptr),
 	m_sidebar_size_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
@@ -546,6 +547,23 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_box_pack_start(m_category_buttons, m_places_fav_btn->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 4);
 
+	// Prevent the sidebar from narrowing when Apps<->Places hides some
+	// buttons: group all category-button widgets so every button requests
+	// the same width as the widest one, even while hidden.
+	// HACK: gtk_size_group_set_ignore_hidden() is deprecated since GTK 3.22
+	// (the behaviour it controls became the default in GTK 4), but GTK 3 still
+	// requires the explicit call.  Suppress the deprecation warning locally.
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+	m_category_width_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	gtk_size_group_set_ignore_hidden(m_category_width_group, FALSE);
+G_GNUC_END_IGNORE_DEPRECATIONS
+	gtk_size_group_add_widget(m_category_width_group, favorites_button->get_widget());
+	gtk_size_group_add_widget(m_category_width_group, recent_button->get_widget());
+	gtk_size_group_add_widget(m_category_width_group, applications_button->get_widget());
+	gtk_size_group_add_widget(m_category_width_group, m_places_home_btn->get_widget());
+	gtk_size_group_add_widget(m_category_width_group, m_places_history_btn->get_widget());
+	gtk_size_group_add_widget(m_category_width_group, m_places_fav_btn->get_widget());
+
 	m_sidebar = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
 	gtk_grid_attach(m_contents_box, GTK_WIDGET(m_sidebar), 1, 1, 1, 1);
 	gtk_scrolled_window_set_propagate_natural_height(m_sidebar, true);
@@ -686,6 +704,12 @@ WhiskerMenu::Window::~Window()
 	for (Resizer* resizer : m_resize)
 	{
 		delete resizer;
+	}
+
+	if (m_category_width_group)
+	{
+		g_object_unref(m_category_width_group);
+		m_category_width_group = nullptr;
 	}
 
 	if (m_css_provider)
@@ -1126,6 +1150,10 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 		last_button = button;
 		gtk_box_pack_start(m_category_buttons, button->get_widget(), false, false, 0);
 		m_app_category_widgets.push_back(button->get_widget());
+		if (m_category_width_group)
+		{
+			gtk_size_group_add_widget(m_category_width_group, button->get_widget());
+		}
 		connect(button->get_widget(), "toggled",
 			[this](GtkToggleButton*)
 			{

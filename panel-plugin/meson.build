@@ -10,6 +10,7 @@ plugin_sources = [
   'favorites-page.cpp',
   'favourites-section.cpp',
   'history-section.cpp',
+  'home-search-worker.cpp',
   'home-section.cpp',
   'icon-renderer.cpp',
   'icon-size.cpp',

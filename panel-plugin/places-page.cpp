@@ -38,7 +38,9 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_view(nullptr),
 	m_widget(nullptr),
 	m_empty_message(nullptr),
-	m_model(nullptr)
+	m_model(nullptr),
+	m_debounce_id(0),
+	m_home_search_active(false)
 {
 	m_model = gtk_list_store_new(
 			LauncherView::N_COLUMNS,
@@ -69,6 +71,8 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 
 PlacesPage::~PlacesPage()
 {
+	cancel_home_search();
+	clear_home_search_items();
 	delete m_view;
 	if (m_widget)
 	{
@@ -148,23 +152,148 @@ void PlacesPage::reload_view()
 
 void PlacesPage::set_active_section(PlacesSection* section)
 {
+	cancel_home_search();
+	clear_home_search_items();
 	m_active_section = section;
 	rebuild_model();
 }
 
 void PlacesPage::refresh_active()
 {
+	cancel_home_search();
+	clear_home_search_items();
 	rebuild_model();
 }
 
 //-----------------------------------------------------------------------------
 
+/* set_filter:
+ *
+ * Section-aware dispatcher. For non-Home sections or queries below the
+ * 2-character recursive-search threshold (FR-035, FR-035a), keeps the
+ * existing visible-items substring filter. For Home with a query of at
+ * least 2 characters, cancels any in-flight recursive walk, debounces
+ * 150 ms, then kicks off a HomeSearchWorker via HomeSection::start_search.
+ */
 void PlacesPage::set_filter(const gchar* filter)
 {
 	gchar* folded = PlacesItem::places_filter_casefold(filter);
 	m_filter = folded ? folded : "";
 	g_free(folded);
+
+	const bool home_active = (m_active_section == m_home);
+	const bool long_enough = g_utf8_strlen(m_filter.c_str(), -1) >= 2;
+
+	if (home_active && long_enough)
+	{
+		// Cancel any pending debounce or in-flight worker; we'll
+		// schedule a fresh run after the debounce window.
+		cancel_home_search();
+		// Clear visible model immediately so stale results don't linger
+		// while the new walk is being prepared.
+		gtk_list_store_clear(m_model);
+		clear_home_search_items();
+		gtk_widget_set_visible(m_empty_message, true);
+
+		m_home_search_active = true;
+		m_debounce_id = g_timeout_add(150,
+				&PlacesPage::on_debounce_fired, this);
+		return;
+	}
+
+	// Non-Home or short filter: fall back to existing visible-items filter.
+	cancel_home_search();
+	clear_home_search_items();
 	rebuild_model();
+}
+
+//-----------------------------------------------------------------------------
+
+gboolean PlacesPage::on_debounce_fired(gpointer data)
+{
+	auto* self = static_cast<PlacesPage*>(data);
+	self->m_debounce_id = 0;
+	self->start_home_search();
+	return G_SOURCE_REMOVE;
+}
+
+void PlacesPage::start_home_search()
+{
+	if (!m_home || m_filter.empty())
+	{
+		return;
+	}
+	const int cap = m_settings ? (int) m_settings->places_max_items : 20;
+	if (cap <= 0)
+	{
+		on_home_search_done();
+		return;
+	}
+
+	m_home->start_search(m_filter.c_str(), cap,
+			[this](PlacesItem* item) { on_home_search_result(item); },
+			[this]() { on_home_search_done(); });
+}
+
+void PlacesPage::cancel_home_search()
+{
+	if (m_debounce_id != 0)
+	{
+		g_source_remove(m_debounce_id);
+		m_debounce_id = 0;
+	}
+	if (m_home)
+	{
+		m_home->cancel_search();
+	}
+	m_home_search_active = false;
+}
+
+void PlacesPage::clear_home_search_items()
+{
+	for (auto* item : m_home_search_items)
+	{
+		delete item;
+	}
+	m_home_search_items.clear();
+}
+
+void PlacesPage::on_home_search_result(PlacesItem* item)
+{
+	if (!item)
+	{
+		return;
+	}
+	// Take ownership and append shallow-first into the model.
+	m_home_search_items.push_back(item);
+	gtk_list_store_insert_with_values(
+			m_model, nullptr, G_MAXINT,
+			LauncherView::COLUMN_ICON, item->get_icon(),
+			LauncherView::COLUMN_TEXT, item->get_text(),
+			LauncherView::COLUMN_TOOLTIP, item->get_tooltip(),
+			LauncherView::COLUMN_LAUNCHER, static_cast<Element*>(item),
+			-1);
+	gtk_widget_set_visible(m_empty_message, false);
+}
+
+void PlacesPage::on_home_search_done()
+{
+	// Finalize the worker; safe to call from inside the worker's own
+	// done callback because HomeSection holds the worker via a
+	// raw pointer and HomeSearchWorker keeps its callbacks alive via
+	// the Sink shared_ptr until this idle returns.
+	if (m_home)
+	{
+		m_home->cancel_search();
+	}
+	m_home_search_active = false;
+
+	// If the walk produced no matches at all, surface the empty-state.
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m_model), &iter))
+	{
+		gtk_widget_set_visible(m_empty_message, true);
+	}
 }
 
 //-----------------------------------------------------------------------------
