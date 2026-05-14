@@ -173,6 +173,8 @@ private:
 	bool m_places_active;
 	bool m_mode_switch_in_progress;
 	gulong m_places_property_slot;
+	GtkWidget* m_mode_selector_separator;
+	std::vector<GtkWidget*> m_app_category_widgets;
 
 	GtkScrolledWindow* m_sidebar;
 	GtkBox* m_category_buttons;
