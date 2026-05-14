@@ -21,7 +21,11 @@
 #include "category-button.h"
 #include "command.h"
 #include "favorites-page.h"
+#include "favourites-section.h"
+#include "history-section.h"
+#include "home-section.h"
 #include "launcher-view.h"
+#include "places-page.h"
 #include "plugin.h"
 #include "profile.h"
 #include "recent-page.h"
@@ -135,6 +139,16 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_window(nullptr),
 	m_css_provider(nullptr),
 	m_position(PositionAtButton),
+	m_places(nullptr),
+	m_mode_selector_box(nullptr),
+	m_mode_btn_apps(nullptr),
+	m_mode_btn_places(nullptr),
+	m_places_home_btn(nullptr),
+	m_places_history_btn(nullptr),
+	m_places_fav_btn(nullptr),
+	m_places_active(false),
+	m_mode_switch_in_progress(false),
+	m_places_property_slot(0),
 	m_sidebar_size_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
@@ -338,6 +352,86 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			category_toggled();
 		});
 
+	// Places mode (milestone 005) — built unconditionally; visibility is gated
+	// on m_settings->places_enabled in update_layout().
+	m_places = new PlacesPage(m_settings, this);
+
+	{
+		GIcon* home_icon = g_themed_icon_new(m_places->get_home_section()->get_icon_name());
+		m_places_home_btn = new CategoryButton(m_settings, home_icon,
+				m_places->get_home_section()->get_display_name());
+		g_object_unref(home_icon);
+
+		GIcon* hist_icon = g_themed_icon_new(m_places->get_history_section()->get_icon_name());
+		m_places_history_btn = new CategoryButton(m_settings, hist_icon,
+				m_places->get_history_section()->get_display_name());
+		g_object_unref(hist_icon);
+		m_places_history_btn->join_group(m_places_home_btn);
+
+		GIcon* fav_icon = g_themed_icon_new(m_places->get_favourites_section()->get_icon_name());
+		m_places_fav_btn = new CategoryButton(m_settings, fav_icon,
+				m_places->get_favourites_section()->get_display_name());
+		g_object_unref(fav_icon);
+		m_places_fav_btn->join_group(m_places_history_btn);
+	}
+
+	connect(m_places_home_btn->get_widget(), "toggled",
+		[this](GtkToggleButton* b)
+		{
+			if (!gtk_toggle_button_get_active(b))
+				return;
+			m_places->set_active_section(m_places->get_home_section());
+			gtk_stack_set_visible_child_name(m_panels_stack, "places");
+			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		});
+	connect(m_places_history_btn->get_widget(), "toggled",
+		[this](GtkToggleButton* b)
+		{
+			if (!gtk_toggle_button_get_active(b))
+				return;
+			m_places->set_active_section(m_places->get_history_section());
+			gtk_stack_set_visible_child_name(m_panels_stack, "places");
+			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		});
+	connect(m_places_fav_btn->get_widget(), "toggled",
+		[this](GtkToggleButton* b)
+		{
+			if (!gtk_toggle_button_get_active(b))
+				return;
+			m_places->set_active_section(m_places->get_favourites_section());
+			gtk_stack_set_visible_child_name(m_panels_stack, "places");
+			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		});
+
+	// Mode selector: two toggle buttons forming a manual radio group.
+	m_mode_selector_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0));
+	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box)),
+			"places-mode-selector");
+	m_mode_btn_apps = GTK_TOGGLE_BUTTON(gtk_toggle_button_new_with_label(_("Apps")));
+	m_mode_btn_places = GTK_TOGGLE_BUTTON(gtk_toggle_button_new_with_label(_("Places")));
+	gtk_toggle_button_set_active(m_mode_btn_apps, true);
+	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_apps), true, true, 0);
+	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_places), true, true, 0);
+
+	connect(m_mode_btn_apps, "toggled",
+		[this](GtkToggleButton* b)
+		{
+			if (m_mode_switch_in_progress) return;
+			if (gtk_toggle_button_get_active(b))
+				switch_mode(false);
+			else if (!gtk_toggle_button_get_active(m_mode_btn_places))
+				gtk_toggle_button_set_active(b, true);
+		});
+	connect(m_mode_btn_places, "toggled",
+		[this](GtkToggleButton* b)
+		{
+			if (m_mode_switch_in_progress) return;
+			if (gtk_toggle_button_get_active(b))
+				switch_mode(true);
+			else if (!gtk_toggle_button_get_active(m_mode_btn_apps))
+				gtk_toggle_button_set_active(b, true);
+		});
+
 	// Create search results
 	m_search_results = new SearchPage(m_settings, this);
 
@@ -432,11 +526,21 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	// while the user types. This applies to all layout modes, not just fullscreen.
 	gtk_stack_add_named(m_panels_stack, GTK_WIDGET(search_results), "search");
 
+	// Wrap PlacesPage with its empty-state label, same pattern as search_results.
+	GtkBox* places_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+	gtk_box_pack_start(places_box, m_places->get_message(), false, false, 0);
+	gtk_box_pack_start(places_box, m_places->get_widget(), true, true, 0);
+	gtk_stack_add_named(m_panels_stack, GTK_WIDGET(places_box), "places");
+
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+	gtk_box_pack_start(m_category_buttons, GTK_WIDGET(m_mode_selector_box), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, favorites_button->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, recent_button->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, applications_button->get_widget(), false, false, 0);
+	gtk_box_pack_start(m_category_buttons, m_places_home_btn->get_widget(), false, false, 0);
+	gtk_box_pack_start(m_category_buttons, m_places_history_btn->get_widget(), false, false, 0);
+	gtk_box_pack_start(m_category_buttons, m_places_fav_btn->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 4);
 
 	m_sidebar = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
@@ -488,6 +592,35 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		});
 	on_screen_changed(GTK_WIDGET(m_window));
 
+	// Places mode property-change subscriptions (milestone 005).
+	if (m_settings->channel)
+	{
+		m_places_property_slot = g_signal_connect(m_settings->channel, "property-changed",
+			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
+			{
+				auto* self = static_cast<Window*>(user_data);
+				if (g_strcmp0(property, "/places/enabled") == 0)
+				{
+					self->update_layout();
+					if (!self->m_settings->places_enabled && self->m_places_active)
+					{
+						self->switch_mode(false);
+					}
+				}
+				else if (g_strcmp0(property, "/places/history-enabled") == 0
+						|| g_strcmp0(property, "/places/favourites-enabled") == 0)
+				{
+					self->update_layout();
+				}
+				else if (g_strcmp0(property, "/places/favourite-sync") == 0)
+				{
+					self->m_places->get_favourites_section()->refresh_mode();
+					if (self->m_places_active)
+						self->m_places->refresh_active();
+				}
+			}), this);
+	}
+
 	// Re-evaluate RGBA visual and redraw when corner-radius changes so that
 	// the rounded-rect clip path is activated/deactivated without reopening the menu.
 	if (m_settings->channel)
@@ -528,6 +661,17 @@ WhiskerMenu::Window::~Window()
 		g_signal_handler_disconnect(m_commands_button[i], m_command_slots[i]);
 		gtk_container_remove(GTK_CONTAINER(m_commands_box), m_commands_button[i]);
 	}
+
+	if (m_places_property_slot && m_settings && m_settings->channel)
+	{
+		g_signal_handler_disconnect(m_settings->channel, m_places_property_slot);
+		m_places_property_slot = 0;
+	}
+
+	delete m_places;
+	delete m_places_home_btn;
+	delete m_places_history_btn;
+	delete m_places_fav_btn;
 
 	delete m_applications;
 	delete m_search_results;
@@ -583,6 +727,12 @@ Page* WhiskerMenu::Window::get_active_page()
 
 void WhiskerMenu::Window::hide(bool lost_focus)
 {
+	// Persist Places last-mode so the next open can resume in the same mode.
+	if (m_settings->places_enabled && m_settings->places_remember_last_mode)
+	{
+		m_settings->places_last_mode = m_places_active ? "places" : "apps";
+	}
+
 	// Save settings
 	m_settings->favorites.save();
 	m_settings->recent.save();
@@ -627,6 +777,18 @@ void WhiskerMenu::Window::show(const Position position)
 	m_favorites->update_view();
 	m_recent->update_view();
 	m_applications->update_view();
+	m_places->reload_view();
+
+	// Restore last mode when Places is enabled and remember-last-mode is on.
+	if (m_settings->places_enabled && m_settings->places_remember_last_mode
+			&& (g_strcmp0(m_settings->places_last_mode, "places") == 0))
+	{
+		switch_mode(true);
+	}
+	else if (m_places_active && !m_settings->places_enabled)
+	{
+		switch_mode(false);
+	}
 
 	// Handle showing tooltips
 	if (m_settings->launcher_show_tooltip)
@@ -1506,6 +1668,14 @@ void WhiskerMenu::Window::search()
 		text = nullptr;
 	}
 
+	if (m_places_active)
+	{
+		// Places mode: stay on the places panel; filter the active section.
+		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		m_places->set_filter(text);
+		return;
+	}
+
 	if (text)
 	{
 		// Switch the applications area to search results; the sidebar stays visible.
@@ -1528,8 +1698,92 @@ void WhiskerMenu::Window::search()
 
 //-----------------------------------------------------------------------------
 
+/* switch_mode:
+ * @to_places: true to enter Places mode; false to return to Apps.
+ *
+ * Toggles the Apps/Places selector visuals, hides/shows the appropriate
+ * sidebar buttons, and updates the search-entry placeholder. Re-entrancy is
+ * guarded by m_mode_switch_in_progress so the two toggle-button "toggled"
+ * signals do not loop.
+ */
+void WhiskerMenu::Window::switch_mode(bool to_places)
+{
+	if (m_mode_switch_in_progress)
+	{
+		return;
+	}
+	m_mode_switch_in_progress = true;
+
+	m_places_active = to_places;
+	gtk_toggle_button_set_active(m_mode_btn_apps,   !to_places);
+	gtk_toggle_button_set_active(m_mode_btn_places,  to_places);
+
+	const bool history_visible = m_settings->places_history_enabled;
+	const bool fav_visible     = m_settings->places_favourites_enabled;
+
+	gtk_widget_set_visible(m_favorites->get_button()->get_widget(),       !to_places);
+	gtk_widget_set_visible(m_recent->get_button()->get_widget(),
+			!to_places && m_settings->recent_items_max);
+	gtk_widget_set_visible(m_applications->get_button()->get_widget(),    !to_places);
+
+	gtk_widget_set_visible(m_places_home_btn->get_widget(),     to_places);
+	gtk_widget_set_visible(m_places_history_btn->get_widget(),  to_places && history_visible);
+	gtk_widget_set_visible(m_places_fav_btn->get_widget(),      to_places && fav_visible);
+
+	gtk_entry_set_text(m_search_entry, "");
+	gtk_entry_set_placeholder_text(m_search_entry,
+			to_places ? _("Search places\xe2\x80\xa6")
+			          : _("Search applications\xe2\x80\xa6"));
+
+	if (to_places)
+	{
+		m_places_home_btn->set_active(true);
+		m_places->set_active_section(m_places->get_home_section());
+		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+	}
+	else
+	{
+		show_default_page();
+	}
+
+	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	m_mode_switch_in_progress = false;
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::update_layout()
 {
+	// Places mode (milestone 005) — mode selector and sidebar section buttons.
+	const bool places_enabled = m_settings->places_enabled;
+	gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box), places_enabled);
+	if (!places_enabled)
+	{
+		// Hide all Places-only sidebar buttons; show the Apps-mode buttons.
+		gtk_widget_set_visible(m_places_home_btn->get_widget(),    false);
+		gtk_widget_set_visible(m_places_history_btn->get_widget(), false);
+		gtk_widget_set_visible(m_places_fav_btn->get_widget(),     false);
+		gtk_widget_set_visible(m_favorites->get_button()->get_widget(), true);
+		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
+				m_settings->recent_items_max);
+		gtk_widget_set_visible(m_applications->get_button()->get_widget(), true);
+	}
+	else
+	{
+		// In places mode, only the active mode's buttons are visible. In apps
+		// mode, only the apps buttons. The disabled section buttons stay hidden.
+		const bool to_places = m_places_active;
+		gtk_widget_set_visible(m_favorites->get_button()->get_widget(),       !to_places);
+		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
+				!to_places && m_settings->recent_items_max);
+		gtk_widget_set_visible(m_applications->get_button()->get_widget(),    !to_places);
+		gtk_widget_set_visible(m_places_home_btn->get_widget(),     to_places);
+		gtk_widget_set_visible(m_places_history_btn->get_widget(),
+				to_places && m_settings->places_history_enabled);
+		gtk_widget_set_visible(m_places_fav_btn->get_widget(),
+				to_places && m_settings->places_favourites_enabled);
+	}
+
 	// Set vertical position of commands
 	g_object_ref(m_commands_box);
 	gtk_container_remove(GTK_CONTAINER(gtk_widget_get_parent(GTK_WIDGET(m_commands_box))), GTK_WIDGET(m_commands_box));

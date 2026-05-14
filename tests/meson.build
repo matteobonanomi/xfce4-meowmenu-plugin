@@ -67,3 +67,13 @@ test_search_action_edit = executable(
 )
 
 test('search_action_edit', test_search_action_edit)
+
+test_places_sources = ['test_places.cpp']
+
+test_places = executable(
+  'test_places',
+  test_places_sources,
+  dependencies: [glib, gio],
+)
+
+test('places', test_places)

@@ -131,7 +131,17 @@ Settings::Settings(Plugin* plugin) :
 	grid_rows(this, "/grid-rows", 3, 1, 8),
 	grid_density(this, "/grid-density", "medium"),
 
-	layout_mode(this, "/layout-mode", "docked")
+	layout_mode(this, "/layout-mode", "docked"),
+
+	places_enabled(this, "/places/enabled", false),
+	places_history_enabled(this, "/places/history-enabled", true),
+	places_favourites_enabled(this, "/places/favourites-enabled", true),
+	places_favourite_sync(this, "/places/favourite-sync", "meowmenu"),
+	places_max_items(this, "/places/max-items", 20, 0, 30),
+	places_remember_last_mode(this, "/places/remember-last-mode", false),
+	places_show_metadata(this, "/places/show-metadata", false),
+	places_last_mode(this, "/places/last-mode", "apps"),
+	places_favourites(this, "/places/favourites", { })
 {
 	command[CommandSettings] = new Command(this, "/command-settings", "/show-command-settings",
 			"org.xfce.settings.manager", "preferences-desktop",
@@ -466,7 +476,16 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| grid_columns.load(property, value)
 			|| grid_rows.load(property, value)
 			|| grid_density.load(property, value)
-			|| layout_mode.load(property, value))
+			|| layout_mode.load(property, value)
+			|| places_enabled.load(property, value)
+			|| places_history_enabled.load(property, value)
+			|| places_favourites_enabled.load(property, value)
+			|| places_favourite_sync.load(property, value)
+			|| places_max_items.load(property, value)
+			|| places_remember_last_mode.load(property, value)
+			|| places_show_metadata.load(property, value)
+			|| places_last_mode.load(property, value)
+			|| places_favourites.load(property, value, reload))
 	{
 	}
 
@@ -1301,7 +1320,7 @@ void Settings::migrate_schema(bool is_fresh_install)
 	if (!channel)
 		return;
 
-	const int current_schema = 2;
+	const int current_schema = 3;
 	if (schema_version >= current_schema)
 		return;
 
@@ -1409,6 +1428,39 @@ void Settings::migrate_schema(bool is_fresh_install)
 		}
 
 		schema_version = 2;
+	}
+
+	if (schema_version < 3)
+	{
+		// Milestone 005 — Places mode keys. Seed defaults on first upgrade so
+		// existing installs see consistent values without re-applying a preset.
+		struct { const char* prop; gboolean val; } bool_props[] = {
+			{ "/places/enabled",            FALSE },
+			{ "/places/history-enabled",    TRUE  },
+			{ "/places/favourites-enabled", TRUE  },
+			{ "/places/remember-last-mode", FALSE },
+			{ "/places/show-metadata",      FALSE },
+		};
+		for (auto& p : bool_props)
+		{
+			if (!xfconf_channel_has_property(channel, p.prop))
+				xfconf_channel_set_bool(channel, p.prop, p.val);
+		}
+
+		struct { const char* prop; const char* val; } str_props[] = {
+			{ "/places/favourite-sync", "meowmenu" },
+			{ "/places/last-mode",      "apps"     },
+		};
+		for (auto& p : str_props)
+		{
+			if (!xfconf_channel_has_property(channel, p.prop))
+				xfconf_channel_set_string(channel, p.prop, p.val);
+		}
+
+		if (!xfconf_channel_has_property(channel, "/places/max-items"))
+			xfconf_channel_set_int(channel, "/places/max-items", 20);
+
+		schema_version = 3;
 	}
 
 	end_property_update();
