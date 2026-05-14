@@ -11,6 +11,7 @@
 #define WHISKERMENU_PLACES_PAGE_H
 
 #include <string>
+#include <vector>
 
 #include <gtk/gtk.h>
 
@@ -55,6 +56,14 @@ private:
 	void show_context_menu(PlacesItem* item, GdkEvent* event);
 	void rebuild_model();
 
+	// Home recursive-search dispatch (FR-035, FR-035a–f).
+	void start_home_search();
+	void cancel_home_search();
+	void clear_home_search_items();
+	void on_home_search_result(PlacesItem* item);
+	void on_home_search_done();
+	static gboolean on_debounce_fired(gpointer data);
+
 private:
 	Settings* m_settings;
 	Window* m_window;
@@ -71,6 +80,11 @@ private:
 	GtkListStore* m_model;
 
 	std::string m_filter; // case-folded text or empty for no-filter
+
+	// Home recursive-search state.
+	guint m_debounce_id;
+	bool m_home_search_active;
+	std::vector<PlacesItem*> m_home_search_items;
 };
 
 }

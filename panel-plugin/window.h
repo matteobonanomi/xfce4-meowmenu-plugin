@@ -179,6 +179,9 @@ private:
 	GtkScrolledWindow* m_sidebar;
 	GtkBox* m_category_buttons;
 	CategoryButton* m_default_button;
+	// NOTE: ignore_hidden=FALSE keeps the sidebar at the widest button's
+	// width even while some buttons are hidden during an Apps↔Places switch.
+	GtkSizeGroup* m_category_width_group;
 	GtkSizeGroup* m_sidebar_size_group;
 
 	GdkRectangle m_geometry;

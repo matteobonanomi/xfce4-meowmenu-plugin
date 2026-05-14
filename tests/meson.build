@@ -77,3 +77,13 @@ test_places = executable(
 )
 
 test('places', test_places)
+
+test_home_search_sources = ['test_home_search.cpp']
+
+test_home_search = executable(
+  'test_home_search',
+  test_home_search_sources,
+  dependencies: [glib, gio],
+)
+
+test('home_search', test_home_search)

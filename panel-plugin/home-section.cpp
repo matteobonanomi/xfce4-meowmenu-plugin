@@ -18,11 +18,39 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-HomeSection::HomeSection() = default;
+HomeSection::HomeSection() :
+	m_worker(nullptr)
+{
+}
 
 HomeSection::~HomeSection()
 {
+	cancel_search();
 	clear_items();
+}
+
+//-----------------------------------------------------------------------------
+
+void HomeSection::start_search(const gchar* casefolded_query, int cap,
+		HomeSearchWorker::ResultCallback on_result,
+		HomeSearchWorker::DoneCallback on_done)
+{
+	// NOTE: caller (PlacesPage) is responsible for cancelling first.
+	// We assert via cancel_search() defensively so a stale worker can't
+	// silently overlap with a new one.
+	cancel_search();
+	m_worker = HomeSearchWorker::start(casefolded_query, cap,
+			std::move(on_result), std::move(on_done));
+}
+
+void HomeSection::cancel_search()
+{
+	if (m_worker)
+	{
+		m_worker->cancel();
+		delete m_worker;
+		m_worker = nullptr;
+	}
 }
 
 //-----------------------------------------------------------------------------
