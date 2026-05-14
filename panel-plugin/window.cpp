@@ -824,6 +824,7 @@ void WhiskerMenu::Window::show(const Position position)
 		m_favorites->get_view()->show_tooltips();
 		m_recent->get_view()->show_tooltips();
 		m_applications->get_view()->show_tooltips();
+		m_places->get_view()->show_tooltips();
 	}
 	else
 	{
@@ -831,6 +832,7 @@ void WhiskerMenu::Window::show(const Position position)
 		m_favorites->get_view()->hide_tooltips();
 		m_recent->get_view()->hide_tooltips();
 		m_applications->get_view()->hide_tooltips();
+		m_places->get_view()->hide_tooltips();
 	}
 	m_profile->reset_tooltip();
 
@@ -878,6 +880,7 @@ void WhiskerMenu::Window::show(const Position position)
 	m_favorites->get_view()->reload_icon_size();
 	m_recent->get_view()->reload_icon_size();
 	m_applications->get_view()->reload_icon_size();
+	m_places->get_view()->reload_icon_size();
 
 	GdkMonitor* monitor_gdk = nullptr;
 	if (position == PositionAtButton)
