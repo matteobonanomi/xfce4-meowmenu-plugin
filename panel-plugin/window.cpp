@@ -1807,6 +1807,18 @@ void WhiskerMenu::Window::switch_mode(bool to_places)
 	}
 	else
 	{
+		// NOTE: Apps and Places buttons are separate radio groups. When Places
+		// was entered, the default Apps button was never deactivated, so
+		// set_active(true) in show_default_page() is a GTK no-op and the
+		// "toggled" handler never fires. Switch the stack explicitly first.
+		const char* page = "favorites";
+		switch (m_settings->default_category)
+		{
+		case Settings::CategoryRecent: page = "recent";       break;
+		case Settings::CategoryAll:    page = "applications"; break;
+		default: break;
+		}
+		gtk_stack_set_visible_child_name(m_panels_stack, page);
 		show_default_page();
 	}
 
