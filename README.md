@@ -1,5 +1,14 @@
 # MeowMenu: make your XFCE run!
 
+[![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](COPYING)
+[![Language: C++](https://img.shields.io/badge/language-C%2B%2B-00599C.svg?logo=cplusplus&logoColor=white)](https://isocpp.org/)
+[![Build: Meson](https://img.shields.io/badge/build-Meson-A41E50.svg)](https://mesonbuild.com/)
+[![Toolkit: GTK 3](https://img.shields.io/badge/toolkit-GTK%203-7FAE3D.svg?logo=gtk)](https://www.gtk.org/)
+[![Desktop: Xfce 4.20](https://img.shields.io/badge/desktop-Xfce%204.20-2284F2.svg?logo=xfce&logoColor=white)](https://xfce.org/)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?logo=linux&logoColor=black)](https://www.kernel.org/)
+[![Upstream: Whisker Menu](https://img.shields.io/badge/fork%20of-Whisker%20Menu-orange.svg)](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/pulls)
+
 MeowMenu is a fork of [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
 for Xfce that keeps the familiar panel launcher feel while bringing a cleaner modern look,
 a more capable search bar, and extra customization options for users who want the menu to
@@ -11,18 +20,132 @@ Built for Xubuntu 26.04 with Xfce 4.20.x.
 
 ## Installation
 
-Requirements: `meson`, `ninja`, `gcc`/`clang`, and the Xfce development libraries
-(`garcon-1`, `libxfce4panel-2.0`, `libxfce4ui-2`, `libxfce4util-1.0`, `libxfconf-0`,
-`gtk+-3.0`).
+MeowMenu builds from source with Meson. The common build steps are the same on every
+distribution — only the package names for the development dependencies change. Pick
+your distro below.
+
+<details>
+<summary><strong>Installation on Ubuntu / Linux Mint</strong></summary>
+
+Tested on Ubuntu 24.04+ and Linux Mint 22+.
 
 ```bash
+sudo apt update
+sudo apt install \
+    build-essential meson ninja-build pkg-config \
+    libgtk-3-dev libglib2.0-dev \
+    libgarcon-1-0-dev libgarcon-gtk3-1-0-dev \
+    libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libxfconf-0-dev \
+    libaccountsservice-dev libgtk-layer-shell-dev \
+    gettext
+
 git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
 cd xfce4-meowmenu-plugin
-
 meson setup build
 meson compile -C build
 sudo meson install -C build
 ```
+
+</details>
+
+<details>
+<summary><strong>Installation on Debian / LMDE</strong></summary>
+
+Tested on Debian 13 (Trixie) and LMDE 6+.
+
+```bash
+sudo apt update
+sudo apt install \
+    build-essential meson ninja-build pkg-config \
+    libgtk-3-dev libglib2.0-dev \
+    libgarcon-1-dev libgarcon-gtk3-1-dev \
+    libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libxfconf-0-dev \
+    libaccountsservice-dev libgtk-layer-shell-dev \
+    gettext
+
+git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
+cd xfce4-meowmenu-plugin
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+</details>
+
+<details>
+<summary><strong>Installation on Fedora</strong></summary>
+
+Tested on Fedora 41+.
+
+```bash
+sudo dnf install \
+    @development-tools meson ninja-build pkgconf-pkg-config \
+    gtk3-devel glib2-devel \
+    garcon-devel \
+    xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+    xfconf-devel \
+    accountsservice-devel gtk-layer-shell-devel \
+    gettext
+
+git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
+cd xfce4-meowmenu-plugin
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+</details>
+
+<details>
+<summary><strong>Installation on openSUSE</strong></summary>
+
+Tested on openSUSE Tumbleweed and Leap 15.6+.
+
+```bash
+sudo zypper install -t pattern devel_C_C++
+sudo zypper install \
+    meson ninja pkg-config \
+    gtk3-devel glib2-devel \
+    garcon-devel \
+    xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+    xfconf-devel \
+    accountsservice-devel gtk-layer-shell-devel \
+    gettext-tools
+
+git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
+cd xfce4-meowmenu-plugin
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+</details>
+
+<details>
+<summary><strong>Installation on Arch / Manjaro / EndeavourOS</strong></summary>
+
+Tested on current Arch Linux.
+
+```bash
+sudo pacman -S --needed \
+    base-devel meson ninja pkgconf \
+    gtk3 glib2 \
+    garcon \
+    xfce4-panel libxfce4ui libxfce4util \
+    xfconf \
+    accountsservice gtk-layer-shell \
+    gettext
+
+git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
+cd xfce4-meowmenu-plugin
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+</details>
 
 After installing, restart the Xfce panel:
 
