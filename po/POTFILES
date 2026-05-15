@@ -17,6 +17,7 @@ panel-plugin/page.cpp
 panel-plugin/places-item.cpp
 panel-plugin/places-page.cpp
 panel-plugin/plugin.cpp
+panel-plugin/preset.cpp
 panel-plugin/profile.cpp
 panel-plugin/query.cpp
 panel-plugin/recent-page.cpp

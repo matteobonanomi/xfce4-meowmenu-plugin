@@ -241,7 +241,7 @@ msgstr "Chiudi"
 
 #: panel-plugin/plugin.cpp:502
 msgid "Alternate launcher for XFCE4"
-msgstr "Lanciatore alternativo per XFCE4"
+msgstr "Launcher alternativo per XFCE4"
 
 #: panel-plugin/plugin.cpp:508
 msgid "Based on Whisker Menu"
@@ -583,7 +583,7 @@ msgstr "Schermo intero"
 #. Panel gap
 #: panel-plugin/settings-dialog.cpp:1459
 msgid "_Panel gap:"
-msgstr "_Spazio pannello:"
+msgstr "_Spazio menu-pannello:"
 
 #. Menu width (enable-when-docked)
 #: panel-plugin/settings-dialog.cpp:1481
@@ -598,7 +598,7 @@ msgstr "Altezza _menu:"
 #. Corner radius
 #: panel-plugin/settings-dialog.cpp:1521
 msgid "_Corner radius:"
-msgstr "_Raggio angoli:"
+msgstr "_Curvatura finestre:"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
 #: panel-plugin/settings-dialog.cpp:1543
@@ -608,7 +608,7 @@ msgstr "Opacità schermo _intero:"
 #. Stay visible when focus is lost (FR-013: lives only in General).
 #: panel-plugin/settings-dialog.cpp:1565
 msgid "Stay _visible when focus is lost"
-msgstr "Resta _visibile quando perdi il fuoco"
+msgstr "_Menu visibile anche senza focus"
 
 #: panel-plugin/settings-dialog.cpp:1613
 msgid "Profile"
