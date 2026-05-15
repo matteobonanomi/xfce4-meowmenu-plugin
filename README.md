@@ -5,9 +5,7 @@
 [![Build: Meson](https://img.shields.io/badge/build-Meson-A41E50.svg)](https://mesonbuild.com/)
 [![Toolkit: GTK 3](https://img.shields.io/badge/toolkit-GTK%203-7FAE3D.svg?logo=gtk)](https://www.gtk.org/)
 [![Desktop: Xfce 4.20](https://img.shields.io/badge/desktop-Xfce%204.20-2284F2.svg?logo=xfce&logoColor=white)](https://xfce.org/)
-[![Platform: Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?logo=linux&logoColor=black)](https://www.kernel.org/)
 [![Upstream: Whisker Menu](https://img.shields.io/badge/fork%20of-Whisker%20Menu-orange.svg)](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/pulls)
 
 MeowMenu is a fork of [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
 for Xfce that keeps the familiar panel launcher feel while bringing a cleaner modern look,
@@ -213,6 +211,7 @@ It is organized into five sections:
 | **Search Bar** | Search bar position (top / bottom), placeholder text, and search action shortcuts. |
 | **App Grid** | Default view (list or icon grid), icon size, grid density, default category on open, and hover-to-switch-category behaviour. |
 | **Sidebar** | Sidebar position (left / right), which category buttons are visible, and the commands bar position. |
+| **Places** | Enable Places feature in MeowMenu: search for files, navigate folders, quick actions available|
 
 ---
 
