@@ -498,7 +498,7 @@ void Plugin::show_about()
 	GtkAboutDialog* about = GTK_ABOUT_DIALOG(dialog);
 
 	gtk_about_dialog_set_program_name(about, "xfce4-meowmenu-plugin");
-	gtk_about_dialog_set_version(about, "0.2.3 (2026-05-13)");
+	gtk_about_dialog_set_version(about, "0.3.1 (2026-05-17)");
 	gtk_about_dialog_set_comments(about, _("Alternate launcher for XFCE4"));
 	gtk_about_dialog_set_website(about, PLUGIN_WEBSITE);
 	gtk_about_dialog_set_copyright(about, "Copyright \302\251 2026 Matteo Bonanomi");

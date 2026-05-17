@@ -1,4 +1,10 @@
 MEOW MENU DEVELOPMENT
+0.3.1 (2026-06-17)
+=====
+- extend language support (using LLMs) to all the languages already supported by WhiskerMenu
+- language support covers new Property and Places
+- update readme
+
 0.3.0 (2026-06-15)
 =====
 - Places brand new features to explore files and folders
