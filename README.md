@@ -239,6 +239,20 @@ it as your own custom preset.
 
 ---
 
+## Localization
+
+MeowMenu ships translations for **54 languages**. All upstream Whisker Menu
+translations are preserved; MeowMenu-specific strings (Places, Presets,
+FullScreen mode, Sidebar, Favourites, fuzzy-search controls, and more) have
+been extended across all locales via LLM-assisted translation anchored to the
+Italian catalogue.
+
+Native speakers are warmly invited to review and improve any translation by
+opening a Pull Request. The PO files live in `po/` — pick your language, edit
+`msgstr` entries, run `msgfmt --check po/<lang>.po`, and submit.
+
+---
+
 ## License and credits
 
 MeowMenu is a fork of Whisker Menu and is distributed under the
