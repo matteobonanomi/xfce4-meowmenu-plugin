@@ -11,15 +11,19 @@
 # user14 <nleknh@gmail.com>, 2016,2020
 # Rezső Páder <rezso@rezso.net>, 2014-2015,2017,2021
 # user14 <nleknh@gmail.com>, 2016
+# Matteo Bonanomi <mbonanomi.dev@proton.me> (LLM-assisted translation), 2026
+#
+# MeowMenu-specific strings extended via LLM-assisted translation, 2026.
+# Native speakers are warmly invited to review and improve this file via
+# Pull Request: https://github.com/matteob/xfce4-meowmenu-plugin
 msgid ""
 msgstr ""
-"Project-Id-Version: Whisker Menu\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-13 09:04+0200\n"
+"Project-Id-Version: MeowMenu\n"
+"Report-Msgid-Bugs-To: mbonanomi.dev@proton.me\n"
+"POT-Creation-Date: 2026-05-15 12:08+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Kisbenedek Márton <kmarton815@gmail.com>, 2016,2020,2023\n"
-"Language-Team: Hungarian (http://app.transifex.com/gottcode/xfce4-"
-"whiskermenu-plugin/language/hu/)\n"
+"Language-Team: MeowMenu hu <mbonanomi.dev@proton.me>\n"
 "Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -27,7 +31,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: panel-plugin/applications-page.cpp:35 panel-plugin/category.cpp:52
-#: panel-plugin/settings-dialog.cpp:2661
+#: panel-plugin/settings-dialog.cpp:2745
 msgid "All Applications"
 msgstr "Összes alkalmazás"
 
@@ -39,16 +43,16 @@ msgstr "Egyéni parancs kiválasztása a fájlrendszer böngészésével."
 msgid "Select Command"
 msgstr "Parancs kiválasztása"
 
-#: panel-plugin/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:268
-#: panel-plugin/settings-dialog.cpp:441 panel-plugin/settings-dialog.cpp:866
-#: panel-plugin/settings-dialog.cpp:922 panel-plugin/settings-dialog.cpp:1012
-#: panel-plugin/settings-dialog.cpp:1048 panel-plugin/settings-dialog.cpp:1082
-#: panel-plugin/settings-dialog.cpp:1096 panel-plugin/settings-dialog.cpp:1986
+#: panel-plugin/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:276
+#: panel-plugin/settings-dialog.cpp:449 panel-plugin/settings-dialog.cpp:916
+#: panel-plugin/settings-dialog.cpp:972 panel-plugin/settings-dialog.cpp:1062
+#: panel-plugin/settings-dialog.cpp:1098 panel-plugin/settings-dialog.cpp:1132
+#: panel-plugin/settings-dialog.cpp:1146 panel-plugin/settings-dialog.cpp:2070
 msgid "_Cancel"
 msgstr "Mégse"
 
-#: panel-plugin/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:269
-#: panel-plugin/settings-dialog.cpp:442
+#: panel-plugin/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:277
+#: panel-plugin/settings-dialog.cpp:450
 msgid "_OK"
 msgstr "OK"
 
@@ -57,7 +61,7 @@ msgstr "OK"
 msgid "Failed to execute command \"%s\"."
 msgstr "Nem sikerült végrehajtani a \"%s\" parancsot."
 
-#: panel-plugin/favorites-page.cpp:37 panel-plugin/settings-dialog.cpp:2652
+#: panel-plugin/favorites-page.cpp:37 panel-plugin/settings-dialog.cpp:2736
 msgid "Favorites"
 msgstr "Kedvencek"
 
@@ -76,6 +80,18 @@ msgstr "Rendezés ABC rendben növekvően"
 #: panel-plugin/favorites-page.cpp:188
 msgid "Sort Alphabetically Z-A"
 msgstr "Rendezés ABC rendben csökkenően"
+
+#: panel-plugin/favourites-section.cpp:44
+msgid "Favourites"
+msgstr "Kedvencek"
+
+#: panel-plugin/history-section.cpp:37
+msgid "History"
+msgstr "Előzmények"
+
+#: panel-plugin/home-section.cpp:60
+msgid "Home"
+msgstr "Saját mappa"
 
 #: panel-plugin/icon-size.cpp:61
 msgid "None"
@@ -170,15 +186,74 @@ msgstr "Nem lehet az ikont kirakni a tálcára."
 msgid "Unable to edit launcher."
 msgstr "Az indító nem szerkeszthető."
 
-#: panel-plugin/plugin.cpp:430
-msgid "Alternate application launcher for Xfce"
-msgstr "Alternatív alkalmazásindító az Xfce-hez"
+#: panel-plugin/places-item.cpp:149
+#, c-format
+msgid "Unable to open \"%s\"."
+msgstr "Nem sikerült megnyitni: „%s\"."
+
+#: panel-plugin/places-item.cpp:273
+msgid "Unable to add desktop link."
+msgstr "Nem sikerült asztali hivatkozást hozzáadni."
+
+#: panel-plugin/places-page.cpp:64
+msgid "No items to show."
+msgstr "Nincs megjeleníthető elem."
+
+#: panel-plugin/places-page.cpp:405
+msgid "_Open"
+msgstr "_Megnyitás"
+
+#: panel-plugin/places-page.cpp:421
+msgid "Remove from Favourites"
+msgstr "Eltávolítás a kedvencek közül"
+
+#: panel-plugin/places-page.cpp:432
+msgid "Add to Favourites"
+msgstr "Hozzáadás a kedvencekhez"
+
+#: panel-plugin/places-page.cpp:443
+msgid "Open Containing Folder"
+msgstr "Tartalmazó mappa megnyitása"
+
+#: panel-plugin/places-page.cpp:453
+msgid "Copy Path"
+msgstr "Elérési út másolása"
+
+#: panel-plugin/places-page.cpp:460
+msgid "Open in Terminal"
+msgstr "Megnyitás terminálban"
+
+#: panel-plugin/places-page.cpp:472
+msgid "Open With…"
+msgstr "Megnyitás ezzel…"
+
+#: panel-plugin/places-page.cpp:477
+msgid "Add Desktop Link"
+msgstr "Asztali hivatkozás hozzáadása"
 
 #: panel-plugin/plugin.cpp:435
-msgid "translator-credits"
-msgstr "fordítás-érdemek"
+msgid ""
+"News file not found.\n"
+"Run 'meson install' to make it available."
+msgstr ""
 
-#: panel-plugin/recent-page.cpp:37 panel-plugin/settings-dialog.cpp:2656
+#: panel-plugin/plugin.cpp:441 panel-plugin/plugin.cpp:510
+msgid "What's New"
+msgstr "Újdonságok"
+
+#: panel-plugin/plugin.cpp:444
+msgid "Close"
+msgstr "Bezárás"
+
+#: panel-plugin/plugin.cpp:502
+msgid "Alternate launcher for XFCE4"
+msgstr "Alternatív indító az XFCE4-hez"
+
+#: panel-plugin/plugin.cpp:508
+msgid "Based on Whisker Menu"
+msgstr "A Whisker Menu alapján"
+
+#: panel-plugin/recent-page.cpp:37 panel-plugin/settings-dialog.cpp:2740
 msgid "Recently Used"
 msgstr "Előzmények"
 
@@ -201,789 +276,867 @@ msgid "No applications found"
 msgstr "Alkalmazások"
 
 #. Create dialog window
-#: panel-plugin/settings-dialog.cpp:156 panel-plugin/whiskermenu.desktop.in:4
+#: panel-plugin/settings-dialog.cpp:157 panel-plugin/whiskermenu.desktop.in:4
 #, fuzzy
 msgid "Meow Menu"
 msgstr "Menü"
 
-#: panel-plugin/settings-dialog.cpp:159
+#: panel-plugin/settings-dialog.cpp:160
 msgid "_Help"
 msgstr "Súgó"
 
-#: panel-plugin/settings-dialog.cpp:160
+#: panel-plugin/settings-dialog.cpp:161
 msgid "_Close"
 msgstr "Bezárás"
 
-#: panel-plugin/settings-dialog.cpp:187
+#: panel-plugin/settings-dialog.cpp:188
 #, fuzzy
 msgid "General"
 msgstr "Általános"
 
-#: panel-plugin/settings-dialog.cpp:188
+#: panel-plugin/settings-dialog.cpp:189
 msgid "User / Session"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:189
+#: panel-plugin/settings-dialog.cpp:190
 #, fuzzy
 msgid "Search Bar"
 msgstr "Fájlok keresése"
 
-#: panel-plugin/settings-dialog.cpp:190
-msgid "App Grid"
-msgstr ""
-
 #: panel-plugin/settings-dialog.cpp:191
-msgid "Sidebar"
+msgid "Results View"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:263 panel-plugin/settings-dialog.cpp:265
+#: panel-plugin/settings-dialog.cpp:192
+msgid "Sidebar"
+msgstr "Oldalsáv"
+
+#: panel-plugin/settings-dialog.cpp:193 panel-plugin/window.cpp:413
+msgid "Places"
+msgstr "Helyek"
+
+#: panel-plugin/settings-dialog.cpp:271 panel-plugin/settings-dialog.cpp:273
 msgid "Select an Icon"
 msgstr "Válasszon egy ikont"
 
-#: panel-plugin/settings-dialog.cpp:362 panel-plugin/settings-dialog.cpp:960
-#: panel-plugin/settings-dialog.cpp:975
+#: panel-plugin/settings-dialog.cpp:370 panel-plugin/settings-dialog.cpp:1010
+#: panel-plugin/settings-dialog.cpp:1025
 msgid "_Delete"
 msgstr "Törlés"
 
-#: panel-plugin/settings-dialog.cpp:363
+#: panel-plugin/settings-dialog.cpp:371
 msgid "The action will be deleted permanently."
 msgstr "A művelet véglegesen törölve lesz."
 
-#: panel-plugin/settings-dialog.cpp:364
+#: panel-plugin/settings-dialog.cpp:372
 #, c-format
 msgid "Remove action \"%s\"?"
 msgstr "\"%s\" művelet eltávolítása?"
 
-#: panel-plugin/settings-dialog.cpp:438
+#: panel-plugin/settings-dialog.cpp:446
 #, fuzzy
 msgid "Edit search action"
 msgstr "Művelet keresése"
 
-#: panel-plugin/settings-dialog.cpp:453
+#: panel-plugin/settings-dialog.cpp:461
 msgid "Nam_e:"
 msgstr "Né_v:"
 
-#: panel-plugin/settings-dialog.cpp:463
+#: panel-plugin/settings-dialog.cpp:471
 msgid "_Pattern:"
 msgstr "_Minta:"
 
-#: panel-plugin/settings-dialog.cpp:473
+#: panel-plugin/settings-dialog.cpp:481
 msgid "C_ommand:"
 msgstr "P_arancs:"
 
-#: panel-plugin/settings-dialog.cpp:483
+#: panel-plugin/settings-dialog.cpp:491
 #, fuzzy
 msgid "Is _regular expression"
 msgstr "_Reguláris kifejezés"
 
-#: panel-plugin/settings-dialog.cpp:527
+#: panel-plugin/settings-dialog.cpp:535
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr "Nem lehetséges megnyitni a következő url-t: %s"
 
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:689
+#: panel-plugin/settings-dialog.cpp:697
 msgid "Classic"
-msgstr ""
+msgstr "Klasszikus"
 
-#: panel-plugin/settings-dialog.cpp:690
+#: panel-plugin/settings-dialog.cpp:698
 msgid "Modern"
-msgstr ""
+msgstr "Modern"
 
-#: panel-plugin/settings-dialog.cpp:691
+#: panel-plugin/settings-dialog.cpp:699
 #, fuzzy
 msgid "Full Screen"
 msgstr "_Képernyő lezárása"
 
-#: panel-plugin/settings-dialog.cpp:807
+#: panel-plugin/settings-dialog.cpp:800
+msgid "Render profile, search and session on a single horizontal row."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:802
+msgid "This option requires the FullScreen layout."
+msgstr "Ez a beállítás teljes képernyős elrendezést igényel."
+
+#: panel-plugin/settings-dialog.cpp:804
+msgid ""
+"This option requires profile, search and session to be on the same end (all "
+"top or all bottom)."
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:857
 msgid "Preset"
-msgstr ""
+msgstr "Beállítás"
 
-#: panel-plugin/settings-dialog.cpp:810
+#: panel-plugin/settings-dialog.cpp:860
 msgid "_Preset:"
-msgstr ""
+msgstr "_Beállítás:"
 
-#: panel-plugin/settings-dialog.cpp:825
+#: panel-plugin/settings-dialog.cpp:875
 msgid "● Customized"
-msgstr ""
+msgstr "● Testreszabott"
 
-#: panel-plugin/settings-dialog.cpp:835
+#: panel-plugin/settings-dialog.cpp:885
 #, fuzzy
 msgid "_Reset preset"
 msgstr "Új_raindítás"
 
-#: panel-plugin/settings-dialog.cpp:846 panel-plugin/settings-dialog.cpp:1155
+#: panel-plugin/settings-dialog.cpp:896 panel-plugin/settings-dialog.cpp:1205
 #, fuzzy
 msgid "_Reset"
 msgstr "Új_raindítás"
 
-#: panel-plugin/settings-dialog.cpp:847
+#: panel-plugin/settings-dialog.cpp:897
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:848
+#: panel-plugin/settings-dialog.cpp:898
 #, c-format
 msgid "Reset preset \"%s\"?"
-msgstr ""
+msgstr "Visszaállítja a(z) „%s\" beállítást?"
 
-#: panel-plugin/settings-dialog.cpp:857
+#: panel-plugin/settings-dialog.cpp:907
 msgid "_Save as new…"
-msgstr ""
+msgstr "Mentés _újként…"
 
-#: panel-plugin/settings-dialog.cpp:863
+#: panel-plugin/settings-dialog.cpp:913
 msgid "Save as new preset"
-msgstr ""
+msgstr "Mentés új beállításként"
 
-#: panel-plugin/settings-dialog.cpp:867
+#: panel-plugin/settings-dialog.cpp:917
 msgid "_Save"
-msgstr ""
+msgstr "_Mentés"
 
-#: panel-plugin/settings-dialog.cpp:876 panel-plugin/settings-dialog.cpp:932
-#: panel-plugin/settings-dialog.cpp:1104
+#: panel-plugin/settings-dialog.cpp:926 panel-plugin/settings-dialog.cpp:982
+#: panel-plugin/settings-dialog.cpp:1154
 #, fuzzy
 msgid "_Name:"
 msgstr "Név"
 
-#: panel-plugin/settings-dialog.cpp:892 panel-plugin/settings-dialog.cpp:949
+#: panel-plugin/settings-dialog.cpp:942 panel-plugin/settings-dialog.cpp:999
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:893
+#: panel-plugin/settings-dialog.cpp:943
 msgid "Could not save preset"
-msgstr ""
+msgstr "Nem sikerült menteni a beállítást"
 
-#: panel-plugin/settings-dialog.cpp:905
+#: panel-plugin/settings-dialog.cpp:955
 msgid "Re_name…"
-msgstr ""
+msgstr "Átne_vezés…"
 
-#: panel-plugin/settings-dialog.cpp:919
+#: panel-plugin/settings-dialog.cpp:969
 msgid "Rename preset"
-msgstr ""
+msgstr "Beállítás átnevezése"
 
-#: panel-plugin/settings-dialog.cpp:923
+#: panel-plugin/settings-dialog.cpp:973
 msgid "_Rename"
-msgstr ""
+msgstr "Átne_vezés"
 
-#: panel-plugin/settings-dialog.cpp:950
+#: panel-plugin/settings-dialog.cpp:1000
 msgid "Could not rename preset"
-msgstr ""
+msgstr "Nem sikerült átnevezni a beállítást"
 
-#: panel-plugin/settings-dialog.cpp:976
+#: panel-plugin/settings-dialog.cpp:1026
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "A művelet véglegesen törölve lesz."
 
-#: panel-plugin/settings-dialog.cpp:977
+#: panel-plugin/settings-dialog.cpp:1027
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:994
+#: panel-plugin/settings-dialog.cpp:1044
 msgid "E_xport…"
-msgstr ""
+msgstr "E_xportálás…"
 
-#: panel-plugin/settings-dialog.cpp:1009
+#: panel-plugin/settings-dialog.cpp:1059
 msgid "Export preset"
-msgstr ""
+msgstr "Beállítás exportálása"
 
-#: panel-plugin/settings-dialog.cpp:1012
+#: panel-plugin/settings-dialog.cpp:1062
 msgid "_Export"
-msgstr ""
+msgstr "E_xportálás"
 
-#: panel-plugin/settings-dialog.cpp:1018 panel-plugin/settings-dialog.cpp:1051
+#: panel-plugin/settings-dialog.cpp:1068 panel-plugin/settings-dialog.cpp:1101
 msgid "MeowMenu preset (*.meowpreset)"
-msgstr ""
-
-#: panel-plugin/settings-dialog.cpp:1030
-msgid "Could not export preset."
-msgstr ""
-
-#: panel-plugin/settings-dialog.cpp:1038
-msgid "_Import…"
-msgstr ""
-
-#: panel-plugin/settings-dialog.cpp:1045
-msgid "Import preset"
-msgstr ""
-
-#: panel-plugin/settings-dialog.cpp:1048 panel-plugin/settings-dialog.cpp:1097
-msgid "_Import"
-msgstr ""
-
-#: panel-plugin/settings-dialog.cpp:1077
-#, c-format
-msgid "A preset named \"%s\" already exists. What would you like to do?"
-msgstr ""
+msgstr "MeowMenu beállítás (*.meowpreset)"
 
 #: panel-plugin/settings-dialog.cpp:1080
+msgid "Could not export preset."
+msgstr "Nem sikerült exportálni a beállítást."
+
+#: panel-plugin/settings-dialog.cpp:1088
+msgid "_Import…"
+msgstr "_Importálás…"
+
+#: panel-plugin/settings-dialog.cpp:1095
+msgid "Import preset"
+msgstr "Beállítás importálása"
+
+#: panel-plugin/settings-dialog.cpp:1098 panel-plugin/settings-dialog.cpp:1147
+msgid "_Import"
+msgstr "_Importálás"
+
+#: panel-plugin/settings-dialog.cpp:1127
+#, c-format
+msgid "A preset named \"%s\" already exists. What would you like to do?"
+msgstr "Már létezik „%s\" nevű beállítás. Mit szeretne tenni?"
+
+#: panel-plugin/settings-dialog.cpp:1130
 msgid "_Overwrite"
-msgstr ""
+msgstr "_Felülírás"
 
-#: panel-plugin/settings-dialog.cpp:1081
+#: panel-plugin/settings-dialog.cpp:1131
 msgid "Re_name"
-msgstr ""
+msgstr "Átne_vezés"
 
-#: panel-plugin/settings-dialog.cpp:1093
+#: panel-plugin/settings-dialog.cpp:1143
 msgid "Rename imported preset"
-msgstr ""
+msgstr "Importált beállítás átnevezése"
 
-#: panel-plugin/settings-dialog.cpp:1139
+#: panel-plugin/settings-dialog.cpp:1189
 msgid "Could not import preset"
-msgstr ""
+msgstr "Nem sikerült importálni a beállítást"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/settings-dialog.cpp:1146
+#: panel-plugin/settings-dialog.cpp:1196
 msgid "Reset to _defaults"
-msgstr ""
+msgstr "Visszaállítás _alapértelmezettre"
 
-#: panel-plugin/settings-dialog.cpp:1156
+#: panel-plugin/settings-dialog.cpp:1206
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1157
+#: panel-plugin/settings-dialog.cpp:1207
 msgid "Reset all settings to defaults?"
-msgstr ""
+msgstr "Visszaállítja az összes beállítást alapértelmezettre?"
 
-#: panel-plugin/settings-dialog.cpp:1230
+#: panel-plugin/settings-dialog.cpp:1280
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1252
+#: panel-plugin/settings-dialog.cpp:1302
 #, fuzzy
 msgid "Panel plugin"
 msgstr "Panel gomb"
 
 #. Show panel button title
-#: panel-plugin/settings-dialog.cpp:1258
+#: panel-plugin/settings-dialog.cpp:1308
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/settings-dialog.cpp:1265
+#: panel-plugin/settings-dialog.cpp:1315
 #, fuzzy
 msgid "T_itle:"
 msgstr "_Cím:"
 
 #. Show panel button icon
-#: panel-plugin/settings-dialog.cpp:1302
+#: panel-plugin/settings-dialog.cpp:1352
 #, fuzzy
 msgid "Show panel button _icon"
 msgstr "Mutassa ikonokként"
 
 #. Icon picker
-#: panel-plugin/settings-dialog.cpp:1309
+#: panel-plugin/settings-dialog.cpp:1359
 msgid "Ic_on:"
 msgstr ""
 
 #. Single-row panel layout
-#: panel-plugin/settings-dialog.cpp:1346
+#: panel-plugin/settings-dialog.cpp:1396
 #, fuzzy
 msgid "Use a single panel _row"
 msgstr "Egy sor _panel használata"
 
-#: panel-plugin/settings-dialog.cpp:1370
+#: panel-plugin/settings-dialog.cpp:1420
 msgid "General menu settings"
 msgstr ""
 
 #. Layout mode
-#: panel-plugin/settings-dialog.cpp:1376
+#: panel-plugin/settings-dialog.cpp:1426
 msgid "_Layout mode:"
-msgstr ""
+msgstr "_Elrendezés módja:"
 
-#: panel-plugin/settings-dialog.cpp:1381
+#: panel-plugin/settings-dialog.cpp:1431
 msgid "Docked"
-msgstr ""
+msgstr "Rögzített"
 
-#: panel-plugin/settings-dialog.cpp:1382
+#: panel-plugin/settings-dialog.cpp:1432
 msgid "FullScreen"
-msgstr ""
+msgstr "Teljes képernyő"
 
 #. Panel gap
-#: panel-plugin/settings-dialog.cpp:1409
+#: panel-plugin/settings-dialog.cpp:1459
 msgid "_Panel gap:"
-msgstr ""
+msgstr "Panel _rés:"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/settings-dialog.cpp:1431
+#: panel-plugin/settings-dialog.cpp:1481
 msgid "Menu _width:"
 msgstr "Menü szélesség:"
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/settings-dialog.cpp:1451
+#: panel-plugin/settings-dialog.cpp:1501
 msgid "Menu _height:"
 msgstr "Menü magasság:"
 
 #. Corner radius
-#: panel-plugin/settings-dialog.cpp:1471
+#: panel-plugin/settings-dialog.cpp:1521
 msgid "_Corner radius:"
-msgstr ""
+msgstr "_Saroklekerekítés:"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/settings-dialog.cpp:1493
+#: panel-plugin/settings-dialog.cpp:1543
 msgid "F_ull-screen opacity:"
-msgstr ""
+msgstr "Teljes képernyő _átlátszatlansága:"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/settings-dialog.cpp:1515
+#: panel-plugin/settings-dialog.cpp:1565
 msgid "Stay _visible when focus is lost"
 msgstr "Maradjon látható fókuszváltás esetén"
 
-#: panel-plugin/settings-dialog.cpp:1563
+#: panel-plugin/settings-dialog.cpp:1613
 #, fuzzy
 msgid "Profile"
 msgstr "Profil:"
 
 #. Profile position
-#: panel-plugin/settings-dialog.cpp:1567
+#: panel-plugin/settings-dialog.cpp:1617
 msgid "_Position:"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1572 panel-plugin/settings-dialog.cpp:1731
+#: panel-plugin/settings-dialog.cpp:1622 panel-plugin/settings-dialog.cpp:1815
 msgid "Top"
-msgstr ""
+msgstr "Felül"
 
-#: panel-plugin/settings-dialog.cpp:1573 panel-plugin/settings-dialog.cpp:1732
+#: panel-plugin/settings-dialog.cpp:1623 panel-plugin/settings-dialog.cpp:1816
 msgid "Bottom"
-msgstr ""
+msgstr "Alul"
 
-#: panel-plugin/settings-dialog.cpp:1574 panel-plugin/settings-dialog.cpp:1644
+#: panel-plugin/settings-dialog.cpp:1624 panel-plugin/settings-dialog.cpp:1694
 msgid "Bottom Right"
-msgstr ""
+msgstr "Jobb alul"
 
-#: panel-plugin/settings-dialog.cpp:1575 panel-plugin/settings-dialog.cpp:1645
-#: panel-plugin/settings-dialog.cpp:2589
+#: panel-plugin/settings-dialog.cpp:1625 panel-plugin/settings-dialog.cpp:1695
+#: panel-plugin/settings-dialog.cpp:2673
 msgid "Hidden"
 msgstr "Rejtett"
 
 #. Avatar shape (sub-enabled when profile-position != hidden).
-#: panel-plugin/settings-dialog.cpp:1585
+#: panel-plugin/settings-dialog.cpp:1635
 msgid "Avatar _shape:"
-msgstr ""
+msgstr "Avatár _alakja:"
 
-#: panel-plugin/settings-dialog.cpp:1590
+#: panel-plugin/settings-dialog.cpp:1640
 msgid "Round Picture"
 msgstr "Kerek kép"
 
-#: panel-plugin/settings-dialog.cpp:1591
+#: panel-plugin/settings-dialog.cpp:1641
 msgid "Square Picture"
 msgstr "Szögletes kép"
 
-#: panel-plugin/settings-dialog.cpp:1635
+#: panel-plugin/settings-dialog.cpp:1685
 #, fuzzy
 msgid "Commands"
 msgstr "_Parancsok"
 
-#: panel-plugin/settings-dialog.cpp:1638
+#: panel-plugin/settings-dialog.cpp:1688
 #, fuzzy
 msgid "_Commands position:"
 msgstr "_Parancsok"
 
-#: panel-plugin/settings-dialog.cpp:1643
+#: panel-plugin/settings-dialog.cpp:1693
 msgid "Top Right"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1665
+#: panel-plugin/settings-dialog.cpp:1720
+msgid "Place profile, search and session on a single _line"
+msgstr "Profil, keresés és munkamenet elhelyezése egyetlen _sorba"
+
+#: panel-plugin/settings-dialog.cpp:1749
 msgid "Show c_onfirmation dialog"
 msgstr "Mutassa a megerősítő ablakot"
 
-#: panel-plugin/settings-dialog.cpp:1680
+#: panel-plugin/settings-dialog.cpp:1764
 #, fuzzy
 msgid "Session commands"
 msgstr "Munkamenet parancsok"
 
-#: panel-plugin/settings-dialog.cpp:1723 panel-plugin/settings-dialog.cpp:2579
+#: panel-plugin/settings-dialog.cpp:1807 panel-plugin/settings-dialog.cpp:2663
 msgid "Position"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1726
+#: panel-plugin/settings-dialog.cpp:1810
 #, fuzzy
 msgid "_Search bar position:"
 msgstr "Művelet keresése"
 
-#: panel-plugin/settings-dialog.cpp:1758
+#: panel-plugin/settings-dialog.cpp:1842
 msgid "_Fuzzy matching:"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1781
+#: panel-plugin/settings-dialog.cpp:1865
 msgid "Max _errors (0=auto):"
-msgstr ""
+msgstr "Max. _hiba (0=automatikus):"
 
-#: panel-plugin/settings-dialog.cpp:1802
+#: panel-plugin/settings-dialog.cpp:1886
 msgid "Fuzzy Search"
-msgstr ""
+msgstr "Fuzzy keresés"
 
-#: panel-plugin/settings-dialog.cpp:1803
+#: panel-plugin/settings-dialog.cpp:1887
 msgid ""
 "Finds apps even when you mistype a word.\n"
 "Example: \"firfox\" still finds Firefox.\n"
 "Max errors 0 = automatic (1 for short queries, 2 for longer ones)."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1816
+#: panel-plugin/settings-dialog.cpp:1900
 #, fuzzy
 msgid "_Boost favorites:"
 msgstr "Kedvencek"
 
-#: panel-plugin/settings-dialog.cpp:1839
+#: panel-plugin/settings-dialog.cpp:1923
 msgid "Boost _level:"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1846 panel-plugin/settings-dialog.cpp:2310
+#: panel-plugin/settings-dialog.cpp:1930 panel-plugin/settings-dialog.cpp:2394
 msgid "Low"
-msgstr ""
+msgstr "Alacsony"
 
-#: panel-plugin/settings-dialog.cpp:1847 panel-plugin/settings-dialog.cpp:2311
+#: panel-plugin/settings-dialog.cpp:1931 panel-plugin/settings-dialog.cpp:2395
 msgid "Medium"
-msgstr ""
+msgstr "Közepes"
 
-#: panel-plugin/settings-dialog.cpp:1848 panel-plugin/settings-dialog.cpp:2312
+#: panel-plugin/settings-dialog.cpp:1932 panel-plugin/settings-dialog.cpp:2396
 msgid "High"
-msgstr ""
+msgstr "Magas"
 
-#: panel-plugin/settings-dialog.cpp:1864
+#: panel-plugin/settings-dialog.cpp:1948
 #, fuzzy
 msgid "Recency _weight (%):"
 msgstr "Menü magasság:"
 
-#: panel-plugin/settings-dialog.cpp:1884
+#: panel-plugin/settings-dialog.cpp:1968
 msgid "Usage Boost"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1885
+#: panel-plugin/settings-dialog.cpp:1969
 msgid ""
 "Promotes apps you use frequently or marked as favorites.\n"
 "Recency weight controls the balance between how recently vs.\n"
 "how often you launched an app."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1927 panel-plugin/settings-dialog.cpp:2003
+#: panel-plugin/settings-dialog.cpp:2011 panel-plugin/settings-dialog.cpp:2087
 #, fuzzy
 msgid "Application"
 msgstr "Alkalmazások"
 
-#: panel-plugin/settings-dialog.cpp:1934
+#: panel-plugin/settings-dialog.cpp:2018
 msgid "Aliases (comma-separated)"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:1973 panel-plugin/settings-dialog.cpp:1987
+#: panel-plugin/settings-dialog.cpp:2057 panel-plugin/settings-dialog.cpp:2071
 msgid "_Add"
-msgstr ""
+msgstr "_Hozzáadás"
 
-#: panel-plugin/settings-dialog.cpp:1974
+#: panel-plugin/settings-dialog.cpp:2058
 msgid "_Remove"
-msgstr ""
+msgstr "_Eltávolítás"
 
-#: panel-plugin/settings-dialog.cpp:1983
+#: panel-plugin/settings-dialog.cpp:2067
 #, fuzzy
 msgid "Choose Application"
 msgstr "Alkalmazás elrejtése"
 
-#: panel-plugin/settings-dialog.cpp:2075
+#: panel-plugin/settings-dialog.cpp:2159
 msgid "Aliases"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:2103
+#: panel-plugin/settings-dialog.cpp:2187
 msgid "Name"
 msgstr "Név"
 
-#: panel-plugin/settings-dialog.cpp:2109
+#: panel-plugin/settings-dialog.cpp:2193
 msgid "Pattern"
 msgstr "Minta"
 
-#: panel-plugin/settings-dialog.cpp:2129
+#: panel-plugin/settings-dialog.cpp:2213
 msgid "Add action"
 msgstr "Művelet hozzáadása"
 
-#: panel-plugin/settings-dialog.cpp:2136
+#: panel-plugin/settings-dialog.cpp:2220
 msgid "Remove selected action"
 msgstr "Kijelölt művelet eltávolítása"
 
-#: panel-plugin/settings-dialog.cpp:2145
+#: panel-plugin/settings-dialog.cpp:2229
 #, fuzzy
 msgid "Edit selected action…"
 msgstr "Kijelölt művelet eltávolítása"
 
-#: panel-plugin/settings-dialog.cpp:2202
+#: panel-plugin/settings-dialog.cpp:2286
 #, fuzzy
 msgid "Search actions"
 msgstr "Mű_veletek keresése"
 
-#: panel-plugin/settings-dialog.cpp:2238
+#: panel-plugin/settings-dialog.cpp:2322
 msgid "View"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:2247
+#: panel-plugin/settings-dialog.cpp:2331
 msgid "Show as _icons"
 msgstr "Mutassa ikonokként"
 
-#: panel-plugin/settings-dialog.cpp:2260
+#: panel-plugin/settings-dialog.cpp:2344
 msgid "Show as lis_t"
 msgstr "Mutassa listaként"
 
-#: panel-plugin/settings-dialog.cpp:2273
+#: panel-plugin/settings-dialog.cpp:2357
 msgid "Show as t_ree"
 msgstr "Mutassa fanézetben"
 
-#: panel-plugin/settings-dialog.cpp:2299
+#: panel-plugin/settings-dialog.cpp:2383
 msgid "Layout"
-msgstr ""
+msgstr "Elrendezés"
 
 #. Grid density (icons-only sub-enable)
-#: panel-plugin/settings-dialog.cpp:2305
+#: panel-plugin/settings-dialog.cpp:2389
 msgid "Grid _density:"
-msgstr ""
+msgstr "Rács _sűrűsége:"
 
 #. Application icon size (icons-only sub-enable)
-#: panel-plugin/settings-dialog.cpp:2334
+#: panel-plugin/settings-dialog.cpp:2418
 msgid "Application icon si_ze:"
 msgstr "Alkalmazás ikonmérete:"
 
 #. NOTE: launcher_show_name stores "show the real (non-generic) name"; the
 #. checkbox is therefore inverted — checked means "Show generic" (false).
-#: panel-plugin/settings-dialog.cpp:2358
+#: panel-plugin/settings-dialog.cpp:2442
 msgid "Show generic application _names"
 msgstr "Általános alkalmazás_nevek megjelenítése"
 
-#: panel-plugin/settings-dialog.cpp:2370
+#: panel-plugin/settings-dialog.cpp:2454
 msgid "Show application too_ltips"
 msgstr "Alkalmazás eszköz_tippek megjelenítése"
 
 #. Show descriptions — list-only sub-enable.
-#: panel-plugin/settings-dialog.cpp:2382
+#: panel-plugin/settings-dialog.cpp:2466
 msgid "Show application _descriptions"
 msgstr " _Leírás szerinti megjelenítés"
 
-#: panel-plugin/settings-dialog.cpp:2447
+#: panel-plugin/settings-dialog.cpp:2531
 msgid "Opacity"
-msgstr ""
+msgstr "Átlátszatlanság"
 
-#: panel-plugin/settings-dialog.cpp:2450
+#: panel-plugin/settings-dialog.cpp:2534
 msgid "App _box opacity:"
-msgstr ""
+msgstr "Alkalmazás doboz _átlátszatlansága:"
 
-#: panel-plugin/settings-dialog.cpp:2506
+#: panel-plugin/settings-dialog.cpp:2590
 msgid "Visuals"
-msgstr ""
+msgstr "Vizuális"
 
-#: panel-plugin/settings-dialog.cpp:2511
+#: panel-plugin/settings-dialog.cpp:2595
 msgid "Show cate_gory names"
 msgstr "Kategória nevek mutatása"
 
 #. Category icon size
-#: panel-plugin/settings-dialog.cpp:2524
+#: panel-plugin/settings-dialog.cpp:2608
 msgid "Categ_ory icon size:"
 msgstr "_Kategória ikon méret:"
 
 #. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
-#: panel-plugin/settings-dialog.cpp:2548
+#: panel-plugin/settings-dialog.cpp:2632
 msgid "_Sidebar opacity:"
-msgstr ""
+msgstr "Oldalsáv _átlátszatlansága:"
 
-#: panel-plugin/settings-dialog.cpp:2582
+#: panel-plugin/settings-dialog.cpp:2666
 msgid "Sidebar _position:"
-msgstr ""
+msgstr "Oldalsáv _pozíciója:"
 
-#: panel-plugin/settings-dialog.cpp:2587
+#: panel-plugin/settings-dialog.cpp:2671
 msgid "Left"
-msgstr ""
+msgstr "Bal"
 
-#: panel-plugin/settings-dialog.cpp:2588
+#: panel-plugin/settings-dialog.cpp:2672
 msgid "Right"
-msgstr ""
+msgstr "Jobb"
 
-#: panel-plugin/settings-dialog.cpp:2622
+#: panel-plugin/settings-dialog.cpp:2706 panel-plugin/settings-dialog.cpp:2916
 #, fuzzy
 msgid "Behaviour"
 msgstr "_Viselkedés"
 
-#: panel-plugin/settings-dialog.cpp:2625
+#: panel-plugin/settings-dialog.cpp:2709
 msgid "Switch categories by _hovering"
 msgstr "Kategóriák váltása _fókusszal."
 
-#: panel-plugin/settings-dialog.cpp:2636
+#: panel-plugin/settings-dialog.cpp:2720
 msgid "Sort ca_tegories"
 msgstr "Kategóriák rendezése"
 
-#: panel-plugin/settings-dialog.cpp:2649
+#: panel-plugin/settings-dialog.cpp:2733
 #, fuzzy
 msgid "Default category"
 msgstr "Alapértelmezett kategória"
 
-#: panel-plugin/settings-dialog.cpp:2705
+#: panel-plugin/settings-dialog.cpp:2789
 #, fuzzy
 msgid "Recently used"
 msgstr "Előzmények"
 
-#: panel-plugin/settings-dialog.cpp:2708
+#: panel-plugin/settings-dialog.cpp:2792
 #, fuzzy
 msgid "Maximum _items:"
 msgstr "Elemek száma:"
 
-#: panel-plugin/settings-dialog.cpp:2729
+#: panel-plugin/settings-dialog.cpp:2813
 #, fuzzy
 msgid "Include _favorites in \"Recent\""
 msgstr "_Kedvencekkel együtt"
+
+#: panel-plugin/settings-dialog.cpp:2851
+msgid "Places mode"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:2854
+msgid "Enable _Places"
+msgstr "_Helyek engedélyezése"
+
+#: panel-plugin/settings-dialog.cpp:2866
+msgid "Sections"
+msgstr "Szakaszok"
+
+#: panel-plugin/settings-dialog.cpp:2872
+msgid "Enable _History section"
+msgstr "_Előzmények szakasz engedélyezése"
+
+#: panel-plugin/settings-dialog.cpp:2882
+msgid "Enable _Favourites section"
+msgstr "_Kedvencek szakasz engedélyezése"
+
+#: panel-plugin/settings-dialog.cpp:2891
+msgid "Favourite _sync:"
+msgstr "Kedvencek _szinkronizálása:"
+
+#: panel-plugin/settings-dialog.cpp:2894
+msgid "MeowMenu only"
+msgstr "Csak MeowMenu"
+
+#: panel-plugin/settings-dialog.cpp:2895
+msgid "Thunar bookmarks (read-only)"
+msgstr "Thunar könyvjelzők (csak olvasható)"
+
+#: panel-plugin/settings-dialog.cpp:2903
+msgid "Maximum places _items:"
+msgstr "Helyek maximális _elemszáma:"
+
+#: panel-plugin/settings-dialog.cpp:2920
+msgid "_Remember last selected mode"
+msgstr "_Utoljára kiválasztott mód megjegyzése"
+
+#: panel-plugin/settings-dialog.cpp:2925
+msgid "Show item _metadata"
+msgstr "Elem _metaadatainak megjelenítése"
 
 #: panel-plugin/settings.cpp:39
 msgid "Applications"
 msgstr "Alkalmazások"
 
-#: panel-plugin/settings.cpp:88 panel-plugin/settings.cpp:95
+#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
 msgid "Man Pages"
 msgstr "Kézikönyv oldalak"
 
-#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
 msgid "Search the Web"
 msgstr "Keresés az interneten"
 
-#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
 msgid "Search for Files"
 msgstr "Fájlok keresése"
 
-#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
+#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
 msgid "Wikipedia"
 msgstr "Wikipédia"
 
-#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
 msgid "Run in Terminal"
 msgstr "Futtatás terminálban"
 
-#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
 msgid "Open URI"
 msgstr "URI megnyitása"
 
-#: panel-plugin/settings.cpp:137
+#: panel-plugin/settings.cpp:148
 msgid "_Settings Manager"
 msgstr "Beállításkezelő"
 
-#: panel-plugin/settings.cpp:139
+#: panel-plugin/settings.cpp:150
 msgid "Failed to open settings manager."
 msgstr "A beállítások megnyitása sikertelen."
 
-#: panel-plugin/settings.cpp:142
+#: panel-plugin/settings.cpp:153
 msgid "_Lock Screen"
 msgstr "_Képernyő lezárása"
 
-#: panel-plugin/settings.cpp:144
+#: panel-plugin/settings.cpp:155
 msgid "Failed to lock screen."
 msgstr "A képernyő zárolása sikertelen."
 
-#: panel-plugin/settings.cpp:147
+#: panel-plugin/settings.cpp:158
 msgid "Switch _User"
 msgstr "Felhasználóváltás"
 
-#: panel-plugin/settings.cpp:149
+#: panel-plugin/settings.cpp:160
 msgid "Failed to switch user."
 msgstr "Felhasználóváltás nem sikerült."
 
-#: panel-plugin/settings.cpp:152
+#: panel-plugin/settings.cpp:163
 msgid "Log _Out"
 msgstr "_Kijelentkezés"
 
-#: panel-plugin/settings.cpp:154 panel-plugin/settings.cpp:189
+#: panel-plugin/settings.cpp:165 panel-plugin/settings.cpp:200
 msgid "Failed to log out."
 msgstr "A kijelentkezés sikertelen"
 
-#: panel-plugin/settings.cpp:155
+#: panel-plugin/settings.cpp:166
 msgid "Are you sure you want to log out?"
 msgstr "Biztos ki akar jelentkezni?"
 
-#: panel-plugin/settings.cpp:156
+#: panel-plugin/settings.cpp:167
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr "Kijelentkezés %d másodperc múlva."
 
-#: panel-plugin/settings.cpp:159
+#: panel-plugin/settings.cpp:170
 msgid "_Restart"
 msgstr "Új_raindítás"
 
-#: panel-plugin/settings.cpp:161
+#: panel-plugin/settings.cpp:172
 msgid "Failed to restart."
 msgstr "Sikertelen újraindítás."
 
-#: panel-plugin/settings.cpp:162
+#: panel-plugin/settings.cpp:173
 msgid "Are you sure you want to restart?"
 msgstr "Biztos újra akarja indítani a gépét?"
 
-#: panel-plugin/settings.cpp:163
+#: panel-plugin/settings.cpp:174
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr "A számítógép újraindítása %d másodperc múlva."
 
-#: panel-plugin/settings.cpp:166
+#: panel-plugin/settings.cpp:177
 msgid "Shut _Down"
 msgstr "Kikapcsolás"
 
-#: panel-plugin/settings.cpp:168
+#: panel-plugin/settings.cpp:179
 msgid "Failed to shut down."
 msgstr "Sikertelen leállítás."
 
-#: panel-plugin/settings.cpp:169
+#: panel-plugin/settings.cpp:180
 msgid "Are you sure you want to shut down?"
 msgstr "Biztos ki akarja kapcsolni a gépét?"
 
-#: panel-plugin/settings.cpp:170
+#: panel-plugin/settings.cpp:181
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr "A számítógép kikapcsolása %d másodperc múlva."
 
-#: panel-plugin/settings.cpp:173
+#: panel-plugin/settings.cpp:184
 msgid "Suspe_nd"
 msgstr "Felfüggesztés"
 
-#: panel-plugin/settings.cpp:175
+#: panel-plugin/settings.cpp:186
 msgid "Failed to suspend."
 msgstr "Felfüggesztés nem sikerült."
 
-#: panel-plugin/settings.cpp:176
+#: panel-plugin/settings.cpp:187
 msgid "Do you want to suspend to RAM?"
 msgstr "Biztosan fel akarja függeszteni a memóriába?"
 
-#: panel-plugin/settings.cpp:177
+#: panel-plugin/settings.cpp:188
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr "A számítógép felfüggesztése %d másodperc múlva."
 
-#: panel-plugin/settings.cpp:180
+#: panel-plugin/settings.cpp:191
 msgid "_Hibernate"
 msgstr "_Hibernálás"
 
-#: panel-plugin/settings.cpp:182
+#: panel-plugin/settings.cpp:193
 msgid "Failed to hibernate."
 msgstr "Sikertelen hibernálás."
 
-#: panel-plugin/settings.cpp:183
+#: panel-plugin/settings.cpp:194
 msgid "Do you want to suspend to disk?"
 msgstr "Biztosan felfüggeszti a lemezre?"
 
-#: panel-plugin/settings.cpp:184
+#: panel-plugin/settings.cpp:195
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr "A számítógép hibernálása %d másodperc múlva."
 
-#: panel-plugin/settings.cpp:187
+#: panel-plugin/settings.cpp:198
 msgid "Log Ou_t..."
 msgstr "_Kijelentkezés"
 
-#: panel-plugin/settings.cpp:192
+#: panel-plugin/settings.cpp:203
 msgid "_Edit Applications"
 msgstr "_Alkalmazások szerkesztése"
 
-#: panel-plugin/settings.cpp:194
+#: panel-plugin/settings.cpp:205
 msgid "Failed to launch menu editor."
 msgstr "Nem sikerült a menüszerkesztő elindítása."
 
-#: panel-plugin/settings.cpp:197
+#: panel-plugin/settings.cpp:208
 msgid "Edit _Profile"
 msgstr "Profil szerkesztése"
 
-#: panel-plugin/settings.cpp:199
+#: panel-plugin/settings.cpp:210
 msgid "Failed to edit profile."
 msgstr "Profil szerkesztése sikertelen"
+
+#: panel-plugin/window.cpp:412
+msgid "Apps"
+msgstr "Alkalmazások"
+
+#: panel-plugin/window.cpp:1799
+msgid "Search places…"
+msgstr "Helyek keresése…"
+
+#: panel-plugin/window.cpp:1800
+msgid "Search applications…"
+msgstr "Alkalmazások keresése…"
 
 #: panel-plugin/xfce4-popup-meowmenu.cpp:110
 msgid "Popup menu at current mouse position"
@@ -1008,6 +1161,12 @@ msgstr "Verzió információ kiírása és kilépés"
 #: panel-plugin/whiskermenu.desktop.in:5
 msgid "Show a menu to easily access installed applications"
 msgstr "menü megjelenítése a telepített alkalmazások könnyű eléréséhez"
+
+#~ msgid "Alternate application launcher for Xfce"
+#~ msgstr "Alternatív alkalmazásindító az Xfce-hez"
+
+#~ msgid "translator-credits"
+#~ msgstr "fordítás-érdemek"
 
 #~ msgid "Background opacit_y:"
 #~ msgstr "Háttér átlátszósága:"
