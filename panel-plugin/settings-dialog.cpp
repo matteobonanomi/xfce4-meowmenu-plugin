@@ -161,7 +161,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 			"window-close-symbolic", _("_Close"), GTK_RESPONSE_CLOSE,
 			nullptr);
 	gtk_window_set_type_hint(GTK_WINDOW(m_window), GDK_WINDOW_TYPE_HINT_NORMAL);
-	gtk_window_set_icon_name(GTK_WINDOW(m_window), "org.xfce.panel.whiskermenu");
+	gtk_window_set_icon_name(GTK_WINDOW(m_window), "org.xfce.panel.meowmenu");
 	gtk_window_set_position(GTK_WINDOW(m_window), GTK_WIN_POS_CENTER);
 
 	connect(m_window, "response",

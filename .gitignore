@@ -8,6 +8,9 @@ docs/*
 AGENTS.md
 CLAUDE.md
 
+# Dev-reload logs
+.logs/
+
 # Meson build artifacts
 build/
 _build/
