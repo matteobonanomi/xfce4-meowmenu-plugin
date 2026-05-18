@@ -50,7 +50,7 @@ Settings::Settings(Plugin* plugin) :
 	custom_menu_file(this, "/custom-menu-file"),
 
 	button_title(this, "/button-title", m_button_title_default),
-	button_icon_name(this, "/button-icon", "org.xfce.panel.whiskermenu"),
+	button_icon_name(this, "/button-icon", "org.xfce.panel.meowmenu"),
 	button_title_visible(this, "/show-button-title", false),
 	button_icon_visible(this, "/show-button-icon", true),
 	button_single_row(this, "/button-single-row", false),

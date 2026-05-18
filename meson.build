@@ -1,11 +1,42 @@
+# Version is derived from the top entry of NEWS via tools/news-version.py.
+# Do not hard-code the version here. To bump the version, prepend a new entry
+# to NEWS in the form 'X.Y.Z (YYYY-MM-DD)' and re-run `meson setup --reconfigure`.
+# NOTE: run_command() is inlined into project() because meson requires project()
+# to be the first statement in the top-level meson.build.
 project(
   'xfce4-whiskermenu-plugin',
   'c',
   'cpp',
-version : '2.10.0-dev',
+version : run_command(
+    find_program('python3'),
+    meson.current_source_dir() / 'tools' / 'news-version.py',
+    '--version',
+    '--news', meson.current_source_dir() / 'NEWS',
+    check: true,
+  ).stdout().strip(),
   license : 'GPL-2.0-or-later',
   meson_version : '>= 0.54.0',
   default_options : ['c_std=gnu11', 'cpp_std=gnu++11', 'buildtype=debugoptimized', 'warning_level=2']
+)
+
+python3 = find_program('python3')
+news_version_py = files('tools/news-version.py')
+
+meowmenu_release_date = run_command(
+  python3, news_version_py, '--date',
+  '--news', meson.current_source_dir() / 'NEWS',
+  check: true,
+).stdout().strip()
+
+# Generate panel-plugin/version.h from version.h.in. Consumed by plugin.cpp
+# for the About dialog and --version output (FR-003).
+meowmenu_version_h = configure_file(
+  input: 'panel-plugin' / 'version.h.in',
+  output: 'version.h',
+  configuration: {
+    'VERSION': meson.project_version(),
+    'RELEASE_DATE': meowmenu_release_date,
+  },
 )
 
 project_namespace = 'panel-plugins'
@@ -168,6 +199,14 @@ endif
 install_data(
   'NEWS',
   install_dir: pkgdatadir,
+)
+
+# Asserts meson.build's version stays in sync with NEWS top entry (FR-012).
+test(
+  'version-consistency',
+  python3,
+  args: [news_version_py, '--check', meson.project_version(),
+         '--news', meson.current_source_dir() / 'NEWS'],
 )
 
 if get_option('enable_tests')

@@ -17,6 +17,7 @@
 
 #ifdef HAVE_XFCE_REVISION_H
 #include "xfce-revision.h"
+#include "version.h"
 #endif
 
 #include "plugin.h"
@@ -93,7 +94,7 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 	if ((m_settings->button_icon_name == "xfce4-whiskermenu")
 			&& !gtk_icon_theme_has_icon(gtk_icon_theme_get_default(), "xfce4-whiskermenu"))
 	{
-		m_settings->button_icon_name = "org.xfce.panel.whiskermenu";
+		m_settings->button_icon_name = "org.xfce.panel.meowmenu";
 	}
 
 	// Create toggle button
@@ -498,13 +499,13 @@ void Plugin::show_about()
 	GtkAboutDialog* about = GTK_ABOUT_DIALOG(dialog);
 
 	gtk_about_dialog_set_program_name(about, "xfce4-meowmenu-plugin");
-	gtk_about_dialog_set_version(about, "0.3.1 (2026-05-17)");
+	gtk_about_dialog_set_version(about, MEOWMENU_VERSION " (" MEOWMENU_RELEASE_DATE ")");
 	gtk_about_dialog_set_comments(about, _("Alternate launcher for XFCE4"));
 	gtk_about_dialog_set_website(about, PLUGIN_WEBSITE);
 	gtk_about_dialog_set_copyright(about, "Copyright \302\251 2026 Matteo Bonanomi");
 	gtk_about_dialog_set_license_type(about, GTK_LICENSE_GPL_2_0);
 	gtk_about_dialog_set_authors(about, authors);
-	gtk_about_dialog_set_logo_icon_name(about, "org.xfce.panel.whiskermenu");
+	gtk_about_dialog_set_logo_icon_name(about, "org.xfce.panel.meowmenu");
 	gtk_about_dialog_add_credit_section(about, _("Based on Whisker Menu"), whisker_credits);
 
 	gtk_dialog_add_button(GTK_DIALOG(dialog), _("What's New"), RESPONSE_NEWS);

@@ -1,5 +1,12 @@
 MEOW MENU DEVELOPMENT
-0.3.1 (2026-06-17)
+0.3.2 (2026-05-17)
+=====
+- update github workflow to standardize release details
+- remove Whisker's hard-coded version details
+- brand new Meow icon added
+- refactoring dev-load.sh to rebuild this launcher (for dev only)
+
+0.3.1 (2026-05-17)
 =====
 - extend language support (using LLMs) to all the languages already supported by WhiskerMenu
 - language support covers new Property and Places

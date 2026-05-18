@@ -36,6 +36,7 @@ plugin_sources = [
   'slot.h',
   'window.cpp',
   xfce_revision_h,
+  meowmenu_version_h,
 ]
 
 plugin_install_subdir = 'xfce4' / 'panel' / 'plugins'
