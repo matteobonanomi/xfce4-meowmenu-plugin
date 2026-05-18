@@ -1,84 +1,119 @@
 # Releasing MeowMenu
 
-This document is the end-to-end checklist for cutting a new MeowMenu release.
-A maintainer with no prior context should be able to follow it top to bottom
-without having to read any other file.
+End-to-end checklist for cutting a new release. Follow it top to bottom.
 
-## 1. Prerequisites
+---
 
-Install on your workstation:
+## Prerequisites
 
-- **Python ≥ 3.6** — runs the build-time helper scripts.
-- **rsvg-convert** (preferred) or **inkscape** (fallback) — renders the master
-  SVG to PNGs.
-  - `sudo apt install librsvg2-bin`  *(preferred)*
-  - `sudo apt install inkscape`      *(fallback)*
-- **git** — version control.
-- **gh** — GitHub CLI, used by the release workflow. Install via
-  `sudo apt install gh` and authenticate with `gh auth login`.
+- **Python ≥ 3.6** — runs helper scripts.
+- **rsvg-convert** (preferred) or **inkscape** (fallback) — only needed if you
+  re-render icons. Install with `sudo apt install librsvg2-bin`.
+- **gh** — GitHub CLI. Install with `sudo apt install gh`, then
+  `gh auth login`.
+- Write access to `matteobonanomi/xfce4-meowmenu-plugin` on GitHub.
 
-You also need write access to the `matteobonanomi/xfce4-meowmenu-plugin`
-repository on GitHub.
+---
 
-## 2. Release steps
+## Release steps
 
-1. **Decide the new version.** Use semver (`MAJOR.MINOR.PATCH`). Pre-release
-   suffixes such as `-rc1` are allowed.
+### 1. Work on the `main` branch
 
-2. **Edit `NEWS`.** Prepend a new top entry on its own line:
+Merge your feature/development branch into `main` before tagging. The release
+tag must point to `main` so that the published release reflects stable code.
 
-   ```text
-   0.4.0 (2026-06-01)
-   =====
-   - one bullet per user-visible change
-   - keep the wording short and present tense
-   ```
+```bash
+git checkout main
+git merge development
+git push origin main
+```
 
-   The date must be `YYYY-MM-DD` and the header line must match
-   `X.Y.Z (YYYY-MM-DD)` exactly — `tools/news-version.py` parses it.
+### 2. Edit `NEWS`
 
-3. **Rebuild and reload.** From the repo root:
+Prepend a new top entry:
 
-   ```bash
-   ./dev-reload.sh
-   ```
+```text
+0.4.0 (2026-06-01)
+=====
+- one bullet per user-visible change, present tense
+```
 
-   This re-runs `meson setup --reconfigure`, which re-reads `NEWS` via
-   `tools/news-version.py` and regenerates `panel-plugin/version.h`. Open the
-   plugin's *About* dialog and confirm the new version + date appear.
+The header **must** match `X.Y.Z (YYYY-MM-DD)` exactly — `tools/news-version.py`
+parses this format. Only edit `NEWS` when you are ready to tag.
 
-4. **Run the test suite.**
+### 3. Build and verify locally
 
-   ```bash
-   meson test -C build
-   ```
+```bash
+./dev-reload.sh
+```
 
-   The `version-consistency` test must pass. If it fails, your `NEWS` top
-   entry does not match `meson.project_version()`.
+> **What `dev-reload.sh` does (and does not do)**
+>
+> This script is a **local development tool only**. It reconfigures Meson
+> (which re-reads `NEWS` and regenerates `panel-plugin/version.h`), compiles,
+> installs, and hot-reloads the plugin in your running Xfce session. It does
+> **not** update GitHub, the README badge, or create any release.
+>
+> Pass `--icons` to also re-render `icons/hi*-app-meowmenu.png` from
+> `assets/meowmenu.svg` before building. This requires `rsvg-convert` or
+> `inkscape`. Without `--icons`, the committed PNGs are used as-is — you only
+> need this flag when the master SVG has changed.
+>
+> ```bash
+> ./dev-reload.sh --icons   # regenerate icons, then build + reload
+> ./dev-reload.sh           # build + reload only (normal case)
+> ```
 
-5. **Commit and push.**
+Open the plugin's *About* dialog and confirm the version and date are correct.
 
-   ```bash
-   git add NEWS
-   git commit -m "release: <version>"
-   git push origin <branch>
-   ```
+### 4. Run the test suite
 
-6. **Tag and push the tag.** Tags must be `v<version>`:
+```bash
+meson test -C build
+```
 
-   ```bash
-   git tag v0.4.0
-   git push origin v0.4.0
-   ```
+The `version-consistency` test must pass. If it fails, the `NEWS` top entry
+does not match `meson.project_version()`.
 
-   The push triggers `.github/workflows/release.yml`, which extracts the
-   matching `NEWS` section and runs `gh release create`. If the workflow
-   cannot find a `NEWS` section for the tag, it fails clearly.
+### 5. Commit and push
 
-7. **Verify on GitHub.** Open the *Releases* page and confirm the new release
-   exists with the expected body.
+```bash
+git add NEWS
+git commit -m "release: 0.4.0"
+git push origin main
+```
 
-## 3. Tooling reference
+### 6. Tag and push the tag
+
+```bash
+git tag v0.4.0
+git push origin v0.4.0
+```
+
+Pushing the tag triggers `.github/workflows/release.yml`, which:
+
+1. Extracts the matching `NEWS` section.
+2. Creates a GitHub Release with that content.
+3. Automatically updates the `[![Version](...)]` badge in the README — the
+   badge is dynamic (shields.io GitHub releases API) and picks up the new
+   latest release within a few minutes.
+
+### 7. Verify on GitHub
+
+Open the *Releases* page and confirm the new release exists with the correct
+body. The README version badge should update shortly after.
+
+---
+
+## Why the README badge shows an old version
+
+The badge reads the **latest published GitHub Release**, not the `NEWS` file or
+any local build. It will only update after you push a tag and the release
+workflow completes successfully. Running `dev-reload.sh` has no effect on it.
+
+---
+
+## Tooling reference
 
 ### `tools/news-version.py`
 
@@ -95,34 +130,25 @@ Used by Meson at configure time and by the `version-consistency` test.
 
 ### `tools/regen-icons.py`
 
-Renders `assets/meowmenu.svg` to every PNG size in `icons/`.
+Renders `assets/meowmenu.svg` to every PNG size in `icons/`. Invoked
+automatically by `dev-reload.sh --icons`, or manually:
 
 ```bash
 python3 tools/regen-icons.py --input assets/meowmenu.svg --output-dir icons/
 ```
 
-Prefers `rsvg-convert`, falls back to `inkscape`, and fails with a clear
-message if neither is installed. The Meson target `regen-icons` invokes the
-same script when the maintainer asks for it explicitly:
+You can also call it via Meson:
 
 ```bash
 meson compile -C build regen-icons
 ```
 
-End-user builds do not require either renderer because the PNGs are
-committed to the repository.
+End-user builds do not require a renderer because the PNGs are committed.
 
-## 4. Tag format
+---
 
-Tags **must** be of the form `v<version>` — for example, `v0.4.0`,
-`v0.4.0-rc1`. The `release.yml` workflow only triggers on tags matching
-`v*`, and it strips the leading `v` when locating the matching `NEWS`
-section.
+## Tag format
 
-## 5. PNG determinism note
-
-`rsvg-convert` and `inkscape` produce PNGs that differ byte-for-byte even
-when the source SVG is identical, because they embed renderer-specific
-colour profile / metadata chunks. This is expected. Reviewers should look at
-the rendered images, not the binary diff. If you re-render the PNGs as part
-of a release, commit the result without concern about churn.
+Tags **must** be `v<version>` (e.g. `v0.4.0`, `v0.4.0-rc1`). The `release.yml`
+workflow only triggers on `v*` tags and strips the leading `v` when locating
+the matching `NEWS` section.
