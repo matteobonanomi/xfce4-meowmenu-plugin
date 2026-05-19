@@ -1,6 +1,7 @@
 # MeowMenu: make your XFCE run!
 
 [![Version](https://img.shields.io/github/v/release/matteobonanomi/xfce4-meowmenu-plugin)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases)
+[![CI](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml/badge.svg?branch=release)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](COPYING)
 [![Language: C++](https://img.shields.io/badge/language-C%2B%2B-00599C.svg?logo=cplusplus&logoColor=white)](https://isocpp.org/)
 [![Build: Meson](https://img.shields.io/badge/build-Meson-A41E50.svg)](https://mesonbuild.com/)
@@ -97,8 +98,15 @@ sudo meson install -C build
 
 </details>
 
+### Best-effort (not verified in CI)
+
+The distributions below are community-maintained best-effort targets. They
+are NOT exercised by [`ci.yml`](.github/workflows/ci.yml), which covers only
+Ubuntu 26.04, Debian 13, and Fedora 44. Breakage on these distros is fixed on
+a best-effort basis; please open an issue with full reproduction details.
+
 <details>
-<summary><strong>Installation on openSUSE</strong></summary>
+<summary><strong>Installation on openSUSE (best-effort)</strong></summary>
 
 Tested on openSUSE Tumbleweed and Leap 15.6+.
 
@@ -123,7 +131,7 @@ sudo meson install -C build
 </details>
 
 <details>
-<summary><strong>Installation on Arch / Manjaro / EndeavourOS</strong></summary>
+<summary><strong>Installation on Arch / Manjaro / EndeavourOS (best-effort)</strong></summary>
 
 Tested on current Arch Linux.
 

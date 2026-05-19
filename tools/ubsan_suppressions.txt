@@ -1,0 +1,16 @@
+# UndefinedBehaviorSanitizer suppressions for the CI `sanitizers` job.
+#
+# Scoping rules (see spec.md Edge Cases §266, data-model.md §170):
+#   - Suppressions MUST be per-function or per-symbol.
+#   - Whole-file or whole-library production suppressions are FORBIDDEN.
+#   - Every suppression MUST cite the upstream bug it tracks and the date it
+#     was added. Stale entries without a tracking link are removed at the
+#     next audit.
+#
+# Format: one rule per line, e.g.
+#   vptr:^SomeBaseClassThatTrips$
+#   alignment:libfoo.so
+#
+# This file is intentionally empty on day one. CI must run green without any
+# suppression. Add entries only when a real third-party issue is identified
+# and tracked.
