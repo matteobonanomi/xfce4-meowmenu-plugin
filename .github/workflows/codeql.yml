@@ -41,8 +41,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
               build-essential meson ninja-build pkg-config \
               libgtk-3-dev libglib2.0-dev \
-              libgarcon-1-0-dev libgarcon-gtk3-1-0-dev \
+              libgarcon-1-0-dev libgarcon-gtk3-1-dev \
               libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+              libexo-2-dev \
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext

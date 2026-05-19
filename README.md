@@ -27,15 +27,18 @@ your distro below.
 <details>
 <summary><strong>Installation on Ubuntu / Linux Mint</strong></summary>
 
-Tested on Ubuntu 24.04+ and Linux Mint 22+.
+Tested on Ubuntu 26.04 (Resolute) — the only Ubuntu release exercised by CI.
+On Ubuntu 24.04 / Linux Mint 22, replace `libgarcon-1-dev` with
+`libgarcon-1-0-dev` (the `-0` ABI suffix was dropped in 26.04).
 
 ```bash
 sudo apt update
 sudo apt install \
     build-essential meson ninja-build pkg-config \
     libgtk-3-dev libglib2.0-dev \
-    libgarcon-1-0-dev libgarcon-gtk3-1-0-dev \
+    libgarcon-1-dev libgarcon-gtk3-1-dev \
     libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libexo-2-dev \
     libxfconf-0-dev \
     libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
@@ -61,6 +64,7 @@ sudo apt install \
     libgtk-3-dev libglib2.0-dev \
     libgarcon-1-dev libgarcon-gtk3-1-dev \
     libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libexo-2-dev \
     libxfconf-0-dev \
     libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
@@ -81,10 +85,11 @@ Tested on Fedora 41+.
 
 ```bash
 sudo dnf install \
-    @development-tools meson ninja-build pkgconf-pkg-config \
+    gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
     gtk3-devel glib2-devel \
     garcon-devel \
     xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+    exo-devel \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext
@@ -117,6 +122,7 @@ sudo zypper install \
     gtk3-devel glib2-devel \
     garcon-devel \
     xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+    exo-devel \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext-tools
@@ -141,6 +147,7 @@ sudo pacman -S --needed \
     gtk3 glib2 \
     garcon \
     xfce4-panel libxfce4ui libxfce4util \
+    exo \
     xfconf \
     accountsservice gtk-layer-shell \
     gettext

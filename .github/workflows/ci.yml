@@ -154,10 +154,12 @@ jobs:
         run: meson compile -C build
 
       - name: Meson test
-        env:
-          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:suppressions=tools/asan_suppressions.txt
-          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:suppressions=tools/ubsan_suppressions.txt
-        run: meson test -C build --print-errorlogs
+        run: |
+          # NOTE: suppressions paths must be absolute — ASan/UBSan resolve
+          # relative paths against the test binary's cwd, not the repo root.
+          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:suppressions=${GITHUB_WORKSPACE}/tools/asan_suppressions.txt"
+          export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:suppressions=${GITHUB_WORKSPACE}/tools/ubsan_suppressions.txt"
+          meson test -C build --print-errorlogs
 
   translations:
     name: translations
