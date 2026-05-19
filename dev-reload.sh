@@ -12,13 +12,16 @@
 #   one you just installed under /usr/local.  The script removes that stale copy.
 #
 # USAGE
-#   ./dev-reload.sh [--icons] [BUILD_DIR]
+#   ./dev-reload.sh [--icons] [--reconfigure] [BUILD_DIR]
 #
-#   --icons     Re-render icons/hi*-app-meowmenu.png from assets/meowmenu.svg
-#               before building.  Requires rsvg-convert (preferred) or inkscape.
-#               Without this flag icons are left as-is (the committed PNGs are used).
-#   BUILD_DIR   Meson build directory (default: ./build).
-#               Must already exist; run `meson setup build` once first.
+#   --icons        Re-render icons/hi*-app-meowmenu.png from assets/meowmenu.svg
+#                  before building.  Requires rsvg-convert (preferred) or inkscape.
+#                  Without this flag icons are left as-is (the committed PNGs are used).
+#   --reconfigure  Force meson setup --reconfigure even if meson.build and NEWS are
+#                  unchanged.  Use after adding a new dependency or option.
+#                  Normally the script detects whether reconfigure is needed automatically.
+#   BUILD_DIR      Meson build directory (default: ./build).
+#                  Must already exist; run `meson setup build` once first.
 #
 # LOGS
 #   Verbose output from meson and the compiler is redirected to .logs/dev-reload.log
@@ -60,12 +63,14 @@ run() {
 # ---------------------------------------------------------------------------
 
 REGEN_ICONS=false
+FORCE_RECONFIGURE=false
 BUILD_DIR=""
 
 for arg in "$@"; do
     case "${arg}" in
-        --icons) REGEN_ICONS=true ;;
-        *)       BUILD_DIR="${arg}" ;;
+        --icons)       REGEN_ICONS=true ;;
+        --reconfigure) FORCE_RECONFIGURE=true ;;
+        *)             BUILD_DIR="${arg}" ;;
     esac
 done
 
@@ -98,15 +103,33 @@ fi
 # ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
-# `meson setup --reconfigure` re-reads meson.build and NEWS (via
-# tools/news-version.py) without a full clean rebuild.  This picks up version
-# bumps and any meson.build changes automatically.
+# Reconfigure only when meson.build or NEWS changed since the last configure,
+# or when --reconfigure is passed explicitly.  This avoids the ~20 compiler-flag
+# checks and 73-target evaluation that meson setup triggers even when nothing
+# changed — the main source of slowness on incremental dev iterations.
 
-run "Reconfigure (pick up NEWS version + meson changes)" \
-    meson setup --reconfigure "${BUILD_DIR}"
+STAMP="${BUILD_DIR}/build.ninja"
+
+needs_reconfigure() {
+    [[ "${FORCE_RECONFIGURE}" == true ]] && return 0
+    [[ ! -f "${STAMP}" ]] && return 0
+    # Reconfigure if meson.build, meson.options, or NEWS are newer than the stamp.
+    local f
+    for f in "${REPO}/meson.build" "${REPO}/meson.options" "${REPO}/NEWS"; do
+        [[ -f "${f}" && "${f}" -nt "${STAMP}" ]] && return 0
+    done
+    return 1
+}
+
+if needs_reconfigure; then
+    run "Reconfigure (pick up NEWS version + meson changes)" \
+        meson setup --reconfigure "${BUILD_DIR}"
+else
+    step "Reconfigure skipped (meson.build and NEWS unchanged)"
+fi
 
 run "Compile" \
-    meson compile -C "${BUILD_DIR}"
+    meson compile -C "${BUILD_DIR}" -j"$(nproc)"
 
 # ---------------------------------------------------------------------------
 # Install
