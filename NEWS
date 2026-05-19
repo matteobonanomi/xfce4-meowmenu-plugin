@@ -1,4 +1,11 @@
 MEOW MENU DEVELOPMENT
+0.4.0 (2026-05-19)
+=====
+- implement first CI workflow (main and release PRs)
+- add tests for Fedora, Ubuntu, Debian
+- fix small issues causing sanitizers failure
+- fix small dependency issues between Ubuntu 24.04 and 26.04 in readme
+
 0.3.3 (2026-05-19)
 =====
 - update readme, last minor update before 0.4.x
