@@ -1,0 +1,70 @@
+# =============================================================================
+# Job-name contract — NEVER required (FR-010)
+# =============================================================================
+# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2, §6
+#
+# Job names:
+#   analyze (cpp)   — advisory only; MUST NOT appear in any required-checks
+#                     list on either protected branch.
+# =============================================================================
+
+name: codeql
+
+on:
+  pull_request:
+    branches: [release]
+  push:
+    branches: [release]
+  schedule:
+    # NOTE: Monday 06:00 UTC weekly sweep, per contracts/workflow-jobs.md §6.
+    - cron: '0 6 * * 1'
+
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: analyze (cpp)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies (Ubuntu host)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+              build-essential meson ninja-build pkg-config \
+              libgtk-3-dev libglib2.0-dev \
+              libgarcon-1-0-dev libgarcon-gtk3-1-0-dev \
+              libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+              libxfconf-0-dev \
+              libaccountsservice-dev libgtk-layer-shell-dev \
+              gettext
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+
+      # NOTE: Autobuild is acceptable per spec; the explicit fallback is the
+      # standard `meson setup && meson compile` sequence below if autobuild
+      # ever fails for this project.
+      - name: Build (manual — meson)
+        run: |
+          meson setup build
+          meson compile -C build
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+
+# Action-pinning audit (FR-022, T025):
+#   - actions/checkout@v4
+#   - github/codeql-action/init@v3
+#   - github/codeql-action/analyze@v3
+#   No `@main` / `@master` references.

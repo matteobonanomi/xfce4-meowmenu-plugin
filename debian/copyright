@@ -1,0 +1,33 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: xfce4-meowmenu-plugin
+Upstream-Contact: Matteo Bonanomi <mbonanomi.dev@proton.me>
+Source: https://github.com/matteobonanomi/xfce4-meowmenu-plugin
+Comment:
+ MeowMenu is a fork of the Xfce Whisker Menu
+ (https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin).
+ The original Whisker Menu code is licensed under GPL-2.0-or-later; the
+ MeowMenu fork retains the same license.
+
+Files: *
+Copyright: 2013-2024 Graeme Gott <graeme@gottcode.org>
+           2025-2026 Matteo Bonanomi <mbonanomi.dev@proton.me>
+License: GPL-2+
+
+Files: debian/*
+Copyright: 2026 Matteo Bonanomi <mbonanomi.dev@proton.me>
+License: GPL-2+
+
+License: GPL-2+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License version 2 can be found in `/usr/share/common-licenses/GPL-2'.
+ The license text is also distributed with the source as `COPYING'.

@@ -1,0 +1,62 @@
+# =============================================================================
+# Job-name contract (DO NOT RENAME without coordinated branch-protection update)
+# =============================================================================
+# Branch-protection rules on `main` reference the following job `name:` string
+# verbatim. Renaming without updating required-checks will silently break
+# merge gating.
+#
+# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2
+#
+# Required on `main`:
+#   verify (ubuntu-26.04)
+# =============================================================================
+
+name: ci-main
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (ubuntu-26.04)
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies (Ubuntu 26.04)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+              build-essential meson ninja-build pkg-config \
+              libgtk-3-dev libglib2.0-dev \
+              libgarcon-1-0-dev libgarcon-gtk3-1-0-dev \
+              libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+              libxfconf-0-dev \
+              libaccountsservice-dev libgtk-layer-shell-dev \
+              gettext \
+              git ca-certificates
+
+      - name: Meson setup
+        run: meson setup build --buildtype=release
+
+      - name: Meson compile
+        run: meson compile -C build
+
+      - name: Meson test
+        run: meson test -C build --print-errorlogs
+
+# Action-pinning audit (FR-022, T020):
+#   - actions/checkout@v4  (allowed; major pin)
+#   No `@main` / `@master` references.
