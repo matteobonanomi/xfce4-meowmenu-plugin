@@ -133,7 +133,9 @@ static std::vector<std::string> walk_for_test(const std::string& root,
 
 		for (auto& m : matches)
 		{
-			out.push_back(g_path_get_basename(m.path.c_str()));
+			gchar* base = g_path_get_basename(m.path.c_str());
+			out.push_back(base);
+			g_free(base);
 			++dispatched;
 			if (opts.cap >= 0 && dispatched >= opts.cap)
 			{

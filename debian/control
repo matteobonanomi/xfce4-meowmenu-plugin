@@ -1,0 +1,42 @@
+Source: xfce4-meowmenu-plugin
+Section: xfce
+Priority: optional
+Maintainer: Matteo Bonanomi <mbonanomi.dev@proton.me>
+Build-Depends:
+ debhelper-compat (= 13),
+ meson,
+ ninja-build,
+ pkg-config,
+ libgtk-3-dev,
+ libglib2.0-dev,
+ libgarcon-1-dev,
+ libgarcon-gtk3-1-dev,
+ libxfce4panel-2.0-dev,
+ libxfce4ui-2-dev,
+ libxfce4util-dev,
+ libxfconf-0-dev,
+ libaccountsservice-dev,
+ libgtk-layer-shell-dev,
+ gettext
+Standards-Version: 4.6.2
+Homepage: https://github.com/matteobonanomi/xfce4-meowmenu-plugin
+Vcs-Browser: https://github.com/matteobonanomi/xfce4-meowmenu-plugin
+Vcs-Git: https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
+Rules-Requires-Root: no
+
+Package: xfce4-meowmenu-plugin
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ xfce4-panel
+Recommends:
+ accountsservice,
+ gtk-layer-shell
+Description: modern menu launcher plugin for the Xfce panel
+ MeowMenu is a fork of the Xfce Whisker Menu that keeps the familiar panel
+ launcher feel while bringing a cleaner modern look, a more capable search
+ bar, and extra customization options for users who want the menu to fit
+ their workflow.
+ .
+ Built for Xubuntu 26.04 with Xfce 4.20.x.
