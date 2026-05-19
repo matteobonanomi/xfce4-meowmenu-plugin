@@ -1,6 +1,7 @@
 # MeowMenu: make your XFCE run!
 
 [![Version](https://img.shields.io/github/v/release/matteobonanomi/xfce4-meowmenu-plugin)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases)
+[![CI](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml/badge.svg?branch=release)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](COPYING)
 [![Language: C++](https://img.shields.io/badge/language-C%2B%2B-00599C.svg?logo=cplusplus&logoColor=white)](https://isocpp.org/)
 [![Build: Meson](https://img.shields.io/badge/build-Meson-A41E50.svg)](https://mesonbuild.com/)
@@ -26,15 +27,18 @@ your distro below.
 <details>
 <summary><strong>Installation on Ubuntu / Linux Mint</strong></summary>
 
-Tested on Ubuntu 24.04+ and Linux Mint 22+.
+Tested on Ubuntu 26.04 (Resolute) — the only Ubuntu release exercised by CI.
+On Ubuntu 24.04 / Linux Mint 22, replace `libgarcon-1-dev` with
+`libgarcon-1-0-dev` (the `-0` ABI suffix was dropped in 26.04).
 
 ```bash
 sudo apt update
 sudo apt install \
     build-essential meson ninja-build pkg-config \
     libgtk-3-dev libglib2.0-dev \
-    libgarcon-1-0-dev libgarcon-gtk3-1-0-dev \
+    libgarcon-1-dev libgarcon-gtk3-1-dev \
     libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libexo-2-dev \
     libxfconf-0-dev \
     libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
@@ -60,6 +64,7 @@ sudo apt install \
     libgtk-3-dev libglib2.0-dev \
     libgarcon-1-dev libgarcon-gtk3-1-dev \
     libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libexo-2-dev \
     libxfconf-0-dev \
     libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
@@ -80,10 +85,11 @@ Tested on Fedora 41+.
 
 ```bash
 sudo dnf install \
-    @development-tools meson ninja-build pkgconf-pkg-config \
+    gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
     gtk3-devel glib2-devel \
     garcon-devel \
     xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+    exo-devel \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext
@@ -97,8 +103,15 @@ sudo meson install -C build
 
 </details>
 
+### Best-effort (not verified in CI)
+
+The distributions below are community-maintained best-effort targets. They
+are NOT exercised by [`ci.yml`](.github/workflows/ci.yml), which covers only
+Ubuntu 26.04, Debian 13, and Fedora 44. Breakage on these distros is fixed on
+a best-effort basis; please open an issue with full reproduction details.
+
 <details>
-<summary><strong>Installation on openSUSE</strong></summary>
+<summary><strong>Installation on openSUSE (best-effort)</strong></summary>
 
 Tested on openSUSE Tumbleweed and Leap 15.6+.
 
@@ -109,6 +122,7 @@ sudo zypper install \
     gtk3-devel glib2-devel \
     garcon-devel \
     xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+    exo-devel \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext-tools
@@ -123,7 +137,7 @@ sudo meson install -C build
 </details>
 
 <details>
-<summary><strong>Installation on Arch / Manjaro / EndeavourOS</strong></summary>
+<summary><strong>Installation on Arch / Manjaro / EndeavourOS (best-effort)</strong></summary>
 
 Tested on current Arch Linux.
 
@@ -133,6 +147,7 @@ sudo pacman -S --needed \
     gtk3 glib2 \
     garcon \
     xfce4-panel libxfce4ui libxfce4util \
+    exo \
     xfconf \
     accountsservice gtk-layer-shell \
     gettext

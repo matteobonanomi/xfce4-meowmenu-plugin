@@ -1,0 +1,12 @@
+# Dependabot configuration (FR-011).
+# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §7.
+# Scope: only the `github-actions` ecosystem is monitored. No C++ dependency
+# ecosystem is in scope.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

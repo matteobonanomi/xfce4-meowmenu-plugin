@@ -1,0 +1,280 @@
+# =============================================================================
+# Job-name contract (packaging.yml — never a required check, tag-triggered)
+# =============================================================================
+# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2, §4, §5
+#
+# Job names:
+#   validate-tag
+#   build-deb (debian-13)
+#   build-rpm (fedora-44)
+#   verify-install-deb
+#   verify-install-rpm
+#   attach-artifacts
+#
+# Artifact filename contract (§4):
+#   xfce4-meowmenu-plugin_<version>_amd64.deb
+#   xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
+#
+# Tag-on-`main` invariant (§5): validate-tag refuses to proceed when the tag
+# is not reachable from `origin/main`.
+# =============================================================================
+
+name: packaging
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  validate-tag:
+    name: validate-tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce tag-on-main invariant
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME does not point at a commit reachable from main; refusing to publish artifacts."
+            exit 1
+          fi
+
+      - name: Derive version from NEWS
+        id: version
+        run: |
+          version="$(python3 tools/news-version.py --version)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Derived version: ${version}"
+
+  build-deb:
+    name: build-deb (debian-13)
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies (Debian 13 + packaging tools)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+              build-essential meson ninja-build pkg-config \
+              libgtk-3-dev libglib2.0-dev \
+              libgarcon-1-dev libgarcon-gtk3-1-dev \
+              libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+              libexo-2-dev \
+              libxfconf-0-dev \
+              libaccountsservice-dev libgtk-layer-shell-dev \
+              gettext \
+              git ca-certificates \
+              debhelper devscripts equivs dpkg-dev python3
+
+      - name: Regenerate debian/changelog from NEWS
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          # NOTE: Top entry of NEWS is the source of truth (FR-014). The
+          # committed debian/changelog is a seed only; we replace it here.
+          date_rfc="$(date -u +'%a, %d %b %Y %H:%M:%S +0000')"
+          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
+          {
+            echo "xfce4-meowmenu-plugin (${VERSION}-1) unstable; urgency=medium"
+            echo
+            if [ -n "$news_body" ]; then
+              echo "$news_body" | sed 's/^/  /'
+            else
+              echo "  * Release ${VERSION}."
+            fi
+            echo
+            echo " -- Matteo Bonanomi <mbonanomi.dev@proton.me>  ${date_rfc}"
+          } > debian/changelog
+
+      - name: Build .deb
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Stage artifact under contract filename
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          mkdir -p artifacts
+          src="$(ls ../xfce4-meowmenu-plugin_*_amd64.deb | head -n1)"
+          cp "$src" "artifacts/xfce4-meowmenu-plugin_${VERSION}_amd64.deb"
+          ls -la artifacts/
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: artifacts/xfce4-meowmenu-plugin_*_amd64.deb
+
+  build-rpm:
+    name: build-rpm (fedora-44)
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies (Fedora 44 + packaging tools)
+        run: |
+          dnf -y install \
+              gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
+              gtk3-devel glib2-devel \
+              garcon-devel \
+              xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+              exo-devel \
+              xfconf-devel \
+              accountsservice-devel gtk-layer-shell-devel \
+              gettext \
+              git ca-certificates \
+              rpm-build rpmdevtools python3
+
+      - name: Render spec Version and %changelog from NEWS
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          spec="packaging/xfce4-meowmenu-plugin.spec"
+          sed -i "s/^Version:.*/Version:        ${VERSION}/" "$spec"
+          date_rpm="$(date -u +'%a %b %d %Y')"
+          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
+          # Rewrite the trailing %changelog block.
+          awk -v ver="$VERSION" -v dt="$date_rpm" -v body="$news_body" '
+            BEGIN { skip = 0 }
+            /^%changelog/ {
+              print "%changelog"
+              print "* " dt " Matteo Bonanomi <mbonanomi.dev@proton.me> - " ver "-1"
+              n = split(body, lines, "\n")
+              if (n == 0 || (n == 1 && lines[1] == "")) {
+                print "- Release " ver "."
+              } else {
+                for (i = 1; i <= n; i++) print lines[i]
+              }
+              skip = 1
+              next
+            }
+            skip == 0 { print }
+          ' "$spec" > "${spec}.new"
+          mv "${spec}.new" "$spec"
+
+      - name: Stage source tarball and build RPM
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          rpmdev-setuptree
+          tar --transform "s,^,xfce4-meowmenu-plugin-${VERSION}/," \
+              --exclude='./.git' --exclude='./build' \
+              -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
+              .
+          cp packaging/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
+          rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
+
+      - name: Stage artifact under contract filename
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          mkdir -p artifacts
+          src="$(ls "$HOME"/rpmbuild/RPMS/x86_64/xfce4-meowmenu-plugin-*.rpm | head -n1)"
+          cp "$src" "artifacts/xfce4-meowmenu-plugin-${VERSION}-1.fc44.x86_64.rpm"
+          ls -la artifacts/
+
+      - name: Upload .rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: artifacts/xfce4-meowmenu-plugin-*.rpm
+
+  verify-install-deb:
+    name: verify-install-deb
+    needs: build-deb
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    steps:
+      - name: Install runtime tooling
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
+
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+          path: artifacts
+
+      - name: Smoke-install .deb
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_amd64.deb
+          dpkg -s xfce4-meowmenu-plugin
+
+  verify-install-rpm:
+    name: verify-install-rpm
+    needs: build-rpm
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+    steps:
+      - name: Download .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package
+          path: artifacts
+
+      - name: Smoke-install .rpm
+        run: |
+          dnf install -y ./artifacts/xfce4-meowmenu-plugin-*.rpm
+          rpm -qi xfce4-meowmenu-plugin
+
+  attach-artifacts:
+    name: attach-artifacts
+    needs: [verify-install-deb, verify-install-rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+          path: artifacts
+
+      - name: Download .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package
+          path: artifacts
+
+      - name: Attach to the Release for ${{ github.ref_name }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            artifacts/xfce4-meowmenu-plugin_*_amd64.deb
+            artifacts/xfce4-meowmenu-plugin-*.rpm
+          fail_on_unmatched_files: true
+
+# Action-pinning audit (FR-022, T047):
+#   - actions/checkout@v4
+#   - actions/upload-artifact@v4
+#   - actions/download-artifact@v4
+#   - softprops/action-gh-release@v2
+#   No `@main` / `@master` references.
