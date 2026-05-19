@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.3.3 (2026-05-19)
+=====
+- update readme, last minor update before 0.4.x
+- add --icons param to dev-reload.sh
+
 0.3.2 (2026-05-17)
 =====
 - update github workflow to standardize release details
