@@ -20,16 +20,96 @@ Built for Xubuntu 26.04 with Xfce 4.20.x.
 
 ## Installation
 
-MeowMenu builds from source with Meson. The common build steps are the same on every
-distribution — only the package names for the development dependencies change. Pick
-your distro below.
+There are two ways to install MeowMenu:
+
+1. **Recommended — install the prebuilt package** for one of the three officially
+   supported distributions. Every release is built and smoke-tested in CI for
+   Ubuntu 26.04, Debian 13, and Fedora 44, and the matching `.deb` / `.rpm`
+   files are attached directly to the GitHub Release.
+2. **Alternative — build from source** with Meson. Works on every Linux distro;
+   for openSUSE and Arch-based distributions this is the only supported path
+   (their builds are best-effort and are *not* exercised by CI).
+
+### Recommended — install the prebuilt package
+
+Download the file that matches your distribution from the latest
+[GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest),
+then run the matching install command from the directory where you saved it.
+Replace `<version>` with the actual release version (e.g. `0.4.0`).
 
 <details>
-<summary><strong>Installation on Ubuntu / Linux Mint</strong></summary>
+<summary><strong>Ubuntu 26.04 (officially supported, CI-verified)</strong></summary>
 
-Tested on Ubuntu 26.04 (Resolute) — the only Ubuntu release exercised by CI.
-On Ubuntu 24.04 / Linux Mint 22, replace `libgarcon-1-dev` with
-`libgarcon-1-0-dev` (the `-0` ABI suffix was dropped in 26.04).
+File: `xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb`
+
+```bash
+sudo apt install ./xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
+```
+
+To uninstall:
+
+```bash
+sudo apt remove xfce4-meowmenu-plugin
+```
+
+</details>
+
+<details>
+<summary><strong>Debian 13 (officially supported, CI-verified)</strong></summary>
+
+File: `xfce4-meowmenu-plugin_<version>_debian13_amd64.deb`
+
+```bash
+sudo apt install ./xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
+```
+
+To uninstall:
+
+```bash
+sudo apt remove xfce4-meowmenu-plugin
+```
+
+</details>
+
+<details>
+<summary><strong>Fedora 44 (officially supported, CI-verified)</strong></summary>
+
+File: `xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm`
+
+```bash
+sudo dnf install ./xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
+```
+
+To uninstall:
+
+```bash
+sudo dnf remove xfce4-meowmenu-plugin
+```
+
+</details>
+
+> Pick the file whose name matches your distribution. The two `.deb` files
+> share the same `amd64` architecture but are built in their respective
+> distro containers; installing the Debian package on Ubuntu (or vice versa)
+> may trip a runtime dependency mismatch and is not supported.
+
+### Alternative — build from source
+
+The build steps are the same on every distribution — only the package names
+for the development dependencies change. Pick your distro below.
+
+The common build steps, once dependencies are installed:
+
+```bash
+git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
+cd xfce4-meowmenu-plugin
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+<details>
+<summary><strong>Ubuntu 26.04 (officially supported)</strong></summary>
 
 ```bash
 sudo apt update
@@ -42,20 +122,19 @@ sudo apt install \
     libxfconf-0-dev \
     libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
-
-git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
-cd xfce4-meowmenu-plugin
-meson setup build
-meson compile -C build
-sudo meson install -C build
 ```
+
+On Ubuntu 24.04 / Linux Mint 22, replace `libgarcon-1-dev` /
+`libgarcon-gtk3-1-dev` with `libgarcon-1-0-dev` / `libgarcon-gtk3-1-0-dev`
+(the `-0` ABI suffix was dropped in 26.04). Ubuntu releases other than 26.04
+are not exercised by CI.
 
 </details>
 
 <details>
-<summary><strong>Installation on Debian / LMDE</strong></summary>
+<summary><strong>Debian 13 (officially supported)</strong></summary>
 
-Tested on Debian 13 (Trixie) and LMDE 6+.
+Also tested on LMDE 6+.
 
 ```bash
 sudo apt update
@@ -68,20 +147,14 @@ sudo apt install \
     libxfconf-0-dev \
     libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
-
-git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
-cd xfce4-meowmenu-plugin
-meson setup build
-meson compile -C build
-sudo meson install -C build
 ```
 
 </details>
 
 <details>
-<summary><strong>Installation on Fedora</strong></summary>
+<summary><strong>Fedora 44 (officially supported)</strong></summary>
 
-Tested on Fedora 41+.
+Also tested on Fedora 41+.
 
 ```bash
 sudo dnf install \
@@ -93,27 +166,17 @@ sudo dnf install \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext
-
-git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
-cd xfce4-meowmenu-plugin
-meson setup build
-meson compile -C build
-sudo meson install -C build
 ```
 
 </details>
 
-### Best-effort (not verified in CI)
-
-The distributions below are community-maintained best-effort targets. They
-are NOT exercised by [`ci.yml`](.github/workflows/ci.yml), which covers only
-Ubuntu 26.04, Debian 13, and Fedora 44. Breakage on these distros is fixed on
-a best-effort basis; please open an issue with full reproduction details.
-
 <details>
-<summary><strong>Installation on openSUSE (best-effort)</strong></summary>
+<summary><strong>openSUSE (best-effort, not verified in CI)</strong></summary>
 
-Tested on openSUSE Tumbleweed and Leap 15.6+.
+Tested on openSUSE Tumbleweed and Leap 15.6+. openSUSE is **not** exercised
+by [`ci.yml`](.github/workflows/ci.yml); breakage is fixed on a best-effort
+basis. Patches welcome — please open an issue with full reproduction details
+if a build breaks.
 
 ```bash
 sudo zypper install -t pattern devel_C_C++
@@ -126,20 +189,16 @@ sudo zypper install \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext-tools
-
-git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
-cd xfce4-meowmenu-plugin
-meson setup build
-meson compile -C build
-sudo meson install -C build
 ```
 
 </details>
 
 <details>
-<summary><strong>Installation on Arch / Manjaro / EndeavourOS (best-effort)</strong></summary>
+<summary><strong>Arch / Manjaro / EndeavourOS (best-effort, not verified in CI)</strong></summary>
 
-Tested on current Arch Linux.
+Tested on current Arch Linux. Arch-based distributions are **not** exercised
+by [`ci.yml`](.github/workflows/ci.yml); breakage is fixed on a best-effort
+basis. Patches welcome.
 
 ```bash
 sudo pacman -S --needed \
@@ -151,17 +210,14 @@ sudo pacman -S --needed \
     xfconf \
     accountsservice gtk-layer-shell \
     gettext
-
-git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
-cd xfce4-meowmenu-plugin
-meson setup build
-meson compile -C build
-sudo meson install -C build
 ```
 
 </details>
 
-After installing, restart the Xfce panel:
+### Finish up (both paths)
+
+After installing — whether from the prebuilt package or from source —
+restart the Xfce panel:
 
 ```bash
 xfce4-panel -r
