@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.4.2 (2026-05-20)
+=====
+- hotfix missing ubuntu package
+- clarify official and unofficial multi-distro support in readme.md
+
 0.4.1 (2026-05-20)
 =====
 - fix broken rpm package creation
