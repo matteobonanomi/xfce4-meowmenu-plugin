@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.4.1 (2026-05-20)
+=====
+- fix broken rpm package creation
+- first test of GitHub CI for rpm/deb package attachments
+
 0.4.0 (2026-05-19)
 =====
 - implement first CI workflow (main and release PRs)
