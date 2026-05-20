@@ -51,15 +51,21 @@ Xfce 4.20.x.
 
 %install
 %meson_install
-%find_lang %{plugin_name}
+# NOTE: GETTEXT_PACKAGE is xfce4-whiskermenu-plugin (the upstream meson project
+# name), not xfce4-meowmenu-plugin. Locale .mo files are installed under that
+# name, so %find_lang must use it.
+%find_lang xfce4-whiskermenu-plugin
 
-%files -f %{plugin_name}.lang
+%files -f xfce4-whiskermenu-plugin.lang
 %license COPYING
 %doc README.md NEWS
+%{_bindir}/xfce4-popup-meowmenu
 %{_libdir}/xfce4/panel/plugins/lib*.so
 %{_datadir}/xfce4/panel/plugins/*.desktop
 %{_datadir}/icons/hicolor/*/apps/*meowmenu*
-%{_datadir}/applications/*meowmenu*.desktop
+%{_datadir}/meowmenu/presets/
+%{_datadir}/xfce4-whiskermenu-plugin/
+%{_mandir}/man1/xfce4-popup-meowmenu.1*
 
 %changelog
 * Tue May 19 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.3.3-1
