@@ -1,6 +1,6 @@
-# Japanese translation of xfce4-whiskermenu-plugin.
+# Japanese translation of xfce4-meowmenu-plugin.
 # Copyright (C) 2023 Graeme Gott
-# This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
+# This file is distributed under the same license as the xfce4-meowmenu-plugin package.
 #
 # Translators:
 # Masato HASHIMOTO <cabezon.hashimoto@gmail.com>, 2013,2017-2019
@@ -11,7 +11,7 @@
 # Pull Request: https://github.com/matteob/xfce4-meowmenu-plugin
 msgid ""
 msgstr ""
-"Project-Id-Version: MeowMenu\n"
+"Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: mbonanomi.dev@proton.me\n"
 "POT-Creation-Date: 2026-05-15 12:08+0200\n"
 "PO-Revision-Date: 2020-02-12 22:14+0000\n"
