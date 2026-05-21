@@ -306,6 +306,11 @@ jobs:
       image: opensuse/leap:15.6
     continue-on-error: true
     steps:
+      # HACK: opensuse/leap:15.6 base image ships without tar or git; both are
+      # required by actions/checkout before it can download the repository.
+      - name: Install tar and git (required by actions/checkout)
+        run: zypper -n install --no-recommends tar git
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -736,7 +741,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Install tooling
-        run: zypper -n install ca-certificates coreutils
+        run: zypper -n install --no-recommends ca-certificates coreutils
 
       - name: Download openSUSE Leap .rpm artifact
         uses: actions/download-artifact@v4
@@ -993,7 +998,6 @@ jobs:
             artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
             artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
             artifacts/xfce4-meowmenu-plugin-*.rpm
-            artifacts/whisker-overlap.md
           fail_on_unmatched_files: true
 
   # NOTE: openSUSE Leap 15.6 attach is gated on the build + overlap check
