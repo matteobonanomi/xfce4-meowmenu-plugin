@@ -21,8 +21,12 @@ Built for Xubuntu 26.04 with Xfce 4.20.x.
 
 ## Installation / uninstallation
 
-Prebuilt `.deb` / `.rpm` packages are attached to every
+Prebuilt `.deb` / `.rpm` packages for the four officially supported
+distributions — Ubuntu 26.04, Debian 13, Fedora 44, and openSUSE Leap 15.6 —
+are built and smoke-tested in CI and attached to every
 [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
+On any other distribution (including Arch-based ones), build from source;
+those builds are best-effort and are not exercised by CI.
 Replace `<version>` with the actual release version (e.g. `0.4.0`).
 After any install or uninstall, restart the panel with `xfce4-panel -r`;
 then right-click the panel → **Add New Items** → **MeowMenu** to add it.
@@ -57,7 +61,17 @@ then right-click the panel → **Add New Items** → **MeowMenu** to add it.
 - **Optional — from source:** see [Build from source](#build-from-source) below.
   Uninstall: `sudo ninja -C build uninstall`
 
-### openSUSE / Arch / other distros
+### openSUSE Leap 15.6
+
+- **Suggested — package:**
+  ```bash
+  sudo zypper install --allow-unsigned-rpm ./xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
+  ```
+  Uninstall: `sudo zypper remove xfce4-meowmenu-plugin`
+- **Optional — from source:** see [Build from source](#build-from-source) below.
+  Uninstall: `sudo ninja -C build uninstall`
+
+### Arch / other distros
 
 Only from source — see [Build from source](#build-from-source) below.
 Uninstall: `sudo ninja -C build uninstall`.
