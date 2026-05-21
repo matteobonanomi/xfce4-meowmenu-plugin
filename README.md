@@ -23,13 +23,13 @@ Built for Xubuntu 26.04 with Xfce 4.20.x.
 
 There are two ways to install MeowMenu:
 
-1. **Recommended — install the prebuilt package** for one of the three officially
+1. **Recommended — install the prebuilt package** for one of the four officially
    supported distributions. Every release is built and smoke-tested in CI for
-   Ubuntu 26.04, Debian 13, and Fedora 44, and the matching `.deb` / `.rpm`
-   files are attached directly to the GitHub Release.
+   Ubuntu 26.04, Debian 13, Fedora 44, and openSUSE Leap 15.6, and the matching
+   `.deb` / `.rpm` files are attached directly to the GitHub Release.
 2. **Alternative — build from source** with Meson. Works on every Linux distro;
-   for openSUSE and Arch-based distributions this is the only supported path
-   (their builds are best-effort and are *not* exercised by CI).
+   for Arch-based distributions this is the only supported path (their builds
+   are best-effort and are *not* exercised by CI).
 
 ### Recommended — install the prebuilt package
 
@@ -85,6 +85,23 @@ To uninstall:
 
 ```bash
 sudo dnf remove xfce4-meowmenu-plugin
+```
+
+</details>
+
+<details>
+<summary><strong>openSUSE Leap 15.6 (officially supported, CI-verified)</strong></summary>
+
+File: `xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm`
+
+```bash
+sudo zypper install --allow-unsigned-rpm ./xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
+```
+
+To uninstall:
+
+```bash
+sudo zypper remove xfce4-meowmenu-plugin
 ```
 
 </details>
@@ -172,12 +189,9 @@ sudo dnf install \
 </details>
 
 <details>
-<summary><strong>openSUSE (best-effort, not verified in CI)</strong></summary>
+<summary><strong>openSUSE Leap 15.6 (officially supported)</strong></summary>
 
-Tested on openSUSE Tumbleweed and Leap 15.6+. openSUSE is **not** exercised
-by [`ci.yml`](.github/workflows/ci.yml); breakage is fixed on a best-effort
-basis. Patches welcome — please open an issue with full reproduction details
-if a build breaks.
+Also tested on openSUSE Leap 15.6.
 
 ```bash
 sudo zypper install -t pattern devel_C_C++
