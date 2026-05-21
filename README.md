@@ -64,16 +64,15 @@ Uninstall: `sudo ninja -C build uninstall`.
 
 ### Remove user configuration
 
-A package/source uninstall leaves user data behind. After removing the
-MeowMenu button from any panel, also clean:
+Any uninstall leaves user data behind. After removing the MeowMenu button
+from any panel, also clean:
 
 ```bash
 # User-installed presets
 rm -rf ~/.local/share/meowmenu/
 
-# Per-instance Xfconf settings (one ID per panel button you had)
-xfconf-query -c xfce4-panel -lv | grep meowmenu
-xfconf-query -c xfce4-panel -p /plugins/plugin-<id> -r -R
+# Xfconf settings (MeowMenu's own channel)
+rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
 ```
 
 ### Build from source
