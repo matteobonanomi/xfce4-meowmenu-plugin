@@ -30,4 +30,4 @@ panel-plugin/settings.cpp
 panel-plugin/window.cpp
 panel-plugin/xfce4-popup-meowmenu.cpp
 
-panel-plugin/whiskermenu.desktop.in
+panel-plugin/meowmenu.desktop.in

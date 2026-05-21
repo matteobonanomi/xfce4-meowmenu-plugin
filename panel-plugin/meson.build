@@ -18,6 +18,7 @@ plugin_sources = [
   'launcher.cpp',
   'launcher-icon-view.cpp',
   'launcher-tree-view.cpp',
+  'migration.cpp',
   'page.cpp',
   'places-item.cpp',
   'places-page.cpp',
@@ -46,7 +47,7 @@ plugin_lib = shared_module(
   plugin_sources,
   gnu_symbol_visibility: 'hidden',
   cpp_args: [
-    '-DG_LOG_DOMAIN="@0@"'.format('xfce4-whiskermenu-plugin'),
+    '-DG_LOG_DOMAIN="@0@"'.format('xfce4-meowmenu-plugin'),
     '-DSETTINGS_MENUFILE="@0@"'.format(get_option('sysconfdir') / 'xdg' / 'menus' / 'xfce-settings-manager.menu'),
   ],
   include_directories: [
@@ -87,7 +88,7 @@ popup_meowmenu = executable(
 )
 
 i18n.merge_file(
-  input: 'whiskermenu.desktop.in',
+  input: 'meowmenu.desktop.in',
   output: 'meowmenu.desktop',
   po_dir: '..' / 'po',
   type: 'desktop',

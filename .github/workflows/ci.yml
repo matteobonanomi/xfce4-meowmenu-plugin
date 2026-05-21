@@ -222,6 +222,115 @@ jobs:
       - name: Meson test
         run: meson test -C build --print-errorlogs
 
+  # Feature 010 — identity-grep gate (FR-006, FR-007, FR-008, FR-015).
+  # (1) Confirms no `xfce4-whiskermenu-plugin` references outside the
+  #     allow-listed fork-credit surfaces from data-model.md E1.
+  # (2) Confirms the legacy `/plugins/whiskermenu` Xfconf base is only
+  #     ever referenced from the documented migration code path
+  #     (panel-plugin/migration.{cpp,h}, tests/test_migration.cpp).
+  identity-grep:
+    name: identity-grep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Grep for stale xfce4-whiskermenu-plugin references
+        shell: bash
+        run: |
+          set -euo pipefail
+          hits="$(grep -rn 'xfce4-whiskermenu-plugin' \
+                    --include='*.cpp' --include='*.h' --include='*.in' \
+                    --include='*.build' --include='*.md' --include='*.xml' \
+                    --include='*.po' --include='*.pot' --include='*.spec' \
+                    --include='control' --include='copyright' \
+                    -- . \
+                  | grep -v '^\./\.git/' \
+                  | grep -v '^\./build/' \
+                  || true)"
+          # Allow-list per data-model.md E1 §Validation. grep -rn with
+          # an explicit search path of `.` emits paths with the `./`
+          # prefix; the patterns below match accordingly.
+          allowed='^(\./)?debian/copyright:'
+          allowed="${allowed}|^(\./)?data/metainfo/xfce4-meowmenu-plugin\.appdata\.xml:"
+          allowed="${allowed}|^(\./)?docs/whisker-modernization-spec\.md:"
+          allowed="${allowed}|^(\./)?\.specify/specs/"
+          allowed="${allowed}|^(\./)?panel-plugin/plugin\.cpp:.*xfce4-whiskermenu-plugin"
+          # README front-matter cross-links the upstream Whisker project per
+          # FR-017 (acknowledge origin). Limit allow-listing to the badge,
+          # the fork-credit sentence, and the 'Whisker Menu source' link.
+          allowed="${allowed}|^(\./)?README\.md:.*fork%20of-Whisker"
+          allowed="${allowed}|^(\./)?README\.md:.*originated as a fork of"
+          allowed="${allowed}|^(\./)?README\.md:.*Whisker Menu source"
+          allowed="${allowed}|^(\./)?po/.*\.po:.*Last-Translator"
+          allowed="${allowed}|^(\./)?po/.*\.po:.*Language-Team"
+          allowed="${allowed}|^(\./)?po/.*\.po:.*msgstr"
+          violations="$(printf '%s\n' "$hits" | grep -v -E "${allowed}" | sed '/^$/d' || true)"
+          if [ -n "$violations" ]; then
+            echo "::error::FR-015 violation: stale xfce4-whiskermenu-plugin references outside the data-model.md E1 allow-list:"
+            printf '%s\n' "$violations"
+            exit 1
+          fi
+
+      - name: Grep for legacy Xfconf namespace outside migration code
+        shell: bash
+        run: |
+          set -euo pipefail
+          hits="$(grep -rn '/plugins/whiskermenu' \
+                    --include='*.cpp' --include='*.h' \
+                    -- panel-plugin tests \
+                  || true)"
+          allowed='^panel-plugin/migration\.(cpp|h):'
+          allowed="${allowed}|^tests/test_migration\.cpp:"
+          violations="$(printf '%s\n' "$hits" | grep -v -E "${allowed}" | sed '/^$/d' || true)"
+          if [ -n "$violations" ]; then
+            echo "::error::FR-006/FR-007/FR-008 violation: /plugins/whiskermenu referenced outside migration code"
+            printf '%s\n' "$violations"
+            exit 1
+          fi
+
+  # Feature 010 — docs-dependency-drift advisory (FR-027, SC-013). Diffs
+  # the dep lists declared in debian/control + packaging spec against the
+  # lists embedded in docs/install-*.md and docs/build-from-source.md.
+  # Emits a workflow warning on drift (not a hard fail).
+  docs-dependency-drift:
+    name: docs-dependency-drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare package and docs dep lists
+        shell: bash
+        run: |
+          set -uo pipefail
+          control_deps="$(awk '/^Depends:/{p=1;next} /^Recommends:/{p=1;next} /^[A-Za-z-]+:/{p=0} p' debian/control \
+                          | tr ',' '\n' \
+                          | sed -E 's/^[[:space:]]*//; s/[[:space:]]*\(.*\)//; s/[[:space:]]*$//' \
+                          | grep -v '^\${' \
+                          | grep -v '^$' \
+                          | sort -u || true)"
+          spec_requires="$(grep -E '^(Requires|Recommends):' packaging/xfce4-meowmenu-plugin.spec \
+                            | awk '{$1=""; print}' \
+                            | tr ' ' '\n' \
+                            | sed '/^$/d' \
+                            | sort -u || true)"
+          missing_in_docs=()
+          for d in $control_deps $spec_requires; do
+            if [ -z "$d" ]; then continue; fi
+            if ! grep -RIqF -- "$d" docs/install-*.md docs/build-from-source.md 2>/dev/null; then
+              missing_in_docs+=("$d")
+            fi
+          done
+          if [ "${#missing_in_docs[@]}" -gt 0 ]; then
+            echo "::warning::docs-dependency-drift: dependencies declared in packaging but not mentioned in docs/install-*.md or docs/build-from-source.md:"
+            printf '  - %s\n' "${missing_in_docs[@]}"
+          else
+            echo "docs dependency lists are consistent with packaging."
+          fi
+
 # Action-pinning audit (FR-022, T012/T047):
 #   - actions/checkout@v4  (allowed; major pin)
 #   No `@main` / `@master` references. See

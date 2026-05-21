@@ -4,7 +4,7 @@
 # NOTE: run_command() is inlined into project() because meson requires project()
 # to be the first statement in the top-level meson.build.
 project(
-  'xfce4-whiskermenu-plugin',
+  'xfce4-meowmenu-plugin',
   'c',
   'cpp',
 version : run_command(
@@ -199,6 +199,14 @@ endif
 install_data(
   'NEWS',
   install_dir: pkgdatadir,
+)
+
+# AppStream metainfo (feature 010, FR-018) — installed under the
+# freedesktop-standard $datadir/metainfo location so distros pick it up
+# automatically.
+install_data(
+  'data' / 'metainfo' / 'xfce4-meowmenu-plugin.appdata.xml',
+  install_dir: get_option('prefix') / get_option('datadir') / 'metainfo',
 )
 
 # Asserts meson.build's version stays in sync with NEWS top entry (FR-012).
