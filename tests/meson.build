@@ -87,3 +87,23 @@ test_home_search = executable(
 )
 
 test('home_search', test_home_search)
+
+# NOTE: test_migration covers the T1..T7 contract from
+# .specify/specs/010-standalone-identity/contracts/xfconf-migration.md.
+# It exercises panel-plugin/migration.cpp directly (source compiled into
+# the test executable rather than linked against libmeowmenu, matching the
+# pattern of the other tests in this directory). The fixture brings up a
+# private session bus + xfconfd; when xfconfd is absent the test prints a
+# TAP SKIP marker and returns 0.
+test_migration_sources = [
+  'test_migration.cpp',
+  '..' / 'panel-plugin' / 'migration.cpp',
+]
+
+test_migration = executable(
+  'test_migration',
+  test_migration_sources,
+  dependencies: [glib, gio, xfconf],
+)
+
+test('migration', test_migration, timeout: 60)

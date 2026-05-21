@@ -1,6 +1,6 @@
-# Italian translation of xfce4-whiskermenu-plugin.
+# Italian translation of xfce4-meowmenu-plugin.
 # Copyright (C) 2023 Graeme Gott
-# This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
+# This file is distributed under the same license as the xfce4-meowmenu-plugin package.
 #
 # Translators:
 # Bernardo Miguel Savone <bmsavone@gmail.com>, 2013-2015
@@ -11,7 +11,7 @@
 # Matteo Bonanomi <mbonanomi.dev@proton.me>, 2026
 msgid ""
 msgstr ""
-"Project-Id-Version: MeowMenu\n"
+"Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-15 12:08+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"

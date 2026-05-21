@@ -24,6 +24,7 @@
 
 #include "applications-page.h"
 #include "command.h"
+#include "migration.h"
 #include "settings.h"
 #include "settings-dialog.h"
 #include "slot.h"
@@ -79,6 +80,15 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 
 	// Load user settings
 	m_settings->load(xfce_panel_plugin_get_property_base(m_plugin));
+
+	// One-shot pre-rename Xfconf migration. See migration.h/cpp for
+	// the legacy-vs-current base mapping and the Whisker-presence gate.
+	{
+		XfconfChannel* panel_channel = xfconf_channel_new(xfce_panel_get_channel_name());
+		WhiskerMenu::migrate_legacy_xfconf(panel_channel,
+				xfce_panel_plugin_get_property_base(m_plugin));
+		g_object_unref(panel_channel);
+	}
 
 	// Migrate old user settings if they exist
 	if (m_settings->channel)
@@ -498,7 +508,7 @@ void Plugin::show_about()
 	GtkWidget* dialog = gtk_about_dialog_new();
 	GtkAboutDialog* about = GTK_ABOUT_DIALOG(dialog);
 
-	gtk_about_dialog_set_program_name(about, "xfce4-meowmenu-plugin");
+	gtk_about_dialog_set_program_name(about, "MeowMenu");
 	gtk_about_dialog_set_version(about, MEOWMENU_VERSION " (" MEOWMENU_RELEASE_DATE ")");
 	gtk_about_dialog_set_comments(about, _("Alternate launcher for XFCE4"));
 	gtk_about_dialog_set_website(about, PLUGIN_WEBSITE);
