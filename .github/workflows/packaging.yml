@@ -2,16 +2,24 @@
 # Job-name contract (packaging.yml — never a required check, tag-triggered)
 # =============================================================================
 # Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2, §4, §5
+# Feature 010 additions: .specify/specs/010-standalone-identity/contracts/package-overlap-check.md
 #
 # Job display names (used by branch-protection / audit log):
 #   validate-tag
 #   build-deb (ubuntu-26.04)
 #   build-deb (debian-13)
 #   build-rpm (fedora-44)
+#   build-rpm (opensuse-leap-15.6)              [feature 010, stretch — FR-023]
 #   verify-install-deb (ubuntu-26.04)
 #   verify-install-deb (debian-13)
 #   verify-install-rpm
+#   whisker-overlap-check (ubuntu-26.04)        [feature 010, FR-021 / FR-025]
+#   whisker-overlap-check (debian-13)           [feature 010, FR-021 / FR-025]
+#   whisker-overlap-check (fedora-44)           [feature 010, FR-021 / FR-025]
+#   whisker-overlap-check (opensuse-leap-15.6)  [feature 010, stretch — FR-021 / FR-023]
+#   relationship-declaration-check              [feature 010, FR-022]
 #   attach-artifacts
+#   attach-artifacts-opensuse                   [feature 010, stretch — FR-023]
 #
 # Job IDs (used by `needs:`) differ from display names by design — see
 # workflow-jobs.md §2 NOTE on IDs vs names.
@@ -20,6 +28,7 @@
 #   xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
 #   xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
 #   xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
+#   xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm   [feature 010, stretch]
 #
 # Tag-on-`main` invariant (§5): validate-tag refuses to proceed when the tag
 # is not reachable from `origin/main`.
@@ -284,6 +293,92 @@ jobs:
           name: rpm-package
           path: artifacts/xfce4-meowmenu-plugin-*.rpm
 
+  # NOTE: openSUSE Leap 15.6 is a stretch target per spec FR-023 / SC-010 /
+  # research.md §R7. `continue-on-error: true` means a failed build does
+  # NOT block the canonical (Ubuntu / Debian / Fedora) release; the
+  # attach-artifacts-opensuse job downstream is gated on this build, the
+  # overlap check, and the relationship check all reporting success.
+  build-rpm-opensuse:
+    name: build-rpm (opensuse-leap-15.6)
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    container:
+      image: opensuse/leap:15.6
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies (openSUSE Leap 15.6 + packaging tools)
+        run: |
+          zypper -n refresh
+          zypper -n install --no-recommends \
+              gcc gcc-c++ make meson ninja pkgconf-pkg-config \
+              gtk3-devel glib2-devel \
+              garcon-devel \
+              xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
+              libexo-devel \
+              xfconf-devel \
+              accountsservice-devel gtk-layer-shell-devel \
+              gettext-tools \
+              git ca-certificates \
+              rpm-build rpmdevtools python3
+
+      - name: Render spec Version and %changelog from NEWS
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          spec="packaging/xfce4-meowmenu-plugin.spec"
+          sed -i "s/^Version:.*/Version:        ${VERSION}/" "$spec"
+          date_rpm="$(date -u +'%a %b %d %Y')"
+          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
+          awk -v ver="$VERSION" -v dt="$date_rpm" -v body="$news_body" '
+            BEGIN { skip = 0 }
+            /^%changelog/ {
+              print "%changelog"
+              print "* " dt " Matteo Bonanomi <mbonanomi.dev@proton.me> - " ver "-1"
+              n = split(body, lines, "\n")
+              if (n == 0 || (n == 1 && lines[1] == "")) {
+                print "- Release " ver "."
+              } else {
+                for (i = 1; i <= n; i++) print lines[i]
+              }
+              skip = 1
+              next
+            }
+            skip == 0 { print }
+          ' "$spec" > "${spec}.new"
+          mv "${spec}.new" "$spec"
+
+      - name: Stage source tarball and build RPM
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          rpmdev-setuptree
+          tar --transform "s,^,xfce4-meowmenu-plugin-${VERSION}/," \
+              --exclude='./.git' --exclude='./build' \
+              -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
+              .
+          cp packaging/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
+          rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
+
+      - name: Stage artifact under contract filename (suse15.6 token)
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          mkdir -p artifacts
+          src="$(ls "$HOME"/rpmbuild/RPMS/x86_64/xfce4-meowmenu-plugin-*.rpm | head -n1)"
+          cp "$src" "artifacts/xfce4-meowmenu-plugin-${VERSION}-1.suse15.6.x86_64.rpm"
+          ls -la artifacts/
+
+      - name: Upload openSUSE Leap .rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package-opensuse
+          path: artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
+
   verify-install-deb-ubuntu:
     name: verify-install-deb (ubuntu-26.04)
     needs: build-deb-ubuntu
@@ -354,12 +449,466 @@ jobs:
           dnf install -y ./artifacts/xfce4-meowmenu-plugin-*.rpm
           rpm -qi xfce4-meowmenu-plugin
 
+  # ===========================================================================
+  # Feature 010 — Whisker coexistence gates
+  #
+  # Each per-distro overlap job (a) installs the produced MeowMenu artifact in
+  # a clean container of the target distribution, (b) installs that distro's
+  # `xfce4-whiskermenu-plugin` package from its native repos, (c) computes
+  # the set intersection of `dpkg -L` / `rpm -ql` for the two packages, and
+  # (d) fails if the intersection contains any non-directory entry (FR-021).
+  # Each job additionally re-runs the install on a clean image with no
+  # Whisker present to exercise FR-025 (identical install command regardless
+  # of Whisker presence).
+  #
+  # The pinned Whisker package name per distro lives in docs/ci.md
+  # "Upstream Whisker package names" and in
+  # contracts/package-overlap-check.md "Pinned package names".
+  # ===========================================================================
+
+  whisker-overlap-check-ubuntu:
+    name: whisker-overlap-check (ubuntu-26.04)
+    needs: build-deb-ubuntu
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:26.04
+    steps:
+      - name: Install tooling
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
+
+      - name: Download Ubuntu .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package-ubuntu
+          path: artifacts
+
+      - name: Coexistence install (Whisker present)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y xfce4-whiskermenu-plugin
+          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
+          dpkg -s xfce4-meowmenu-plugin
+          dpkg -s xfce4-whiskermenu-plugin
+
+      - name: Compute file-path intersection (FR-021)
+        run: |
+          set -e
+          dpkg -L xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
+          dpkg -L xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
+          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
+          # NOTE: shared directory entries are expected (both packages drop
+          # files into /usr/share/xfce4/, /usr/share/locale/, ...). Only
+          # non-directory entries are FR-001 violations.
+          : > /tmp/overlap-violations.txt
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if [ -d "$path" ] && [ ! -L "$path" ]; then
+              continue
+            fi
+            echo "$path" >> /tmp/overlap-violations.txt
+          done < /tmp/intersection.txt
+          mkdir -p /tmp/report
+          {
+            echo "## ubuntu-26.04"
+            echo
+            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
+            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
+            echo
+            echo "### Raw file-listing intersection"
+            echo
+            echo '```'
+            cat /tmp/intersection.txt
+            echo '```'
+            echo
+            echo "### Non-directory overlaps (must be empty)"
+            echo
+            echo '```'
+            cat /tmp/overlap-violations.txt
+            echo '```'
+          } > /tmp/report/ubuntu-26.04.md
+          if [ -s /tmp/overlap-violations.txt ]; then
+            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on ubuntu-26.04"
+            cat /tmp/overlap-violations.txt
+            exit 1
+          fi
+
+      - name: Whisker-absent install smoke (FR-025)
+        run: |
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get remove -y xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
+          ! dpkg -s xfce4-whiskermenu-plugin >/dev/null 2>&1
+          # Re-install with the SAME native command; FR-025 forbids any
+          # difference in user-visible install procedure between
+          # "Whisker present" and "Whisker absent".
+          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb 2>&1 | tee /tmp/install-log.txt
+          if grep -Ei 'force-overwrite|replac|missing.*xfce4-whiskermenu' /tmp/install-log.txt; then
+            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution/missing-package warning"
+            exit 1
+          fi
+          dpkg -s xfce4-meowmenu-plugin
+
+      - name: Upload overlap report (ubuntu-26.04)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisker-overlap-report-ubuntu-26.04
+          path: /tmp/report/ubuntu-26.04.md
+
+  whisker-overlap-check-debian:
+    name: whisker-overlap-check (debian-13)
+    needs: build-deb-debian
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    steps:
+      - name: Install tooling
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
+
+      - name: Download Debian .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package-debian
+          path: artifacts
+
+      - name: Coexistence install (Whisker present)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y xfce4-whiskermenu-plugin
+          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
+          dpkg -s xfce4-meowmenu-plugin
+          dpkg -s xfce4-whiskermenu-plugin
+
+      - name: Compute file-path intersection (FR-021)
+        run: |
+          set -e
+          dpkg -L xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
+          dpkg -L xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
+          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
+          : > /tmp/overlap-violations.txt
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if [ -d "$path" ] && [ ! -L "$path" ]; then
+              continue
+            fi
+            echo "$path" >> /tmp/overlap-violations.txt
+          done < /tmp/intersection.txt
+          mkdir -p /tmp/report
+          {
+            echo "## debian-13"
+            echo
+            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
+            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
+            echo
+            echo "### Raw file-listing intersection"
+            echo
+            echo '```'
+            cat /tmp/intersection.txt
+            echo '```'
+            echo
+            echo "### Non-directory overlaps (must be empty)"
+            echo
+            echo '```'
+            cat /tmp/overlap-violations.txt
+            echo '```'
+          } > /tmp/report/debian-13.md
+          if [ -s /tmp/overlap-violations.txt ]; then
+            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on debian-13"
+            cat /tmp/overlap-violations.txt
+            exit 1
+          fi
+
+      - name: Whisker-absent install smoke (FR-025)
+        run: |
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get remove -y xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
+          ! dpkg -s xfce4-whiskermenu-plugin >/dev/null 2>&1
+          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb 2>&1 | tee /tmp/install-log.txt
+          if grep -Ei 'force-overwrite|replac|missing.*xfce4-whiskermenu' /tmp/install-log.txt; then
+            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution/missing-package warning"
+            exit 1
+          fi
+          dpkg -s xfce4-meowmenu-plugin
+
+      - name: Upload overlap report (debian-13)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisker-overlap-report-debian-13
+          path: /tmp/report/debian-13.md
+
+  whisker-overlap-check-fedora:
+    name: whisker-overlap-check (fedora-44)
+    needs: build-rpm
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+    steps:
+      - name: Install tooling
+        run: dnf -y install ca-certificates coreutils
+
+      - name: Download Fedora .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package
+          path: artifacts
+
+      - name: Coexistence install (Whisker present)
+        run: |
+          dnf -y install xfce4-whiskermenu-plugin
+          dnf -y install ./artifacts/xfce4-meowmenu-plugin-*.rpm
+          rpm -qi xfce4-meowmenu-plugin
+          rpm -qi xfce4-whiskermenu-plugin
+
+      - name: Compute file-path intersection (FR-021)
+        run: |
+          set -e
+          rpm -ql xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
+          rpm -ql xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
+          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
+          : > /tmp/overlap-violations.txt
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if [ -d "$path" ] && [ ! -L "$path" ]; then
+              continue
+            fi
+            echo "$path" >> /tmp/overlap-violations.txt
+          done < /tmp/intersection.txt
+          mkdir -p /tmp/report
+          {
+            echo "## fedora-44"
+            echo
+            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
+            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
+            echo
+            echo "### Raw file-listing intersection"
+            echo
+            echo '```'
+            cat /tmp/intersection.txt
+            echo '```'
+            echo
+            echo "### Non-directory overlaps (must be empty)"
+            echo
+            echo '```'
+            cat /tmp/overlap-violations.txt
+            echo '```'
+          } > /tmp/report/fedora-44.md
+          if [ -s /tmp/overlap-violations.txt ]; then
+            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on fedora-44"
+            cat /tmp/overlap-violations.txt
+            exit 1
+          fi
+
+      - name: Whisker-absent install smoke (FR-025)
+        run: |
+          set -e
+          dnf -y remove xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
+          ! rpm -q xfce4-whiskermenu-plugin >/dev/null 2>&1
+          dnf -y install ./artifacts/xfce4-meowmenu-plugin-*.rpm 2>&1 | tee /tmp/install-log.txt
+          if grep -Ei 'replacing|obsoletes|conflicts.*xfce4-whiskermenu' /tmp/install-log.txt; then
+            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution warning"
+            exit 1
+          fi
+          rpm -qi xfce4-meowmenu-plugin
+
+      - name: Upload overlap report (fedora-44)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisker-overlap-report-fedora-44
+          path: /tmp/report/fedora-44.md
+
+  # NOTE: openSUSE Leap 15.6 overlap check is stretch (FR-023). Failure does
+  # not block the canonical release; the openSUSE artifact attach is gated
+  # on this job succeeding.
+  whisker-overlap-check-opensuse-leap:
+    name: whisker-overlap-check (opensuse-leap-15.6)
+    needs: build-rpm-opensuse
+    runs-on: ubuntu-latest
+    container:
+      image: opensuse/leap:15.6
+    continue-on-error: true
+    steps:
+      - name: Install tooling
+        run: zypper -n install ca-certificates coreutils
+
+      - name: Download openSUSE Leap .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package-opensuse
+          path: artifacts
+
+      - name: Coexistence install (Whisker present)
+        run: |
+          zypper -n refresh
+          zypper -n install xfce4-whiskermenu-plugin
+          zypper -n install --allow-unsigned-rpm ./artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
+          rpm -qi xfce4-meowmenu-plugin
+          rpm -qi xfce4-whiskermenu-plugin
+
+      - name: Compute file-path intersection (FR-021)
+        run: |
+          set -e
+          rpm -ql xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
+          rpm -ql xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
+          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
+          : > /tmp/overlap-violations.txt
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if [ -d "$path" ] && [ ! -L "$path" ]; then
+              continue
+            fi
+            echo "$path" >> /tmp/overlap-violations.txt
+          done < /tmp/intersection.txt
+          mkdir -p /tmp/report
+          {
+            echo "## opensuse-leap-15.6"
+            echo
+            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
+            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
+            echo
+            echo "### Raw file-listing intersection"
+            echo
+            echo '```'
+            cat /tmp/intersection.txt
+            echo '```'
+            echo
+            echo "### Non-directory overlaps (must be empty)"
+            echo
+            echo '```'
+            cat /tmp/overlap-violations.txt
+            echo '```'
+          } > /tmp/report/opensuse-leap-15.6.md
+          if [ -s /tmp/overlap-violations.txt ]; then
+            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on opensuse-leap-15.6"
+            cat /tmp/overlap-violations.txt
+            exit 1
+          fi
+
+      - name: Whisker-absent install smoke (FR-025)
+        run: |
+          set -e
+          zypper -n remove xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
+          ! rpm -q xfce4-whiskermenu-plugin >/dev/null 2>&1
+          zypper -n install --allow-unsigned-rpm ./artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm 2>&1 | tee /tmp/install-log.txt
+          if grep -Ei 'replacing|obsoletes|conflicts.*xfce4-whiskermenu' /tmp/install-log.txt; then
+            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution warning"
+            exit 1
+          fi
+          rpm -qi xfce4-meowmenu-plugin
+
+      - name: Upload overlap report (opensuse-leap-15.6)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisker-overlap-report-opensuse-leap-15.6
+          path: /tmp/report/opensuse-leap-15.6.md
+
+  # ===========================================================================
+  # Feature 010 — relationship declaration check (FR-022).
+  # No produced .deb may declare Conflicts/Replaces/Provides against
+  # xfce4-whiskermenu-plugin. No produced .rpm may declare
+  # Conflicts/Obsoletes/Provides against it. Coexistence, not substitution.
+  # ===========================================================================
+  relationship-declaration-check:
+    name: relationship-declaration-check
+    needs:
+      - build-deb-ubuntu
+      - build-deb-debian
+      - build-rpm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dpkg-dev rpm
+
+      - name: Download Ubuntu .deb
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package-ubuntu
+          path: artifacts/deb-ubuntu
+
+      - name: Download Debian .deb
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package-debian
+          path: artifacts/deb-debian
+
+      - name: Download Fedora .rpm
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package
+          path: artifacts/rpm-fedora
+
+      - name: Check .deb relationship declarations
+        run: |
+          set -e
+          mkdir -p /tmp/report
+          report=/tmp/report/relationship-deb.md
+          : > "$report"
+          fail=0
+          for deb in artifacts/deb-ubuntu/*.deb artifacts/deb-debian/*.deb; do
+            [ -f "$deb" ] || continue
+            echo "### $(basename "$deb")" >> "$report"
+            echo '```' >> "$report"
+            dpkg-deb -I "$deb" | grep -E '^[[:space:]]*(Conflicts|Replaces|Provides):' >> "$report" \
+              || echo "(no Conflicts/Replaces/Provides fields)" >> "$report"
+            echo '```' >> "$report"
+            if dpkg-deb -I "$deb" \
+                | grep -Ei '^[[:space:]]*(Conflicts|Replaces|Provides):' \
+                | grep -Eq '(^|[, ])xfce4-whiskermenu-plugin([ ,]|$)'; then
+              echo "::error::FR-022 violation: $deb declares a substitution relationship against xfce4-whiskermenu-plugin"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Check .rpm relationship declarations
+        run: |
+          set -e
+          mkdir -p /tmp/report
+          report=/tmp/report/relationship-rpm.md
+          : > "$report"
+          fail=0
+          for rpm in artifacts/rpm-fedora/*.rpm; do
+            [ -f "$rpm" ] || continue
+            echo "### $(basename "$rpm")" >> "$report"
+            for kind in conflicts obsoletes provides; do
+              echo "**${kind}:**" >> "$report"
+              echo '```' >> "$report"
+              rpm -qp --"$kind" "$rpm" >> "$report" || true
+              echo '```' >> "$report"
+              if rpm -qp --"$kind" "$rpm" \
+                  | grep -Eq '(^|[, ])xfce4-whiskermenu-plugin([ ,]|$)'; then
+                echo "::error::FR-022 violation: $kind in $rpm references xfce4-whiskermenu-plugin"
+                fail=1
+              fi
+            done
+          done
+          exit $fail
+
+      - name: Upload relationship report
+        uses: actions/upload-artifact@v4
+        with:
+          name: relationship-declaration-report
+          path: /tmp/report/
+
   attach-artifacts:
     name: attach-artifacts
     needs:
       - verify-install-deb-ubuntu
       - verify-install-deb-debian
       - verify-install-rpm
+      - whisker-overlap-check-ubuntu
+      - whisker-overlap-check-debian
+      - whisker-overlap-check-fedora
+      - relationship-declaration-check
     runs-on: ubuntu-latest
     steps:
       - name: Download Ubuntu .deb artifact
@@ -380,6 +929,62 @@ jobs:
           name: rpm-package
           path: artifacts
 
+      - name: Download per-distro overlap reports (canonical three)
+        uses: actions/download-artifact@v4
+        with:
+          path: overlap-reports
+          pattern: whisker-overlap-report-*
+          merge-multiple: true
+
+      - name: Download relationship-declaration report
+        uses: actions/download-artifact@v4
+        with:
+          name: relationship-declaration-report
+          path: relationship-report
+
+      # NOTE: aggregate the per-distro overlap reports plus the
+      # relationship-declaration report into a single whisker-overlap.md
+      # release artifact per FR-024. The aggregated file lists, for each
+      # shipped distro, the resolved Whisker package name, the file-listing
+      # diff, and the relationship-declaration grep output, so packagers
+      # and users can verify coexistence claims without reproducing the
+      # build.
+      - name: Assemble whisker-overlap.md release report
+        run: |
+          set -e
+          out=artifacts/whisker-overlap.md
+          {
+            echo "# Whisker / MeowMenu coexistence report"
+            echo
+            echo "Tag: \`${{ github.ref_name }}\`"
+            echo
+            echo "Pinned Whisker package per distro (source of truth:"
+            echo "\`docs/ci.md\` 'Upstream Whisker package names'):"
+            echo
+            echo "| Distro             | Whisker package name        |"
+            echo "|--------------------|-----------------------------|"
+            echo "| Ubuntu 26.04       | \`xfce4-whiskermenu-plugin\` |"
+            echo "| Debian 13          | \`xfce4-whiskermenu-plugin\` |"
+            echo "| Fedora 44          | \`xfce4-whiskermenu-plugin\` |"
+            echo "| openSUSE Leap 15.6 | \`xfce4-whiskermenu-plugin\` (stretch — present iff included below) |"
+            echo
+            echo "## Per-distro file-listing overlap"
+            echo
+            for f in overlap-reports/ubuntu-26.04.md \
+                     overlap-reports/debian-13.md \
+                     overlap-reports/fedora-44.md \
+                     overlap-reports/opensuse-leap-15.6.md; do
+              [ -f "$f" ] && { cat "$f"; echo; }
+            done
+            echo "## Substitution-declaration check (FR-022)"
+            echo
+            for f in relationship-report/relationship-deb.md \
+                     relationship-report/relationship-rpm.md; do
+              [ -f "$f" ] && { cat "$f"; echo; }
+            done
+          } > "$out"
+          ls -la artifacts/
+
       - name: Attach to the Release for ${{ github.ref_name }}
         uses: softprops/action-gh-release@v2
         with:
@@ -388,6 +993,38 @@ jobs:
             artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
             artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
             artifacts/xfce4-meowmenu-plugin-*.rpm
+            artifacts/whisker-overlap.md
+          fail_on_unmatched_files: true
+
+  # NOTE: openSUSE Leap 15.6 attach is gated on the build + overlap check
+  # all reporting success (FR-023, SC-010). If any of them failed (the
+  # upstream jobs are `continue-on-error: true`), this job is skipped and
+  # the release-notes step must record the omission verbatim.
+  attach-artifacts-opensuse:
+    name: attach-artifacts-opensuse
+    needs:
+      - build-rpm-opensuse
+      - whisker-overlap-check-opensuse-leap
+      - relationship-declaration-check
+      - attach-artifacts
+    if: |
+      needs.build-rpm-opensuse.result == 'success' &&
+      needs.whisker-overlap-check-opensuse-leap.result == 'success' &&
+      needs.relationship-declaration-check.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download openSUSE Leap .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package-opensuse
+          path: artifacts
+
+      - name: Attach openSUSE Leap stretch artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
           fail_on_unmatched_files: true
 
 # Action-pinning audit (FR-022, T047):

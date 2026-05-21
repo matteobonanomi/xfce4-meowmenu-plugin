@@ -1,6 +1,6 @@
-# Catalan (Valencian) translation of xfce4-whiskermenu-plugin.
+# Catalan (Valencian) translation of xfce4-meowmenu-plugin.
 # Copyright (C) 2023 Graeme Gott
-# This file is distributed under the same license as the xfce4-whiskermenu-plugin package.
+# This file is distributed under the same license as the xfce4-meowmenu-plugin package.
 #
 # Translators:
 # Jose Alfredo Murcia Andrés <joamuran@gmail.com>, 2017
@@ -12,7 +12,7 @@
 # Pull Request: https://github.com/matteob/xfce4-meowmenu-plugin
 msgid ""
 msgstr ""
-"Project-Id-Version: MeowMenu\n"
+"Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: mbonanomi.dev@proton.me\n"
 "POT-Creation-Date: 2026-05-15 12:08+0200\n"
 "PO-Revision-Date: 2017-09-23 02:38+0000\n"
