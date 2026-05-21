@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.4.3 (2026-05-21)
+=====
+- fix broken dependencies from WhiskerMenu
+- add uninstall guide to readme depending on installation method
+
 0.4.2 (2026-05-20)
 =====
 - hotfix missing ubuntu package

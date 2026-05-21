@@ -19,87 +19,64 @@ Built for Xubuntu 26.04 with Xfce 4.20.x.
 
 ---
 
-## Installation
+## Installation / uninstallation
 
-There are two ways to install MeowMenu:
-
-1. **Recommended — install the prebuilt package** for one of the three officially
-   supported distributions. Every release is built and smoke-tested in CI for
-   Ubuntu 26.04, Debian 13, and Fedora 44, and the matching `.deb` / `.rpm`
-   files are attached directly to the GitHub Release.
-2. **Alternative — build from source** with Meson. Works on every Linux distro;
-   for openSUSE and Arch-based distributions this is the only supported path
-   (their builds are best-effort and are *not* exercised by CI).
-
-### Recommended — install the prebuilt package
-
-Download the file that matches your distribution from the latest
-[GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest),
-then run the matching install command from the directory where you saved it.
+Prebuilt `.deb` / `.rpm` packages are attached to every
+[GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
 Replace `<version>` with the actual release version (e.g. `0.4.0`).
+After any install or uninstall, restart the panel with `xfce4-panel -r`;
+then right-click the panel → **Add New Items** → **MeowMenu** to add it.
 
-<details>
-<summary><strong>Ubuntu 26.04 (officially supported, CI-verified)</strong></summary>
+### Ubuntu 26.04
 
-File: `xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb`
+- **Suggested — package:**
+  ```bash
+  sudo apt install ./xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
+  ```
+  Uninstall: `sudo apt purge xfce4-meowmenu-plugin`
+- **Optional — from source:** see [Build from source](#build-from-source) below.
+  Uninstall: `sudo ninja -C build uninstall`
 
-```bash
-sudo apt install ./xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
-```
+### Debian 13
 
-To uninstall:
+- **Suggested — package:**
+  ```bash
+  sudo apt install ./xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
+  ```
+  Uninstall: `sudo apt purge xfce4-meowmenu-plugin`
+- **Optional — from source:** see [Build from source](#build-from-source) below.
+  Uninstall: `sudo ninja -C build uninstall`
 
-```bash
-sudo apt remove xfce4-meowmenu-plugin
-```
+### Fedora 44
 
-</details>
+- **Suggested — package:**
+  ```bash
+  sudo dnf install ./xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
+  ```
+  Uninstall: `sudo dnf remove xfce4-meowmenu-plugin`
+- **Optional — from source:** see [Build from source](#build-from-source) below.
+  Uninstall: `sudo ninja -C build uninstall`
 
-<details>
-<summary><strong>Debian 13 (officially supported, CI-verified)</strong></summary>
+### openSUSE / Arch / other distros
 
-File: `xfce4-meowmenu-plugin_<version>_debian13_amd64.deb`
+Only from source — see [Build from source](#build-from-source) below.
+Uninstall: `sudo ninja -C build uninstall`.
 
-```bash
-sudo apt install ./xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
-```
+### Remove user configuration
 
-To uninstall:
-
-```bash
-sudo apt remove xfce4-meowmenu-plugin
-```
-
-</details>
-
-<details>
-<summary><strong>Fedora 44 (officially supported, CI-verified)</strong></summary>
-
-File: `xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm`
-
-```bash
-sudo dnf install ./xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
-```
-
-To uninstall:
+A package/source uninstall leaves user data behind. After removing the
+MeowMenu button from any panel, also clean:
 
 ```bash
-sudo dnf remove xfce4-meowmenu-plugin
+# User-installed presets
+rm -rf ~/.local/share/meowmenu/
+
+# Per-instance Xfconf settings (one ID per panel button you had)
+xfconf-query -c xfce4-panel -lv | grep meowmenu
+xfconf-query -c xfce4-panel -p /plugins/plugin-<id> -r -R
 ```
 
-</details>
-
-> Pick the file whose name matches your distribution. The two `.deb` files
-> share the same `amd64` architecture but are built in their respective
-> distro containers; installing the Debian package on Ubuntu (or vice versa)
-> may trip a runtime dependency mismatch and is not supported.
-
-### Alternative — build from source
-
-The build steps are the same on every distribution — only the package names
-for the development dependencies change. Pick your distro below.
-
-The common build steps, once dependencies are installed:
+### Build from source
 
 ```bash
 git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
@@ -109,8 +86,10 @@ meson compile -C build
 sudo meson install -C build
 ```
 
+Development dependencies per distro:
+
 <details>
-<summary><strong>Ubuntu 26.04 (officially supported)</strong></summary>
+<summary><strong>Ubuntu 26.04 / Debian 13</strong></summary>
 
 ```bash
 sudo apt update
@@ -125,37 +104,13 @@ sudo apt install \
     gettext
 ```
 
-On Ubuntu 24.04 / Linux Mint 22, replace `libgarcon-1-dev` /
-`libgarcon-gtk3-1-dev` with `libgarcon-1-0-dev` / `libgarcon-gtk3-1-0-dev`
-(the `-0` ABI suffix was dropped in 26.04). Ubuntu releases other than 26.04
-are not exercised by CI.
+On Ubuntu 24.04 / Linux Mint 22 / LMDE 6, replace `libgarcon-1-dev` /
+`libgarcon-gtk3-1-dev` with `libgarcon-1-0-dev` / `libgarcon-gtk3-1-0-dev`.
 
 </details>
 
 <details>
-<summary><strong>Debian 13 (officially supported)</strong></summary>
-
-Also tested on LMDE 6+.
-
-```bash
-sudo apt update
-sudo apt install \
-    build-essential meson ninja-build pkg-config \
-    libgtk-3-dev libglib2.0-dev \
-    libgarcon-1-dev libgarcon-gtk3-1-dev \
-    libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
-    libexo-2-dev \
-    libxfconf-0-dev \
-    libaccountsservice-dev libgtk-layer-shell-dev \
-    gettext
-```
-
-</details>
-
-<details>
-<summary><strong>Fedora 44 (officially supported)</strong></summary>
-
-Also tested on Fedora 41+.
+<summary><strong>Fedora 44+</strong></summary>
 
 ```bash
 sudo dnf install \
@@ -172,12 +127,7 @@ sudo dnf install \
 </details>
 
 <details>
-<summary><strong>openSUSE (best-effort, not verified in CI)</strong></summary>
-
-Tested on openSUSE Tumbleweed and Leap 15.6+. openSUSE is **not** exercised
-by [`ci.yml`](.github/workflows/ci.yml); breakage is fixed on a best-effort
-basis. Patches welcome — please open an issue with full reproduction details
-if a build breaks.
+<summary><strong>openSUSE (Tumbleweed / Leap 15.6+)</strong></summary>
 
 ```bash
 sudo zypper install -t pattern devel_C_C++
@@ -195,11 +145,7 @@ sudo zypper install \
 </details>
 
 <details>
-<summary><strong>Arch / Manjaro / EndeavourOS (best-effort, not verified in CI)</strong></summary>
-
-Tested on current Arch Linux. Arch-based distributions are **not** exercised
-by [`ci.yml`](.github/workflows/ci.yml); breakage is fixed on a best-effort
-basis. Patches welcome.
+<summary><strong>Arch / Manjaro / EndeavourOS</strong></summary>
 
 ```bash
 sudo pacman -S --needed \
@@ -214,17 +160,6 @@ sudo pacman -S --needed \
 ```
 
 </details>
-
-### Finish up (both paths)
-
-After installing — whether from the prebuilt package or from source —
-restart the Xfce panel:
-
-```bash
-xfce4-panel -r
-```
-
-Then right-click the panel → **Add New Items** → search for **MeowMenu** and add it.
 
 ---
 
