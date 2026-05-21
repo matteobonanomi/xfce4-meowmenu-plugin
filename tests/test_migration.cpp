@@ -113,6 +113,16 @@ bool fixture_up()
 		std::printf("# SKIP: xfconfd binary not found on this host\n");
 		return false;
 	}
+	// NOTE: g_test_dbus_up() spawns dbus-daemon and aborts the process
+	// with a fatal GLib-GIO-ERROR if it is missing (e.g. minimal Fedora
+	// containers). Detect it up front and skip cleanly instead.
+	gchar* dbus_daemon = g_find_program_in_path("dbus-daemon");
+	if (dbus_daemon == nullptr)
+	{
+		std::printf("# SKIP: dbus-daemon binary not found on this host\n");
+		return false;
+	}
+	g_free(dbus_daemon);
 
 	// Private scratch dir for xfconfd's storage.
 	gchar* tmpl = g_strdup("/tmp/meow-migration-test-XXXXXX");
@@ -127,6 +137,9 @@ bool fixture_up()
 	g_setenv("XDG_CONFIG_HOME", g_scratch_dir.c_str(), TRUE);
 	g_setenv("XDG_CACHE_HOME", g_scratch_dir.c_str(), TRUE);
 	g_setenv("XDG_RUNTIME_DIR", g_scratch_dir.c_str(), TRUE);
+	// g_mkdtemp returns dir == tmpl (modified in place); free the
+	// buffer now that g_scratch_dir owns its own copy.
+	g_free(tmpl);
 
 	g_test_bus = g_test_dbus_new(G_TEST_DBUS_NONE);
 	g_test_dbus_up(g_test_bus);
@@ -235,7 +248,14 @@ void seed_legacy(XfconfChannel* channel, const std::string& base)
 	const gchar* favs[] = { "firefox.desktop", "thunar.desktop", nullptr };
 	GValue arr = G_VALUE_INIT;
 	g_value_init(&arr, G_TYPE_PTR_ARRAY);
-	GPtrArray* parr = g_ptr_array_new_with_free_func((GDestroyNotify) g_free);
+	// NOTE: plain g_free would leak the GValue's internal string copy;
+	// the destroy func must g_value_unset() each element first.
+	auto free_gvalue = [](gpointer p) {
+		GValue* v = static_cast<GValue*>(p);
+		g_value_unset(v);
+		g_free(v);
+	};
+	GPtrArray* parr = g_ptr_array_new_with_free_func(free_gvalue);
 	for (const gchar** p = favs; *p != nullptr; ++p)
 	{
 		GValue* v = g_new0(GValue, 1);
