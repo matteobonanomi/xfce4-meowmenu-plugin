@@ -102,6 +102,7 @@ jobs:
               xfconf-devel \
               accountsservice-devel gtk-layer-shell-devel \
               gettext \
+              dbus-daemon xfconf \
               git ca-certificates
 
       - name: Meson setup
@@ -256,6 +257,10 @@ jobs:
           allowed='^(\./)?debian/copyright:'
           allowed="${allowed}|^(\./)?data/metainfo/xfce4-meowmenu-plugin\.appdata\.xml:"
           allowed="${allowed}|^(\./)?docs/whisker-modernization-spec\.md:"
+          # docs/architecture/ holds the bootstrap (§6.1 CLAUDE.md) read-only
+          # analysis of the upstream Whisker plugin; it legitimately names the
+          # upstream module as historical context, not as a live identifier.
+          allowed="${allowed}|^(\./)?docs/architecture/"
           allowed="${allowed}|^(\./)?\.specify/specs/"
           allowed="${allowed}|^(\./)?panel-plugin/plugin\.cpp:.*xfce4-whiskermenu-plugin"
           # README front-matter cross-links the upstream Whisker project per
