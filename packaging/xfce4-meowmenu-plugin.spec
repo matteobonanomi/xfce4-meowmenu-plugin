@@ -37,9 +37,11 @@ Recommends:     accountsservice
 Recommends:     gtk-layer-shell
 
 %description
-MeowMenu is a fork of the Xfce Whisker Menu that keeps the familiar panel
-launcher feel while bringing a cleaner modern look, a more capable search
-bar, and extra customization options. Built for Xubuntu 26.04 with
+MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a
+standalone project that originated as a fork of Xfce's Whisker Menu
+and keeps the familiar panel-launcher feel while bringing a cleaner
+modern look and a more capable search bar. MeowMenu coexists with
+Whisker Menu and does not replace it. Built for Xubuntu 26.04 with
 Xfce 4.20.x.
 
 %prep
@@ -51,12 +53,12 @@ Xfce 4.20.x.
 
 %install
 %meson_install
-# NOTE: GETTEXT_PACKAGE is xfce4-whiskermenu-plugin (the upstream meson project
-# name), not xfce4-meowmenu-plugin. Locale .mo files are installed under that
-# name, so %find_lang must use it.
-%find_lang xfce4-whiskermenu-plugin
+# NOTE: GETTEXT_PACKAGE matches the meson project() name
+# (feature 010 — xfce4-meowmenu-plugin). Locale .mo files install under
+# that name, so %find_lang must use it.
+%find_lang xfce4-meowmenu-plugin
 
-%files -f xfce4-whiskermenu-plugin.lang
+%files -f xfce4-meowmenu-plugin.lang
 %license COPYING
 %doc README.md NEWS
 %{_bindir}/xfce4-popup-meowmenu
@@ -64,7 +66,8 @@ Xfce 4.20.x.
 %{_datadir}/xfce4/panel/plugins/*.desktop
 %{_datadir}/icons/hicolor/*/apps/*meowmenu*
 %{_datadir}/meowmenu/presets/
-%{_datadir}/xfce4-whiskermenu-plugin/
+%{_datadir}/xfce4-meowmenu-plugin/
+%{_datadir}/metainfo/xfce4-meowmenu-plugin.appdata.xml
 %{_mandir}/man1/xfce4-popup-meowmenu.1*
 
 %changelog

@@ -9,10 +9,11 @@
 [![Desktop: Xfce 4.20](https://img.shields.io/badge/desktop-Xfce%204.20-2284F2.svg?logo=xfce&logoColor=white)](https://xfce.org/)
 [![Upstream: Whisker Menu](https://img.shields.io/badge/fork%20of-Whisker%20Menu-orange.svg)](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
 
-MeowMenu is a fork of [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
-for Xfce that keeps the familiar panel launcher feel while bringing a cleaner modern look,
-a more capable search bar, and extra customization options for users who want the menu to
-fit their workflow.
+MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a standalone
+project that originated as a fork of [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
+and keeps the familiar panel-launcher feel while bringing a cleaner modern
+look and a more capable search bar. MeowMenu coexists with Whisker Menu and
+does not replace it.
 
 Built for Xubuntu 26.04 with Xfce 4.20.x.
 
@@ -303,7 +304,7 @@ xfconf-query -c xfce4-panel -p /plugins/<id>/corner-radius -s 8
 Built-in presets are plain-text `.meowpreset` files installed to:
 
 ```
-/usr/local/share/xfce4-whiskermenu-plugin/
+/usr/local/share/xfce4-meowmenu-plugin/
 ```
 
 You can inspect them directly or copy one to `~/.local/share/meowmenu/presets/` and edit
