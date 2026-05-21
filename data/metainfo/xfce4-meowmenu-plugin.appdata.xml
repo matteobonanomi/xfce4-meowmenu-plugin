@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="addon">
+  <id>xfce4-meowmenu-plugin</id>
+  <extends>xfce4-panel.desktop</extends>
+  <name>MeowMenu</name>
+  <summary>Modern menu launcher plugin for the Xfce panel</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+
+  <description>
+    <p>
+      MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a
+      standalone project that originated as a fork of Xfce's Whisker Menu
+      and keeps the familiar panel-launcher feel while bringing a cleaner
+      modern look and a more capable search bar. MeowMenu coexists with
+      Whisker Menu and does not replace it.
+    </p>
+  </description>
+
+  <url type="homepage">https://github.com/matteobonanomi/xfce4-meowmenu-plugin</url>
+  <url type="bugtracker">https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues</url>
+
+  <developer_name>Matteo Bonanomi</developer_name>
+
+  <provides>
+    <binary>xfce4-popup-meowmenu</binary>
+  </provides>
+
+  <content_rating type="oars-1.1"/>
+</component>

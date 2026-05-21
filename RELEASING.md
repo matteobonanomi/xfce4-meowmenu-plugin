@@ -119,6 +119,49 @@ Pushing the tag triggers `.github/workflows/release.yml`, which:
 Open the *Releases* page and confirm the new release exists with the correct
 body. The README version badge should update shortly after.
 
+### 8. Update the release notes body (feature 010 obligations)
+
+Before announcing the release, edit the release-notes body on the GitHub
+Releases page to include:
+
+- **Shipped distributions.** List explicitly: `Ubuntu 26.04`, `Debian 13`,
+  `Fedora 44`. Add `openSUSE Leap 15.6` only if the stretch artifact
+  attached for this tag (FR-023, SC-010).
+- **Deferred stretch target.** If openSUSE Leap 15.6 is not attached,
+  state the reason verbatim — name the failing gate (build,
+  `whisker-overlap-check`, or `relationship-declaration-check`) per
+  FR-023 / SC-010.
+- **Coexistence evidence.** Link the published `whisker-overlap.md`
+  release artifact for each shipped distro (FR-024).
+- **Verification scope.** Add a short note clarifying which success
+  criteria are gated by CI vs. validated by manual walkthrough.
+  Explicitly: **SC-003 (configuration-isolation cross-contamination,
+  5 changes per plugin) is validated by manual
+  `quickstart.md §D` walkthrough only on each shipped distribution; no
+  automated test gates it.** (Acceptable per the spec because
+  cross-contamination is a structural consequence of the namespace
+  rename rather than a recurring behaviour.)
+
+A reusable template:
+
+```markdown
+## Shipped distributions
+- Ubuntu 26.04 — `.deb`
+- Debian 13 — `.deb`
+- Fedora 44 — `.rpm`
+- openSUSE Leap 15.6 — `.rpm` *(or: deferred — gate <name> failed)*
+
+## Coexistence evidence
+- See attached `whisker-overlap.md` for per-distro `dpkg -L` / `rpm -ql`
+  intersections and substitution-declaration grep output (FR-024).
+
+## Verification scope
+- Automated: SC-001, SC-002, SC-004, SC-005, SC-006, SC-008, SC-009,
+  SC-011, SC-012, SC-013 (CI gates + meson test).
+- Manual on each shipped distro: SC-003, SC-007, SC-010
+  (`quickstart.md §C, §D, §G`).
+```
+
 ---
 
 ## Why the README badge shows an old version
