@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-reload.sh — build, install, and hot-reload MeowMenu in a running Xfce session.
+# dev-install.sh — build, install, and hot-reload MeowMenu in a running Xfce session.
 #
 # BACKGROUND
 #   MeowMenu runs inside xfce4-panel's `wrapper-2.0` process, not inside the panel
@@ -12,7 +12,7 @@
 #   one you just installed under /usr/local.  The script removes that stale copy.
 #
 # USAGE
-#   ./dev-reload.sh [--icons] [--reconfigure] [BUILD_DIR]
+#   ./dev-install.sh [--icons] [--reconfigure] [BUILD_DIR]
 #
 #   --icons        Re-render icons/hi*-app-meowmenu.png from assets/meowmenu.svg
 #                  before building.  Requires rsvg-convert (preferred) or inkscape.
@@ -24,7 +24,7 @@
 #                  Must already exist; run `meson setup build` once first.
 #
 # LOGS
-#   Verbose output from meson and the compiler is redirected to .logs/dev-reload.log
+#   Verbose output from meson and the compiler is redirected to .logs/dev-install.log
 #   (rotated on each run).  Check that file if a step fails.
 
 set -euo pipefail
@@ -35,7 +35,7 @@ set -euo pipefail
 
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${REPO}/.logs"
-LOG_FILE="${LOG_DIR}/dev-reload.log"
+LOG_FILE="${LOG_DIR}/dev-install.log"
 
 mkdir -p "${LOG_DIR}"
 # Rotate: start a fresh log for every run.
@@ -83,7 +83,7 @@ if [[ ! -d "${BUILD_DIR}" ]]; then
 fi
 
 echo ""
-echo "MeowMenu dev-reload  (log → ${LOG_FILE})"
+echo "MeowMenu dev-install  (log → ${LOG_FILE})"
 echo "─────────────────────────────────────────"
 
 # ---------------------------------------------------------------------------
@@ -147,6 +147,10 @@ else
     if ! sudo meson install -C "${BUILD_DIR}" >> "${LOG_FILE}" 2>&1; then
         echo "FAILED: Install"; tail -20 "${LOG_FILE}"; exit 1
     fi
+    # sudo meson install regenerates build files as root; restore ownership so
+    # subsequent non-root meson calls (reconfigure, introspect) can write to
+    # meson-private/ without a PermissionError.
+    sudo chown -R "$(id -un):$(id -gn)" "${BUILD_DIR}"
 fi
 
 # ---------------------------------------------------------------------------
