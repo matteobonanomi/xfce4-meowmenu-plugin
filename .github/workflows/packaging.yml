@@ -39,6 +39,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -56,6 +57,7 @@ jobs:
           fetch-depth: 0
 
       - name: Enforce tag-on-main invariant
+        if: github.event_name == 'push'
         run: |
           git fetch --no-tags origin main:refs/remotes/origin/main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -144,6 +146,7 @@ jobs:
         with:
           name: deb-package-ubuntu
           path: artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
+          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
 
   build-deb-debian:
     name: build-deb (debian-13)
@@ -211,6 +214,7 @@ jobs:
         with:
           name: deb-package-debian
           path: artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
+          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
 
   build-rpm:
     name: build-rpm (fedora-44)
@@ -291,6 +295,7 @@ jobs:
         with:
           name: rpm-package
           path: artifacts/xfce4-meowmenu-plugin-*.rpm
+          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
 
   build-rpm-opensuse:
     name: build-rpm (opensuse-leap-15.6)
@@ -311,9 +316,15 @@ jobs:
 
       - name: Install build dependencies (openSUSE Leap 15.6 + packaging tools)
         run: |
+          # NOTE: Xfce devel packages (garcon, exo, xfconf, panel, libxfce4ui,
+          # libxfce4util) are not in the standard Leap 15.6 repos; they live in
+          # the X11:xfce OBS project. pkgconfig is the correct pkg-config
+          # provider name for Leap 15.6 (pkgconf-pkg-config does not exist there).
+          zypper -n addrepo --no-gpgcheck \
+              https://download.opensuse.org/repositories/X11:/xfce/15.6/ xfce
           zypper -n refresh
           zypper -n install --no-recommends \
-              gcc gcc-c++ make meson ninja pkgconf-pkg-config \
+              gcc gcc-c++ make meson ninja pkgconfig \
               gtk3-devel glib2-devel \
               garcon-devel \
               xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
@@ -376,6 +387,7 @@ jobs:
         with:
           name: rpm-package-opensuse
           path: artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
+          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
 
   verify-install-deb-ubuntu:
     name: verify-install-deb (ubuntu-26.04)
@@ -902,6 +914,7 @@ jobs:
 
   attach-artifacts:
     name: attach-artifacts
+    if: github.event_name == 'push'
     needs:
       - verify-install-deb-ubuntu
       - verify-install-deb-debian
