@@ -316,21 +316,31 @@ jobs:
 
       - name: Install build dependencies (openSUSE Leap 15.6 + packaging tools)
         run: |
-          # NOTE: Xfce devel packages (garcon, exo, xfconf, panel, libxfce4ui,
-          # libxfce4util) are not in the standard Leap 15.6 repos; they live in
-          # the X11:xfce OBS project. pkgconfig is the correct pkg-config
-          # provider name for Leap 15.6 (pkgconf-pkg-config does not exist there).
+          # NOTE: Xfce devel packages live in the X11:xfce OBS project for
+          # Leap 15.6 (not in the base repos). Binary package names there are
+          # not stable across OBS reshuffles (e.g. `garcon-devel` vs
+          # `libgarcon-1-devel`, `libexo-devel` vs `libexo-2-devel`,
+          # `xfconf-devel` vs `libxfconf-devel`). We therefore resolve every
+          # devel dependency by its `pkgconfig(...)` capability — the .pc
+          # filenames are stable and match meson.build, so this is rename-proof.
+          # `pkgconfig` (the package) is the correct pkg-config provider name
+          # for Leap 15.6 (pkgconf-pkg-config does not exist there).
           zypper -n addrepo --no-gpgcheck \
               https://download.opensuse.org/repositories/X11:/xfce/15.6/ xfce
           zypper -n refresh
           zypper -n install --no-recommends \
               gcc gcc-c++ make meson ninja pkgconfig \
-              gtk3-devel glib2-devel \
-              garcon-devel \
-              xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
-              libexo-devel \
-              xfconf-devel \
-              accountsservice-devel gtk-layer-shell-devel \
+              'pkgconfig(gtk+-3.0)' \
+              'pkgconfig(glib-2.0)' \
+              'pkgconfig(gio-2.0)' \
+              'pkgconfig(garcon-1)' \
+              'pkgconfig(libxfce4panel-2.0)' \
+              'pkgconfig(libxfce4ui-2)' \
+              'pkgconfig(libxfce4util-1.0)' \
+              'pkgconfig(exo-2)' \
+              'pkgconfig(libxfconf-0)' \
+              'pkgconfig(accountsservice)' \
+              'pkgconfig(gtk-layer-shell-0)' \
               gettext-tools \
               git ca-certificates \
               rpm-build rpmdevtools python3
