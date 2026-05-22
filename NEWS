@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.4.4 (2026-05-22)
+=====
+- fix broken packaging for Suse Leap
+- simplify packaging CI
+
 0.4.3 (2026-05-21)
 =====
 - fix broken dependencies from WhiskerMenu

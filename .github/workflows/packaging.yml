@@ -9,17 +9,16 @@
 #   build-deb (ubuntu-26.04)
 #   build-deb (debian-13)
 #   build-rpm (fedora-44)
-#   build-rpm (opensuse-leap-15.6)              [feature 010, stretch — FR-023]
+#   build-rpm (opensuse-leap-15.6)
 #   verify-install-deb (ubuntu-26.04)
 #   verify-install-deb (debian-13)
 #   verify-install-rpm
 #   whisker-overlap-check (ubuntu-26.04)        [feature 010, FR-021 / FR-025]
 #   whisker-overlap-check (debian-13)           [feature 010, FR-021 / FR-025]
 #   whisker-overlap-check (fedora-44)           [feature 010, FR-021 / FR-025]
-#   whisker-overlap-check (opensuse-leap-15.6)  [feature 010, stretch — FR-021 / FR-023]
+#   whisker-overlap-check (opensuse-leap-15.6)  [feature 010, FR-021]
 #   relationship-declaration-check              [feature 010, FR-022]
 #   attach-artifacts
-#   attach-artifacts-opensuse                   [feature 010, stretch — FR-023]
 #
 # Job IDs (used by `needs:`) differ from display names by design — see
 # workflow-jobs.md §2 NOTE on IDs vs names.
@@ -28,7 +27,7 @@
 #   xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
 #   xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
 #   xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
-#   xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm   [feature 010, stretch]
+#   xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
 #
 # Tag-on-`main` invariant (§5): validate-tag refuses to proceed when the tag
 # is not reachable from `origin/main`.
@@ -293,19 +292,18 @@ jobs:
           name: rpm-package
           path: artifacts/xfce4-meowmenu-plugin-*.rpm
 
-  # NOTE: openSUSE Leap 15.6 is a stretch target per spec FR-023 / SC-010 /
-  # research.md §R7. `continue-on-error: true` means a failed build does
-  # NOT block the canonical (Ubuntu / Debian / Fedora) release; the
-  # attach-artifacts-opensuse job downstream is gated on this build, the
-  # overlap check, and the relationship check all reporting success.
   build-rpm-opensuse:
     name: build-rpm (opensuse-leap-15.6)
     needs: validate-tag
     runs-on: ubuntu-latest
     container:
       image: opensuse/leap:15.6
-    continue-on-error: true
     steps:
+      # HACK: opensuse/leap:15.6 base image ships without tar or git; both are
+      # required by actions/checkout before it can download the repository.
+      - name: Install tar and git (required by actions/checkout)
+        run: zypper -n install --no-recommends tar git
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -724,19 +722,15 @@ jobs:
           name: whisker-overlap-report-fedora-44
           path: /tmp/report/fedora-44.md
 
-  # NOTE: openSUSE Leap 15.6 overlap check is stretch (FR-023). Failure does
-  # not block the canonical release; the openSUSE artifact attach is gated
-  # on this job succeeding.
   whisker-overlap-check-opensuse-leap:
     name: whisker-overlap-check (opensuse-leap-15.6)
     needs: build-rpm-opensuse
     runs-on: ubuntu-latest
     container:
       image: opensuse/leap:15.6
-    continue-on-error: true
     steps:
       - name: Install tooling
-        run: zypper -n install ca-certificates coreutils
+        run: zypper -n install --no-recommends ca-certificates coreutils
 
       - name: Download openSUSE Leap .rpm artifact
         uses: actions/download-artifact@v4
@@ -821,6 +815,7 @@ jobs:
       - build-deb-ubuntu
       - build-deb-debian
       - build-rpm
+      - build-rpm-opensuse
     runs-on: ubuntu-latest
     steps:
       - name: Install tooling
@@ -845,6 +840,12 @@ jobs:
         with:
           name: rpm-package
           path: artifacts/rpm-fedora
+
+      - name: Download openSUSE Leap .rpm
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package-opensuse
+          path: artifacts/rpm-opensuse
 
       - name: Check .deb relationship declarations
         run: |
@@ -876,7 +877,7 @@ jobs:
           report=/tmp/report/relationship-rpm.md
           : > "$report"
           fail=0
-          for rpm in artifacts/rpm-fedora/*.rpm; do
+          for rpm in artifacts/rpm-fedora/*.rpm artifacts/rpm-opensuse/*.rpm; do
             [ -f "$rpm" ] || continue
             echo "### $(basename "$rpm")" >> "$report"
             for kind in conflicts obsoletes provides; do
@@ -908,6 +909,7 @@ jobs:
       - whisker-overlap-check-ubuntu
       - whisker-overlap-check-debian
       - whisker-overlap-check-fedora
+      - whisker-overlap-check-opensuse-leap
       - relationship-declaration-check
     runs-on: ubuntu-latest
     steps:
@@ -927,6 +929,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: rpm-package
+          path: artifacts
+
+      - name: Download openSUSE Leap .rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package-opensuse
           path: artifacts
 
       - name: Download per-distro overlap reports (canonical three)
@@ -966,7 +974,7 @@ jobs:
             echo "| Ubuntu 26.04       | \`xfce4-whiskermenu-plugin\` |"
             echo "| Debian 13          | \`xfce4-whiskermenu-plugin\` |"
             echo "| Fedora 44          | \`xfce4-whiskermenu-plugin\` |"
-            echo "| openSUSE Leap 15.6 | \`xfce4-whiskermenu-plugin\` (stretch — present iff included below) |"
+            echo "| openSUSE Leap 15.6 | \`xfce4-whiskermenu-plugin\` |"
             echo
             echo "## Per-distro file-listing overlap"
             echo
@@ -992,38 +1000,7 @@ jobs:
           files: |
             artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
             artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
-            artifacts/xfce4-meowmenu-plugin-*.rpm
-            artifacts/whisker-overlap.md
-          fail_on_unmatched_files: true
-
-  # NOTE: openSUSE Leap 15.6 attach is gated on the build + overlap check
-  # all reporting success (FR-023, SC-010). If any of them failed (the
-  # upstream jobs are `continue-on-error: true`), this job is skipped and
-  # the release-notes step must record the omission verbatim.
-  attach-artifacts-opensuse:
-    name: attach-artifacts-opensuse
-    needs:
-      - build-rpm-opensuse
-      - whisker-overlap-check-opensuse-leap
-      - relationship-declaration-check
-      - attach-artifacts
-    if: |
-      needs.build-rpm-opensuse.result == 'success' &&
-      needs.whisker-overlap-check-opensuse-leap.result == 'success' &&
-      needs.relationship-declaration-check.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download openSUSE Leap .rpm artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: rpm-package-opensuse
-          path: artifacts
-
-      - name: Attach openSUSE Leap stretch artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
+            artifacts/xfce4-meowmenu-plugin-*.fc44.x86_64.rpm
             artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
           fail_on_unmatched_files: true
 
