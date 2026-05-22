@@ -17,20 +17,28 @@ Source0:        %{name}-%{version}.tar.gz
 
 Packager:       Matteo Bonanomi <mbonanomi.dev@proton.me>
 
+# NOTE: BuildRequires are expressed via pkgconfig(...) / path capabilities
+# so the same spec works on Fedora and openSUSE Leap. Binary package names
+# for Xfce devel libraries diverge between distros (e.g. garcon-devel vs
+# libgarcon-1-devel, xfconf-devel vs libxfconf-devel, ninja-build vs ninja,
+# pkgconf-pkg-config vs pkgconfig); .pc filenames and /usr/bin paths are
+# stable and match meson.build.
 BuildRequires:  meson
-BuildRequires:  ninja-build
-BuildRequires:  pkgconf-pkg-config
 BuildRequires:  gcc-c++
-BuildRequires:  gtk3-devel
-BuildRequires:  glib2-devel
-BuildRequires:  garcon-devel
-BuildRequires:  xfce4-panel-devel
-BuildRequires:  libxfce4ui-devel
-BuildRequires:  libxfce4util-devel
-BuildRequires:  xfconf-devel
-BuildRequires:  accountsservice-devel
-BuildRequires:  gtk-layer-shell-devel
-BuildRequires:  gettext
+BuildRequires:  /usr/bin/ninja
+BuildRequires:  /usr/bin/pkg-config
+BuildRequires:  /usr/bin/msgfmt
+BuildRequires:  pkgconfig(gtk+-3.0)
+BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(gio-2.0)
+BuildRequires:  pkgconfig(garcon-1)
+BuildRequires:  pkgconfig(libxfce4panel-2.0)
+BuildRequires:  pkgconfig(libxfce4ui-2)
+BuildRequires:  pkgconfig(libxfce4util-1.0)
+BuildRequires:  pkgconfig(exo-2)
+BuildRequires:  pkgconfig(libxfconf-0)
+BuildRequires:  pkgconfig(accountsservice)
+BuildRequires:  pkgconfig(gtk-layer-shell-0)
 
 Requires:       xfce4-panel
 Recommends:     accountsservice
