@@ -1,4 +1,10 @@
 MEOW MENU DEVELOPMENT
+0.4.5 (2026-05-22)
+=====
+- fiz other issues on Suse Leap 15.6
+- packaging CI can be run on every branch
+- reduce artifacts retention for non-release stuff
+
 0.4.4 (2026-05-22)
 =====
 - fix broken packaging for Suse Leap
