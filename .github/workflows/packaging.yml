@@ -269,15 +269,25 @@ jobs:
           ' "$spec" > "${spec}.new"
           mv "${spec}.new" "$spec"
 
+      # HACK: stage the source tree under its versioned directory name before
+      # tarring, instead of relying on `tar --transform 's,^,prefix/,'` against
+      # `.`. The transform approach produced archive entries like
+      # `prefix/./file`, which Fedora's tar tolerates (it implicitly creates
+      # `prefix/`) but Leap 15.6's older GNU tar does not — extraction fails
+      # with "Cannot open: No such file or directory" on every file. Staging
+      # a real directory makes the tarball valid on any tar version.
       - name: Stage source tarball and build RPM
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           rpmdev-setuptree
-          tar --transform "s,^,xfce4-meowmenu-plugin-${VERSION}/," \
-              --exclude='./.git' --exclude='./build' \
-              -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
-              .
+          stage="$(mktemp -d)"
+          srcdir="$stage/xfce4-meowmenu-plugin-${VERSION}"
+          mkdir -p "$srcdir"
+          tar --exclude='./.git' --exclude='./build' -cf - . \
+            | tar -xf - -C "$srcdir"
+          tar -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
+              -C "$stage" "xfce4-meowmenu-plugin-${VERSION}"
           cp packaging/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
           rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
 
@@ -371,15 +381,20 @@ jobs:
           ' "$spec" > "${spec}.new"
           mv "${spec}.new" "$spec"
 
+      # HACK: see Fedora job — staging avoids the `prefix/./file` archive
+      # layout that breaks extraction on Leap 15.6's older GNU tar.
       - name: Stage source tarball and build RPM
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           rpmdev-setuptree
-          tar --transform "s,^,xfce4-meowmenu-plugin-${VERSION}/," \
-              --exclude='./.git' --exclude='./build' \
-              -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
-              .
+          stage="$(mktemp -d)"
+          srcdir="$stage/xfce4-meowmenu-plugin-${VERSION}"
+          mkdir -p "$srcdir"
+          tar --exclude='./.git' --exclude='./build' -cf - . \
+            | tar -xf - -C "$srcdir"
+          tar -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
+              -C "$stage" "xfce4-meowmenu-plugin-${VERSION}"
           cp packaging/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
           rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
 
