@@ -17,18 +17,15 @@ End-to-end checklist for cutting a new release. Follow it top to bottom.
 
 ## Release steps
 
-### 1. Promote `development` → `release` → `main`
+### 1. Promote `development` → `main`
 
-MeowMenu uses a two-hop release flow gated by CI:
+MeowMenu uses a direct release flow gated by CI:
 
-1. **`development` → `release`**: open a PR from `development` (or any feature
-   branch) into `release`. Heavy CI (`ci.yml`) runs the six-cell distro
+1. **`development` → `main`**: open a PR from `development` (or any feature
+   branch) into `main`. The full CI suite (`ci.yml`) runs the six-cell distro
    matrix plus `sanitizers`, `translations`, and `no-optional-deps`. All
    nine checks must be green to merge.
-2. **`release` → `main`**: open a PR from `release` into `main`. Light verify
-   (`ci-main.yml`, the single `verify (ubuntu-26.04)` job) must be green to
-   merge.
-3. **Tag on `main`**: the release tag must point at a commit reachable from
+2. **Tag on `main`**: the release tag must point at a commit reachable from
    `main`. The packaging workflow enforces this invariant and refuses to
    produce artifacts otherwise (see [`docs/ci.md`](docs/ci.md) and
    [`contracts/workflow-jobs.md` §5](.specify/specs/009-ci-foundation/contracts/workflow-jobs.md#5-tag-on-main-invariant-runtime-contract)).
@@ -54,7 +51,7 @@ Prepend a new top entry:
 - one bullet per user-visible change, present tense
 ```
 
-The header **must** match `X.Y.Z (YYYY-MM-DD)` exactly — `tools/news-version.py`
+The header **must** match `X.Y.Z (YYYY-MM-DD)` exactly — `build-aux/news-version.py`
 parses this format. Only edit `NEWS` when you are ready to tag.
 
 ### 3. Build and verify locally
@@ -71,7 +68,7 @@ parses this format. Only edit `NEWS` when you are ready to tag.
 > **not** update GitHub, the README badge, or create any release.
 >
 > Pass `--icons` to also re-render `icons/hi*-app-meowmenu.png` from
-> `assets/meowmenu.svg` before building. This requires `rsvg-convert` or
+> `build-aux/art/meowmenu.svg` before building. This requires `rsvg-convert` or
 > `inkscape`. Without `--icons`, the committed PNGs are used as-is — you only
 > need this flag when the master SVG has changed.
 >
@@ -174,7 +171,7 @@ workflow completes successfully. Running `dev-reload.sh` has no effect on it.
 
 ## Tooling reference
 
-### `tools/news-version.py`
+### `build-aux/news-version.py`
 
 Parses the top entry of `NEWS`.
 
@@ -187,13 +184,13 @@ Parses the top entry of `NEWS`.
 
 Used by Meson at configure time and by the `version-consistency` test.
 
-### `tools/regen-icons.py`
+### `build-aux/regen-icons.py`
 
-Renders `assets/meowmenu.svg` to every PNG size in `icons/`. Invoked
+Renders `build-aux/art/meowmenu.svg` to every PNG size in `icons/`. Invoked
 automatically by `dev-reload.sh --icons`, or manually:
 
 ```bash
-python3 tools/regen-icons.py --input assets/meowmenu.svg --output-dir icons/
+python3 build-aux/regen-icons.py --input build-aux/art/meowmenu.svg --output-dir icons/
 ```
 
 You can also call it via Meson:
@@ -216,13 +213,12 @@ the matching `NEWS` section.
 
 ## Branch protection
 
-The two release-track branches (`release` and `main`) are protected on
-github.com. The full prose reproduction of the settings lives in
-[`docs/ci.md`](docs/ci.md); this section is a deliberate duplicate so the
-required-check sets can be reconstructed even if `docs/ci.md` is ever moved
-(FR-021).
+`main` is the single release-track branch and is protected on github.com. The
+full prose reproduction of the settings lives in [`docs/ci.md`](docs/ci.md);
+this section is a deliberate duplicate so the required-check sets can be
+reconstructed even if `docs/ci.md` is ever moved (FR-021).
 
-**Required checks on `release`** (all must be green to merge):
+**Required checks on `main`** (all must be green to merge):
 
 - `build (ubuntu-26.04, debugoptimized)`
 - `build (ubuntu-26.04, release)`
@@ -236,11 +232,6 @@ required-check sets can be reconstructed even if `docs/ci.md` is ever moved
 
 `analyze (cpp)` is advisory only — it MUST NOT be added to this list.
 
-**Required checks on `main`** (must be green to merge):
-
-- `verify (ubuntu-26.04)`
-
-**Other protection rules** (both branches): force-push disabled; deletion
-disabled; rules apply to administrators. See
-[`docs/ci.md`](docs/ci.md) for the full reproduction and the rename protocol
-(FR-023).
+**Other protection rules**: force-push disabled; deletion disabled; rules apply
+to administrators. See [`docs/ci.md`](docs/ci.md) for the full reproduction
+and the rename protocol (FR-023).

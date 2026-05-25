@@ -12,9 +12,9 @@ name: codeql
 
 on:
   pull_request:
-    branches: [release]
+    branches: [main]
   push:
-    branches: [release]
+    branches: [main]
   schedule:
     # NOTE: Monday 06:00 UTC weekly sweep, per contracts/workflow-jobs.md §6.
     - cron: '0 6 * * 1'

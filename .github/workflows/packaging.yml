@@ -68,7 +68,7 @@ jobs:
       - name: Derive version from NEWS
         id: version
         run: |
-          version="$(python3 tools/news-version.py --version)"
+          version="$(python3 build-aux/news-version.py --version)"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Derived version: ${version}"
 
@@ -246,7 +246,7 @@ jobs:
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
-          spec="packaging/xfce4-meowmenu-plugin.spec"
+          spec="dist/rpm/xfce4-meowmenu-plugin.spec"
           sed -i "s/^Version:.*/Version:        ${VERSION}/" "$spec"
           date_rpm="$(date -u +'%a %b %d %Y')"
           news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
@@ -288,7 +288,7 @@ jobs:
             | tar -xf - -C "$srcdir"
           tar -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
               -C "$stage" "xfce4-meowmenu-plugin-${VERSION}"
-          cp packaging/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
+          cp dist/rpm/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
           rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
 
       - name: Stage artifact under contract filename
@@ -359,7 +359,7 @@ jobs:
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
-          spec="packaging/xfce4-meowmenu-plugin.spec"
+          spec="dist/rpm/xfce4-meowmenu-plugin.spec"
           sed -i "s/^Version:.*/Version:        ${VERSION}/" "$spec"
           date_rpm="$(date -u +'%a %b %d %Y')"
           news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
@@ -395,7 +395,7 @@ jobs:
             | tar -xf - -C "$srcdir"
           tar -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
               -C "$stage" "xfce4-meowmenu-plugin-${VERSION}"
-          cp packaging/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
+          cp dist/rpm/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
           rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
 
       - name: Stage artifact under contract filename (suse15.6 token)
