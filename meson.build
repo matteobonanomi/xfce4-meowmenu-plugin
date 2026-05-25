@@ -1,4 +1,4 @@
-# Version is derived from the top entry of NEWS via tools/news-version.py.
+# Version is derived from the top entry of NEWS via build-aux/news-version.py.
 # Do not hard-code the version here. To bump the version, prepend a new entry
 # to NEWS in the form 'X.Y.Z (YYYY-MM-DD)' and re-run `meson setup --reconfigure`.
 # NOTE: run_command() is inlined into project() because meson requires project()
@@ -9,7 +9,7 @@ project(
   'cpp',
 version : run_command(
     find_program('python3'),
-    meson.current_source_dir() / 'tools' / 'news-version.py',
+    meson.current_source_dir() / 'build-aux' / 'news-version.py',
     '--version',
     '--news', meson.current_source_dir() / 'NEWS',
     check: true,
@@ -20,7 +20,7 @@ version : run_command(
 )
 
 python3 = find_program('python3')
-news_version_py = files('tools/news-version.py')
+news_version_py = files('build-aux/news-version.py')
 
 meowmenu_release_date = run_command(
   python3, news_version_py, '--date',
