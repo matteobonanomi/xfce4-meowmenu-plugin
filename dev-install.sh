@@ -14,7 +14,7 @@
 # USAGE
 #   ./dev-install.sh [--icons] [--reconfigure] [BUILD_DIR]
 #
-#   --icons        Re-render icons/hi*-app-meowmenu.png from assets/meowmenu.svg
+#   --icons        Re-render icons/hi*-app-meowmenu.png from build-aux/art/meowmenu.svg
 #                  before building.  Requires rsvg-convert (preferred) or inkscape.
 #                  Without this flag icons are left as-is (the committed PNGs are used).
 #   --reconfigure  Force meson setup --reconfigure even if meson.build and NEWS are
@@ -90,13 +90,13 @@ echo "────────────────────────�
 # Optional: re-render icons from master SVG
 # ---------------------------------------------------------------------------
 # Without --icons the committed PNGs are used as-is.  Pass --icons when you
-# have replaced assets/meowmenu.svg and want the hi*-app-meowmenu.png files
+# have replaced build-aux/art/meowmenu.svg and want the hi*-app-meowmenu.png files
 # to be regenerated before the build.  Requires rsvg-convert or inkscape.
 
 if [[ "${REGEN_ICONS}" == true ]]; then
-    run "Regen icons from assets/meowmenu.svg" \
-        python3 "${REPO}/tools/regen-icons.py" \
-            --input  "${REPO}/assets/meowmenu.svg" \
+    run "Regen icons from build-aux/art/meowmenu.svg" \
+        python3 "${REPO}/build-aux/regen-icons.py" \
+            --input  "${REPO}/build-aux/art/meowmenu.svg" \
             --output-dir "${REPO}/icons"
 fi
 
