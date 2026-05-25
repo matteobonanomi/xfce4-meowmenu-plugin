@@ -1,13 +1,13 @@
 # =============================================================================
 # Job-name contract (DO NOT RENAME without coordinated branch-protection update)
 # =============================================================================
-# Branch-protection rules on `release` reference the following job `name:`
+# Branch-protection rules on `main` reference the following job `name:`
 # strings verbatim. Renaming without updating required-checks will silently
 # break merge gating.
 #
 # Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2
 #
-# Required on `release`:
+# Required on `main`:
 #   build (ubuntu-26.04, debugoptimized)
 #   build (ubuntu-26.04, release)
 #   build (debian-13, debugoptimized)
@@ -26,9 +26,9 @@ name: ci
 
 on:
   pull_request:
-    branches: [release]
+    branches: [main]
   push:
-    branches: [release]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -158,8 +158,8 @@ jobs:
         run: |
           # NOTE: suppressions paths must be absolute — ASan/UBSan resolve
           # relative paths against the test binary's cwd, not the repo root.
-          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:suppressions=${GITHUB_WORKSPACE}/tools/asan_suppressions.txt"
-          export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:suppressions=${GITHUB_WORKSPACE}/tools/ubsan_suppressions.txt"
+          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/asan_suppressions.txt"
+          export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/ubsan_suppressions.txt"
           meson test -C build --print-errorlogs
 
   translations:
@@ -317,7 +317,7 @@ jobs:
                           | grep -v '^\${' \
                           | grep -v '^$' \
                           | sort -u || true)"
-          spec_requires="$(grep -E '^(Requires|Recommends):' packaging/xfce4-meowmenu-plugin.spec \
+          spec_requires="$(grep -E '^(Requires|Recommends):' dist/rpm/xfce4-meowmenu-plugin.spec \
                             | awk '{$1=""; print}' \
                             | tr ' ' '\n' \
                             | sed '/^$/d' \
