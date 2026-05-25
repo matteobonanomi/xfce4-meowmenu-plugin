@@ -1,4 +1,10 @@
 MEOW MENU DEVELOPMENT
+0.5.0 (2026-05-25)
+=====
+- reorganize repo root
+- remove release branch, only use tag and GitHub Releases
+- one unified CI pipeline to main branch
+
 0.4.5 (2026-05-25)
 =====
 - fix other issues on Suse Leap 15.6
