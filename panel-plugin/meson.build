@@ -71,7 +71,7 @@ plugin_lib = shared_module(
 )
 
 popup_meowmenu_sources = [
-  'xfce4-popup-meowmenu.cpp',
+  'core/xfce4-popup-meowmenu.cpp',
   xfce_revision_h,
 ]
 
@@ -96,4 +96,4 @@ i18n.merge_file(
   install_dir: get_option('prefix') / get_option('datadir') / plugin_install_subdir,
 )
 
-install_man('xfce4-popup-meowmenu.1')
+install_man('core/xfce4-popup-meowmenu.1')
