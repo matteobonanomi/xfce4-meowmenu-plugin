@@ -61,14 +61,20 @@ private:
 	void sync_preset_widgets();
 	void update_grid_controls_state();
 
-	// New 5-tab Properties dialog (003-properties-refactor).
-	// Each builder returns a vertically-scrolled container per FR-004.
+	// Per-tab builders for the Properties dialog. Each returns a vertically
+	// scrolled container ready to be added to the dialog's stack.
 	GtkWidget* init_general_tab();
 	GtkWidget* init_user_session_tab();
 	GtkWidget* init_search_bar_tab();
 	GtkWidget* init_app_grid_tab();
 	GtkWidget* init_sidebar_tab();
 	GtkWidget* init_places_tab();
+
+	// Sub-section helpers used by init_search_bar_tab(); each appends one
+	// frame to @page. Split out of the tab builder to keep its translation
+	// unit small and topic-focused.
+	void build_search_bar_aliases_section(GtkBox* page);
+	void build_search_bar_actions_section(GtkBox* page);
 
 	// Layout-mode-driven live sensitivity (FR-003 / data-model E-6).
 	// Each tab builder pushes widgets onto exactly one of these vectors. The
