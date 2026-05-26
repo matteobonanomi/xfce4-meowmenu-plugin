@@ -33,6 +33,8 @@ plugin_sources = [
   'config/usage-stats.cpp',
   'search-page.cpp',
   'settings.cpp',
+  'settings-bindings.cpp',
+  'settings-defaults.cpp',
   'settings-dialog.cpp',
   'ui/properties/common.cpp',
   'ui/properties/general.cpp',
