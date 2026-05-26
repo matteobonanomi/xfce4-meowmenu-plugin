@@ -22,8 +22,8 @@
 
 #include "plugin.h"
 
-#include "applications-page.h"
-#include "command.h"
+#include "launcher/applications-page.h"
+#include "launcher/command.h"
 #include "migration.h"
 #include "settings.h"
 #include "settings-dialog.h"

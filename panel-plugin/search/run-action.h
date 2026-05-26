@@ -18,7 +18,7 @@
 #ifndef WHISKERMENU_RUN_ACTION_H
 #define WHISKERMENU_RUN_ACTION_H
 
-#include "element.h"
+#include "launcher/element.h"
 
 #include <string>
 

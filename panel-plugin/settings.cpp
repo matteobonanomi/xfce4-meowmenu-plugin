@@ -17,7 +17,7 @@
 
 #include "settings.h"
 
-#include "command.h"
+#include "launcher/command.h"
 #include "plugin.h"
 #include "search/search-action.h"
 #include "slot.h"

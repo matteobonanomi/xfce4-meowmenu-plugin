@@ -17,10 +17,10 @@
 
 #include "window.h"
 
-#include "applications-page.h"
+#include "launcher/applications-page.h"
 #include "launcher/category-button.h"
-#include "command.h"
-#include "favorites-page.h"
+#include "launcher/command.h"
+#include "launcher/favorites-page.h"
 #include "places/favourites-section.h"
 #include "places/history-section.h"
 #include "places/home-section.h"
@@ -28,7 +28,7 @@
 #include "places/places-page.h"
 #include "plugin.h"
 #include "profile.h"
-#include "recent-page.h"
+#include "launcher/recent-page.h"
 #include "resizer.h"
 #include "search/search-page.h"
 #include "settings.h"

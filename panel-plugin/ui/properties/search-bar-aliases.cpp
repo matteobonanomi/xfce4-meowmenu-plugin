@@ -19,8 +19,8 @@
 
 #include "ui/properties/common.h"
 
-#include "applications-page.h"
-#include "launcher.h"
+#include "launcher/applications-page.h"
+#include "launcher/launcher.h"
 #include "plugin.h"
 #include "settings.h"
 #include "slot.h"

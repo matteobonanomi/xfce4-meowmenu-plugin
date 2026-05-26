@@ -18,7 +18,7 @@
 #ifndef WHISKERMENU_SEARCH_PAGE_H
 #define WHISKERMENU_SEARCH_PAGE_H
 
-#include "page.h"
+#include "launcher/page.h"
 #include "query.h"
 #include "run-action.h"
 
