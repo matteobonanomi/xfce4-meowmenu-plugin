@@ -1,17 +1,23 @@
 /* test_properties_tabs:
  *
- * Encodes the placement grid from
- * .specify/specs/003-properties-refactor/contracts/tab-inventory.md and
- * asserts the four invariants listed under §Invariants:
+ * Encodes the placement grid for every Properties-dialog Xfconf binding and
+ * asserts the invariants the dialog must preserve:
  *   1. No duplication — each Xfconf key appears in exactly one row.
- *   2. No omission — every key in xfconf-keys.md is on the grid.
- *   3. Exactly five tabs in the known dictionary.
+ *   2. No omission — every required key is on the grid.
+ *   3. Exactly six tabs in the known dictionary (General, User/Session,
+ *      Search Bar, Results View / app-grid, Sidebar, Places). The Places
+ *      tab models the milestone-005 controls bound under the /places
+ *      Xfconf prefix.
  *   4. Sane enable-when values — docked|fullscreen rows correspond to widgets
- *      whose live behaviour is driven by /layout-mode (FR-003).
+ *      whose live behaviour is driven by /layout-mode (FR-003); sibling sub-
+ *      enables (ProfileVisible, ViewModeIcons/List, SidebarLeftRight,
+ *      PlacesFavouritesEnabled) must NOT claim layout-mode driving.
+ *   5. Placement grid is complete and has no extra rows beyond the required
+ *      key set — guards against the table silently growing stale.
  *
  * This is a pure-data test: it does not link against GTK or Xfconf. The
  * placement table mirrors what panel-plugin/settings-dialog.cpp consumes
- * when building the five init_*_tab() functions. Failures (1) or (2) block
+ * when building the six init_*_tab() functions. Failures (1) or (2) block
  * merge per the no-loss guarantee (SC-001 / SC-002).
  */
 
@@ -31,6 +37,7 @@ enum class Tab
 	SearchBar,
 	AppGrid,
 	Sidebar,
+	Places,
 };
 
 enum class EnableWhen
@@ -39,10 +46,16 @@ enum class EnableWhen
 	Docked,
 	Fullscreen,
 	// Sub-enables tied to a sibling key, not to /layout-mode:
-	SidebarLeftRight,    // category-show-name: greyed when sidebar-position ∈ {top, bottom}
-	ProfileVisible,      // profile-shape: greyed when profile-position == hidden
-	ViewModeIcons,       // grid-density, launcher-icon-size: greyed when view-mode != icons
-	ViewModeList,        // launcher-show-description: greyed when view-mode != list
+	SidebarLeftRight,        // category-show-name: greyed when sidebar-position ∈ {top, bottom}
+	ProfileVisible,          // profile-shape: greyed when profile-position == hidden
+	ViewModeIcons,           // grid-density, launcher-icon-size: greyed when view-mode != icons
+	ViewModeList,            // launcher-show-description: greyed when view-mode != list
+	// /places-* sub-enables. The whole Places tab is page-level gated by
+	// /places/enabled (init_places_tab in settings-dialog.cpp). The
+	// favourite-sync combo additionally requires /places/favourites-enabled,
+	// modelled here as PlacesFavouritesEnabled.
+	PlacesEnabled,
+	PlacesFavouritesEnabled,
 };
 
 struct Row
@@ -104,6 +117,25 @@ const Row kPlacementGrid[] = {
 	{ "default-category",          Tab::Sidebar,     EnableWhen::Always,           false },
 	{ "recent-items-max",          Tab::Sidebar,     EnableWhen::Always,           false },
 	{ "favorites-in-recent",       Tab::Sidebar,     EnableWhen::Always,           false },
+
+	// Places (milestone 005). Controls bound by init_places_tab():
+	//   /places/enabled                — top-level switch (Always within tab).
+	//   /places/history-enabled        — page-gated by /places/enabled.
+	//   /places/favourites-enabled     — page-gated by /places/enabled.
+	//   /places/favourite-sync         — additionally gated by favourites-enabled.
+	//   /places/max-items              — page-gated by /places/enabled.
+	//   /places/remember-last-mode     — page-gated by /places/enabled.
+	//   /places/show-metadata          — page-gated by /places/enabled.
+	// NOTE: /places/last-mode and /places/favourites are Xfconf-backed
+	// runtime state, not Properties-dialog controls, so they are NOT on the
+	// placement grid (test models the dialog surface, not the schema).
+	{ "places/enabled",              Tab::Places,      EnableWhen::Always,                  false },
+	{ "places/history-enabled",      Tab::Places,      EnableWhen::PlacesEnabled,           false },
+	{ "places/favourites-enabled",   Tab::Places,      EnableWhen::PlacesEnabled,           false },
+	{ "places/favourite-sync",       Tab::Places,      EnableWhen::PlacesFavouritesEnabled, false },
+	{ "places/max-items",            Tab::Places,      EnableWhen::PlacesEnabled,           false },
+	{ "places/remember-last-mode",   Tab::Places,      EnableWhen::PlacesEnabled,           false },
+	{ "places/show-metadata",        Tab::Places,      EnableWhen::PlacesEnabled,           false },
 };
 
 // Every Xfconf key documented in contracts/xfconf-keys.md that surfaces in
@@ -130,6 +162,10 @@ const char* const kRequiredKeys[] = {
 	"categories-opacity", "sidebar-position",
 	"category-hover-activate", "sort-categories",
 	"default-category", "recent-items-max", "favorites-in-recent",
+	// Places milestone-005 controls
+	"places/enabled", "places/history-enabled", "places/favourites-enabled",
+	"places/favourite-sync", "places/max-items",
+	"places/remember-last-mode", "places/show-metadata",
 };
 
 constexpr size_t kRowCount = sizeof(kPlacementGrid) / sizeof(kPlacementGrid[0]);
@@ -162,18 +198,19 @@ static void test_no_omission()
 	}
 }
 
-// Invariant 3: every row maps to one of the five known tabs, and all five
-// tabs are represented at least once.
-static void test_exactly_five_tabs()
+// Invariant 3: every row maps to one of the six known tabs, and all six
+// tabs are represented at least once. The Places tab (milestone 005) is the
+// sixth and was added alongside init_places_tab() in settings-dialog.cpp.
+static void test_exactly_six_tabs()
 {
 	std::set<int> tabs_seen;
 	for (const auto& row : kPlacementGrid)
 	{
 		const int t = static_cast<int>(row.tab);
-		assert(t >= 0 && t <= 4 && "row.tab out of known range");
+		assert(t >= 0 && t <= 5 && "row.tab out of known range");
 		tabs_seen.insert(t);
 	}
-	assert(tabs_seen.size() == 5 && "not all five tabs are populated");
+	assert(tabs_seen.size() == 6 && "not all six tabs are populated");
 }
 
 // Invariant 4: enable-when values are consistent with the live-wiring contract.
@@ -191,6 +228,8 @@ static void test_sane_enable_when()
 		case EnableWhen::ProfileVisible:
 		case EnableWhen::ViewModeIcons:
 		case EnableWhen::ViewModeList:
+		case EnableWhen::PlacesEnabled:
+		case EnableWhen::PlacesFavouritesEnabled:
 			assert(!row.layout_mode_driven
 					&& "non-layout-mode row claims layout-mode driver");
 			break;
@@ -228,8 +267,8 @@ int main()
 {
 	test_no_duplication();
 	test_no_omission();
-	test_exactly_five_tabs();
+	test_exactly_six_tabs();
 	test_sane_enable_when();
-	test_placement_grid_complete_and_no_extras(); // T013
+	test_placement_grid_complete_and_no_extras();
 	return 0;
 }
