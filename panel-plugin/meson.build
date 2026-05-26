@@ -47,6 +47,8 @@ plugin_sources = [
   'ui/properties/places.cpp',
   'slot.h',
   'window.cpp',
+  'window-geometry.cpp',
+  'window-pages.cpp',
   xfce_revision_h,
   meowmenu_version_h,
 ]
