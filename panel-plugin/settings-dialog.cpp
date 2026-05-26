@@ -17,11 +17,11 @@
 
 #include "settings-dialog.h"
 
-#include "applications-page.h"
-#include "command.h"
+#include "launcher/applications-page.h"
+#include "launcher/command.h"
 #include "command-edit.h"
 #include "icon-size.h"
-#include "launcher.h"
+#include "launcher/launcher.h"
 #include "plugin.h"
 #include "search/search-action.h"
 #include "settings.h"

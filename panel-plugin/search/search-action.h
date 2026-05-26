@@ -18,7 +18,7 @@
 #ifndef WHISKERMENU_SEARCH_ACTION_H
 #define WHISKERMENU_SEARCH_ACTION_H
 
-#include "element.h"
+#include "launcher/element.h"
 
 #include <string>
 

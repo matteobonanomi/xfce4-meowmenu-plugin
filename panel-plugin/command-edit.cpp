@@ -17,7 +17,7 @@
 
 #include "command-edit.h"
 
-#include "command.h"
+#include "launcher/command.h"
 #include "slot.h"
 
 #include <glib/gi18n-lib.h>

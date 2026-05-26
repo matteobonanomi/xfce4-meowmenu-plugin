@@ -18,7 +18,7 @@
 
 #include "profile.h"
 
-#include "command.h"
+#include "launcher/command.h"
 #include "settings.h"
 #include "slot.h"
 #include "window.h"

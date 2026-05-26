@@ -166,7 +166,7 @@ test_home_search_lifecycle_sources = [
   'test_home_search_lifecycle.cpp',
   '..' / 'panel-plugin' / 'places' / 'home-search-worker.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
-  '..' / 'panel-plugin' / 'element.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
 ]
 
 test_home_search_lifecycle = executable(

@@ -10,7 +10,7 @@
 #ifndef WHISKERMENU_PLACES_ITEM_H
 #define WHISKERMENU_PLACES_ITEM_H
 
-#include "element.h"
+#include "launcher/element.h"
 
 #include <string>
 
