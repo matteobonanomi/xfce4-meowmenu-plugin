@@ -164,14 +164,15 @@ test('search_ranking', test_search_ranking)
 # Skips cleanly when no display is available.
 test_home_search_lifecycle_sources = [
   'test_home_search_lifecycle.cpp',
-  '..' / 'panel-plugin' / 'home-search-worker.cpp',
-  '..' / 'panel-plugin' / 'places-item.cpp',
+  '..' / 'panel-plugin' / 'places' / 'home-search-worker.cpp',
+  '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
   '..' / 'panel-plugin' / 'element.cpp',
 ]
 
 test_home_search_lifecycle = executable(
   'test_home_search_lifecycle',
   test_home_search_lifecycle_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 

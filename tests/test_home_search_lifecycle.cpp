@@ -21,8 +21,8 @@
  * HomeSearchWorker::start / cancel through its public surface.
  */
 
-#include "../panel-plugin/home-search-worker.h"
-#include "../panel-plugin/places-item.h"
+#include "../panel-plugin/places/home-search-worker.h"
+#include "../panel-plugin/places/places-item.h"
 
 #include <gio/gio.h>
 #include <glib.h>
