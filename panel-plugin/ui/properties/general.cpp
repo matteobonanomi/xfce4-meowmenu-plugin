@@ -20,8 +20,8 @@
 #include "ui/properties/common.h"
 
 #include "plugin.h"
-#include "preset.h"
-#include "preset-io.h"
+#include "presets/preset.h"
+#include "presets/preset-io.h"
 #include "settings.h"
 #include "slot.h"
 
