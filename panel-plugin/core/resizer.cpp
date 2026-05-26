@@ -17,7 +17,7 @@
 
 #include "resizer.h"
 
-#include "slot.h"
+#include "ui/slot.h"
 #include "window.h"
 
 using namespace WhiskerMenu;

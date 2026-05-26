@@ -19,11 +19,11 @@
 
 #include "ui/properties/common.h"
 
-#include "plugin.h"
+#include "core/plugin.h"
 #include "presets/preset.h"
 #include "presets/preset-io.h"
 #include "settings.h"
-#include "slot.h"
+#include "ui/slot.h"
 
 #include <climits>
 #include <cstring>

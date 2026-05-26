@@ -12,15 +12,15 @@
 #include "favourites-section.h"
 #include "history-section.h"
 #include "home-section.h"
-#include "image-menu-item.h"
-#include "launcher-icon-view.h"
-#include "launcher-tree-view.h"
-#include "launcher-view.h"
+#include "ui/image-menu-item.h"
+#include "ui/launcher-icon-view.h"
+#include "ui/launcher-tree-view.h"
+#include "ui/launcher-view.h"
 #include "places-item.h"
 #include "places-section.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <glib/gi18n-lib.h>
 

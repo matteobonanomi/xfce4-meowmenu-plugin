@@ -20,7 +20,7 @@
 #include "ui/properties/common.h"
 
 #include "settings.h"
-#include "slot.h"
+#include "ui/slot.h"
 
 #include <vector>
 
