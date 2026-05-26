@@ -145,7 +145,7 @@ test('settings_key_inventory', test_settings_key_inventory, timeout: 60)
 # deliberately out of scope here — see research.md §3.11.
 test_search_ranking_sources = [
   'test_search_ranking.cpp',
-  '..' / 'panel-plugin' / 'query.cpp',
+  '..' / 'panel-plugin' / 'search' / 'query.cpp',
 ]
 
 test_search_ranking = executable(

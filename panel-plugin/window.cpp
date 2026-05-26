@@ -30,10 +30,10 @@
 #include "profile.h"
 #include "recent-page.h"
 #include "resizer.h"
-#include "search-page.h"
+#include "search/search-page.h"
 #include "settings.h"
 #include "slot.h"
-#include "unified-bar.h"
+#include "search/unified-bar.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 #include <gdk/gdkkeysyms.h>

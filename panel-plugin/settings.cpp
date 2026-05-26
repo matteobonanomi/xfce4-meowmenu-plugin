@@ -19,7 +19,7 @@
 
 #include "command.h"
 #include "plugin.h"
-#include "search-action.h"
+#include "search/search-action.h"
 #include "slot.h"
 
 #include <algorithm>

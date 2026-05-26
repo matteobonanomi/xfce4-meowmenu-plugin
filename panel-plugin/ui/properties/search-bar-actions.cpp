@@ -19,7 +19,7 @@
 
 #include "ui/properties/common.h"
 
-#include "search-action.h"
+#include "search/search-action.h"
 #include "settings.h"
 #include "slot.h"
 
