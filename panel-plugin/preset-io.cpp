@@ -74,6 +74,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "menu-width",            PresetValue::Int, INT_RANGE(200, 2000) },
 	{ "menu-height",           PresetValue::Int, INT_RANGE(200, 2000) },
 	{ "default-category",      PresetValue::Str, 0, 0, STR_DOMAIN(DEFAULT_CATEGORY_DOMAIN) },
+	{ "places-enabled",        PresetValue::Bool, 0, 0, nullptr, 0 },
 };
 static const int GOVERNED_PROPS_COUNT = (int)(sizeof(GOVERNED_PROPS) / sizeof(GOVERNED_PROPS[0]));
 
