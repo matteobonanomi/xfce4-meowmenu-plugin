@@ -19,7 +19,7 @@
 #define WHISKERMENU_SETTINGS_H
 
 #include "icon-size.h"
-#include "usage-stats.h"
+#include "config/usage-stats.h"
 
 #include <string>
 #include <unordered_map>

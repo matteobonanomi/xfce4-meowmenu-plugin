@@ -17,7 +17,7 @@
 
 #include "page.h"
 
-#include "category-button.h"
+#include "launcher/category-button.h"
 #include "favorites-page.h"
 #include "image-menu-item.h"
 #include "launcher.h"
