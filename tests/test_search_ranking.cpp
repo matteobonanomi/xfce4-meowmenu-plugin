@@ -31,7 +31,7 @@
  * is exercised end-to-end. No shadow re-implementation per RF-TESTS-003.
  */
 
-#include "../panel-plugin/query.h"
+#include "../panel-plugin/search/query.h"
 
 #include <cassert>
 #include <climits>

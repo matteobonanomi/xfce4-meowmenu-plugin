@@ -18,7 +18,7 @@
 
 #include "settings-bindings.h"
 
-#include "search-action.h"
+#include "search/search-action.h"
 #include "settings.h"
 
 #include <algorithm>

@@ -17,7 +17,7 @@
 
 #include "launcher.h"
 
-#include "query.h"
+#include "search/query.h"
 #include "settings.h"
 
 #include <libxfce4ui/libxfce4ui.h>

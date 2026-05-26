@@ -23,13 +23,13 @@
 #include "icon-size.h"
 #include "launcher.h"
 #include "plugin.h"
-#include "search-action.h"
+#include "search/search-action.h"
 #include "settings.h"
 #include "slot.h"
 #include "window.h"
 #include "presets/preset.h"
 #include "presets/preset-io.h"
-#include "unified-bar.h"
+#include "search/unified-bar.h"
 #include "ui/properties/common.h"
 
 #include <algorithm>
