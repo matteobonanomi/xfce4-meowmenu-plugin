@@ -18,7 +18,7 @@
 #include "window.h"
 
 #include "applications-page.h"
-#include "category-button.h"
+#include "launcher/category-button.h"
 #include "command.h"
 #include "favorites-page.h"
 #include "favourites-section.h"

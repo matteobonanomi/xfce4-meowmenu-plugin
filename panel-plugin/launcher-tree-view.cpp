@@ -17,7 +17,7 @@
 
 #include "launcher-tree-view.h"
 
-#include "category.h"
+#include "launcher/category.h"
 #include "icon-renderer.h"
 #include "settings.h"
 #include "slot.h"

@@ -17,8 +17,8 @@
 
 #include "applications-page.h"
 
-#include "category.h"
-#include "category-button.h"
+#include "launcher/category.h"
+#include "launcher/category-button.h"
 #include "launcher.h"
 #include "launcher-view.h"
 #include "settings.h"

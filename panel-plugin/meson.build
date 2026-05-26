@@ -2,8 +2,8 @@ plugin_sources = [
   'applications-page.cpp',
   'preset.cpp',
   'preset-io.cpp',
-  'category.cpp',
-  'category-button.cpp',
+  'launcher/category.cpp',
+  'launcher/category-button.cpp',
   'command.cpp',
   'command-edit.cpp',
   'element.cpp',
@@ -30,7 +30,7 @@ plugin_sources = [
   'resizer.cpp',
   'run-action.cpp',
   'search-action.cpp',
-  'usage-stats.cpp',
+  'config/usage-stats.cpp',
   'search-page.cpp',
   'settings.cpp',
   'settings-dialog.cpp',
@@ -52,6 +52,7 @@ plugin_lib = shared_module(
   ],
   include_directories: [
     include_directories('..'),
+    include_directories('.'),
   ],
   dependencies: [
     accountsservice,
