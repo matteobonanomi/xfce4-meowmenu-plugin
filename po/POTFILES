@@ -1,6 +1,6 @@
 panel-plugin/applications-page.cpp
-panel-plugin/category-button.cpp
-panel-plugin/category.cpp
+panel-plugin/launcher/category-button.cpp
+panel-plugin/launcher/category.cpp
 panel-plugin/command-edit.cpp
 panel-plugin/command.cpp
 panel-plugin/element.cpp
@@ -26,6 +26,11 @@ panel-plugin/run-action.cpp
 panel-plugin/search-action.cpp
 panel-plugin/search-page.cpp
 panel-plugin/settings-dialog.cpp
+panel-plugin/ui/properties/general.cpp
+panel-plugin/ui/properties/search-bar.cpp
+panel-plugin/ui/properties/search-bar-aliases.cpp
+panel-plugin/ui/properties/search-bar-actions.cpp
+panel-plugin/ui/properties/user-session.cpp
 panel-plugin/settings.cpp
 panel-plugin/window.cpp
 panel-plugin/core/xfce4-popup-meowmenu.cpp
