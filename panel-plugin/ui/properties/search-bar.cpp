@@ -19,9 +19,9 @@
 
 #include "ui/properties/common.h"
 
-#include "plugin.h"
+#include "core/plugin.h"
 #include "settings.h"
-#include "slot.h"
+#include "ui/slot.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 

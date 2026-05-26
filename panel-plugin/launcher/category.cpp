@@ -18,7 +18,7 @@
 #include "category.h"
 
 #include "category-button.h"
-#include "launcher-view.h"
+#include "ui/launcher-view.h"
 
 #include <algorithm>
 

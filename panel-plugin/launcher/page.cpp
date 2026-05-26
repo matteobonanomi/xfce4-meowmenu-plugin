@@ -19,14 +19,14 @@
 
 #include "launcher/category-button.h"
 #include "favorites-page.h"
-#include "image-menu-item.h"
+#include "ui/image-menu-item.h"
 #include "launcher.h"
-#include "launcher-icon-view.h"
-#include "launcher-tree-view.h"
+#include "ui/launcher-icon-view.h"
+#include "ui/launcher-tree-view.h"
 #include "recent-page.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 

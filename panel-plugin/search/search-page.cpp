@@ -19,11 +19,11 @@
 
 #include "launcher/applications-page.h"
 #include "launcher/launcher.h"
-#include "launcher-view.h"
+#include "ui/launcher-view.h"
 #include "search-action.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <algorithm>
 

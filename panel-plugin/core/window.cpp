@@ -24,7 +24,7 @@
 #include "places/favourites-section.h"
 #include "places/history-section.h"
 #include "places/home-section.h"
-#include "launcher-view.h"
+#include "ui/launcher-view.h"
 #include "places/places-page.h"
 #include "plugin.h"
 #include "profile.h"
@@ -32,7 +32,7 @@
 #include "resizer.h"
 #include "search/search-page.h"
 #include "settings.h"
-#include "slot.h"
+#include "ui/slot.h"
 #include "search/unified-bar.h"
 
 #include <libxfce4ui/libxfce4ui.h>

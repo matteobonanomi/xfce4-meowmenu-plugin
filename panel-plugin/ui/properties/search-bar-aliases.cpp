@@ -21,10 +21,10 @@
 
 #include "launcher/applications-page.h"
 #include "launcher/launcher.h"
-#include "plugin.h"
+#include "core/plugin.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <string>
 #include <vector>

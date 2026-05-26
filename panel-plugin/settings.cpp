@@ -18,9 +18,9 @@
 #include "settings.h"
 
 #include "launcher/command.h"
-#include "plugin.h"
+#include "core/plugin.h"
 #include "search/search-action.h"
-#include "slot.h"
+#include "ui/slot.h"
 
 #include <algorithm>
 #include <sstream>

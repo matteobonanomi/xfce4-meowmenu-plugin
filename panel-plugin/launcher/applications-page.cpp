@@ -20,10 +20,10 @@
 #include "launcher/category.h"
 #include "launcher/category-button.h"
 #include "launcher.h"
-#include "launcher-view.h"
+#include "ui/launcher-view.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <algorithm>
 

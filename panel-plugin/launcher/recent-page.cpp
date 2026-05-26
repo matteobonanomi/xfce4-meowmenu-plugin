@@ -18,12 +18,12 @@
 #include "recent-page.h"
 
 #include "applications-page.h"
-#include "image-menu-item.h"
+#include "ui/image-menu-item.h"
 #include "launcher.h"
-#include "launcher-view.h"
+#include "ui/launcher-view.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <algorithm>
 

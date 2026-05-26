@@ -17,8 +17,8 @@
 
 #include "command.h"
 
-#include "image-menu-item.h"
-#include "slot.h"
+#include "ui/image-menu-item.h"
+#include "ui/slot.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 

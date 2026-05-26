@@ -20,8 +20,8 @@
 
 #include "launcher/command.h"
 #include "settings.h"
-#include "slot.h"
-#include "window.h"
+#include "ui/slot.h"
+#include "core/window.h"
 
 #include <libxfce4panel/libxfce4panel.h>
 #include <libxfce4ui/libxfce4ui.h>

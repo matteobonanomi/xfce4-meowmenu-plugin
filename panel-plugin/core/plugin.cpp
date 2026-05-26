@@ -27,7 +27,7 @@
 #include "migration.h"
 #include "settings.h"
 #include "settings-dialog.h"
-#include "slot.h"
+#include "ui/slot.h"
 #include "window.h"
 
 #include <glib/gstdio.h>

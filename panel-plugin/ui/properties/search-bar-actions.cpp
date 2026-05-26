@@ -21,7 +21,7 @@
 
 #include "search/search-action.h"
 #include "settings.h"
-#include "slot.h"
+#include "ui/slot.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 

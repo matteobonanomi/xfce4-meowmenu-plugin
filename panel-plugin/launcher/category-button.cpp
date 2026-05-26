@@ -18,7 +18,7 @@
 #include "category-button.h"
 
 #include "settings.h"
-#include "slot.h"
+#include "ui/slot.h"
 
 #include <libxfce4panel/libxfce4panel.h>
 
