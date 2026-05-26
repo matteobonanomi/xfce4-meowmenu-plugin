@@ -595,6 +595,25 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 
 	// Show widgets
 	gtk_widget_show_all(GTK_WIDGET(m_frame));
+
+	// NOTE: gtk_widget_show_all above unconditionally reveals the apps/places
+	// mode selector. update_layout() is the source of truth for its visibility,
+	// but show() only invokes update_layout() when one of the layout booleans
+	// changed — and for presets whose layout booleans happen to match the
+	// constructor defaults (e.g. Classic), it never fires on first open. Sync
+	// the mode-selector and its separator with places_enabled here so the
+	// initial state matches the toggle even when update_layout() is skipped.
+	if (m_mode_selector_box)
+	{
+		gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box),
+			m_settings->places_enabled);
+	}
+	if (m_mode_selector_separator)
+	{
+		gtk_widget_set_visible(m_mode_selector_separator,
+			m_settings->places_enabled);
+	}
+
 	m_default_button->set_active(true);
 
 	// Handle transparency
