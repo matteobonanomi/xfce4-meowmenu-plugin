@@ -18,7 +18,7 @@
 
 #include "settings-defaults.h"
 
-#include "preset.h"
+#include "presets/preset.h"
 #include "settings.h"
 
 using namespace WhiskerMenu;
