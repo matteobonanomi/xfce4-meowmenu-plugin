@@ -289,6 +289,7 @@ jobs:
                   || true)"
           allowed='^panel-plugin/migration\.(cpp|h):'
           allowed="${allowed}|^tests/test_migration\.cpp:"
+          allowed="${allowed}|^tests/test_settings_key_inventory\.cpp:"
           violations="$(printf '%s\n' "$hits" | grep -v -E "${allowed}" | sed '/^$/d' || true)"
           if [ -n "$violations" ]; then
             echo "::error::FR-006/FR-007/FR-008 violation: /plugins/whiskermenu referenced outside migration code"
