@@ -1,4 +1,10 @@
 MEOW MENU DEVELOPMENT
+0.5.1 (2026-05-27)
+=====
+- Code reorganized into seven domain modules (core, config, presets, search, places, launcher, ui)
+- Foundation for future feature work
+- All tests pass; Xfconf keys and translations stable
+
 0.5.0 (2026-05-25)
 =====
 - reorganize repo root
