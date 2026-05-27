@@ -18,8 +18,8 @@
 #ifndef WHISKERMENU_SETTINGS_H
 #define WHISKERMENU_SETTINGS_H
 
-#include "icon-size.h"
-#include "usage-stats.h"
+#include "ui/icon-size.h"
+#include "config/usage-stats.h"
 
 #include <string>
 #include <unordered_map>

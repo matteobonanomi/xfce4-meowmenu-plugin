@@ -262,7 +262,7 @@ jobs:
           # upstream module as historical context, not as a live identifier.
           allowed="${allowed}|^(\./)?docs/architecture/"
           allowed="${allowed}|^(\./)?\.specify/specs/"
-          allowed="${allowed}|^(\./)?panel-plugin/plugin\.cpp:.*xfce4-whiskermenu-plugin"
+          allowed="${allowed}|^(\./)?panel-plugin/core/plugin\.cpp:.*xfce4-whiskermenu-plugin"
           # README front-matter cross-links the upstream Whisker project per
           # FR-017 (acknowledge origin). Limit allow-listing to the badge,
           # the fork-credit sentence, and the 'Whisker Menu source' link.
@@ -289,6 +289,7 @@ jobs:
                   || true)"
           allowed='^panel-plugin/migration\.(cpp|h):'
           allowed="${allowed}|^tests/test_migration\.cpp:"
+          allowed="${allowed}|^tests/test_settings_key_inventory\.cpp:"
           violations="$(printf '%s\n' "$hits" | grep -v -E "${allowed}" | sed '/^$/d' || true)"
           if [ -n "$violations" ]; then
             echo "::error::FR-006/FR-007/FR-008 violation: /plugins/whiskermenu referenced outside migration code"

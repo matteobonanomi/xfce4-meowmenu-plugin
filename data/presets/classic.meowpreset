@@ -27,3 +27,4 @@ full-screen-opacity=100
 hover-switch-category=false
 stay-on-focus-out=false
 default-category=favorites
+places-enabled=false

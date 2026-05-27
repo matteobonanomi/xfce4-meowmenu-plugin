@@ -28,3 +28,4 @@ full-screen-opacity=100
 hover-switch-category=true
 stay-on-focus-out=false
 default-category=recent
+places-enabled=true
