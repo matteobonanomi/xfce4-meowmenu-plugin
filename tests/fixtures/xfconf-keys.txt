@@ -1,0 +1,2 @@
+"/plugins/meowmenu-7"
+"/plugins/whiskermenu-7"
