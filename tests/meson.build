@@ -109,11 +109,10 @@ test_migration = executable(
 test('migration', test_migration, timeout: 60)
 
 # test_settings_key_inventory: fail-closed drift gate against the snapshot
-# under .specify/specs/013-refactor-foundation/artifacts/xfconf-keys.txt.
-# Compiles migration.cpp into the test binary so the production
-# meowmenu↔whiskermenu base derivation is exercised end-to-end (same
-# linking pattern as test_migration). When xfconfd or dbus-daemon is
-# missing the test prints a TAP SKIP and returns 0.
+# under tests/fixtures/xfconf-keys.txt. Compiles migration.cpp into the test
+# binary so the production meowmenu↔whiskermenu base derivation is exercised
+# end-to-end (same linking pattern as test_migration). When xfconfd or
+# dbus-daemon is missing the test prints a TAP SKIP and returns 0.
 test_settings_key_inventory_sources = [
   'test_settings_key_inventory.cpp',
   '..' / 'panel-plugin' / 'migration.cpp',
@@ -123,15 +122,11 @@ test_settings_key_inventory = executable(
   'test_settings_key_inventory',
   test_settings_key_inventory_sources,
   cpp_args: [
-    # NOTE: meson.current_source_dir() is the tests/ directory; the
-    # snapshot artifact lives at the project root under .specify/. The
-    # path is baked in at configure time so the test binary does not
-    # need to walk argv[0] to find it. Project requires meson >= 0.54,
-    # so we avoid project_source_root() (0.56+) and use the older
-    # current_source_dir() + parent traversal instead.
+    # NOTE: path baked in at configure time so the test binary is
+    # independent of its working directory.
     '-DMEOWMENU_TEST_XFCONF_SNAPSHOT_PATH="'
       + meson.current_source_dir()
-      + '/../.specify/specs/013-refactor-foundation/artifacts/xfconf-keys.txt"',
+      + '/fixtures/xfconf-keys.txt"',
   ],
   dependencies: [glib, gio, xfconf],
 )
