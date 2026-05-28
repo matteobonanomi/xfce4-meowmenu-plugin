@@ -4,7 +4,7 @@
 .specify/*
 .vscode/*
 .codex
-docs/*
+dev_docs/*
 AGENTS.md
 CLAUDE.md
 

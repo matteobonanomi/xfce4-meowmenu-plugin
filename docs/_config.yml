@@ -1,0 +1,34 @@
+title: MeowMenu
+description: A modern, customizable launcher for XFCE4
+baseurl: "/xfce4-meowmenu-plugin"
+url: "https://matteobonanomi.github.io"
+
+remote_theme: just-the-docs/just-the-docs
+
+plugins:
+  - jekyll-seo-tag
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      image: /assets/images/preset-modern.png
+
+color_scheme: dark
+search_enabled: true
+heading_anchors: true
+
+footer_content: >
+  MeowMenu is a fork of
+  <a href="https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin">Whisker Menu</a>
+  by Graeme Gott, distributed under GPL-2.0+.
+
+aux_links:
+  "GitHub":
+    - "https://github.com/matteobonanomi/xfce4-meowmenu-plugin"
+  "Releases":
+    - "https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases"
+
+aux_links_new_tab: true
+
+nav_sort: order
