@@ -269,7 +269,7 @@ jobs:
           allowed="${allowed}|^(\./)?README\.md:.*fork%20of-Whisker"
           allowed="${allowed}|^(\./)?README\.md:.*originated as a fork of"
           allowed="${allowed}|^(\./)?README\.md:.*Whisker Menu source"
-          allowed="${allowed}|^(\./)?docs/index\.md:.*originated as a fork of"
+          allowed="${allowed}|^(\./)?docs/index\.md:.*\[Whisker Menu\]"
           allowed="${allowed}|^(\./)?po/.*\.po:.*Last-Translator"
           allowed="${allowed}|^(\./)?po/.*\.po:.*Language-Team"
           allowed="${allowed}|^(\./)?po/.*\.po:.*msgstr"
