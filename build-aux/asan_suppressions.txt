@@ -14,3 +14,11 @@
 # This file is intentionally empty on day one. CI must run green without any
 # suppression. Add entries only when a real third-party issue is identified
 # and tracked.
+#
+# FcInit — fontconfig global state is intentionally never freed at process
+# exit (it is a per-process singleton). LSan triggers when Pango initialises
+# a font backend in a GLib thread spawned by gtk_init_check(). No code
+# defect; suppressed to keep sanitizer signal clean.
+# Upstream acknowledgement: https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-05-28
+leak:FcInit
