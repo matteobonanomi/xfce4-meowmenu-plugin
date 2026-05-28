@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.5.2 (2026-05-27)
+=====
+- Enable GitHub Pages
+- Project documentation in docs/
+
 0.5.1 (2026-05-27)
 =====
 - Code reorganized into seven domain modules (core, config, presets, search, places, launcher, ui)
