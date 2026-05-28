@@ -263,12 +263,13 @@ jobs:
           allowed="${allowed}|^(\./)?docs/architecture/"
           allowed="${allowed}|^(\./)?\.specify/specs/"
           allowed="${allowed}|^(\./)?panel-plugin/core/plugin\.cpp:.*xfce4-whiskermenu-plugin"
-          # README front-matter cross-links the upstream Whisker project per
+          # README and docs/index.md cross-link the upstream Whisker project per
           # FR-017 (acknowledge origin). Limit allow-listing to the badge,
           # the fork-credit sentence, and the 'Whisker Menu source' link.
           allowed="${allowed}|^(\./)?README\.md:.*fork%20of-Whisker"
           allowed="${allowed}|^(\./)?README\.md:.*originated as a fork of"
           allowed="${allowed}|^(\./)?README\.md:.*Whisker Menu source"
+          allowed="${allowed}|^(\./)?docs/index\.md:.*\[Whisker Menu\]"
           allowed="${allowed}|^(\./)?po/.*\.po:.*Last-Translator"
           allowed="${allowed}|^(\./)?po/.*\.po:.*Language-Team"
           allowed="${allowed}|^(\./)?po/.*\.po:.*msgstr"
