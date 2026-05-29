@@ -98,6 +98,39 @@ void test_match_mid_word_substring()
 	assert(s == 0x80 && "mid-word substring must score 0x80");
 }
 
+void test_match_accidental_space_in_word_compact_fallback()
+{
+	// User typed an accidental space inside a single intended word.
+	// Each whitespace-delimited token fails the word-boundary tests
+	// ("le" lands mid-word inside "file"), but the compact form
+	// "file" matches at a word boundary in the haystack — the
+	// regression fix for the space-as-printable-char behaviour.
+	Query q("fi le");
+	const unsigned int s = q.match("thunar file manager");
+	assert(s == 0x10 && "compact-form fallback must restore word-boundary score");
+}
+
+void test_match_accidental_space_prefix_compact_fallback()
+{
+	// Accidental space splits an intended prefix. Compact form "file"
+	// is a strict prefix of "file manager", so it must score as a
+	// prefix match (0x8), not exact (0x4) — lengths differ.
+	Query q("fi le");
+	const unsigned int s = q.match("file manager");
+	assert(s == 0x8 && "compact form that is a prefix must score 0x8");
+}
+
+void test_match_legitimate_multiword_unaffected_by_compact_fallback()
+{
+	// Genuine multi-word query must continue to land on the
+	// word-boundary in-order branch (0x20), not on the compact-form
+	// fallback. Freezes the precedence so the new fallback never
+	// poaches matches that the existing branches already serve.
+	Query q("file utility");
+	const unsigned int s = q.match("file manager utility");
+	assert(s == 0x20 && "legitimate multi-word query must keep its 0x20 score");
+}
+
 void test_match_no_match_returns_uintmax()
 {
 	Query q("nothing");
@@ -220,6 +253,9 @@ int main()
 	test_match_mid_word_substring();
 	test_match_no_match_returns_uintmax();
 	test_match_case_insensitive_via_casefold();
+	test_match_accidental_space_in_word_compact_fallback();
+	test_match_accidental_space_prefix_compact_fallback();
+	test_match_legitimate_multiword_unaffected_by_compact_fallback();
 
 	test_match_as_characters_start_words();
 	test_match_as_characters_scattered();
