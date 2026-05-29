@@ -129,6 +129,34 @@ unsigned int Query::match(const std::string& haystack) const
 		return 0x80;
 	}
 
+	// Compact-form fallback for multi-token queries: rerun the
+	// prefix / word-boundary / substring tests with the query's
+	// internal whitespace stripped. Treats an accidentally-typed
+	// space inside a word (e.g. "fi le") as a typo so it can still
+	// reach "file manager" instead of dropping to zero results.
+	// Legitimate multi-word queries already matched above with a
+	// better (lower) score, so they are unaffected.
+	if (m_query_words.size() > 1)
+	{
+		std::string compact;
+		for (const auto& word : m_query_words)
+		{
+			compact += word;
+		}
+		if (compact.length() <= haystack.length())
+		{
+			const std::string::size_type cpos = haystack.find(compact);
+			if (cpos == 0)
+			{
+				return (haystack.length() == compact.length()) ? 0x4 : 0x8;
+			}
+			else if (cpos != std::string::npos)
+			{
+				return is_start_word(haystack, cpos) ? 0x10 : 0x80;
+			}
+		}
+	}
+
 	return UINT_MAX;
 }
 
