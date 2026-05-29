@@ -50,4 +50,4 @@ Then right-click the panel → **Add New Items** → **MeowMenu**.
 | XFCE panel native | ✓ | ✓ |
 | Keyboard navigation | ✓ | ✓ |
 
-→ [Installation](installation) · [Presets](presets) · [Configuration](configuration) · [FAQ](faq)
+→ [Installation](installation) · [Presets](presets) · [Configuration](configuration) · [Keyboard navigation](keyboard-navigation) · [FAQ](faq)
