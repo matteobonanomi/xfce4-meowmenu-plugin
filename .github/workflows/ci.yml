@@ -159,6 +159,7 @@ jobs:
           # NOTE: suppressions paths must be absolute — ASan/UBSan resolve
           # relative paths against the test binary's cwd, not the repo root.
           export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/asan_suppressions.txt"
+          export LSAN_OPTIONS="suppressions=${GITHUB_WORKSPACE}/build-aux/lsan_suppressions.txt"
           export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/ubsan_suppressions.txt"
           meson test -C build --print-errorlogs
 
