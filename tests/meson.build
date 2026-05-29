@@ -172,3 +172,52 @@ test_home_search_lifecycle = executable(
 )
 
 test('home_search_lifecycle', test_home_search_lifecycle, timeout: 30)
+
+# test_focus_router: headless coverage of the Tab-cycle resolution
+# implemented in panel-plugin/core/window-keyboard.cpp. Pulls only the
+# helper translation unit; no display server, no GTK widgets.
+test_focus_router_sources = [
+  'test_focus_router.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+]
+
+test_focus_router = executable(
+  'test_focus_router',
+  test_focus_router_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('focus_router', test_focus_router)
+
+# test_esc_ladder: headless coverage of the progressive Esc state
+# machine in panel-plugin/core/window-keyboard.cpp.
+test_esc_ladder_sources = [
+  'test_esc_ladder.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+]
+
+test_esc_ladder = executable(
+  'test_esc_ladder',
+  test_esc_ladder_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('esc_ladder', test_esc_ladder)
+
+# test_key_routing: headless coverage of classify_key /
+# is_printable_for_search. Fabricates GdkEventKey values directly.
+test_key_routing_sources = [
+  'test_key_routing.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+]
+
+test_key_routing = executable(
+  'test_key_routing',
+  test_key_routing_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('key_routing', test_key_routing)
