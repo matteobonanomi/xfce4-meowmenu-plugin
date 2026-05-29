@@ -49,6 +49,7 @@ public:
 	void set_filter(const gchar* filter);
 	void refresh_active();
 	void reload_view();
+	void select_first();
 
 private:
 	void create_view();

@@ -1399,11 +1399,20 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 		// FR-032: on Tab entry, land on the currently selected item; if
 		// nothing is selected, select the first item so the user has a
 		// visible anchor (select_first() is called after the grab below).
-		Page* page = const_cast<Window*>(this)->get_active_page();
-		if (page)
+		// NOTE: in Places mode get_active_page() returns the hidden applications
+		// page; target m_places directly so the grab lands on the visible widget.
+		if (m_places_active)
 		{
-			target = page->get_view()->get_widget();
-			results_page = page;
+			target = m_places->get_view()->get_widget();
+		}
+		else
+		{
+			Page* page = const_cast<Window*>(this)->get_active_page();
+			if (page)
+			{
+				target = page->get_view()->get_widget();
+				results_page = page;
+			}
 		}
 		break;
 	}
@@ -1622,7 +1631,11 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	}
 
 	Page* page = get_active_page();
-	GtkWidget* view = page->get_view()->get_widget();
+	// NOTE: in Places mode get_active_page() returns the hidden applications
+	// page; use m_places directly so focus and selection target the visible view.
+	GtkWidget* view = m_places_active
+		? m_places->get_view()->get_widget()
+		: page->get_view()->get_widget();
 	GtkWidget* search = GTK_WIDGET(m_search_entry);
 
 	// FR-043 / FR-046: sidebar exit arrow → focus the results view. The
@@ -1701,10 +1714,12 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	case GDK_KEY_KP_Down:
 	{
 		// Determine if there is a selected item
-		bool reset = page != m_search_results;
+		LauncherView* results_view = m_places_active
+			? m_places->get_view() : page->get_view();
+		bool reset = m_places_active ? true : (page != m_search_results);
 		if (reset)
 		{
-			GtkTreePath* path = page->get_view()->get_selected_path();
+			GtkTreePath* path = results_view->get_selected_path();
 			if (path)
 			{
 				reset = false;
@@ -1719,7 +1734,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		// Only select first item if there is no selected item
 		if ((gtk_window_get_focus(m_window) == view) && reset)
 		{
-			page->select_first();
+			m_places_active ? m_places->select_first() : page->select_first();
 			return GDK_EVENT_STOP;
 		}
 		break;
@@ -1736,10 +1751,12 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		if ((widget == search) || (gtk_window_get_focus(m_window) == search))
 		{
 			gtk_widget_grab_focus(view);
-			GtkTreePath* selected = page->get_view()->get_selected_path();
+			LauncherView* results_view = m_places_active
+				? m_places->get_view() : page->get_view();
+			GtkTreePath* selected = results_view->get_selected_path();
 			if (!selected)
 			{
-				page->select_first();
+				m_places_active ? m_places->select_first() : page->select_first();
 			}
 			else
 			{
