@@ -21,8 +21,55 @@
 #include "ui/slot.h"
 
 #include <libxfce4panel/libxfce4panel.h>
+#include <gdk/gdkkeysyms.h>
 
 using namespace WhiskerMenu;
+
+namespace
+{
+
+/* focusable_radio_siblings:
+ * @parent: the GtkBox holding a GtkRadioButton group.
+ *
+ * Collects the visible, sensitive radio-button children in physical
+ * box order. Non-radio children (separators, the mode selector box)
+ * are skipped so wrap-around stays inside the category group.
+ *
+ * Returns: heap-allocated GList* of GtkWidget*; the caller frees it
+ * with g_list_free (do NOT free the nodes themselves).
+ */
+GList* focusable_radio_siblings(GtkContainer* parent)
+{
+	GList* out = nullptr;
+	GList* children = gtk_container_get_children(parent);
+	for (GList* li = children; li; li = li->next)
+	{
+		GtkWidget* w = GTK_WIDGET(li->data);
+		if (!GTK_IS_RADIO_BUTTON(w))
+			continue;
+		if (!gtk_widget_get_visible(w) || !gtk_widget_get_sensitive(w))
+			continue;
+		out = g_list_append(out, w);
+	}
+	g_list_free(children);
+	return out;
+}
+
+/* sidebar_is_vertical:
+ * @parent: the GtkBox holding the category buttons.
+ *
+ * Returns: true iff the parent box is oriented vertically (sidebar at
+ * left or right); false when it is horizontal (sidebar at top/bottom).
+ */
+bool sidebar_is_vertical(GtkContainer* parent)
+{
+	if (!GTK_IS_ORIENTABLE(parent))
+		return true;
+	return gtk_orientable_get_orientation(GTK_ORIENTABLE(parent))
+			== GTK_ORIENTATION_VERTICAL;
+}
+
+} // namespace
 
 //-----------------------------------------------------------------------------
 
@@ -66,6 +113,76 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 			{
 				gtk_toggle_button_set_active(button, true);
 				gtk_widget_grab_focus(widget);
+			}
+			return GDK_EVENT_PROPAGATE;
+		});
+
+	// FR-042: ↑/↓ (or ←/→ in horizontal sidebar layouts) wrap at the
+	// ends of the category group; Home/End jump to first/last. The
+	// exit-to-results arrow (perpendicular to the sidebar axis) is left
+	// to the window-level handler in Window::on_key_press_event which
+	// checks FR-046 (no-op while Searching) and the LTR/RTL mirror
+	// (FR-120).
+	connect(m_button, "key-press-event",
+		[](GtkWidget* widget, GdkEvent* ev) -> gboolean
+		{
+			GdkEventKey* key = reinterpret_cast<GdkEventKey*>(ev);
+			GtkWidget* parent = gtk_widget_get_parent(widget);
+			if (!parent)
+				return GDK_EVENT_PROPAGATE;
+
+			GList* siblings = focusable_radio_siblings(GTK_CONTAINER(parent));
+			if (!siblings)
+				return GDK_EVENT_PROPAGATE;
+
+			const bool vertical = sidebar_is_vertical(GTK_CONTAINER(parent));
+			const guint kv = key->keyval;
+
+			GList* self_node = g_list_find(siblings, widget);
+			const bool at_first = (self_node == siblings);
+			const bool at_last  = (self_node && self_node->next == nullptr);
+
+			GtkWidget* target = nullptr;
+
+			if (kv == GDK_KEY_Home || kv == GDK_KEY_KP_Home)
+			{
+				target = GTK_WIDGET(siblings->data);
+			}
+			else if (kv == GDK_KEY_End || kv == GDK_KEY_KP_End)
+			{
+				target = GTK_WIDGET(g_list_last(siblings)->data);
+			}
+			else if (vertical
+					&& (kv == GDK_KEY_Up || kv == GDK_KEY_KP_Up)
+					&& at_first)
+			{
+				target = GTK_WIDGET(g_list_last(siblings)->data);
+			}
+			else if (vertical
+					&& (kv == GDK_KEY_Down || kv == GDK_KEY_KP_Down)
+					&& at_last)
+			{
+				target = GTK_WIDGET(siblings->data);
+			}
+			else if (!vertical
+					&& (kv == GDK_KEY_Left || kv == GDK_KEY_KP_Left)
+					&& at_first)
+			{
+				target = GTK_WIDGET(g_list_last(siblings)->data);
+			}
+			else if (!vertical
+					&& (kv == GDK_KEY_Right || kv == GDK_KEY_KP_Right)
+					&& at_last)
+			{
+				target = GTK_WIDGET(siblings->data);
+			}
+
+			g_list_free(siblings);
+
+			if (target && target != widget)
+			{
+				gtk_widget_grab_focus(target);
+				return GDK_EVENT_STOP;
 			}
 			return GDK_EVENT_PROPAGATE;
 		});

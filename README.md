@@ -16,6 +16,11 @@ project that originated as a fork of [Whisker Menu](https://gitlab.xfce.org/pane
 and keeps the familiar panel-launcher feel while bringing a cleaner modern
 look and more customization options.
 
+**Fully keyboard-driven** — every zone (search, results, sidebar, mode
+switch, session buttons) is reachable without the mouse. See
+[Keyboard navigation](docs/keyboard-navigation.md) for the complete
+shortcut reference.
+
 
 
 ---

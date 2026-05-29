@@ -66,6 +66,34 @@ LauncherTreeView::LauncherTreeView(Settings* settings) :
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_view)), "launchers");
 
+	// FR-100: bring the focused row into view without snap-scrolling on
+	// programmatic cursor moves (Tab into Results, arrow exit out of the
+	// sidebar). use_align=FALSE keeps the existing scroll position when
+	// the cursor row is already visible.
+	connect(m_view, "focus-in-event",
+		[](GtkWidget* widget, GdkEvent*) -> gboolean
+		{
+			GtkTreeView* tv = GTK_TREE_VIEW(widget);
+			GtkTreePath* path = nullptr;
+			gtk_tree_view_get_cursor(tv, &path, nullptr);
+			if (!path)
+			{
+				GtkTreeSelection* sel = gtk_tree_view_get_selection(tv);
+				GtkTreeIter iter;
+				if (gtk_tree_selection_get_selected(sel, nullptr, &iter))
+				{
+					path = gtk_tree_model_get_path(
+							gtk_tree_view_get_model(tv), &iter);
+				}
+			}
+			if (path)
+			{
+				gtk_tree_view_scroll_to_cell(tv, path, nullptr, FALSE, 0, 0);
+				gtk_tree_path_free(path);
+			}
+			return GDK_EVENT_PROPAGATE;
+		});
+
 	// Expand on click
 	connect(m_view, "row-activated",
 		[this](GtkTreeView* tree_view, GtkTreePath* path, GtkTreeViewColumn*)
