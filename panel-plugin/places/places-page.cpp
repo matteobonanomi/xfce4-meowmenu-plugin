@@ -150,6 +150,26 @@ void PlacesPage::reload_view()
 
 //-----------------------------------------------------------------------------
 
+/* select_first:
+ * Select and scroll to the first item in the view, mirroring Page::select_first
+ * so callers that handle both Apps and Places mode can treat them uniformly.
+ */
+void PlacesPage::select_first()
+{
+	GtkTreeModel* model = m_view->get_model();
+	GtkTreeIter iter;
+	if (model && gtk_tree_model_get_iter_first(model, &iter))
+	{
+		GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+		m_view->set_cursor(path);
+		m_view->select_path(path);
+		m_view->scroll_to_path(path);
+		gtk_tree_path_free(path);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void PlacesPage::set_active_section(PlacesSection* section)
 {
 	cancel_home_search();
