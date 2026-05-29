@@ -15,10 +15,6 @@
 # suppression. Add entries only when a real third-party issue is identified
 # and tracked.
 #
-# FcInit — fontconfig global state is intentionally never freed at process
-# exit (it is a per-process singleton). LSan triggers when Pango initialises
-# a font backend in a GLib thread spawned by gtk_init_check(). No code
-# defect; suppressed to keep sanitizer signal clean.
-# Upstream acknowledgement: https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
-# Added: 2026-05-28
-leak:FcInit
+# NOTE: `leak:` rules belong in the LSan suppressions file
+# (build-aux/lsan_suppressions.txt), not here. ASan's parser rejects
+# unknown rule types and aborts before any test runs.

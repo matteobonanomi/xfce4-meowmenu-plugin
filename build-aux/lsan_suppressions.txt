@@ -1,0 +1,18 @@
+# LeakSanitizer suppressions for the MeowMenu CI `sanitizers` job.
+#
+# Scoping rules (see spec.md Edge Cases §266, data-model.md §170):
+#   - Suppressions MUST be per-function or per-symbol.
+#   - Whole-file or whole-library production suppressions are FORBIDDEN.
+#   - Every suppression MUST cite the upstream bug it tracks and the date
+#     it was added. Stale entries without a tracking link are removed at
+#     the next audit.
+#
+# Format: one `leak:<symbol-or-regex>` rule per line.
+#
+# FcInit — fontconfig global state is intentionally never freed at process
+# exit (it is a per-process singleton). LSan triggers when Pango initialises
+# a font backend in a GLib thread spawned by gtk_init_check(). No code
+# defect; suppressed to keep sanitizer signal clean.
+# Upstream acknowledgement: https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-05-28
+leak:FcInit
