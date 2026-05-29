@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "core/window.h"
+#include "core/window-keyboard.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 
@@ -235,8 +236,38 @@ bool Page::remember_launcher(Launcher*)
 
 //-----------------------------------------------------------------------------
 
+bool Page::activate_first()
+{
+	GtkTreeModel* model = m_view ? m_view->get_model() : nullptr;
+	if (!model)
+	{
+		return false;
+	}
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+	{
+		return false;
+	}
+	GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+	launcher_activated(path);
+	gtk_tree_path_free(path);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
 void Page::launcher_activated(GtkTreePath* path)
 {
+	// NOTE: 250 ms debounce against held-Enter key-repeat bursts (FR-022,
+	// SC-005). The state is process-global across pages because a single
+	// user keypress can only target one launcher at a time and a stuck
+	// key must not multi-launch.
+	static Keyboard::ActivationDebounce s_debounce;
+	if (!s_debounce.accept(g_get_monotonic_time()))
+	{
+		return;
+	}
+
 	GtkTreeIter iter;
 	GtkTreeModel* model = m_view->get_model();
 	gtk_tree_model_get_iter(model, &iter, path);
