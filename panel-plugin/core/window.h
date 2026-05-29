@@ -22,6 +22,8 @@
 
 #include <gtk/gtk.h>
 
+#include "window-keyboard.h"
+
 namespace WhiskerMenu
 {
 
@@ -101,6 +103,43 @@ private:
 	GtkWidget* get_active_category_button();
 	gboolean on_key_press_event(GtkWidget* widget, GdkEventKey* key_event);
 	gboolean on_key_press_event_after(GtkWidget* widget, GdkEventKey* key_event);
+
+	/* current_visibility_mask:
+	 *
+	 * Folds the live layout flags and per-zone "hidden" positions into a
+	 * Keyboard::VisibilityMask. Search and Results are forced visible
+	 * (FR-030); the Sidebar, Mode selector, and Profile bar follow the
+	 * preset's per-zone position string and visibility flags.
+	 */
+	Keyboard::VisibilityMask current_visibility_mask() const;
+
+	/* current_menu_state:
+	 *
+	 * Returns Searching iff the search entry holds at least one
+	 * character, Browsing otherwise. Used by the focus router to skip
+	 * the inert sidebar while typing (FR-046).
+	 */
+	Keyboard::MenuState current_menu_state() const;
+
+	/* grab_focus_in_zone:
+	 * @zone: target zone for Tab/Shift+Tab.
+	 *
+	 * Maps a logical Zone to the concrete widget that should receive
+	 * focus on entry per data-model §"Entry widget mapping" and calls
+	 * gtk_widget_grab_focus on it. If the natural entry widget is not
+	 * realized/visible the call is a no-op and the previously focused
+	 * widget keeps focus.
+	 */
+	void grab_focus_in_zone(Keyboard::Zone zone);
+
+	/* current_zone:
+	 *
+	 * Identifies which logical Zone currently holds the focus, by
+	 * walking up the focused widget's ancestor chain. Falls back to
+	 * Zone::Search when nothing matches (e.g. focus is on the menu
+	 * window itself just after open).
+	 */
+	Keyboard::Zone current_zone() const;
 	gboolean on_map_event();
 	void on_state_flags_changed(GtkWidget* widget);
 	void on_screen_changed(GtkWidget* widget);
