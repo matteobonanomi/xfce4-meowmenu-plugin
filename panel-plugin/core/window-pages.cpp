@@ -24,6 +24,7 @@
 #include "places/places-page.h"
 #include "search/search-page.h"
 #include "settings.h"
+#include "ui/launcher-view.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 
@@ -182,6 +183,12 @@ void WhiskerMenu::Window::search()
 		// Places mode: stay on the places panel; filter the active section.
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		m_places->set_filter(text);
+		// FR-014: query empty → return focus to the search entry so the
+		// user is back in Browsing-style entry focus.
+		if (!text)
+		{
+			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		}
 		return;
 	}
 
@@ -203,6 +210,27 @@ void WhiskerMenu::Window::search()
 
 	// Apply filter
 	m_search_results->set_filter(text);
+
+	if (text)
+	{
+		// FR-011: when the query produced at least one result, move
+		// keyboard focus to the first result so the user can press
+		// Enter to launch it or use arrows to navigate. Subsequent
+		// printable keystrokes are still routed back into the entry
+		// via the on_key_press_event_after catch-all (FR-012).
+		GtkTreeModel* model = m_search_results->get_view()->get_model();
+		GtkTreeIter iter;
+		if (model && gtk_tree_model_get_iter_first(model, &iter))
+		{
+			gtk_widget_grab_focus(m_search_results->get_view()->get_widget());
+		}
+	}
+	else
+	{
+		// FR-014: query became empty (Backspace-to-empty or Esc-clear);
+		// return focus to the entry so the user is back in Browsing.
+		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	}
 }
 
 //-----------------------------------------------------------------------------

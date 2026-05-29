@@ -34,6 +34,7 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "search/unified-bar.h"
+#include "window-keyboard.h"
 
 #include <libxfce4ui/libxfce4ui.h>
 #include <gdk/gdkkeysyms.h>
@@ -314,6 +315,21 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		[this](GtkEditable*)
 		{
 			search();
+		});
+
+	// FR-021: Enter on the search entry activates the first match (or
+	// is a silent no-op when the current query has zero results — see
+	// clarification Q4). The debounce inside Page::launcher_activated
+	// covers held-Enter key-repeat (FR-022).
+	connect(m_search_entry, "activate",
+		[this](GtkEntry*)
+		{
+			const gchar* text = gtk_entry_get_text(m_search_entry);
+			if (xfce_str_is_empty(text))
+			{
+				return;
+			}
+			m_search_results->activate_first();
 		});
 
 	connect(m_search_entry, "populate-popup",
@@ -1167,6 +1183,31 @@ void WhiskerMenu::Window::unset_items()
 
 gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey* key_event)
 {
+	// Type-to-search catch-all (FR-010, FR-012, FR-013, FR-015). This
+	// runs BEFORE GTK's default key chain so that:
+	//   - Printable keys typed while focus is on the results view do
+	//     not reach the view's default Space-activates-row handler.
+	//   - Each character is delivered to the entry exactly once (the
+	//     post-default signal must not also re-route, otherwise every
+	//     keystroke would be inserted twice once Window::search()
+	//     moves focus to the view).
+	// Backspace gets a dedicated branch (FR-013): it must remove a
+	// character from the query regardless of which zone holds focus,
+	// but it is not classified Printable (control codepoint) and
+	// therefore cannot ride the generic printable redirect.
+	GtkWidget* entry = GTK_WIDGET(m_search_entry);
+	GtkWidget* focused = gtk_window_get_focus(m_window);
+	if (focused && focused != entry)
+	{
+		if (Keyboard::is_printable_for_search(key_event)
+				|| key_event->keyval == GDK_KEY_BackSpace)
+		{
+			gtk_entry_grab_focus_without_selecting(m_search_entry);
+			gtk_window_propagate_key_event(m_window, key_event);
+			return GDK_EVENT_STOP;
+		}
+	}
+
 	if (key_event->keyval == GDK_KEY_Escape)
 	{
 		// Cancel resize
@@ -1272,20 +1313,15 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 
 //-----------------------------------------------------------------------------
 
-gboolean WhiskerMenu::Window::on_key_press_event_after(GtkWidget* widget, GdkEventKey* key_event)
+gboolean WhiskerMenu::Window::on_key_press_event_after(GtkWidget* /*widget*/, GdkEventKey* /*key_event*/)
 {
-	// Pass unhandled key presses to search entry
-	GtkWidget* search_entry = GTK_WIDGET(m_search_entry);
-	if ((widget != search_entry) && (gtk_window_get_focus(m_window) != search_entry))
-	{
-		if (key_event->is_modifier)
-		{
-			return GDK_EVENT_PROPAGATE;
-		}
-		gtk_entry_grab_focus_without_selecting(m_search_entry);
-		gtk_window_propagate_key_event(m_window, key_event);
-		return GDK_EVENT_STOP;
-	}
+	// NOTE: type-to-search routing moved to the pre-default handler
+	// above so it can pre-empt GtkTreeView/GtkIconView's "Space
+	// activates the selected row" default binding (FR-012). Keeping
+	// a duplicate redirect here would cause every keystroke to be
+	// inserted twice once Window::search() moves focus to the view
+	// per FR-011. The post-default slot remains attached as a hook
+	// point for future expansion; today it is a no-op.
 	return GDK_EVENT_PROPAGATE;
 }
 
