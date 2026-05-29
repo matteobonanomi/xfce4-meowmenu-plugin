@@ -1386,6 +1386,7 @@ Keyboard::MenuState WhiskerMenu::Window::current_menu_state() const
 void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 {
 	GtkWidget* target = nullptr;
+	Page* results_page = nullptr;
 
 	switch (zone)
 	{
@@ -1395,13 +1396,14 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 
 	case Keyboard::Zone::Results:
 	{
-		// Prefer the currently active page's view; if it has no selection
-		// the natural focus-grab handler will leave the cursor on the
-		// first row (GtkTreeView/GtkIconView default).
+		// FR-032: on Tab entry, land on the currently selected item; if
+		// nothing is selected, select the first item so the user has a
+		// visible anchor (select_first() is called after the grab below).
 		Page* page = const_cast<Window*>(this)->get_active_page();
 		if (page)
 		{
 			target = page->get_view()->get_widget();
+			results_page = page;
 		}
 		break;
 	}
@@ -1441,6 +1443,18 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 	if (target && gtk_widget_get_visible(target) && gtk_widget_get_sensitive(target))
 	{
 		gtk_widget_grab_focus(target);
+		if (results_page)
+		{
+			GtkTreePath* sel = results_page->get_view()->get_selected_path();
+			if (!sel)
+			{
+				results_page->select_first();
+			}
+			else
+			{
+				gtk_tree_path_free(sel);
+			}
+		}
 	}
 }
 
