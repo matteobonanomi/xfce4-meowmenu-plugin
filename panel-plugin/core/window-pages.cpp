@@ -223,6 +223,7 @@ void WhiskerMenu::Window::search()
 		if (model && gtk_tree_model_get_iter_first(model, &iter))
 		{
 			gtk_widget_grab_focus(m_search_results->get_view()->get_widget());
+			m_search_results->select_first();
 		}
 	}
 	else
