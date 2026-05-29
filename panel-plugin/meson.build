@@ -48,6 +48,7 @@ plugin_sources = [
   'ui/slot.h',
   'core/window.cpp',
   'core/window-geometry.cpp',
+  'core/window-keyboard.cpp',
   'core/window-pages.cpp',
   xfce_revision_h,
   meowmenu_version_h,

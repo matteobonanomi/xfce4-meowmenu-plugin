@@ -61,6 +61,34 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 
 	// Handle hover selection
 	enable_hover_selection(GTK_WIDGET(m_view));
+
+	// FR-100: keep the focused item visible on programmatic cursor moves
+	// (Tab into Results, sidebar arrow exit). use_align=FALSE so an
+	// already-visible item does not jump.
+	connect(m_view, "focus-in-event",
+		[](GtkWidget* widget, GdkEvent*) -> gboolean
+		{
+			GtkIconView* iv = GTK_ICON_VIEW(widget);
+			GtkTreePath* path = nullptr;
+			gtk_icon_view_get_cursor(iv, &path, nullptr);
+			if (!path)
+			{
+				GList* sel = gtk_icon_view_get_selected_items(iv);
+				if (sel)
+				{
+					path = gtk_tree_path_copy(
+							static_cast<GtkTreePath*>(sel->data));
+				}
+				g_list_free_full(sel,
+						reinterpret_cast<GDestroyNotify>(&gtk_tree_path_free));
+			}
+			if (path)
+			{
+				gtk_icon_view_scroll_to_path(iv, path, FALSE, 0, 0);
+				gtk_tree_path_free(path);
+			}
+			return GDK_EVENT_PROPAGATE;
+		});
 }
 
 //-----------------------------------------------------------------------------

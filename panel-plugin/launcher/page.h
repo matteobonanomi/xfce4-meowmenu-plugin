@@ -60,6 +60,18 @@ public:
 	void select_first();
 	void update_view();
 
+	/* activate_first:
+	 *
+	 * Launches the launcher in the first row of the current view, if
+	 * the model has at least one row. Subject to the same activation
+	 * debounce as a mouse/key activation, so holding Enter on the
+	 * search entry cannot launch the same application twice. Used by
+	 * the search entry's "activate" handler to satisfy FR-021.
+	 *
+	 * Returns: true iff a row existed and was activated.
+	 */
+	bool activate_first();
+
 protected:
 	Window* get_window() const
 	{

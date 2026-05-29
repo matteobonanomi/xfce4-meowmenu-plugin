@@ -14,3 +14,7 @@
 # This file is intentionally empty on day one. CI must run green without any
 # suppression. Add entries only when a real third-party issue is identified
 # and tracked.
+#
+# NOTE: `leak:` rules belong in the LSan suppressions file
+# (build-aux/lsan_suppressions.txt), not here. ASan's parser rejects
+# unknown rule types and aborts before any test runs.
