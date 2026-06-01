@@ -78,7 +78,35 @@ PlacesItem::PlacesItem(GFile* file, bool is_favourite) :
 		g_free(basename);
 	}
 
-	set_tooltip(path ? path : m_uri.c_str());
+	const char* label = get_text() ? get_text() : "";
+	if (m_exists)
+	{
+		// Available: keep today's plain label and the path/URI tooltip.
+		m_display_markup = label;
+		set_tooltip(path ? path : m_uri.c_str());
+	}
+	else
+	{
+		// Missing: mute the label and flag the target as gone.
+		// NOTE: escape the display name before wrapping it — the shared
+		// tree-view renders COLUMN_TEXT as Pango markup, so an unescaped
+		// "&" or "<" in a file name would corrupt the row.
+		gchar* escaped = g_markup_escape_text(label, -1);
+		// NOTE: dim via alpha over the inherited theme foreground rather than
+		// a fixed colour, so the muted text stays legible on light and dark
+		// themes (no hard-coded colour).
+		gchar* markup = g_strdup_printf("<span alpha=\"55%%\">%s</span>",
+				escaped ? escaped : "");
+		m_display_markup = markup ? markup : "";
+		g_free(markup);
+		g_free(escaped);
+
+		// Tooltip names the target and states it is missing; set_tooltip()
+		// escapes the text for markup, so pass it raw.
+		gchar* tip = g_strdup_printf(_("%s (missing)"), path ? path : m_uri.c_str());
+		set_tooltip(tip);
+		g_free(tip);
+	}
 
 	gchar* folded = g_utf8_casefold(get_text(), -1);
 	m_casefolded_name = folded ? folded : "";
