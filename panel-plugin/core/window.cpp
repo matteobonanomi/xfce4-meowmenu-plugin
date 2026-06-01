@@ -559,34 +559,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				gtk_toggle_button_set_active(b, true);
 		});
 
-	// FR-041 / FR-081: any arrow key on a mode toggle flips to the
-	// opposite toggle. Space is NOT bound (clarification Q1) — it falls
-	// through and is captured by the printable-key catch-all so it
-	// extends the query, matching FR-080. Key repeat is absorbed by
-	// m_mode_switch_in_progress inside switch_mode().
-	auto mode_arrow_handler = [this](GtkWidget*, GdkEvent* ev) -> gboolean
-	{
-		GdkEventKey* key = reinterpret_cast<GdkEventKey*>(ev);
-		switch (key->keyval)
-		{
-		case GDK_KEY_Left:  case GDK_KEY_KP_Left:
-		case GDK_KEY_Right: case GDK_KEY_KP_Right:
-		case GDK_KEY_Up:    case GDK_KEY_KP_Up:
-		case GDK_KEY_Down:  case GDK_KEY_KP_Down:
-			break;
-		default:
-			return GDK_EVENT_PROPAGATE;
-		}
-		const bool currently_places
-				= gtk_toggle_button_get_active(m_mode_btn_places);
-		GtkToggleButton* target = currently_places
-				? m_mode_btn_apps : m_mode_btn_places;
-		gtk_toggle_button_set_active(target, true);
-		gtk_widget_grab_focus(GTK_WIDGET(target));
-		return GDK_EVENT_STOP;
-	};
-	connect(m_mode_btn_apps,   "key-press-event", mode_arrow_handler);
-	connect(m_mode_btn_places, "key-press-event", mode_arrow_handler);
+	// The Apps/Places mode is now operated solely by Tab/Shift+Tab and is
+	// never a keyboard-focus stop (FR-007). Make both toggle buttons
+	// non-focusable so GTK's own Tab traversal can never land on them and
+	// so no arrow-key mode flip is possible from them; mouse activation
+	// via the "toggled" handlers above is unaffected.
+	gtk_widget_set_can_focus(GTK_WIDGET(m_mode_btn_apps),   FALSE);
+	gtk_widget_set_can_focus(GTK_WIDGET(m_mode_btn_places), FALSE);
 
 	// Create search results
 	m_search_results = new SearchPage(m_settings, this);
@@ -1341,9 +1320,10 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 {
 	// FR-030: Search and Results are never hidden. Optional zones follow
 	// the preset's per-zone "hidden" position string and the legacy
-	// visibility flags. Mode is the Apps/Places selector and is gated on
-	// places_enabled; Profile is the session-button row and is gated on
-	// commands_position != "hidden" with at least one visible command.
+	// visibility flags. Profile is the session-button row and is gated on
+	// commands_position != "hidden" with at least one visible command. The
+	// Apps/Places toggle is not a focus zone (FR-007), so it has no entry
+	// here; Tab reads places_enabled directly.
 	Keyboard::VisibilityMask mask;
 	mask.search  = true;
 	mask.results = true;
@@ -1352,7 +1332,6 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 	const char* commands_pos = m_settings->commands_position;
 
 	mask.sidebar = (g_strcmp0(sidebar_pos, "hidden") != 0);
-	mask.mode    = m_settings->places_enabled;
 
 	bool any_command_visible = false;
 	if (g_strcmp0(commands_pos, "hidden") != 0)
@@ -1421,19 +1400,6 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 		target = const_cast<Window*>(this)->get_active_category_button();
 		break;
 
-	case Keyboard::Zone::Mode:
-		// Focus the active mode toggle so the arrow-toggle handler in
-		// window-pages.cpp can flip from there (FR-041, FR-081).
-		if (m_mode_btn_places && gtk_toggle_button_get_active(m_mode_btn_places))
-		{
-			target = GTK_WIDGET(m_mode_btn_places);
-		}
-		else if (m_mode_btn_apps)
-		{
-			target = GTK_WIDGET(m_mode_btn_apps);
-		}
-		break;
-
 	case Keyboard::Zone::Profile:
 		// First visible+focusable command button in physical box order.
 		for (int i = 0; i < 9; ++i)
@@ -1485,7 +1451,8 @@ Keyboard::Zone WhiskerMenu::Window::current_zone() const
 		return Keyboard::Zone::Search;
 	}
 
-	GtkWidget* mode_box  = m_mode_selector_box  ? GTK_WIDGET(m_mode_selector_box)  : nullptr;
+	// NOTE: the Apps/Places toggle box is intentionally not matched here:
+	// its buttons are non-focusable (FR-007) so focus can never rest in it.
 	GtkWidget* sidebar   = m_sidebar            ? GTK_WIDGET(m_sidebar)            : nullptr;
 	GtkWidget* cats_box  = m_categories_box     ? GTK_WIDGET(m_categories_box)     : nullptr;
 	GtkWidget* cmds_box  = m_commands_box       ? GTK_WIDGET(m_commands_box)       : nullptr;
@@ -1493,8 +1460,6 @@ Keyboard::Zone WhiskerMenu::Window::current_zone() const
 
 	for (GtkWidget* w = focused; w; w = gtk_widget_get_parent(w))
 	{
-		if (mode_box && w == mode_box)
-			return Keyboard::Zone::Mode;
 		if (cmds_box && w == cmds_box)
 			return Keyboard::Zone::Profile;
 		if (sidebar && w == sidebar)
@@ -1537,28 +1502,53 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		}
 	}
 
-	// Tab / Shift+Tab → canonical zone cycling (FR-030, FR-031, FR-032).
-	// Intercepted before GTK's default focus-chain so we can skip inert
-	// zones (Sidebar while Searching) and follow the canonical order
-	// regardless of layout-mode reorderings of the underlying box tree.
+	// Tab family is intercepted before GTK's default focus-chain and split
+	// on the Control modifier:
+	//   - bare Tab / Shift+Tab        → Applications⇄Places mode toggle
+	//                                    (FR-001, FR-002, FR-006);
+	//   - Ctrl+Tab / Ctrl+Shift+Tab   → canonical focus-area cycling
+	//                                    (FR-004, FR-005, FR-007).
+	// The two are mutually exclusive on GDK_CONTROL_MASK and both always
+	// consume the event so GTK's own Tab traversal never also fires.
 	if (key_event->keyval == GDK_KEY_Tab
 			|| key_event->keyval == GDK_KEY_ISO_Left_Tab
 			|| key_event->keyval == GDK_KEY_KP_Tab)
 	{
-		const Keyboard::Direction dir =
-				((key_event->state & GDK_SHIFT_MASK)
-				 || key_event->keyval == GDK_KEY_ISO_Left_Tab)
-					? Keyboard::Direction::Backward
-					: Keyboard::Direction::Forward;
-		const Keyboard::Zone here = current_zone();
-		const Keyboard::Zone next = Keyboard::next_zone(
-				current_visibility_mask(),
-				current_menu_state(),
-				here,
-				dir);
-		if (next != here)
+		if (key_event->state & GDK_CONTROL_MASK)
 		{
-			grab_focus_in_zone(next);
+			// Ctrl+Tab forward, Ctrl+Shift+Tab (or ISO_Left_Tab) backward.
+			const Keyboard::Direction dir =
+					((key_event->state & GDK_SHIFT_MASK)
+					 || key_event->keyval == GDK_KEY_ISO_Left_Tab)
+						? Keyboard::Direction::Backward
+						: Keyboard::Direction::Forward;
+			const Keyboard::Zone here = current_zone();
+			const Keyboard::Zone next = Keyboard::next_zone(
+					current_visibility_mask(),
+					current_menu_state(),
+					here,
+					dir);
+			if (next != here)
+			{
+				grab_focus_in_zone(next);
+			}
+			return GDK_EVENT_STOP;
+		}
+
+		// Bare Tab/Shift+Tab toggles the mode (or is inert when Places is
+		// unavailable). FR-006: Tab never silently falls back to area
+		// cycling, so the Inert arm consumes the event and changes nothing.
+		switch (Keyboard::tab_action(m_settings->places_enabled))
+		{
+		case Keyboard::TabAction::ToggleMode:
+			// switch_mode resets the new view to its default selection and
+			// clears the query; the Tab path then lands focus on Results so
+			// the user sees the new view's default item (FR-003).
+			switch_mode(!m_places_active);
+			grab_focus_in_zone(Keyboard::Zone::Results);
+			break;
+		case Keyboard::TabAction::Inert:
+			break;
 		}
 		return GDK_EVENT_STOP;
 	}

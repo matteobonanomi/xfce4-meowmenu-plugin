@@ -1,4 +1,11 @@
 MEOW MENU DEVELOPMENT
+0.5.4 (2026-06-01)
+=====
+- Tab now switches directly between Applications and Places
+- Ctrl+Tab cycles focus areas (zones)
+- show missing Places items as muted, with their Open action disabled
+- keep "Open containing folder" available for missing items
+
 0.5.3 (2026-05-29)
 =====
 - enable keyboard navigation

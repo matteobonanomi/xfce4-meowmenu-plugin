@@ -28,19 +28,20 @@ namespace WhiskerMenu
 namespace Keyboard
 {
 
-/* Logical focusable region of the menu. The cycle order used by Tab /
- * Shift+Tab is the declared numeric order below; see CANONICAL_CYCLE. */
+/* Logical focusable region of the menu. The cycle order used by Ctrl+Tab /
+ * Ctrl+Shift+Tab is the declared numeric order below; see CANONICAL_CYCLE.
+ * The Apps/Places mode toggle is deliberately absent: it is operated by Tab
+ * and is never a keyboard-focusable cycle stop (FR-007). */
 enum class Zone : unsigned
 {
 	Search  = 0,
 	Results = 1,
 	Sidebar = 2,
-	Mode    = 3,
-	Profile = 4,
+	Profile = 3,
 };
 
 /* Reflects whether the user is currently typing a query. The sidebar is
- * inert (skipped from the Tab cycle) while Searching. */
+ * inert (skipped from the Ctrl+Tab cycle) while Searching. */
 enum class MenuState : unsigned
 {
 	Browsing,
@@ -53,6 +54,27 @@ enum class Direction : unsigned
 	Backward,
 };
 
+/* What a bare Tab / Shift+Tab press does. Encodes FR-006: Tab always means
+ * "switch Applications/Places" and never silently becomes area cycling. */
+enum class TabAction : unsigned
+{
+	ToggleMode,  // Places is available — flip Apps⇄Places
+	Inert,       // Places unavailable — do nothing, consume the event
+};
+
+/* tab_action:
+ * @places_available: whether the Places mode is enabled and thus a valid
+ *                    target for the toggle (Window::m_settings->places_enabled).
+ *
+ * Pure, total, side-effect-free decision for a bare Tab/Shift+Tab press.
+ * Keeping it a free function lets the FR-006 invariant be unit-tested
+ * without instantiating any GTK widgets.
+ *
+ * Returns: TabAction::ToggleMode when Places is available, otherwise
+ * TabAction::Inert.
+ */
+TabAction tab_action(bool places_available);
+
 /* Per-zone visibility mask folded from the existing m_layout_* flags
  * and the preset's per-zone "hidden" positions. Search and Results
  * are forced visible per FR-030. */
@@ -61,15 +83,16 @@ struct VisibilityMask
 	bool search  = true;
 	bool results = true;
 	bool sidebar = true;
-	bool mode    = true;
 	bool profile = true;
 };
 
-/* Canonical, locale-independent Tab cycle order (FR-030, FR-031). RTL
- * does not reverse it; arrow keys handle visual direction separately
- * (FR-120). */
-constexpr std::array<Zone, 5> CANONICAL_CYCLE = {
-	Zone::Search, Zone::Results, Zone::Sidebar, Zone::Mode, Zone::Profile,
+/* Canonical, locale-independent focus-area cycle order, walked by Ctrl+Tab
+ * (Forward) and Ctrl+Shift+Tab (Backward). RTL does not reverse it; arrow
+ * keys handle visual direction separately (FR-120). The Apps/Places mode
+ * toggle is intentionally NOT a member: it is operated by Tab and is never
+ * a cycle stop (FR-007). */
+constexpr std::array<Zone, 4> CANONICAL_CYCLE = {
+	Zone::Search, Zone::Results, Zone::Sidebar, Zone::Profile,
 };
 
 /* zone_active:
@@ -89,7 +112,7 @@ bool zone_active(Zone z, VisibilityMask mask, MenuState state);
  * @current: currently focused zone (may itself be inert/hidden — treated
  *           as a virtual position before filtered[0] going Forward, or
  *           after filtered[N-1] going Backward).
- * @direction: Forward for Tab, Backward for Shift+Tab.
+ * @direction: Forward for Ctrl+Tab, Backward for Ctrl+Shift+Tab.
  *
  * Returns the next zone to receive focus, walking CANONICAL_CYCLE with
  * the inactive zones filtered out and wrapping around at the ends.
