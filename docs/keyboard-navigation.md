@@ -7,99 +7,65 @@ has_children: false
 
 # Keyboard navigation
 
-MeowMenu is fully keyboard-driven. Every visible area — search box,
-results, sidebar categories, the Apps/Places switch, and the session
-buttons — can be reached and operated without touching the mouse.
-
-This page lists the shortcuts that work on every preset and on both
+MeowMenu can be driven entirely from the keyboard: open it, start typing,
+or use the keys below. These shortcuts work on every preset and on both
 X11 and Wayland.
 
 ## Quick reference
 
 | Key                  | Effect                                                                  |
 |----------------------|-------------------------------------------------------------------------|
-| Type any letter      | Starts (or extends) a search query — focus jumps to the search box.     |
-| Space                | While searching, inserts a space into the query (it does not "click").  |
-| `Backspace`          | Removes the last character from the query. Stops at the empty query.    |
-| `Enter`              | Launches the highlighted item; on the search box, launches the first match. |
-| `Tab` / `Shift+Tab`  | Cycles focus between zones: Search → Results → Sidebar → Apps/Places → Session buttons (and back). |
-| `↑` / `↓`            | Moves the selection one row up or down inside the current list.         |
-| `Page Up` / `Page Down` | Moves the selection by one visible page inside the list.             |
-| `Home` / `End`       | Jumps to the first / last item inside the current list or sidebar.      |
-| `←` / `→`            | Inside the sidebar: exits to the results. Inside the results: exits to the sidebar (only while not searching). |
-| `Esc`                | Closes context menus, then cancels a resize, then clears the query, then closes the menu. |
-| `Shift+F10` or `Menu`| Opens the context menu for the highlighted launcher.                    |
+| Type any letter      | Starts or extends a search — focus jumps to the search box.             |
+| `Enter`              | Launches the highlighted item (the first match on the search box).      |
+| `Backspace`          | Deletes the last character of the query.                                |
+| `Tab` / `Shift+Tab`  | Switches between **Applications** and **Places** (when Places is on).   |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Moves focus through the areas: Search → Results → Sidebar → Session buttons (and back). |
+| `↑` / `↓`            | Moves the selection inside the current list.                            |
+| `Page Up` / `Page Down` | Moves the selection one screenful at a time.                         |
+| `Home` / `End`       | Jumps to the first / last item.                                         |
+| `←` / `→`            | Crosses between the sidebar and the results (only while not searching). |
+| `Esc`                | Steps back one level (see below).                                       |
+| `Shift+F10` or `Menu`| Opens the context menu for the highlighted item.                        |
 
-## Tab order
+## Switching Applications and Places
 
-Pressing `Tab` walks the menu in a fixed logical order:
+`Tab` and `Shift+Tab` switch between **Applications** and **Places** from
+anywhere in the menu. The new view opens on its default content
+(Applications → your default category, Places → Home) with focus on the
+results, ready to arrow. When Places is disabled, `Tab` does nothing.
 
-1. **Search box** — always the first stop.
-2. **Results list** — current category or search results.
-3. **Sidebar** — category buttons. Skipped while a query is active.
-4. **Apps / Places switch** — only present when Places is enabled.
-5. **Session buttons** — lock, logout, suspend, etc.
+## Moving between areas
 
-`Shift+Tab` walks the same cycle in reverse. Zones that are hidden by
-the current preset (for example, no profile bar) are skipped silently.
+`Ctrl+Tab` moves focus through the areas in order — Search → Results →
+Sidebar → Session buttons — and `Ctrl+Shift+Tab` goes back. Hidden areas
+are skipped, and the sidebar is skipped while you are searching.
 
-## Inside each zone
+> Some desktops bind `Ctrl+Tab` globally; where they do, the menu never
+> receives it and area cycling is unavailable.
 
-**Sidebar.** `↑` / `↓` (or `←` / `→` when the sidebar is horizontal)
-move between categories and wrap at the ends. `Home` / `End` jump to
-the first / last category. The arrow that points toward the results
-exits the sidebar; the opposite arrow does nothing.
+## Moving within an area
 
-**Results list.** `↑` / `↓` move row by row (no wrap). `Page Up` /
-`Page Down` move one screenful at a time. `Home` / `End` jump to the
-first / last item. `Enter` launches.
-
-**Apps / Places switch.** Any arrow key flips to the other side. The
-arrow that points toward the search box does **not** flip — use `Tab`
-to leave. `Space` is treated as a normal space character when you are
-typing, so it does not toggle the switch.
-
-**Session buttons.** `←` / `→` move between visible buttons (no wrap).
-`Enter` (or `Space`) activates the focused button. `↑` / `↓` do
-nothing inside this strip.
+- **Results / Sidebar** — `↑` / `↓` move the selection; `Home` / `End`
+  jump to the ends. The sidebar wraps and also takes `←` / `→` when it is
+  laid out horizontally.
+- **Sidebar ↔ Results** — the arrow pointing toward the results leaves the
+  sidebar, and the opposite arrow returns (only while not searching).
+- **Session buttons** — `←` / `→` move between buttons; `Enter` activates.
 
 ## The `Esc` ladder
 
-A single press peels exactly one layer, in this strict order:
+One press undoes one thing, in this order: close an open context menu →
+cancel a resize → clear the search text → close the menu.
 
-1. If a right-click context menu is open, close just that menu.
-2. Otherwise, if a window resize is in progress, cancel the resize and
-   restore the previous size.
-3. Otherwise, if the search box contains text, clear the query.
-4. Otherwise, close the menu.
+## Type to search
 
-`Backspace` and `Delete` never close the menu — only `Esc` (or the
-configured global toggle shortcut) does.
+Start typing at any time. Letters, digits, punctuation, and emoji all go
+to the search box, wherever focus is; non-text keys are left untouched.
+In-progress input-method (CJK) composition is preserved.
 
-## Type-to-search
+## Notes
 
-You can start typing at any time. Letters, digits, punctuation, and
-emoji are all routed into the search box, regardless of which zone
-holds focus. Keys that do not produce text (`Shift`, `Ctrl`, function
-keys, arrow keys, `Insert`, `Delete`…) are passed through to the
-focused widget unchanged.
-
-The redirect respects active input-method composition: a half-typed
-Japanese / Chinese / Korean character is finished where it was
-started, not in the search box.
-
-## RTL languages
-
-The logical Tab order (Search → Results → Sidebar → Switch → Buttons)
-is the same in RTL locales such as Arabic and Hebrew. Only the visual
-direction of the sidebar-exit arrow is mirrored, so the arrow always
-points the right way on screen.
-
-## Wayland note
-
-On Wayland the layer-shell preset keeps the menu open even when focus
-moves to another window briefly (for example, when a notification
-takes focus). Close the menu the way you opened it (the global
-shortcut) or press `Esc`.
-
-[Back to top](#keyboard-navigation)
+- The area order is identical in right-to-left locales; only the
+  sidebar-exit arrow is mirrored visually.
+- On Wayland (layer-shell preset) the menu stays open if focus briefly
+  leaves it — close it with `Esc` or your global shortcut.
