@@ -70,7 +70,11 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          # Pass the release body through the environment so quotes, $, and
+          # backticks in NEWS stay literal instead of being expanded by the
+          # shell (interpolating it into the command line breaks on quotes).
+          RELEASE_NOTES: ${{ steps.news.outputs.body }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
             --title "MeowMenu ${{ steps.news.outputs.version }}" \
-            --notes "${{ steps.news.outputs.body }}"
+            --notes "$RELEASE_NOTES"
