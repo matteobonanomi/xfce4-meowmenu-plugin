@@ -32,7 +32,6 @@ bool zone_active(Zone z, VisibilityMask mask, MenuState state)
 	case Zone::Search:  visible = mask.search;  break;
 	case Zone::Results: visible = mask.results; break;
 	case Zone::Sidebar: visible = mask.sidebar; break;
-	case Zone::Mode:    visible = mask.mode;    break;
 	case Zone::Profile: visible = mask.profile; break;
 	}
 	if (!visible)
@@ -70,7 +69,7 @@ Zone next_zone(VisibilityMask mask,
 	// `current` is itself inert (e.g. the user just typed and Sidebar
 	// went inert mid-cycle) the anchor remains its canonical position,
 	// so the next active zone after Sidebar in Forward direction is
-	// Mode — matching contracts/focus-router.md row `current_is_inert_zone`.
+	// Profile (the mode toggle is no longer a cycle stop, FR-007).
 	std::size_t anchor = 0;
 	for (std::size_t k = 0; k < N; ++k)
 	{
@@ -91,6 +90,11 @@ Zone next_zone(VisibilityMask mask,
 	}
 
 	return current;
+}
+
+TabAction tab_action(bool places_available)
+{
+	return places_available ? TabAction::ToggleMode : TabAction::Inert;
 }
 
 EscState classify_esc_state(bool context_menu_open,

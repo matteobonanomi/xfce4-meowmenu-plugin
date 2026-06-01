@@ -58,6 +58,10 @@ void HistorySection::clear_items()
  */
 std::vector<PlacesItem*> HistorySection::get_items(int max)
 {
+	// Rebuild fresh PlacesItem objects on every call (clear_items() + new
+	// below), so each item's exists() — and therefore its muted markup and
+	// "missing" tooltip — is re-evaluated against the live filesystem at every
+	// list rebuild (FR-007). No filesystem watch is involved.
 	clear_items();
 	if (!m_manager)
 	{
