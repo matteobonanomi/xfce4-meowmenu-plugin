@@ -36,6 +36,16 @@ public:
 	GFile* get_file() const     { return m_file; }
 	const char* get_uri() const { return m_uri.c_str(); }
 	bool exists() const         { return m_exists; }
+
+	/* get_display_markup:
+	 *
+	 * Returns: the label to feed into the markup-rendered list column. For a
+	 * missing item this is muted Pango markup (theme foreground at reduced
+	 * alpha, no hard-coded colour); for an available item it is the plain
+	 * display text, identical to get_text(). The returned string is owned by
+	 * the item and stays valid for its lifetime.
+	 */
+	const char* get_display_markup() const { return m_display_markup.c_str(); }
 	bool is_directory() const   { return m_is_directory; }
 	bool is_favourite() const   { return m_is_favourite; }
 	gint64 get_accessed() const { return m_accessed; }
@@ -68,6 +78,7 @@ public:
 private:
 	GFile* m_file;
 	std::string m_uri;
+	std::string m_display_markup;
 	std::string m_casefolded_name;
 	gint64 m_accessed;
 	bool m_exists;

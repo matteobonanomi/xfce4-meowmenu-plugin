@@ -91,6 +91,15 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Remember last mode | Reopen MeowMenu showing the last-used Places sub-section. |
 | Show metadata | Display file size and modification date next to each item. |
 
+#### Missing recent files and bookmarks
+
+When a recent item or bookmark points to a file or folder that has been deleted
+or renamed, MeowMenu shows it greyed-out and its tooltip notes that the target
+is missing. A greyed-out entry cannot be opened directly — clicking it does
+nothing — but its right-click menu still offers **Open Containing Folder**,
+which opens the parent directory so a renamed file can be located. Missing
+bookmarks can also be removed with **Remove from Favourites**.
+
 ## Xfconf reference
 
 For scripting or headless configuration, read and write settings directly
