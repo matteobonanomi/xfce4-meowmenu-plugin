@@ -185,6 +185,9 @@ void FavouritesSection::remove_favourite(const char* uri)
  */
 std::vector<PlacesItem*> FavouritesSection::get_items(int max)
 {
+	// Like the history section, build fresh PlacesItem objects every call so
+	// each favourite's exists() — and its muted markup/"missing" tooltip — is
+	// re-evaluated at each rebuild (FR-007); no filesystem watch is added.
 	clear_items();
 
 	std::vector<std::string> uris;

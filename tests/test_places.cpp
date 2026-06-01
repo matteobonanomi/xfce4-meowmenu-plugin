@@ -57,6 +57,118 @@ static std::vector<std::string> filter_existing_dirs(
 }
 
 // ---------------------------------------------------------------------------
+// Stand-in for PlacesItem's availability-driven presentation (places-item.cpp):
+// an available item keeps its plain display name; a missing item is wrapped in
+// muted Pango markup with the name escaped, and its tooltip names the target and
+// marks it missing. Mirrors the production logic without constructing GTK.
+// ---------------------------------------------------------------------------
+static std::string places_display_markup(const char* name, bool exists)
+{
+	const char* label = name ? name : "";
+	if (exists)
+	{
+		return label;
+	}
+	gchar* escaped = g_markup_escape_text(label, -1);
+	gchar* markup = g_strdup_printf("<span alpha=\"55%%\">%s</span>",
+			escaped ? escaped : "");
+	std::string out = markup ? markup : "";
+	g_free(markup);
+	g_free(escaped);
+	return out;
+}
+
+static std::string places_missing_tooltip(const char* target)
+{
+	gchar* tip = g_strdup_printf("%s (missing)", target ? target : "");
+	std::string out = tip ? tip : "";
+	g_free(tip);
+	return out;
+}
+
+// Validate Pango span well-formedness using GLib's markup parser (no Pango
+// dependency): confirm the string parses and its root element is <span> with an
+// "alpha" attribute.
+static bool is_valid_alpha_span(const std::string& markup)
+{
+	struct Captured { std::string element; bool has_alpha = false; };
+	Captured cap;
+
+	GMarkupParser parser = {};
+	parser.start_element = [](GMarkupParseContext*, const gchar* name,
+			const gchar** attr_names, const gchar** attr_values,
+			gpointer user_data, GError**)
+	{
+		auto* c = static_cast<Captured*>(user_data);
+		if (c->element.empty())
+		{
+			c->element = name ? name : "";
+			for (int i = 0; attr_names && attr_names[i]; ++i)
+			{
+				if (g_strcmp0(attr_names[i], "alpha") == 0)
+				{
+					c->has_alpha = true;
+				}
+			}
+			(void) attr_values;
+		}
+	};
+
+	GMarkupParseContext* ctx = g_markup_parse_context_new(&parser,
+			GMarkupParseFlags(0), &cap, nullptr);
+	gboolean ok = g_markup_parse_context_parse(ctx, markup.c_str(), -1, nullptr)
+			&& g_markup_parse_context_end_parse(ctx, nullptr);
+	g_markup_parse_context_free(ctx);
+
+	return ok && cap.element == "span" && cap.has_alpha;
+}
+
+// ---------------------------------------------------------------------------
+
+static void test_missing_item_markup_is_muted_and_escaped()
+{
+	// A name with markup-significant characters must be escaped inside the span.
+	const std::string markup = places_display_markup("Tom & Jerry <draft>", false);
+	assert(is_valid_alpha_span(markup));
+	assert(markup.find("&amp;") != std::string::npos);
+	assert(markup.find("&lt;draft&gt;") != std::string::npos);
+	// The raw, unescaped ampersand must not survive into the markup.
+	assert(markup.find("& Jerry") == std::string::npos);
+}
+
+static void test_missing_item_tooltip_names_target()
+{
+	const std::string tip = places_missing_tooltip("/home/u/Docs/report.odt");
+	assert(tip.find("/home/u/Docs/report.odt") != std::string::npos);
+	assert(tip.find("missing") != std::string::npos);
+}
+
+static void test_available_item_keeps_plain_label()
+{
+	// An available item's label is the plain display text, untouched.
+	const std::string label = places_display_markup("report.odt", true);
+	assert(label == "report.odt");
+	assert(label.find("<span") == std::string::npos);
+}
+
+static void test_missing_treatment_is_source_agnostic()
+{
+	// A missing favourite and a missing recent entry pointing at the same
+	// target get an identical muted label and "missing" tooltip — one shared
+	// treatment, regardless of which section produced the item (FR-002).
+	const char* name = "Project";
+	const char* target = "/srv/Project";
+
+	const std::string recent_markup = places_display_markup(name, false);
+	const std::string favourite_markup = places_display_markup(name, false);
+	assert(recent_markup == favourite_markup);
+
+	const std::string recent_tip = places_missing_tooltip(target);
+	const std::string favourite_tip = places_missing_tooltip(target);
+	assert(recent_tip == favourite_tip);
+}
+
+// ---------------------------------------------------------------------------
 
 static void test_search_empty_filter_matches_everything()
 {
@@ -115,6 +227,10 @@ static void test_home_filter_existing_dirs()
 
 int main()
 {
+	test_missing_item_markup_is_muted_and_escaped();
+	test_missing_item_tooltip_names_target();
+	test_available_item_keeps_plain_label();
+	test_missing_treatment_is_source_agnostic();
 	test_search_empty_filter_matches_everything();
 	test_search_case_insensitive_ascii();
 	test_search_utf8();

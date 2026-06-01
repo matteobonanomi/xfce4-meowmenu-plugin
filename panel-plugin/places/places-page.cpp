@@ -284,12 +284,14 @@ void PlacesPage::on_home_search_result(PlacesItem* item)
 	{
 		return;
 	}
-	// Take ownership and append shallow-first into the model.
+	// Take ownership and append shallow-first into the model. Use the same
+	// availability-driven markup/tooltip feed as rebuild_model() so missing
+	// home-search results render muted consistently.
 	m_home_search_items.push_back(item);
 	gtk_list_store_insert_with_values(
 			m_model, nullptr, G_MAXINT,
 			LauncherView::COLUMN_ICON, item->get_icon(),
-			LauncherView::COLUMN_TEXT, item->get_text(),
+			LauncherView::COLUMN_TEXT, item->get_display_markup(),
 			LauncherView::COLUMN_TOOLTIP, item->get_tooltip(),
 			LauncherView::COLUMN_LAUNCHER, static_cast<Element*>(item),
 			-1);
@@ -339,10 +341,12 @@ void PlacesPage::rebuild_model()
 		{
 			continue;
 		}
+		// Feed the availability-driven markup so missing items render muted;
+		// get_tooltip() already carries the "missing" cue for those items.
 		gtk_list_store_insert_with_values(
 				m_model, nullptr, G_MAXINT,
 				LauncherView::COLUMN_ICON, item->get_icon(),
-				LauncherView::COLUMN_TEXT, item->get_text(),
+				LauncherView::COLUMN_TEXT, item->get_display_markup(),
 				LauncherView::COLUMN_TOOLTIP, item->get_tooltip(),
 				LauncherView::COLUMN_LAUNCHER, static_cast<Element*>(item),
 				-1);
@@ -366,6 +370,13 @@ void PlacesPage::on_row_activated(GtkTreePath* path)
 			LauncherView::COLUMN_LAUNCHER, &element, -1);
 	auto* item = dynamic_cast<PlacesItem*>(element);
 	if (!item)
+	{
+		return;
+	}
+	// Missing target: primary activation is inert — do not close the menu,
+	// do not launch, and show no error. Recovery is offered through the
+	// context menu ("Open Containing Folder").
+	if (!item->exists())
 	{
 		return;
 	}
@@ -430,6 +441,10 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 			m_window->hide();
 			item->open(s);
 		});
+	// "Open" stays present but insensitive for a missing target, matching the
+	// inert primary activation; "Open Containing Folder" below remains enabled
+	// so a renamed file can still be located.
+	gtk_widget_set_sensitive(mi, item->exists());
 	append(mi);
 
 	const bool meow_only = m_favourites
@@ -438,6 +453,9 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 	{
 		if (item->is_favourite())
 		{
+			// Left enabled for missing favourites (not gated on exists()) so a
+			// stale favourite can always be removed even though "Open" above is
+			// greyed — this is the greyed-out-favourite behaviour from 005.
 			mi = whiskermenu_image_menu_item_new("list-remove", _("Remove from Favourites"));
 			connect(mi, "activate",
 				[this, item](GtkMenuItem*)
@@ -460,6 +478,10 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		}
 	}
 
+	// Offered for both recent and favourite items, and intentionally left
+	// enabled even when the target is missing so a renamed file can be located
+	// from its parent folder. PlacesItem::open_containing() fails silently (no
+	// dialog) when the parent is also gone.
 	mi = whiskermenu_image_menu_item_new("folder-open", _("Open Containing Folder"));
 	connect(mi, "activate",
 		[this, item](GtkMenuItem*)
