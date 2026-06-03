@@ -221,3 +221,38 @@ test_key_routing = executable(
 )
 
 test('key_routing', test_key_routing)
+
+# test_theme_fallback: headless coverage of the theme-aware background
+# fallback chooser in panel-plugin/core/theme-fallback.cpp. Pulls only the
+# pure helper translation unit; no display server, no GTK widgets.
+test_theme_fallback_sources = [
+  'test_theme_fallback.cpp',
+  '..' / 'panel-plugin' / 'core' / 'theme-fallback.cpp',
+]
+
+test_theme_fallback = executable(
+  'test_theme_fallback',
+  test_theme_fallback_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('theme_fallback', test_theme_fallback)
+
+# test_window_size_clamp: headless coverage of the pure window default-size
+# clamp in panel-plugin/core/window-size-clamp.cpp (HiDPI defensive guard,
+# cases C1..C7). Pulls only the GTK-free helper translation unit; no display
+# server, no GTK widgets.
+test_window_size_clamp_sources = [
+  'test_window_size_clamp.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
+]
+
+test_window_size_clamp = executable(
+  'test_window_size_clamp',
+  test_window_size_clamp_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('window_size_clamp', test_window_size_clamp)
