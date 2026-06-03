@@ -1,4 +1,10 @@
 MEOW MENU DEVELOPMENT
+0.5.5 (2026-06-03)
+=====
+- menu background fallback now matches the active theme (light or dark)
+- preferences and "What's New" windows no longer open off-screen on HiDPI displays
+- audited all hard-coded pixel constants; no scaling bugs found
+
 0.5.4 (2026-06-01)
 =====
 - Tab now switches directly between Applications and Places
