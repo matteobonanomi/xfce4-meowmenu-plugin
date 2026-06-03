@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "core/window.h"
+#include "core/window-size-clamp.h"
 #include "presets/preset.h"
 #include "presets/preset-io.h"
 #include "search/unified-bar.h"
@@ -114,7 +115,34 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 
 	GtkBox* contents = GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(m_window)));
 	gtk_box_pack_start(contents, GTK_WIDGET(hbox), true, true, 0);
-	gtk_window_set_default_size(GTK_WINDOW(m_window), 820, 600);
+	// Clamp the 820x600 logical default to the active monitor's work area so
+	// the preferences window can never open off-screen or larger than the
+	// screen at very large effective scales. Shrink-only, so at a normal 1x
+	// work area the size passes through unchanged.
+	//
+	// HACK: the window is not realized yet here, so its own GdkWindow is not
+	// available; we resolve the monitor under it when possible and otherwise
+	// fall back to the primary (then first) monitor. If no monitor can be
+	// resolved at all (no display / headless), the work area is left 0x0,
+	// which the clamp treats as "no constraint" and returns the size as-is.
+	{
+		GdkRectangle workarea = { 0, 0, 0, 0 };
+		GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(m_window));
+		GdkMonitor* monitor = nullptr;
+		if (GdkWindow* gdkwin = gtk_widget_get_window(GTK_WIDGET(m_window)))
+			monitor = gdk_display_get_monitor_at_window(display, gdkwin);
+		if (!monitor)
+			monitor = gdk_display_get_primary_monitor(display);
+		if (!monitor && gdk_display_get_n_monitors(display) > 0)
+			monitor = gdk_display_get_monitor(display, 0);
+		if (monitor)
+			gdk_monitor_get_workarea(monitor, &workarea);
+
+		int clamped_w = 0, clamped_h = 0;
+		meow::clamp_default_size(820, 600, workarea.width, workarea.height,
+			&clamped_w, &clamped_h);
+		gtk_window_set_default_size(GTK_WINDOW(m_window), clamped_w, clamped_h);
+	}
 
 	// Mirror live menu-width / menu-height changes (e.g. drag-resizing the
 	// menu window) into the spin buttons. The Settings::property_changed slot

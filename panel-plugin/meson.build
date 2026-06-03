@@ -23,6 +23,8 @@ plugin_sources = [
   'places/places-item.cpp',
   'places/places-page.cpp',
   'core/plugin.cpp',
+  'core/theme-fallback.cpp',
+  'core/window-size-clamp.cpp',
   'profile.cpp',
   'search/query.cpp',
   'launcher/recent-page.cpp',
