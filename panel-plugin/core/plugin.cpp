@@ -29,6 +29,7 @@
 #include "settings-dialog.h"
 #include "ui/slot.h"
 #include "window.h"
+#include "window-size-clamp.h"
 
 #include <glib/gstdio.h>
 #include <libxfce4ui/libxfce4ui.h>
@@ -454,7 +455,37 @@ static void show_news_dialog(GtkWindow* parent)
 		static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
 		_("Close"), GTK_RESPONSE_CLOSE,
 		nullptr);
-	gtk_window_set_default_size(GTK_WINDOW(dialog), 520, 420);
+	// Clamp the 520x420 logical default to the active monitor's work area so
+	// the dialog can never open off-screen or larger than the screen at very
+	// large effective scales. Shrink-only, so at a normal 1x work area the
+	// size passes through unchanged.
+	//
+	// HACK: the dialog is not realized yet here, so we resolve the monitor
+	// under its (already-shown) parent when possible, falling back to the
+	// primary (then first) monitor. If no monitor can be resolved at all,
+	// the work area is left 0x0, which the clamp treats as "no constraint"
+	// and returns the size as-is.
+	{
+		GdkRectangle workarea = { 0, 0, 0, 0 };
+		GdkDisplay* display = gtk_widget_get_display(dialog);
+		GdkMonitor* monitor = nullptr;
+		if (parent)
+		{
+			if (GdkWindow* pwin = gtk_widget_get_window(GTK_WIDGET(parent)))
+				monitor = gdk_display_get_monitor_at_window(display, pwin);
+		}
+		if (!monitor)
+			monitor = gdk_display_get_primary_monitor(display);
+		if (!monitor && gdk_display_get_n_monitors(display) > 0)
+			monitor = gdk_display_get_monitor(display, 0);
+		if (monitor)
+			gdk_monitor_get_workarea(monitor, &workarea);
+
+		int clamped_w = 0, clamped_h = 0;
+		meow::clamp_default_size(520, 420, workarea.width, workarea.height,
+			&clamped_w, &clamped_h);
+		gtk_window_set_default_size(GTK_WINDOW(dialog), clamped_w, clamped_h);
+	}
 
 	GtkWidget* scrolled = gtk_scrolled_window_new(nullptr, nullptr);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
