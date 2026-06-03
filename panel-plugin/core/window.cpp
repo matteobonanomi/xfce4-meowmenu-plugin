@@ -32,6 +32,7 @@
 #include "resizer.h"
 #include "search/search-page.h"
 #include "settings.h"
+#include "theme-fallback.h"
 #include "ui/slot.h"
 #include "search/unified-bar.h"
 #include "window-keyboard.h"
@@ -1809,10 +1810,51 @@ void WhiskerMenu::Window::update_background_css()
 	}
 
 	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_window));
+	// NOTE: the fallback below is recomputed from scratch on every call and
+	// never cached, so a live light<->dark theme switch is tracked by the
+	// existing callers of this method (on_screen_changed,
+	// on_state_flags_changed, the xfconf property-changed handler, and the
+	// initial setup) without introducing any new refresh signal.
 	GdkRGBA bg = { 0.12, 0.12, 0.12, 1.0 };
-	if (!gtk_style_context_lookup_color(context, "theme_bg_color", &bg))
+	gboolean bg_found = gtk_style_context_lookup_color(context, "theme_bg_color", &bg);
+	if (!bg_found)
 	{
-		gtk_style_context_lookup_color(context, "bg_color", &bg);
+		bg_found = gtk_style_context_lookup_color(context, "bg_color", &bg);
+	}
+
+	// TEMPORARY DIAGNOSTIC — remove before merge
+	{
+		gchar* theme = nullptr;
+		gboolean prefer_dark = FALSE;
+		g_object_get(gtk_settings_get_default(),
+			"gtk-theme-name", &theme,
+			"gtk-application-prefer-dark-theme", &prefer_dark, nullptr);
+		gboolean realized = gtk_widget_get_realized(GTK_WIDGET(m_window));
+		g_message("update_background_css: theme=%s prefer_dark=%d realized=%d bg_found=%d bg=rgb(%d,%d,%d)",
+			theme ? theme : "(null)", (int)prefer_dark, (int)realized, (int)bg_found,
+			(int)(bg.red * 255 + 0.5), (int)(bg.green * 255 + 0.5), (int)(bg.blue * 255 + 0.5));
+		g_free(theme);
+	}
+
+	if (!bg_found)
+	{
+		// Both background lookups failed. The old code kept the unconditional
+		// dark seed here, so a light theme that omits the key painted a dark
+		// menu — the reported defect. Instead infer the theme's lightness from
+		// its foreground/text colour, and failing that the prefer-dark setting,
+		// then substitute a matching neutral grey for the seed.
+		GdkRGBA fg;
+		gboolean have_fg = gtk_style_context_lookup_color(context, "theme_fg_color", &fg);
+		if (!have_fg)
+		{
+			have_fg = gtk_style_context_lookup_color(context, "fg_color", &fg);
+		}
+
+		gboolean prefer_dark = FALSE;
+		g_object_get(gtk_settings_get_default(),
+			"gtk-application-prefer-dark-theme", &prefer_dark, nullptr);
+
+		bg = meow_choose_background_fallback(have_fg, &fg, prefer_dark);
 	}
 
 	const int red   = CLAMP(static_cast<int>(bg.red   * 255.0 + 0.5), 0, 255);
