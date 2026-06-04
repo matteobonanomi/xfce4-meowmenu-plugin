@@ -26,6 +26,8 @@
 
 #include <libxfce4ui/libxfce4ui.h>
 
+#include <memory>
+
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
@@ -74,8 +76,11 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_sidebar_label), enable_sidebar_switch);
 
 	// Section frames greyed when the sidebar is disabled (FR-022). Populated
-	// as each section frame is created below.
-	std::vector<GtkWidget*> sidebar_section_frames;
+	// as each section frame is created below. Held in a shared_ptr so the
+	// sensitivity lambda (connected to signals that outlive this function)
+	// observes every frame appended after it is defined, not just the frames
+	// present at capture time.
+	auto sidebar_section_frames = std::make_shared<std::vector<GtkWidget*>>();
 
 	// =========================================================================
 	// 1. Visuals section
@@ -86,7 +91,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	GtkWidget* visuals_frame = make_aligned_frame(_("Visuals"), GTK_WIDGET(visuals_table));
 	gtk_box_pack_start(page, visuals_frame, false, false, 0);
-	sidebar_section_frames.push_back(visuals_frame);
+	sidebar_section_frames->push_back(visuals_frame);
 
 	int v_row = 0;
 
@@ -160,7 +165,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	GtkWidget* pos_frame = make_aligned_frame(_("Position"), GTK_WIDGET(pos_table));
 	gtk_box_pack_start(page, pos_frame, false, false, 0);
-	sidebar_section_frames.push_back(pos_frame);
+	sidebar_section_frames->push_back(pos_frame);
 
 	GtkWidget* side_pos_label = gtk_label_new_with_mnemonic(_("Sidebar _position:"));
 	gtk_widget_set_halign(side_pos_label, GTK_ALIGN_START);
@@ -186,14 +191,13 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	auto apply_sidebar_sub_enable = [this, sidebar_section_frames]()
 	{
 		const bool enabled = m_settings->sidebar_enabled;
-		for (GtkWidget* frame : sidebar_section_frames)
+		for (GtkWidget* frame : *sidebar_section_frames)
 			gtk_widget_set_sensitive(frame, enabled);
 
 		const gchar* p = static_cast<const gchar*>(m_settings->sidebar_position);
 		const bool lr = p && (g_strcmp0(p, "left") == 0 || g_strcmp0(p, "right") == 0);
 		gtk_widget_set_sensitive(m_show_category_names, enabled && lr);
 	};
-	apply_sidebar_sub_enable();
 
 	connect(enable_sidebar_switch, "state-set",
 		[this, apply_sidebar_sub_enable](GtkSwitch*, gboolean state) -> gboolean
@@ -223,7 +227,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	GtkBox* behavior_vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 6));
 	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), GTK_WIDGET(behavior_vbox));
 	gtk_box_pack_start(page, behavior_frame, false, false, 0);
-	sidebar_section_frames.push_back(behavior_frame);
+	sidebar_section_frames->push_back(behavior_frame);
 
 	m_hover_switch_category = gtk_check_button_new_with_mnemonic(_("Switch categories by _hovering"));
 	gtk_box_pack_start(behavior_vbox, m_hover_switch_category, false, false, 0);
@@ -307,7 +311,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	GtkWidget* recent_frame = make_aligned_frame(_("Recently used"), GTK_WIDGET(recent_table));
 	gtk_box_pack_start(page, recent_frame, false, false, 0);
-	sidebar_section_frames.push_back(recent_frame);
+	sidebar_section_frames->push_back(recent_frame);
 
 	GtkWidget* max_label = gtk_label_new_with_mnemonic(_("Maximum _items:"));
 	gtk_widget_set_halign(max_label, GTK_ALIGN_START);
@@ -340,6 +344,11 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		{
 			m_settings->favorites_in_recent = gtk_toggle_button_get_active(button);
 		});
+
+	// Initial sensitivity pass: run once every section frame exists so a
+	// sidebar that starts disabled greys Behaviour and Recently used too,
+	// not only the frames present when the lambda was defined.
+	apply_sidebar_sub_enable();
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }
