@@ -572,6 +572,10 @@ void SettingsDialog::sync_preset_widgets()
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 			static_cast<const gchar*>(m_settings->grid_density));
 
+	if (m_places_switch_show_icons)
+		gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
+			static_cast<bool>(m_settings->places_switch_show_icons));
+
 	if (m_hover_switch_category)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
 			static_cast<bool>(m_settings->category_hover_activate));

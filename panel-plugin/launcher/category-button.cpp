@@ -194,6 +194,12 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	gtk_box_pack_start(m_box, m_icon, false, false, 0);
 
 	m_label = gtk_label_new(text);
+	// Cap the content-fit sidebar width: a pathological category name
+	// ellipsises at the end instead of widening the sidebar without bound
+	// (FR-025). The size group still sizes to the widest *capped* label.
+	gtk_label_set_ellipsize(GTK_LABEL(m_label), PANGO_ELLIPSIZE_END);
+	gtk_label_set_max_width_chars(GTK_LABEL(m_label), 22);
+	gtk_label_set_xalign(GTK_LABEL(m_label), 0.0);
 	gtk_box_pack_start(m_box, m_label, false, true, 0);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_button)), "category-button");

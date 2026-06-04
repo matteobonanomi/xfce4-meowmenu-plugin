@@ -39,6 +39,22 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 {
 	garcon_set_environment_xdg(GARCON_ENVIRONMENT_XFCE);
 
+	// Wrap the base launcher view with a default-category heading shown only
+	// when the sidebar is disabled (FR-020/021). The heading reuses the
+	// "meow-default-heading" CSS class registered by the window so the
+	// uppercase/letter-spacing treatment is theme-overridable.
+	m_default_heading = gtk_label_new(nullptr);
+	gtk_widget_set_halign(m_default_heading, GTK_ALIGN_START);
+	gtk_widget_set_no_show_all(m_default_heading, TRUE);
+	gtk_widget_set_visible(m_default_heading, FALSE);
+	gtk_style_context_add_class(gtk_widget_get_style_context(m_default_heading),
+			"meow-default-heading");
+
+	m_outer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_box_pack_start(GTK_BOX(m_outer), m_default_heading, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(m_outer), get_widget(), TRUE, TRUE, 0);
+	g_object_ref_sink(m_outer);
+
 	const decltype(m_categories.size()) index = 0;
 	connect(get_button()->get_widget(), "toggled",
 		[this](GtkToggleButton* button)
@@ -52,6 +68,35 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 ApplicationsPage::~ApplicationsPage()
 {
 	clear();
+
+	// Detach the base view before tearing down the wrapper so ~Page can still
+	// destroy m_widget itself (it holds its own ref); destroying m_outer here
+	// would otherwise take the base view down with it.
+	if (m_outer)
+	{
+		gtk_container_remove(GTK_CONTAINER(m_outer), get_widget());
+		gtk_widget_destroy(m_outer);
+		g_object_unref(m_outer);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+void ApplicationsPage::set_default_heading(bool visible, int default_category)
+{
+	if (!m_default_heading)
+		return;
+
+	const char* text = nullptr;
+	switch (default_category)
+	{
+	case Settings::CategoryRecent: text = _("RECENTLY USED");    break;
+	case Settings::CategoryAll:    text = _("ALL APPLICATIONS"); break;
+	case Settings::CategoryFavorites:
+	default:                       text = _("FAVORITES");        break;
+	}
+	gtk_label_set_text(GTK_LABEL(m_default_heading), text);
+	gtk_widget_set_visible(m_default_heading, visible);
 }
 
 //-----------------------------------------------------------------------------

@@ -15,6 +15,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <initializer_list>
 
 // ---------------------------------------------------------------------------
 // Minimal stand-in for the pure logic extracted from migrate_schema()
@@ -22,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 2;
+	return 4;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -38,6 +39,37 @@ static bool needs_v1_block(int current_schema_version)
 static bool needs_v2_block(int current_schema_version)
 {
 	return current_schema_version < 2;
+}
+
+static bool needs_v4_block(int current_schema_version)
+{
+	return current_schema_version < 4;
+}
+
+/* migrate_hidden_sidebar_enabled:
+ * @stored_position: pre-migration /sidebar-position string, or nullptr.
+ *
+ * v3→v4: a stored "hidden" sidebar maps to the new Enable-sidebar switch being
+ * OFF; every other (valid) position keeps the sidebar enabled.
+ *
+ * Returns: the post-migration /sidebar-enabled value.
+ */
+static bool migrate_hidden_sidebar_enabled(const char* stored_position)
+{
+	return !(stored_position && std::strcmp(stored_position, "hidden") == 0);
+}
+
+/* migrate_hidden_sidebar_position:
+ * @stored_position: pre-migration /sidebar-position string, or nullptr.
+ *
+ * Returns the rewritten position ("left") when the stored value was "hidden",
+ * or nullptr to leave a valid position untouched (SC-009).
+ */
+static const char* migrate_hidden_sidebar_position(const char* stored_position)
+{
+	if (stored_position && std::strcmp(stored_position, "hidden") == 0)
+		return "left";
+	return nullptr;
 }
 
 /* full_screen_opacity_default:
@@ -106,19 +138,43 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 2);
+	assert(target_schema_version() == 4);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
-	assert(needs_migration(2) == false);
-	assert(needs_migration(3) == false);
+	assert(needs_migration(2) == true);
+	assert(needs_migration(3) == true);
+	assert(needs_migration(4) == false);
+	assert(needs_migration(5) == false);
 
-	// v0 → v2 walks through every block
+	// v0 → v4 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
+	assert(needs_v4_block(0) == true);
 
-	// v1 → v2 only runs the v2 block
-	assert(needs_v1_block(1) == false);
-	assert(needs_v2_block(1) == true);
+	// v3 → v4 only runs the v4 block
+	assert(needs_v1_block(3) == false);
+	assert(needs_v2_block(3) == false);
+	assert(needs_v4_block(3) == true);
+	assert(needs_v4_block(4) == false);
+}
+
+static void test_hidden_sidebar_migration()
+{
+	// Stored "hidden" → Enable-sidebar OFF and a rewritten "left" position.
+	assert(migrate_hidden_sidebar_enabled("hidden") == false);
+	assert(std::strcmp(migrate_hidden_sidebar_position("hidden"), "left") == 0);
+
+	// Pre-existing left/right/top/bottom configs are untouched (SC-009):
+	// sidebar stays enabled and the position is not rewritten.
+	for (const char* p : { "left", "right", "top", "bottom" })
+	{
+		assert(migrate_hidden_sidebar_enabled(p) == true);
+		assert(migrate_hidden_sidebar_position(p) == nullptr);
+	}
+
+	// Absent key (nullptr) defaults to enabled, position unchanged.
+	assert(migrate_hidden_sidebar_enabled(nullptr) == true);
+	assert(migrate_hidden_sidebar_position(nullptr) == nullptr);
 }
 
 static void test_full_screen_opacity_default()
@@ -225,6 +281,7 @@ int main()
 	test_position_categories_horizontal_migration();
 	test_profile_shape_hidden_migration();
 	test_unified_bar_default_fresh_install();
+	test_hidden_sidebar_migration();
 	test_idempotent_guard();
 	return 0;
 }

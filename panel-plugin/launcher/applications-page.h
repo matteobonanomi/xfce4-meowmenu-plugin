@@ -43,6 +43,24 @@ public:
 	Launcher* find(const std::string& desktop_id) const;
 	std::vector<Launcher*> find_all() const;
 
+	/* get_outer_widget:
+	 *
+	 * Returns the page container including the default-category heading. Use
+	 * this (not get_widget()) when packing the page into the results stack so
+	 * the heading sits above the launcher view. Borrowed; owned by the page.
+	 */
+	GtkWidget* get_outer_widget() const { return m_outer; }
+
+	/* set_default_heading:
+	 * @visible: TRUE to show the heading (sidebar disabled, FR-020/021).
+	 * @default_category: Settings::DefaultCategory selecting the heading text.
+	 *
+	 * Shows/hides an uppercase heading (FAVORITES / RECENTLY USED / ALL
+	 * APPLICATIONS) at the top-left of the results view. A no-op styling-wise
+	 * beyond toggling visibility and text.
+	 */
+	void set_default_heading(bool visible, int default_category);
+
 	void invalidate();
 	bool load();
 	void reload_category_icon_size();
@@ -55,6 +73,11 @@ private:
 	bool load_menu(GarconMenu* menu, Category* parent_category, bool load_hierarchy);
 
 private:
+	// Outer container = [default-category heading, base launcher view]. The
+	// heading is hidden unless the sidebar is disabled (FR-021).
+	GtkWidget* m_outer;
+	GtkWidget* m_default_heading;
+
 	GarconMenu* m_garcon_menu;
 	GarconMenu* m_garcon_settings_menu;
 	std::vector<Category*> m_categories;
