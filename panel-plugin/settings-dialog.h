@@ -163,6 +163,11 @@ private:
 	GtkWidget* m_icon_button = nullptr;
 	GtkWidget* m_button_single_row = nullptr;
 
+	// Places mode (feature 020) — Apps/Places switch "Show icons" toggle.
+	// Held for preset sync and for the forced-ON greying applied when the
+	// sidebar is on Top/Bottom or disabled.
+	GtkWidget* m_places_switch_show_icons = nullptr;
+
 	// Behavior
 	GtkWidget* m_hover_switch_category = nullptr;
 	GtkWidget* m_stay_on_focus_out = nullptr;

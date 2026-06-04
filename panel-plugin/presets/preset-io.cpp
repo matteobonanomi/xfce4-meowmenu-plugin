@@ -41,7 +41,7 @@ struct PropDef
 	int domain_len;
 };
 
-static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "hidden" };
+static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "top", "bottom" };
 static const char* SEARCHBAR_DOMAIN[]       = { "top", "bottom" };
 static const char* PROFILE_DOMAIN[]         = { "top", "bottom", "bottom-right", "hidden" };
 static const char* COMMANDS_DOMAIN[]        = { "top-right", "bottom-right", "hidden" };
@@ -75,6 +75,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "menu-height",           PresetValue::Int, INT_RANGE(200, 2000) },
 	{ "default-category",      PresetValue::Str, 0, 0, STR_DOMAIN(DEFAULT_CATEGORY_DOMAIN) },
 	{ "places-enabled",        PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "places-show-icons",     PresetValue::Bool, 0, 0, nullptr, 0 },
 };
 static const int GOVERNED_PROPS_COUNT = (int)(sizeof(GOVERNED_PROPS) / sizeof(GOVERNED_PROPS[0]));
 

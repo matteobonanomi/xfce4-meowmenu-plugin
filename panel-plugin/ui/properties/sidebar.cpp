@@ -53,6 +53,31 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	GtkSizeGroup* control_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
 	// =========================================================================
+	// 0. Enable sidebar (FR-022/032/033)
+	// =========================================================================
+	// "Enable sidebar" OFF removes the category sidebar entirely; the
+	// Apps/Places switch relocates into the search-bar row. Bound to
+	// /sidebar-enabled with the binding's reset-to-default. When OFF, every
+	// other Sidebar section is greyed except the Default category section.
+	GtkGrid* enable_grid = GTK_GRID(gtk_grid_new());
+	gtk_grid_set_column_spacing(enable_grid, 12);
+	gtk_grid_set_row_spacing(enable_grid, 6);
+	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), GTK_WIDGET(enable_grid)), false, false, 0);
+
+	GtkWidget* enable_sidebar_switch = gtk_switch_new();
+	GtkWidget* enable_sidebar_label = gtk_label_new_with_mnemonic(_("_Enable sidebar"));
+	gtk_widget_set_halign(enable_sidebar_label, GTK_ALIGN_START);
+	gtk_widget_set_hexpand(enable_sidebar_label, true);
+	gtk_switch_set_active(GTK_SWITCH(enable_sidebar_switch), m_settings->sidebar_enabled);
+	gtk_grid_attach(enable_grid, enable_sidebar_label, 0, 0, 1, 1);
+	gtk_grid_attach(enable_grid, enable_sidebar_switch, 1, 0, 1, 1);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_sidebar_label), enable_sidebar_switch);
+
+	// Section frames greyed when the sidebar is disabled (FR-022). Populated
+	// as each section frame is created below.
+	std::vector<GtkWidget*> sidebar_section_frames;
+
+	// =========================================================================
 	// 1. Visuals section
 	// =========================================================================
 	GtkGrid* visuals_table = GTK_GRID(gtk_grid_new());
@@ -61,6 +86,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	GtkWidget* visuals_frame = make_aligned_frame(_("Visuals"), GTK_WIDGET(visuals_table));
 	gtk_box_pack_start(page, visuals_frame, false, false, 0);
+	sidebar_section_frames.push_back(visuals_frame);
 
 	int v_row = 0;
 
@@ -134,6 +160,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	GtkWidget* pos_frame = make_aligned_frame(_("Position"), GTK_WIDGET(pos_table));
 	gtk_box_pack_start(page, pos_frame, false, false, 0);
+	sidebar_section_frames.push_back(pos_frame);
 
 	GtkWidget* side_pos_label = gtk_label_new_with_mnemonic(_("Sidebar _position:"));
 	gtk_widget_set_halign(side_pos_label, GTK_ALIGN_START);
@@ -142,7 +169,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	m_sidebar_position_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "left", _("Left"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "right", _("Right"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "hidden", _("Hidden"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "top", _("Top"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "bottom", _("Bottom"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
 		static_cast<const gchar*>(m_settings->sidebar_position));
 	gtk_widget_set_halign(m_sidebar_position_combo, GTK_ALIGN_START);
@@ -151,13 +179,31 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	gtk_size_group_add_widget(label_size_group, side_pos_label);
 	gtk_size_group_add_widget(control_size_group, m_sidebar_position_combo);
 
-	auto apply_sidebar_sub_enable = [this]()
+	// Sensitivity: when the sidebar is disabled every section is greyed except
+	// the Default category section (FR-022). When enabled, "Show category
+	// names" is greyed for Top/Bottom because the strip is icon-only (FR-013);
+	// greying never changes the stored value (FR-029).
+	auto apply_sidebar_sub_enable = [this, sidebar_section_frames]()
 	{
+		const bool enabled = m_settings->sidebar_enabled;
+		for (GtkWidget* frame : sidebar_section_frames)
+			gtk_widget_set_sensitive(frame, enabled);
+
 		const gchar* p = static_cast<const gchar*>(m_settings->sidebar_position);
 		const bool lr = p && (g_strcmp0(p, "left") == 0 || g_strcmp0(p, "right") == 0);
-		gtk_widget_set_sensitive(m_show_category_names, lr);
+		gtk_widget_set_sensitive(m_show_category_names, enabled && lr);
 	};
 	apply_sidebar_sub_enable();
+
+	connect(enable_sidebar_switch, "state-set",
+		[this, apply_sidebar_sub_enable](GtkSwitch*, gboolean state) -> gboolean
+		{
+			m_settings->sidebar_enabled = state;
+			apply_sidebar_sub_enable();
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
+			return FALSE;
+		});
 
 	connect(m_sidebar_position_combo, "changed",
 		[this, apply_sidebar_sub_enable](GtkComboBox* combo)
@@ -177,6 +223,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	GtkBox* behavior_vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 6));
 	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), GTK_WIDGET(behavior_vbox));
 	gtk_box_pack_start(page, behavior_frame, false, false, 0);
+	sidebar_section_frames.push_back(behavior_frame);
 
 	m_hover_switch_category = gtk_check_button_new_with_mnemonic(_("Switch categories by _hovering"));
 	gtk_box_pack_start(behavior_vbox, m_hover_switch_category, false, false, 0);
@@ -260,6 +307,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	GtkWidget* recent_frame = make_aligned_frame(_("Recently used"), GTK_WIDGET(recent_table));
 	gtk_box_pack_start(page, recent_frame, false, false, 0);
+	sidebar_section_frames.push_back(recent_frame);
 
 	GtkWidget* max_label = gtk_label_new_with_mnemonic(_("Maximum _items:"));
 	gtk_widget_set_halign(max_label, GTK_ALIGN_START);

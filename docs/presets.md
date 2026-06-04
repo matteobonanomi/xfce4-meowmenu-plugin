@@ -18,21 +18,26 @@ individual options.
 <!-- preset-classic.png not yet available -->
 
 Traditional Whisker Menu look. Compact docked window, apps as a list,
-sidebar on the right, no rounded corners.
+sidebar on the right, no rounded corners. The Apps/Places switch uses text
+labels.
 
 ### Modern
 
 ![Modern preset](assets/images/preset-modern.png)
 
 Contemporary layout with rounded corners, opacity, hover-to-switch-category,
-and Places search enabled.
+and Places search enabled. The Apps/Places switch uses icon buttons.
 
 ### Full Screen
 
 <!-- preset-fullscreen.png not yet available -->
 
 Launcher fills the entire screen. Ideal for touch or keyboard-first
-workflows. Places search enabled.
+workflows. Places search enabled. The Apps/Places switch uses text labels.
+
+Each preset sets its own default for the Apps/Places **Show icons** option
+(Modern on; Classic and Full Screen off). Switching presets updates the
+default, but your own later changes to the option always win.
 
 ## Custom presets
 
