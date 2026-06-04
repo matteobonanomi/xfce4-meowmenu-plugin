@@ -77,6 +77,26 @@ static char vertical_end_of(const char* value)
 	return 0;
 }
 
+/* scroller_add_child:
+ * @scroller: a GtkScrolledWindow that wraps non-scrollable content in a viewport.
+ * @child: the widget to (re-)insert.
+ *
+ * GTK3's gtk_scrolled_window_add() asserts the scrolled window is empty
+ * (g_return_if_fail child == NULL). After a child has been removed, the
+ * implicitly-created GtkViewport stays behind as the scrolled window's child,
+ * so a second gtk_container_add() silently no-ops — and any caller-held ref
+ * dropped afterwards would then destroy @child. Reinsert into the surviving
+ * viewport when one is present; otherwise let the scrolled window build one.
+ */
+static void scroller_add_child(GtkScrolledWindow* scroller, GtkWidget* child)
+{
+	GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(scroller));
+	if (GTK_IS_VIEWPORT(viewport))
+		gtk_container_add(GTK_CONTAINER(viewport), child);
+	else
+		gtk_container_add(GTK_CONTAINER(scroller), child);
+}
+
 } // namespace
 
 namespace WhiskerMenu
@@ -2265,19 +2285,11 @@ void WhiskerMenu::Window::update_layout()
 
 	if (want_struct != m_sidebar_struct)
 	{
-		// Detach the switch first if it currently rides inside the category
-		// list, so re-homing the list never drags it into the wrong container.
-		if (m_switch_loc == SwitchLocation::InSidebar)
-		{
-			GtkWidget* sp = gtk_widget_get_parent(GTK_WIDGET(m_mode_selector_box));
-			if (sp)
-			{
-				g_object_ref(m_mode_selector_box);
-				gtk_container_remove(GTK_CONTAINER(sp), GTK_WIDGET(m_mode_selector_box));
-				m_switch_loc = SwitchLocation::None; // transient; re-placed below
-			}
-		}
-
+		// The switch may ride inside m_category_buttons here; it is not detached
+		// first because the re-homing block below runs in the same pass (before
+		// anything is drawn) and moves it from whatever container it lands in to
+		// its computed target. The box keeps a ref across the reparent, so the
+		// switch is never orphaned or destroyed in between.
 		g_object_ref(m_category_buttons);
 		GtkWidget* cb_parent = gtk_widget_get_parent(GTK_WIDGET(m_category_buttons));
 		if (cb_parent)
@@ -2299,7 +2311,7 @@ void WhiskerMenu::Window::update_layout()
 				gtk_scrolled_window_set_overlay_scrolling(m_strip_scroll, TRUE);
 				gtk_box_pack_start(m_categories_box, GTK_WIDGET(m_strip_scroll), true, true, 0);
 			}
-			gtk_container_add(GTK_CONTAINER(m_strip_scroll), GTK_WIDGET(m_category_buttons));
+			scroller_add_child(m_strip_scroll, GTK_WIDGET(m_category_buttons));
 			// Reveal the scroller/viewport without gtk_widget_show_all, which
 			// would override the per-button visibility set above.
 			gtk_widget_show(GTK_WIDGET(m_strip_scroll));
@@ -2315,7 +2327,7 @@ void WhiskerMenu::Window::update_layout()
 			// scroller either way; the sidebar itself is shown only when enabled.
 			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons),
 					GTK_ORIENTATION_VERTICAL);
-			gtk_container_add(GTK_CONTAINER(m_sidebar), GTK_WIDGET(m_category_buttons));
+			scroller_add_child(m_sidebar, GTK_WIDGET(m_category_buttons));
 			gtk_widget_set_visible(GTK_WIDGET(m_categories_box), false);
 			gtk_widget_set_visible(GTK_WIDGET(m_sidebar), want_vertical);
 		}
