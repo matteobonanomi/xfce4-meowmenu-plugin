@@ -76,6 +76,8 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	connect(m_search_bar_position_combo, "changed",
 		[this](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;

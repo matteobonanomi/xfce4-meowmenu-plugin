@@ -519,15 +519,21 @@ void SettingsDialog::update_grid_controls_state()
 
 void SettingsDialog::sync_preset_widgets()
 {
-	// Update all preset-governed widgets to match the current settings after a preset
-	// is applied. Programmatic updates may fire their normal signal handlers; those
-	// writes back to settings are no-ops (same value), but side effects like
-	// grid control sensitivity and m_show_descriptions sensitivity are correct.
+	// Drive every preset-governed widget across all tabs to match the current
+	// settings after a preset is applied, then recompute every dependent
+	// control's sensitivity. The whole body runs under m_programmatic_update so
+	// the cascade of set_active calls cannot write a divergent value back into
+	// Settings (FR-004) — each widget handler early-returns while it is set.
 	//
-	// NOTE: each widget is null-guarded because the 003-properties-refactor
-	// lands one user-story tab at a time; widgets owned by an as-yet-unfilled
-	// tab are nullptr until that story lands. Once US2–US6 are all in, none
-	// of these guards short-circuit in normal operation.
+	// The authoritative set of keys driven here is synced_keys(); a unit test
+	// asserts it equals governed_keys() so no governed control is left stale
+	// (FR-001/003). When adding a governed key, add both its sync call below
+	// and its entry in synced_keys().
+	//
+	// NOTE: each widget is null-guarded because tabs are built independently;
+	// a widget owned by an as-yet-unbuilt tab is nullptr.
+
+	m_programmatic_update = true;
 
 	if (m_layout_mode_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo),
@@ -558,6 +564,12 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_sidebar_position_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
 			static_cast<const gchar*>(m_settings->sidebar_position));
+	if (m_enable_sidebar_switch)
+		gtk_switch_set_active(GTK_SWITCH(m_enable_sidebar_switch),
+			static_cast<bool>(m_settings->sidebar_enabled));
+	if (m_show_category_names)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_category_names),
+			static_cast<bool>(m_settings->category_show_name));
 	if (m_search_bar_position_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_search_bar_position_combo),
 			static_cast<const gchar*>(m_settings->search_bar_position));
@@ -572,9 +584,22 @@ void SettingsDialog::sync_preset_widgets()
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 			static_cast<const gchar*>(m_settings->grid_density));
 
+	if (m_places_enabled_switch)
+		gtk_switch_set_active(GTK_SWITCH(m_places_enabled_switch),
+			static_cast<bool>(m_settings->places_enabled));
+	if (m_places_switch_show_icons)
+		gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
+			static_cast<bool>(m_settings->places_switch_show_icons));
+
 	if (m_hover_switch_category)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
 			static_cast<bool>(m_settings->category_hover_activate));
+	if (m_unified_bar)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_unified_bar),
+			static_cast<bool>(m_settings->unified_bar));
+	if (m_item_icon_size)
+		gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size),
+			static_cast<int>(m_settings->launcher_icon_size) + 1);
 	if (m_position_categories_horizontal)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_categories_horizontal),
 			static_cast<bool>(m_settings->position_categories_horizontal));
@@ -604,13 +629,36 @@ void SettingsDialog::sync_preset_widgets()
 			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_list), true);
 	}
 
+	const int dc = static_cast<int>(m_settings->default_category);
+	if (m_display_favorites && m_display_recent && m_display_applications)
+	{
+		if (dc == Settings::CategoryRecent)
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_recent), true);
+		else if (dc == Settings::CategoryAll)
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_applications), true);
+		else
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_favorites), true);
+	}
+
+	// Recompute every dependent control's sensitivity across all tabs (FR-002):
+	// grid controls, layout-mode-gated widgets, Places dependents, and the
+	// Sidebar sub-enable greying. The Places/Sidebar hooks are owned by their
+	// tab builders and may be empty until those tabs are built.
 	update_grid_controls_state();
 	apply_layout_mode_sensitivity();
+	if (m_places_refresh_sensitivity)
+		m_places_refresh_sensitivity();
+	if (m_sidebar_apply_sub_enable)
+		m_sidebar_apply_sub_enable();
+
+	m_programmatic_update = false;
 }
 
 void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 {
-	m_loading_preset = true;
+	// Guard against the programmatic rebuild re-triggering the combo's "changed"
+	// handler (which would re-apply a preset). Shares the dialog-wide flag.
+	m_programmatic_update = true;
 
 	// Preserve active ID before clearing
 	const gchar* current_raw = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
@@ -626,8 +674,11 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 	{
 		for (const auto& p : file_presets)
 		{
+			// Label from the stored identity name — one code path for built-in
+			// and custom presets (FR-011a). For built-ins name == display name.
+			const std::string& label = p.name.empty() ? p.display_name : p.name;
 			gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
-				p.id.c_str(), p.display_name.c_str());
+				p.id.c_str(), label.c_str());
 		}
 	}
 	else
@@ -641,8 +692,9 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 	const auto& user = enumerate_user_presets(m_settings->channel);
 	for (const auto& p : user)
 	{
+		const std::string& label = p.name.empty() ? p.display_name : p.name;
 		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
-			p.id.c_str(), p.display_name.c_str());
+			p.id.c_str(), label.c_str());
 	}
 
 	// Restore selection
@@ -669,7 +721,7 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 	if (m_preset_export_btn)
 		gtk_widget_set_sensitive(m_preset_export_btn, is_user);
 
-	m_loading_preset = false;
+	m_programmatic_update = false;
 }
 
 //-----------------------------------------------------------------------------

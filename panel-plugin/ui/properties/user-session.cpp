@@ -104,6 +104,8 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	connect(m_profile_position_combo, "changed",
 		[this, apply_profile_visibility](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;
@@ -150,6 +152,8 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	connect(m_commands_position_combo, "changed",
 		[this](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;
@@ -172,6 +176,8 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	connect(m_unified_bar, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->unified_bar = gtk_toggle_button_get_active(button);
 			m_plugin->reload_menu();
 			refresh_customized_indicator();

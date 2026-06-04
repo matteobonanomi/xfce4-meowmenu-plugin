@@ -1,6 +1,7 @@
 plugin_sources = [
   'launcher/applications-page.cpp',
   'presets/preset.cpp',
+  'presets/preset-builtins.cpp',
   'presets/preset-io.cpp',
   'launcher/category.cpp',
   'launcher/category-button.cpp',
@@ -23,6 +24,7 @@ plugin_sources = [
   'places/places-item.cpp',
   'places/places-page.cpp',
   'core/plugin.cpp',
+  'core/sidebar-layout.cpp',
   'core/theme-fallback.cpp',
   'core/window-size-clamp.cpp',
   'profile.cpp',
@@ -48,6 +50,7 @@ plugin_sources = [
   'ui/properties/sidebar.cpp',
   'ui/properties/places.cpp',
   'ui/slot.h',
+  'ui/switch-icons.cpp',
   'core/window.cpp',
   'core/window-geometry.cpp',
   'core/window-keyboard.cpp',
