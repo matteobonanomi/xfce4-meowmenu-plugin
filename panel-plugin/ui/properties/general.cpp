@@ -457,7 +457,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_preset_combo, "changed",
 		[this](GtkComboBox* combo)
 		{
-			if (m_loading_preset)
+			if (m_programmatic_update)
 				return;
 			const gchar* id = gtk_combo_box_get_active_id(combo);
 			if (!id)
@@ -466,7 +466,14 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (!preset)
 				return;
 			gtk_label_set_text(GTK_LABEL(m_preset_description), _(preset->description.c_str()));
+			// Applying a built-in preset only writes Settings fields and
+			// current_preset_id; it never touches any /presets/<uuid>/ entry, so
+			// custom presets stay immutable and distinct (FR-007/011b). Re-running
+			// the apply chain for the active id acts as "reset to this preset"
+			// (FR-006) — the "Reset preset" button drives the same path for the
+			// already-selected entry, which the combo's "changed" signal cannot.
 			apply_preset(*preset, *m_settings);
+			m_last_applied_preset_id = preset->id;
 			m_plugin->reload_menu();
 			sync_preset_widgets();
 			refresh_customized_indicator();
@@ -653,6 +660,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_layout_mode_combo, "changed",
 		[this](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;
@@ -683,6 +692,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_panel_gap, "value-changed",
 		[this](GtkSpinButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->panel_gap = gtk_spin_button_get_value_as_int(button);
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
@@ -705,6 +716,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_menu_width, "value-changed",
 		[this](GtkSpinButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->menu_width = gtk_spin_button_get_value_as_int(button);
 		});
 
@@ -725,6 +738,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_menu_height, "value-changed",
 		[this](GtkSpinButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->menu_height = gtk_spin_button_get_value_as_int(button);
 		});
 
@@ -745,6 +760,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_corner_radius, "value-changed",
 		[this](GtkSpinButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->corner_radius = gtk_spin_button_get_value_as_int(button);
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
@@ -767,6 +784,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_full_screen_opacity, "value-changed",
 		[this](GtkRange* range)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->full_screen_opacity = static_cast<int>(gtk_range_get_value(range));
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
@@ -781,6 +800,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	connect(m_stay_on_focus_out, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->stay_on_focus_out = gtk_toggle_button_get_active(button);
 		});
 

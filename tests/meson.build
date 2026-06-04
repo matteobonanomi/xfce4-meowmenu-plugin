@@ -18,12 +18,24 @@ test_schema_migration = executable(
 
 test('schema_migration', test_schema_migration)
 
-test_preset_sources = ['test_preset.cpp']
+# test_preset: pure shadow logic for apply/diff/CRUD PLUS a completeness/agreement
+# gate over the REAL built-in preset table. preset-builtins.cpp is a Settings-free
+# translation unit, so the binary links it directly to read BUILTIN_PRESETS and
+# governed_keys() without pulling in the full Settings/GTK stack. The shipped
+# .meowpreset seeds are parsed from the path baked in at configure time.
+test_preset_sources = [
+  'test_preset.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+]
 
 test_preset = executable(
   'test_preset',
   test_preset_sources,
-  dependencies: [],
+  cpp_args: [
+    '-DMEOWMENU_TEST_PRESET_DIR="' + meson.current_source_dir() / '..' / 'data' / 'presets' + '"',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, xfconf],
 )
 
 test('preset', test_preset)
@@ -38,12 +50,19 @@ test_preset_io = executable(
 
 test('preset_io', test_preset_io)
 
-test_properties_tabs_sources = ['test_properties_tabs.cpp']
+# test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
+# coverage gate (T013). preset-builtins.cpp is Settings-free, so it links
+# directly to expose governed_keys()/synced_keys() without a GTK display.
+test_properties_tabs_sources = [
+  'test_properties_tabs.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+]
 
 test_properties_tabs = executable(
   'test_properties_tabs',
   test_properties_tabs_sources,
-  dependencies: [],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, xfconf],
 )
 
 test('properties_tabs', test_properties_tabs)
@@ -256,3 +275,38 @@ test_window_size_clamp = executable(
 )
 
 test('window_size_clamp', test_window_size_clamp)
+
+# test_sidebar_layout: headless coverage of the pure layout-decision mapping in
+# panel-plugin/core/sidebar-layout.cpp (sidebar visibility, switch placement /
+# orientation, forced icon/name states). GTK-free helper; no display.
+test_sidebar_layout_sources = [
+  'test_sidebar_layout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
+]
+
+test_sidebar_layout = executable(
+  'test_sidebar_layout',
+  test_sidebar_layout_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('sidebar_layout', test_sidebar_layout)
+
+# test_switch_icons: coverage of the Apps/Places icon-chain resolver in
+# panel-plugin/ui/switch-icons.cpp. Builds a synthetic on-disk icon theme so
+# the present/absent cases are deterministic; GtkIconTheme lookups need no
+# display.
+test_switch_icons_sources = [
+  'test_switch_icons.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'switch-icons.cpp',
+]
+
+test_switch_icons = executable(
+  'test_switch_icons',
+  test_switch_icons_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('switch_icons', test_switch_icons, timeout: 30)

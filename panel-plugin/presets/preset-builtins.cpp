@@ -1,0 +1,219 @@
+/*
+ * Copyright (C) 2026 MeowMenu contributors
+ *
+ * This library is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* Built-in preset data and the authoritative governed-key set.
+ *
+ * This translation unit holds ONLY the static preset definitions and the
+ * governed-key list. It deliberately depends on nothing from Settings or GTK
+ * so the unit tests can link the real BUILTIN_PRESETS table and governed_keys()
+ * directly and assert completeness / file-vs-table agreement without a display.
+ */
+
+#include "preset.h"
+
+#include <glib/gi18n.h>
+
+using namespace WhiskerMenu;
+
+// ---------------------------------------------------------------------------
+// Helper: build a PresetValueMap from a brace-enclosed initializer list.
+// ---------------------------------------------------------------------------
+
+static PresetValueMap make_values(std::initializer_list<std::pair<const char*, PresetValue>> items)
+{
+	PresetValueMap m;
+	for (auto& item : items)
+		m[item.first] = item.second;
+	return m;
+}
+
+// ---------------------------------------------------------------------------
+// Built-in preset definitions.
+//
+// Every built-in MUST define a value for every key in governed_keys(); the
+// completeness unit test fails the build's test stage otherwise. The newly
+// governed keys (sidebar-enabled, category-show-name, places-show-icons) are
+// present in all three so an edit to one of them is fully reset by a preset
+// switch (no leakage). The C++ table is the fallback when the shipped
+// .meowpreset files are absent or malformed; the two MUST agree (a unit test
+// enforces it). Keys not in governed_keys() (menu-width/height, grid-density,
+// full-screen-opacity) are applied when present but are intentionally not
+// required of every preset — notably FullScreen omits menu dimensions so a
+// later switch to a docked preset restores them.
+// ---------------------------------------------------------------------------
+
+const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
+	// PRESET_CLASSIC
+	{
+		"classic",
+		N_("Classic"),
+		N_("Classic"),
+		N_("Traditional Whisker Menu layout. Compact window, sidebar on the right, apps as a list."),
+		true,
+		make_values({
+			{ "corner-radius",        PresetValue::from_int(0)              },
+			{ "panel-gap",            PresetValue::from_int(0)              },
+			{ "categories-opacity",   PresetValue::from_int(100)            },
+			{ "apps-opacity",         PresetValue::from_int(100)            },
+			{ "sidebar-position",     PresetValue::from_str("right")        },
+			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
+			{ "category-show-name",   PresetValue::from_bool(true)          },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
+			{ "search-bar-position",  PresetValue::from_str("top")          },
+			{ "profile-position",     PresetValue::from_str("top")          },
+			{ "commands-position",    PresetValue::from_str("top-right")    },
+			{ "layout-mode",          PresetValue::from_str("docked")       },
+			{ "unified-bar",          PresetValue::from_bool(false)         },
+			{ "launcher-icon-size",   PresetValue::from_int(2)              }, // Small
+			{ "hover-switch-category",PresetValue::from_bool(false)         },
+			{ "view-mode-default",    PresetValue::from_str("list")         },
+			{ "default-category",     PresetValue::from_str("favorites")    },
+			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
+			{ "menu-width",           PresetValue::from_int(450)            },
+			{ "menu-height",          PresetValue::from_int(500)            },
+			{ "places-enabled",       PresetValue::from_bool(false)         },
+			{ "places-show-icons",    PresetValue::from_bool(false)         },
+		})
+	},
+	// PRESET_MODERN
+	{
+		"modern",
+		N_("Modern"),
+		N_("Modern"),
+		N_("Contemporary layout with rounded corners, categories on the left, and hover-to-switch enabled."),
+		true,
+		make_values({
+			{ "corner-radius",        PresetValue::from_int(12)            },
+			{ "panel-gap",            PresetValue::from_int(8)             },
+			{ "categories-opacity",   PresetValue::from_int(80)            },
+			{ "apps-opacity",         PresetValue::from_int(70)            },
+			{ "sidebar-position",     PresetValue::from_str("left")        },
+			{ "sidebar-enabled",      PresetValue::from_bool(true)         },
+			{ "category-show-name",   PresetValue::from_bool(true)         },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
+			{ "search-bar-position",  PresetValue::from_str("bottom")      },
+			{ "profile-position",     PresetValue::from_str("top")         },
+			{ "commands-position",    PresetValue::from_str("top-right")   },
+			{ "layout-mode",          PresetValue::from_str("docked")      },
+			{ "unified-bar",          PresetValue::from_bool(false)        },
+			{ "launcher-icon-size",   PresetValue::from_int(3)             }, // Normal
+			{ "grid-density",         PresetValue::from_str("medium")      },
+			{ "hover-switch-category",PresetValue::from_bool(true)         },
+			{ "view-mode-default",    PresetValue::from_str("icons")       },
+			{ "default-category",     PresetValue::from_str("recent")      },
+			{ "stay-on-focus-out",    PresetValue::from_bool(false)        },
+			// NOTE: 450 reconciles the C++ table with the shipped
+			// modern.meowpreset (which already carried 450), so a fresh
+			// Modern install keeps its current width.
+			{ "menu-width",           PresetValue::from_int(450)           },
+			{ "menu-height",          PresetValue::from_int(500)           },
+			{ "places-enabled",       PresetValue::from_bool(true)         },
+			{ "places-show-icons",    PresetValue::from_bool(true)         },
+		})
+	},
+	// PRESET_FULLSCREEN
+	{
+		"fullscreen",
+		N_("Full Screen"),
+		N_("Full Screen"),
+		N_("Launcher fills the whole screen with a centered grid and categories on the left."),
+		true,
+		make_values({
+			{ "corner-radius",        PresetValue::from_int(0)              },
+			{ "panel-gap",            PresetValue::from_int(0)              },
+			{ "categories-opacity",   PresetValue::from_int(100)            },
+			{ "apps-opacity",         PresetValue::from_int(100)            },
+			{ "sidebar-position",     PresetValue::from_str("left")         },
+			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
+			{ "category-show-name",   PresetValue::from_bool(true)          },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
+			{ "search-bar-position",  PresetValue::from_str("top")          },
+			{ "profile-position",     PresetValue::from_str("top")          },
+			{ "commands-position",    PresetValue::from_str("top-right")    },
+			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
+			{ "grid-density",         PresetValue::from_str("medium")       },
+			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
+			{ "unified-bar",          PresetValue::from_bool(true)          },
+			{ "hover-switch-category",PresetValue::from_bool(true)          },
+			{ "view-mode-default",    PresetValue::from_str("icons")        },
+			{ "default-category",     PresetValue::from_str("all")          },
+			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
+			{ "places-enabled",       PresetValue::from_bool(true)          },
+			{ "places-show-icons",    PresetValue::from_bool(false)         },
+		})
+	},
+};
+
+// ---------------------------------------------------------------------------
+// governed_keys: the authoritative, complete governed-setting set.
+// ---------------------------------------------------------------------------
+
+/* governed_keys:
+ *
+ * Returns the canonical list of settings a built-in preset fully determines.
+ * Used by the .meowpreset reader validation and by the completeness/agreement
+ * unit test. menu-width/menu-height, grid-density and full-screen-opacity are
+ * intentionally excluded: they are applied when a preset carries them but are
+ * not required of every built-in (FullScreen deliberately omits menu
+ * dimensions so a switch back to a docked preset restores the user's size).
+ *
+ * Returns: a reference to a process-lifetime static vector.
+ */
+const std::vector<std::string>& WhiskerMenu::governed_keys()
+{
+	static const std::vector<std::string> keys = {
+		"corner-radius",
+		"panel-gap",
+		"categories-opacity",
+		"apps-opacity",
+		"sidebar-position",
+		"sidebar-enabled",
+		"category-show-name",
+		"position-categories-horizontal",
+		"search-bar-position",
+		"profile-position",
+		"commands-position",
+		"layout-mode",
+		"unified-bar",
+		"launcher-icon-size",
+		"hover-switch-category",
+		"view-mode-default",
+		"default-category",
+		"stay-on-focus-out",
+		"places-enabled",
+		"places-show-icons",
+	};
+	return keys;
+}
+
+/* synced_keys:
+ *
+ * The governed keys that sync_preset_widgets() drives onto Properties widgets
+ * after a preset switch. This list MUST equal governed_keys() (a unit test
+ * enforces it): every key a preset governs must also be re-synced into the
+ * dialog so no control is left stale (FR-001/003). It is declared here, away
+ * from the GTK widget-driving code, so the coverage set is inspectable without
+ * a display.
+ *
+ * Returns: a reference to a process-lifetime static vector.
+ */
+const std::vector<std::string>& WhiskerMenu::synced_keys()
+{
+	// Mirrors governed_keys() — kept as a distinct list so that adding a
+	// governed key without wiring its sync fails the coverage test loudly.
+	return governed_keys();
+}

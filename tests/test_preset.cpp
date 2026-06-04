@@ -28,6 +28,13 @@
 #include <string>
 #include <vector>
 
+// Real preset table + governed-key set, linked from the Settings-free
+// preset-builtins.cpp translation unit. Used by the completeness / agreement
+// tests below to guard the C++ table, the .meowpreset seeds, and governed_keys()
+// against drift.
+#include <glib.h>
+#include "presets/preset.h"
+
 // ---------------------------------------------------------------------------
 // Shadow types — mirror the minimal interface that preset.cpp needs.
 // We test the logic we CAN test without instantiating the full Settings class.
@@ -695,6 +702,100 @@ static void test_parity_fullscreen_cpp_vs_file()
 	assert(s_cpp.default_category        == s_file.default_category);
 }
 
+// ---------------------------------------------------------------------------
+// T008: GOVERNED_KEYS completeness + file↔table agreement for all built-ins.
+//
+// These exercise the REAL WhiskerMenu::BUILTIN_PRESETS table and
+// governed_keys() (linked from preset-builtins.cpp), plus the shipped
+// .meowpreset seed files parsed from MEOWMENU_TEST_PRESET_DIR. A missing key
+// or a drifted value fails the build's test stage rather than leaking at
+// runtime (FR-009, research R5).
+// ---------------------------------------------------------------------------
+
+static const WhiskerMenu::LayoutPreset* find_builtin(const char* id)
+{
+	for (int i = 0; i < WhiskerMenu::PRESET_BUILTIN_COUNT; ++i)
+		if (WhiskerMenu::BUILTIN_PRESETS[i].id == id)
+			return &WhiskerMenu::BUILTIN_PRESETS[i];
+	return nullptr;
+}
+
+static GKeyFile* load_meowpreset(const char* fname)
+{
+	std::string path = std::string(MEOWMENU_TEST_PRESET_DIR) + "/" + fname;
+	GKeyFile* kf = g_key_file_new();
+	gboolean ok = g_key_file_load_from_file(kf, path.c_str(), G_KEY_FILE_NONE, nullptr);
+	assert(ok);
+	return kf;
+}
+
+static void test_governed_keys_completeness_table()
+{
+	const auto& keys = WhiskerMenu::governed_keys();
+	for (int i = 0; i < WhiskerMenu::PRESET_BUILTIN_COUNT; ++i)
+	{
+		const WhiskerMenu::LayoutPreset& p = WhiskerMenu::BUILTIN_PRESETS[i];
+		for (const auto& k : keys)
+			assert(p.values.find(k) != p.values.end());
+		// Every built-in carries a stored identity name (FR-011a).
+		assert(!p.name.empty());
+	}
+}
+
+static void test_governed_keys_completeness_files()
+{
+	const auto& keys = WhiskerMenu::governed_keys();
+	const char* files[] = { "classic.meowpreset", "modern.meowpreset", "fullscreen.meowpreset" };
+	for (const char* f : files)
+	{
+		GKeyFile* kf = load_meowpreset(f);
+		// Name= is the stored identity for built-ins.
+		assert(g_key_file_has_key(kf, "Preset", "Name", nullptr));
+		for (const auto& k : keys)
+			assert(g_key_file_has_key(kf, "Settings", k.c_str(), nullptr));
+		g_key_file_free(kf);
+	}
+}
+
+static void test_file_table_agreement()
+{
+	struct { const char* id; const char* file; } pairs[] = {
+		{ "classic",    "classic.meowpreset"    },
+		{ "modern",     "modern.meowpreset"     },
+		{ "fullscreen", "fullscreen.meowpreset" },
+	};
+	const auto& keys = WhiskerMenu::governed_keys();
+	for (const auto& pr : pairs)
+	{
+		const WhiskerMenu::LayoutPreset* p = find_builtin(pr.id);
+		assert(p);
+		GKeyFile* kf = load_meowpreset(pr.file);
+		for (const auto& k : keys)
+		{
+			auto it = p->values.find(k);
+			assert(it != p->values.end());
+			const WhiskerMenu::PresetValue& v = it->second;
+			if (v.kind == WhiskerMenu::PresetValue::Bool)
+			{
+				gboolean fv = g_key_file_get_boolean(kf, "Settings", k.c_str(), nullptr);
+				assert((fv != FALSE) == v.b);
+			}
+			else if (v.kind == WhiskerMenu::PresetValue::Int)
+			{
+				int fv = g_key_file_get_integer(kf, "Settings", k.c_str(), nullptr);
+				assert(fv == v.i);
+			}
+			else
+			{
+				gchar* fv = g_key_file_get_string(kf, "Settings", k.c_str(), nullptr);
+				assert(fv && v.s == fv);
+				g_free(fv);
+			}
+		}
+		g_key_file_free(kf);
+	}
+}
+
 int main()
 {
 	test_classic_property_count();
@@ -723,5 +824,9 @@ int main()
 	test_parity_classic_cpp_vs_file();
 	test_parity_modern_cpp_vs_file();
 	test_parity_fullscreen_cpp_vs_file();
+	// T008: real-table governed-key completeness + file↔table agreement
+	test_governed_keys_completeness_table();
+	test_governed_keys_completeness_files();
+	test_file_table_agreement();
 	return 0;
 }

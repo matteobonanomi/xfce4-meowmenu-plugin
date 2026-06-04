@@ -406,6 +406,11 @@ public:
 	Integer schema_version;
 	String  current_preset_id;
 
+	// Active preset's stored identity name, surfaced as the active-preset label.
+	// Built-ins return their localized display name, custom presets their stored
+	// name; falls back to the stored id when no preset matches.
+	std::string current_preset_name() const;
+
 	// Layout Presets — visual properties
 	Integer corner_radius;
 	Integer panel_gap;
@@ -415,6 +420,10 @@ public:
 
 	// Layout Presets — element positions
 	String sidebar_position;
+	// Whether the category sidebar is shown at all (FR-032/033). OFF relocates
+	// the Apps/Places switch into the search-bar row; the legacy "hidden"
+	// sidebar-position migrates to this being false.
+	Boolean sidebar_enabled;
 	String search_bar_position;
 	String profile_position;
 	String commands_position;
@@ -438,6 +447,10 @@ public:
 	Boolean places_show_metadata;
 	String  places_last_mode;
 	StringList places_favourites;
+	// Render the Apps/Places switch as two themed icon buttons instead of text
+	// (FR-001/006). Stored value is the user's intent; layouts that force
+	// icon-only mode never overwrite it.
+	Boolean places_switch_show_icons;
 
 	void migrate_schema(bool is_fresh_install);
 

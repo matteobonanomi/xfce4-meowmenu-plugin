@@ -32,8 +32,10 @@
 #include "resizer.h"
 #include "search/search-page.h"
 #include "settings.h"
+#include "sidebar-layout.h"
 #include "theme-fallback.h"
 #include "ui/slot.h"
+#include "ui/switch-icons.h"
 #include "search/unified-bar.h"
 #include "window-keyboard.h"
 
@@ -73,6 +75,26 @@ static char vertical_end_of(const char* value)
 	if (g_str_has_prefix(value, "bottom"))
 		return 'b';
 	return 0;
+}
+
+/* scroller_add_child:
+ * @scroller: a GtkScrolledWindow that wraps non-scrollable content in a viewport.
+ * @child: the widget to (re-)insert.
+ *
+ * GTK3's gtk_scrolled_window_add() asserts the scrolled window is empty
+ * (g_return_if_fail child == NULL). After a child has been removed, the
+ * implicitly-created GtkViewport stays behind as the scrolled window's child,
+ * so a second gtk_container_add() silently no-ops — and any caller-held ref
+ * dropped afterwards would then destroy @child. Reinsert into the surviving
+ * viewport when one is present; otherwise let the scrolled window build one.
+ */
+static void scroller_add_child(GtkScrolledWindow* scroller, GtkWidget* child)
+{
+	GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(scroller));
+	if (GTK_IS_VIEWPORT(viewport))
+		gtk_container_add(GTK_CONTAINER(viewport), child);
+	else
+		gtk_container_add(GTK_CONTAINER(scroller), child);
 }
 
 } // namespace
@@ -155,11 +177,19 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_mode_switch_in_progress(false),
 	m_places_property_slot(0),
 	m_mode_selector_separator(nullptr),
+	m_strip_scroll(nullptr),
+	m_sidebar_struct(1),
+	m_switch_loc(SwitchLocation::InSidebar),
 	m_category_width_group(nullptr),
 	m_sidebar_size_group(nullptr),
+	m_mode_button_size_group(nullptr),
+	m_strip_width_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
 	m_layout_categories_horizontal(false),
+	m_layout_sidebar_enabled(true),
+	m_layout_switch_show_icons(false),
+	m_layout_category_show_name(true),
 	m_layout_categories_alternate(false),
 	m_layout_search_alternate(false),
 	m_layout_commands_alternate(false),
@@ -540,6 +570,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_toggle_button_set_active(m_mode_btn_apps, true);
 	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_apps), true, true, 0);
 	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_places), true, true, 0);
+	// Equal-width Apps/Places buttons in every layout/preset (FR-013). A size
+	// group forces both to the larger natural width regardless of label length
+	// or the icon↔text child swap — more robust than box homogeneity, which the
+	// strip relocation can defeat.
+	m_mode_button_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	gtk_size_group_add_widget(m_mode_button_size_group, GTK_WIDGET(m_mode_btn_apps));
+	gtk_size_group_add_widget(m_mode_button_size_group, GTK_WIDGET(m_mode_btn_places));
 
 	connect(m_mode_btn_apps, "toggled",
 		[this](GtkToggleButton* b)
@@ -657,7 +694,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_widget_set_vexpand(GTK_WIDGET(m_panels_stack), true);
 	gtk_stack_add_named(m_panels_stack, m_favorites->get_widget(), "favorites");
 	gtk_stack_add_named(m_panels_stack, m_recent->get_widget(), "recent");
-	gtk_stack_add_named(m_panels_stack, m_applications->get_widget(), "applications");
+	// Use the outer wrapper so the default-category heading (sidebar-disabled
+	// case, FR-020) sits above the applications launcher view.
+	gtk_stack_add_named(m_panels_stack, m_applications->get_outer_widget(), "applications");
 	// Search results live inside the applications area so the sidebar remains visible
 	// while the user types. This applies to all layout modes, not just fullscreen.
 	gtk_stack_add_named(m_panels_stack, GTK_WIDGET(search_results), "search");
@@ -691,6 +730,10 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 	m_category_width_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 	gtk_size_group_set_ignore_hidden(m_category_width_group, FALSE);
 G_GNUC_END_IGNORE_DEPRECATIONS
+	// Both the Apps-mode buttons and the Places-section buttons join the width
+	// group, so switching Apps↔Places (which only toggles visibility) never
+	// resizes the sidebar (FR-023/024) — the group already sizes to the widest
+	// member, hidden or not.
 	gtk_size_group_add_widget(m_category_width_group, favorites_button->get_widget());
 	gtk_size_group_add_widget(m_category_width_group, recent_button->get_widget());
 	gtk_size_group_add_widget(m_category_width_group, applications_button->get_widget());
@@ -1016,10 +1059,16 @@ void WhiskerMenu::Window::show(const Position position)
 	m_recent->reset_selection();
 	m_applications->reset_selection();
 
-	// Make sure icon sizes are correct
+	// Make sure icon sizes are correct. The Places section buttons are reloaded
+	// on the SAME trigger as the Apps category buttons so sidebar label
+	// visibility (names vs icon-only) is identical in both modes — both consult
+	// the one shared decision in CategoryButton::reload_icon_size (FR-015/016).
 	m_favorites->get_button()->reload_icon_size();
 	m_recent->get_button()->reload_icon_size();
 	m_applications->get_button()->reload_icon_size();
+	m_places_home_btn->reload_icon_size();
+	m_places_history_btn->reload_icon_size();
+	m_places_fav_btn->reload_icon_size();
 
 	m_applications->reload_category_icon_size();
 
@@ -1113,11 +1162,23 @@ void WhiskerMenu::Window::show(const Position position)
 	// NOTE: schema v2 — horizontal-categories is derived from sidebar-position
 	// (top|bottom); the legacy /position-categories-horizontal key is migrated
 	// away in Settings::migrate_schema().
-	const bool cats_horizontal = (g_strcmp0(sidebar_pos, "top") == 0)
-			|| (g_strcmp0(sidebar_pos, "bottom") == 0);
+	// Horizontal categories only when the sidebar is enabled AND on top/bottom;
+	// a disabled sidebar shows no strip regardless of the stored position.
+	const bool cats_horizontal = m_settings->sidebar_enabled
+			&& ((g_strcmp0(sidebar_pos, "top") == 0)
+				|| (g_strcmp0(sidebar_pos, "bottom") == 0));
 	const bool unified_eff = unified_bar_effective(*m_settings);
+	// Feature 020: these stored settings are not legacy layout booleans, but
+	// they change the switch/sidebar presentation, so include them in the
+	// relayout trigger (orientation, icon-mode, enable/disable, heading).
+	const bool sidebar_enabled = m_settings->sidebar_enabled;
+	const bool switch_show_icons = m_settings->places_switch_show_icons;
+	const bool category_show_name = m_settings->category_show_name;
 	if ((m_layout_ltr != layout_ltr)
 			|| (m_layout_categories_horizontal != cats_horizontal)
+			|| (m_layout_sidebar_enabled != sidebar_enabled)
+			|| (m_layout_switch_show_icons != switch_show_icons)
+			|| (m_layout_category_show_name != category_show_name)
 			|| (m_layout_categories_alternate != cats_alt)
 			|| (m_layout_search_alternate != search_alt)
 			|| (m_layout_commands_alternate != commands_alt)
@@ -1127,6 +1188,9 @@ void WhiskerMenu::Window::show(const Position position)
 	{
 		m_layout_ltr = layout_ltr;
 		m_layout_categories_horizontal = cats_horizontal;
+		m_layout_sidebar_enabled = sidebar_enabled;
+		m_layout_switch_show_icons = switch_show_icons;
+		m_layout_category_show_name = category_show_name;
 		m_layout_categories_alternate = cats_alt;
 		m_layout_search_alternate = search_alt;
 		m_layout_commands_alternate = commands_alt;
@@ -1136,9 +1200,11 @@ void WhiskerMenu::Window::show(const Position position)
 		update_layout();
 	}
 
-	// T044/T045: handle sidebar hidden and fullscreen mode
+	// Sidebar visibility now follows the Enable-sidebar switch (FR-022/032);
+	// update_layout() owns the in-strip/relocated cases, this is the docked
+	// vertical-sidebar show/hide. (Legacy "hidden" position migrated away.)
 	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
-			g_strcmp0(sidebar_pos, "hidden") != 0);
+			sidebar_enabled && !cats_horizontal);
 
 	// T045: FullScreen mode + size-sensitive layout tweaks
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
@@ -1153,11 +1219,30 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), m_workarea.width / 2, -1);
 		// Keep sidebar width meaningful, and compensate on the opposite side so
 		// the applications grid stays centered.
+		// NOTE (FR-026/027): the symmetry margin is a fixed fraction of the work
+		// area and is deliberately independent of the icon/category-name toggles
+		// and the relocated switch. The switch, when the sidebar is disabled,
+		// packs into m_title_box (the unified-bar row) rather than the
+		// m_contents_box grid columns, so this void around the results box is
+		// never perturbed. Keep both invariants when editing.
 		const int sidebar_width = m_workarea.width / 6;
 		const bool sidebar_on_left = (m_layout_ltr == m_layout_categories_alternate);
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), sidebar_width, -1);
-		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_on_left ? 0 : sidebar_width);
-		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_on_left ? sidebar_width : 0);
+		// With a Top/Bottom strip the vertical sidebar is hidden, so a one-sided
+		// margin would shove the results box off-centre. Mirror the margin on
+		// both sides to keep the results box centred with the same symmetric
+		// empty space (FR-023/SC-007); the strip spans only the centred
+		// search-box-width column above/below it, never the full workarea.
+		if (cats_horizontal)
+		{
+			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_width);
+			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_width);
+		}
+		else
+		{
+			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_on_left ? 0 : sidebar_width);
+			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_on_left ? sidebar_width : 0);
+		}
 	}
 	else
 	{
@@ -1894,6 +1979,12 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .category-button image,"
 		".meowmenu .category-button label"
 		"{ opacity: 1; }"
+		// Default-category heading shown when the sidebar is disabled
+		// (FR-020). Uppercase text comes from the catalog strings; the
+		// letter-spacing/weight here are theme-overridable.
+		".meowmenu .meow-default-heading"
+		"{ font-weight: bold; letter-spacing: 1px; opacity: 0.65;"
+		"  margin: 6px 6px 2px 6px; }"
 		// FR-002 / SC-007: keyboard focus indicator. The 1 px inset
 		// outline sits inside the widget border (outline-offset: -1px)
 		// so the widget does not change size on focus and the
@@ -2048,14 +2139,104 @@ void WhiskerMenu::Window::move_window()
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
+		bool show_icons, const char* const* icon_chain, const char* short_label,
+		const char* long_label)
+{
+	GtkWidget* child = gtk_bin_get_child(GTK_BIN(button));
+
+	// The pure helper picks the label placement (FR-012/014): the long
+	// descriptive name is the accessible name in both modes and the tooltip in
+	// icon-only mode; the short label is the visible text in text mode.
+	const ModeButtonLabels labels =
+			meow_mode_button_labels(show_icons, short_label, long_label);
+	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(button)), labels.accessible_name);
+	gtk_widget_set_tooltip_text(GTK_WIDGET(button), labels.tooltip_text);
+
+	if (show_icons)
+	{
+		if (GTK_IS_IMAGE(child))
+			return;
+		GtkIconTheme* theme = gtk_icon_theme_get_default();
+		const char* name = meow_resolve_icon_name(theme, icon_chain);
+		GtkWidget* image = gtk_image_new_from_icon_name(name, GTK_ICON_SIZE_BUTTON);
+		if (child)
+			gtk_container_remove(GTK_CONTAINER(button), child);
+		gtk_container_add(GTK_CONTAINER(button), image);
+		gtk_widget_show(image);
+	}
+	else
+	{
+		// Visible text mode shows the short label; the long name stays on the
+		// tooltip/accessible name set above.
+		if (GTK_IS_LABEL(child))
+		{
+			gtk_label_set_text(GTK_LABEL(child), labels.visible_text);
+			return;
+		}
+		GtkWidget* text = gtk_label_new(labels.visible_text);
+		if (child)
+			gtk_container_remove(GTK_CONTAINER(button), child);
+		gtk_container_add(GTK_CONTAINER(button), text);
+		gtk_widget_show(text);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pres)
+{
+	const bool icons = pres.effective_show_icons;
+
+	// Text↔icon child swap (FR-012/014): the visible text label is the short
+	// "Apps"/"Places"; the long "Applications"/"Places" stays as tooltip and
+	// accessible name in both modes.
+	set_mode_button_content(m_mode_btn_apps, icons, MEOW_SWITCH_APPS_ICONS,
+			_("Apps"), _("Applications"));
+	set_mode_button_content(m_mode_btn_places, icons, MEOW_SWITCH_PLACES_ICONS,
+			_("Places"), _("Places"));
+
+	// Switch-box orientation (FR-007/008/014): vertical only on a vertical
+	// sidebar with category names hidden; horizontal everywhere else.
+	gtk_orientable_set_orientation(GTK_ORIENTABLE(m_mode_selector_box),
+			pres.switch_orientation == SwitchOrientation::Vertical
+					? GTK_ORIENTATION_VERTICAL
+					: GTK_ORIENTATION_HORIZONTAL);
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::update_layout()
 {
 	// Places mode (milestone 005) — mode selector and sidebar section buttons.
 	const bool places_enabled = m_settings->places_enabled;
-	gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box), places_enabled);
+
+	// Feature 020: resolve the effective sidebar/switch presentation from the
+	// stored intent. Forcing rules live in the pure helper; nothing here writes
+	// back to settings, so removing a forcing layout restores intent (FR-029).
+	SidebarLayoutState layout_state;
+	layout_state.sidebar_enabled = m_settings->sidebar_enabled;
+	layout_state.position = meow_parse_sidebar_position(m_settings->sidebar_position);
+	layout_state.category_show_name = m_settings->category_show_name;
+	layout_state.switch_show_icons = m_settings->places_switch_show_icons;
+	layout_state.search_bar_bottom =
+			(g_strcmp0(m_settings->search_bar_position, "bottom") == 0);
+	layout_state.fullscreen =
+			(g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	layout_state.places_enabled = places_enabled;
+	const SwitchPresentation pres = meow_compute_sidebar_layout(layout_state);
+
+	const bool switch_visible = (pres.switch_location != SwitchLocation::None);
+	gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box), switch_visible);
 	if (m_mode_selector_separator)
 	{
-		gtk_widget_set_visible(m_mode_selector_separator, places_enabled);
+		// The separator only belongs under the switch in the vertical sidebar
+		// list; the horizontal strip and the relocated (search-bar) switch
+		// drop it.
+		gtk_widget_set_visible(m_mode_selector_separator,
+				switch_visible
+				&& pres.switch_location == SwitchLocation::InSidebar
+				&& !pres.categories_horizontal);
 	}
 	if (!places_enabled)
 	{
@@ -2092,6 +2273,16 @@ void WhiskerMenu::Window::update_layout()
 		}
 	}
 
+	// Apply the Apps/Places switch presentation (icon vs text, orientation,
+	// tooltips). Structural relocation/strip placement is handled further down
+	// once the category containers have been arranged.
+	apply_switch_presentation(pres);
+
+	// Default-category heading: visible only when the sidebar is disabled
+	// (FR-020/021); text follows the configured default category.
+	m_applications->set_default_heading(pres.show_default_category_heading,
+			m_settings->default_category);
+
 	// Set vertical position of commands
 	g_object_ref(m_commands_box);
 	gtk_container_remove(GTK_CONTAINER(gtk_widget_get_parent(GTK_WIDGET(m_commands_box))), GTK_WIDGET(m_commands_box));
@@ -2122,31 +2313,131 @@ void WhiskerMenu::Window::update_layout()
 	}
 	g_object_unref(m_commands_box);
 
-	// Set horizontal position of categories
-	g_object_ref(m_category_buttons);
-	if (m_layout_categories_horizontal)
+	// Arrange the category list and the Apps/Places switch structurally
+	// (feature 020). Three category-list placements — vertical sidebar,
+	// horizontal Top/Bottom strip, or hidden (sidebar disabled) — and three
+	// switch homes — sidebar list, strip-leading, or the search-bar row — are
+	// reconciled here. Transitions are guarded by m_sidebar_struct / m_switch_loc
+	// so a steady-state pass performs no reparenting.
+	const bool want_vertical = pres.sidebar_visible && !pres.categories_horizontal;
+	const bool want_strip    = pres.sidebar_visible && pres.categories_horizontal;
+	const int  want_struct   = want_vertical ? 1 : (want_strip ? 2 : 3);
+	const bool unified_now   = unified_bar_effective(*m_settings);
+
+	if (want_struct != m_sidebar_struct)
 	{
-		if (gtk_orientable_get_orientation(GTK_ORIENTABLE(m_category_buttons)) == GTK_ORIENTATION_VERTICAL)
+		// The switch may ride inside m_category_buttons here; it is not detached
+		// first because the re-homing block below runs in the same pass (before
+		// anything is drawn) and moves it from whatever container it lands in to
+		// its computed target. The box keeps a ref across the reparent, so the
+		// switch is never orphaned or destroyed in between.
+		g_object_ref(m_category_buttons);
+		GtkWidget* cb_parent = gtk_widget_get_parent(GTK_WIDGET(m_category_buttons));
+		if (cb_parent)
+			gtk_container_remove(GTK_CONTAINER(cb_parent), GTK_WIDGET(m_category_buttons));
+
+		if (want_strip)
 		{
-			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons), GTK_ORIENTATION_HORIZONTAL);
-			gtk_container_remove(GTK_CONTAINER(m_sidebar), GTK_WIDGET(m_category_buttons));
+			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons),
+					GTK_ORIENTATION_HORIZONTAL);
+			if (!m_strip_scroll)
+			{
+				// Lazily build the horizontal strip scroller: overlay
+				// horizontal scrollbar, no vertical scroll, no arrow chrome
+				// (FR-012). Keyboard focus auto-scroll is provided by GTK.
+				m_strip_scroll = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
+				gtk_scrolled_window_set_shadow_type(m_strip_scroll, GTK_SHADOW_NONE);
+				gtk_scrolled_window_set_policy(m_strip_scroll,
+						GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+				gtk_scrolled_window_set_overlay_scrolling(m_strip_scroll, TRUE);
+				// Don't let an icon-heavy strip widen the menu: the scroller
+				// requests a minimal natural width and scrolls overflow within
+				// the search-box-matched width set by the size group (FR-020).
+				gtk_scrolled_window_set_propagate_natural_width(m_strip_scroll, FALSE);
+				gtk_box_pack_start(m_categories_box, GTK_WIDGET(m_strip_scroll), true, true, 0);
+			}
+			scroller_add_child(m_strip_scroll, GTK_WIDGET(m_category_buttons));
+			// Centre the strip and tie its width to the search box (FR-019/020).
+			// A shared horizontal size group keeps the strip == search-box width
+			// without re-deriving the workarea/2 figure used in fullscreen.
+			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_CENTER);
+			if (!m_strip_width_group)
+			{
+				m_strip_width_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+				gtk_size_group_add_widget(m_strip_width_group, GTK_WIDGET(m_search_box));
+				gtk_size_group_add_widget(m_strip_width_group, GTK_WIDGET(m_categories_box));
+			}
+			// Reveal the scroller/viewport without gtk_widget_show_all, which
+			// would override the per-button visibility set above.
+			gtk_widget_show(GTK_WIDGET(m_strip_scroll));
+			if (GtkWidget* vp = gtk_bin_get_child(GTK_BIN(m_strip_scroll)))
+				gtk_widget_show(vp);
+			gtk_widget_show(GTK_WIDGET(m_category_buttons));
 			gtk_widget_set_visible(GTK_WIDGET(m_sidebar), false);
 			gtk_widget_set_visible(GTK_WIDGET(m_categories_box), true);
-			gtk_box_set_center_widget(m_categories_box, GTK_WIDGET(m_category_buttons));
 		}
-	}
-	else
-	{
-		if (gtk_orientable_get_orientation(GTK_ORIENTABLE(m_category_buttons)) == GTK_ORIENTATION_HORIZONTAL)
+		else
 		{
-			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons), GTK_ORIENTATION_VERTICAL);
-			gtk_container_remove(GTK_CONTAINER(m_categories_box), GTK_WIDGET(m_category_buttons));
+			// Vertical sidebar, or hidden: the button box lives in the sidebar
+			// scroller either way; the sidebar itself is shown only when enabled.
+			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons),
+					GTK_ORIENTATION_VERTICAL);
+			scroller_add_child(m_sidebar, GTK_WIDGET(m_category_buttons));
 			gtk_widget_set_visible(GTK_WIDGET(m_categories_box), false);
-			gtk_widget_set_visible(GTK_WIDGET(m_sidebar), true);
-			gtk_container_add(GTK_CONTAINER(m_sidebar), GTK_WIDGET(m_category_buttons));
+			gtk_widget_set_visible(GTK_WIDGET(m_sidebar), want_vertical);
+			// No strip in this structure: drop the centred-strip alignment so
+			// the (hidden) container imposes nothing on its size group.
+			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		}
+		g_object_unref(m_category_buttons);
+		m_sidebar_struct = want_struct;
 	}
-	g_object_unref(m_category_buttons);
+
+	// Re-home the Apps/Places switch to match the computed presentation.
+	{
+		GtkWidget* sw = GTK_WIDGET(m_mode_selector_box);
+		GtkWidget* cur = gtk_widget_get_parent(sw);
+		GtkWidget* target = nullptr;
+		bool pack_end_target = false;
+		switch (pres.switch_location)
+		{
+		case SwitchLocation::InSidebar:
+			// Strip: pinned leading in m_categories_box, outside the scroller
+			// (FR-014). Vertical sidebar: first child of the button list.
+			target = want_strip ? GTK_WIDGET(m_categories_box)
+			                     : GTK_WIDGET(m_category_buttons);
+			break;
+		case SwitchLocation::InSearchBar:
+			// Sidebar disabled: trailing end of whichever row hosts the search
+			// entry — m_title_box in unified-bar mode, else m_search_box (R1).
+			target = unified_now ? GTK_WIDGET(m_title_box) : GTK_WIDGET(m_search_box);
+			pack_end_target = true;
+			break;
+		case SwitchLocation::None:
+		default:
+			break;
+		}
+
+		if (target && cur != target)
+		{
+			g_object_ref(sw);
+			if (cur)
+				gtk_container_remove(GTK_CONTAINER(cur), sw);
+			if (pack_end_target)
+			{
+				// Two small theme gaps: entry↔switch (this spacing) and
+				// switch↔edge (the row's own end padding) (FR-019).
+				gtk_box_pack_end(GTK_BOX(target), sw, false, false, 6);
+			}
+			else
+			{
+				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
+				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
+			}
+			g_object_unref(sw);
+		}
+		m_switch_loc = pres.switch_location;
+	}
 
 	// Handle showing username and profile
 	if (m_profile_shape != Settings::ProfileHidden)
@@ -2237,14 +2528,36 @@ void WhiskerMenu::Window::update_layout()
 		gtk_style_context_remove_class(context, "bottom");
 	}
 
+	// Top/Bottom strip ordering is driven by the sidebar position itself, not by
+	// m_layout_categories_alternate (which encodes left/right) nor by the
+	// search-bar position (FR-017/018, research R7). The pure helper resolves the
+	// stacking order; vertical (left/right) layouts keep the legacy mapping for
+	// the hidden strip container.
+	const StripGeometry strip_geom = meow_compute_strip_geometry(
+			meow_parse_sidebar_position(m_settings->sidebar_position), m_layout_ltr);
+	const bool strip_below_results = m_layout_categories_horizontal
+			&& strip_geom.order == StripOrder::StripBelowResults;
+	const bool strip_top_row = m_layout_categories_horizontal
+			? !strip_below_results
+			: !m_layout_categories_alternate;
+
+	// Rhythm-matched symmetric gap: equal space before and after the strip
+	// (one gap is the inter-row spacing, the other the strip's outer margin),
+	// so the strip is not flush against the menu edge (FR-021).
+	const int STRIP_GAP = 6;
+	gtk_widget_set_margin_top(GTK_WIDGET(m_categories_box),
+			m_layout_categories_horizontal && !strip_below_results ? STRIP_GAP : 0);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box),
+			m_layout_categories_horizontal && strip_below_results ? STRIP_GAP : 0);
+
 	gtk_grid_remove_row(m_contents_box, 1);
 	gtk_grid_remove_row(m_contents_box, 0);
 	if (m_layout_categories_horizontal)
 	{
 		gtk_grid_set_column_spacing(m_contents_box, 0);
-		gtk_grid_set_row_spacing(m_contents_box, 6);
+		gtk_grid_set_row_spacing(m_contents_box, STRIP_GAP);
 
-		gtk_style_context_add_class(context, m_layout_categories_alternate ? "bottom" : "top");
+		gtk_style_context_add_class(context, strip_below_results ? "bottom" : "top");
 	}
 	else
 	{
@@ -2269,13 +2582,16 @@ void WhiskerMenu::Window::update_layout()
 		gtk_box_reorder_child(m_commands_box, m_commands_spacer, 9);
 	}
 
-	if (!m_layout_categories_alternate)
+	if (strip_top_row)
 	{
+		// Strip above the results row (Top strip; below the search bar since the
+		// whole grid sits under it). The inserted row pushes the results down.
 		gtk_grid_insert_row(m_contents_box, 0);
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_categories_box), 0, 0, 2, 1);
 	}
 	else
 	{
+		// Strip below the results row (Bottom strip).
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_categories_box), 0, 1, 2, 1);
 	}
 

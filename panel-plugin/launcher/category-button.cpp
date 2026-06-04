@@ -17,6 +17,7 @@
 
 #include "category-button.h"
 
+#include "core/sidebar-layout.h"
 #include "settings.h"
 #include "ui/slot.h"
 
@@ -194,6 +195,21 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	gtk_box_pack_start(m_box, m_icon, false, false, 0);
 
 	m_label = gtk_label_new(text);
+	gtk_label_set_xalign(GTK_LABEL(m_label), 0.0);
+	// Content-fit sidebar width (FR-023/025): only labels that exceed the cap
+	// ellipsise. Capping a label with ellipsization also drops its *minimum*
+	// width to ~one glyph, and a GtkSizeGroup aggregates minimums as the
+	// max-of-minimums — so if every label could ellipsise, the group floor
+	// collapses and the non-expanding sidebar gets squeezed to the switch's
+	// width under the fixed menu width. Leaving short labels non-ellipsising
+	// keeps minimum == natural, so the sidebar stays as wide as its widest
+	// item; a single pathological name still ellipsises instead of widening
+	// the sidebar without bound.
+	if (g_utf8_strlen(text, -1) > 22)
+	{
+		gtk_label_set_ellipsize(GTK_LABEL(m_label), PANGO_ELLIPSIZE_END);
+		gtk_label_set_max_width_chars(GTK_LABEL(m_label), 22);
+	}
 	gtk_box_pack_start(m_box, m_label, false, true, 0);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_button)), "category-button");
@@ -221,9 +237,12 @@ void CategoryButton::reload_icon_size()
 	// NOTE: schema v2 — categories are rendered icon-only whenever the sidebar is
 	// laid out horizontally (sidebar-position ∈ {top, bottom}); the legacy
 	// /position-categories-horizontal key is migrated away (see migrate_schema).
+	// The single shared decision (FR-015/016) ensures Apps category buttons and
+	// Places section buttons — all CategoryButtons reloaded on the same trigger —
+	// show or hide labels identically in both modes.
 	const bool sidebar_horizontal = (g_strcmp0(m_settings->sidebar_position, "top") == 0
 			|| g_strcmp0(m_settings->sidebar_position, "bottom") == 0);
-	if (m_settings->category_show_name && !sidebar_horizontal)
+	if (meow_category_label_visible(m_settings->category_show_name, sidebar_horizontal))
 	{
 		gtk_widget_set_has_tooltip(GTK_WIDGET(m_button), false);
 		gtk_box_set_child_packing(m_box, m_icon, false, false, 0, GTK_PACK_START);

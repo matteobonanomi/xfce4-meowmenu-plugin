@@ -35,6 +35,7 @@ panel-plugin/ui/properties/search-bar-actions.cpp
 panel-plugin/ui/properties/sidebar.cpp
 panel-plugin/ui/properties/user-session.cpp
 panel-plugin/settings.cpp
+panel-plugin/settings-defaults.cpp
 panel-plugin/core/window.cpp
 panel-plugin/core/window-pages.cpp
 panel-plugin/core/xfce4-popup-meowmenu.cpp
