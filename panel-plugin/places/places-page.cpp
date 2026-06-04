@@ -381,8 +381,13 @@ void PlacesPage::on_row_activated(GtkTreePath* path)
 		return;
 	}
 	GdkScreen* screen = gtk_widget_get_screen(m_view->get_widget());
+	// Lifetime invariant: dispatch the open BEFORE closing the menu. open() is a
+	// synchronous dispatch — once it returns, the launch has been handed off —
+	// whereas m_window->hide() clears the search entry, which re-runs the filter
+	// and can delete this very item via clear_home_search_items(). Opening first
+	// guarantees the item stays valid for the whole open (FR-001..FR-003).
+	item->open(screen, m_widget);
 	m_window->hide();
-	item->open(screen);
 }
 
 //-----------------------------------------------------------------------------
@@ -438,8 +443,10 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		[this, item](GtkMenuItem*)
 		{
 			GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
+			// Dispatch before hide — see on_row_activated(): hide() can free the
+			// item mid-open, so the open must complete first (FR-004).
+			item->open(s, m_widget);
 			m_window->hide();
-			item->open(s);
 		});
 	// "Open" stays present but insensitive for a missing target, matching the
 	// inert primary activation; "Open Containing Folder" below remains enabled
@@ -487,8 +494,9 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		[this, item](GtkMenuItem*)
 		{
 			GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
+			// Dispatch before hide — same lifetime invariant as on_row_activated().
+			item->open_containing(s, m_widget);
 			m_window->hide();
-			item->open_containing(s);
 		});
 	append(mi);
 
@@ -504,8 +512,9 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 			[this, item](GtkMenuItem*)
 			{
 				GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
+				// Dispatch before hide — same lifetime invariant as above.
+				item->open_in_terminal(s, m_widget);
 				m_window->hide();
-				item->open_in_terminal(s);
 			});
 		append(mi);
 	}

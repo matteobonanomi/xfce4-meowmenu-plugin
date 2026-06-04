@@ -107,6 +107,27 @@ test_home_search = executable(
 
 test('home_search', test_home_search)
 
+# test_places_open: GTK-free coverage of the Places open-path hardening —
+# the g_shell_quote round-trip handed to the external helper (FR-007/008) and
+# the open-failure reason string built for the error dialog (FR-006). Compiles
+# places-item.cpp plus its Element base (element.cpp) directly into the binary,
+# mirroring test_home_search_lifecycle; no display is needed for these pure
+# helpers, so the binary runs headless.
+test_places_open_sources = [
+  'test_places_open.cpp',
+  '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
+]
+
+test_places_open = executable(
+  'test_places_open',
+  test_places_open_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
+)
+
+test('places_open', test_places_open)
+
 # NOTE: test_migration covers the T1..T7 contract from
 # .specify/specs/010-standalone-identity/contracts/xfconf-migration.md.
 # It exercises panel-plugin/migration.cpp directly (source compiled into
