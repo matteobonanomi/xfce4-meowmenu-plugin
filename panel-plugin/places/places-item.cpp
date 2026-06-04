@@ -133,11 +133,19 @@ PlacesItem::~PlacesItem()
 
 /* open:
  * @screen: GdkScreen used to launch on the correct display.
+ * @parent: a widget in the Places page used to parent the failure dialog; may
+ *          be nullptr (the dialog is then unparented).
  *
  * Opens the file or folder with the system-default handler via GIO. Folders
- * fall back to "exo-open --launch FileManager <path>" on launch failure.
+ * fall back to "exo-open --launch FileManager <path>" on launch failure, with
+ * the path shell-quoted (FR-007) so names containing spaces or shell-significant
+ * characters open the exact target. On failure exactly one error dialog names
+ * the item and states the underlying reason (FR-006).
+ *
+ * NOTE: the caller dispatches this before closing the menu so the item is not
+ * freed mid-open; see PlacesPage::on_row_activated().
  */
-void PlacesItem::open(GdkScreen* screen)
+void PlacesItem::open(GdkScreen* screen, GtkWidget* parent)
 {
 	if (m_uri.empty())
 	{
@@ -157,49 +165,73 @@ void PlacesItem::open(GdkScreen* screen)
 		return;
 	}
 
-	if (error) g_error_free(error);
-	error = nullptr;
-
 	if (m_is_directory)
 	{
 		gchar* path = g_file_get_path(m_file);
 		if (path)
 		{
-			gchar* command = g_strdup_printf("exo-open --launch FileManager \"%s\"", path);
+			// FR-007: quote the path so the helper receives the exact folder
+			// even with spaces, quotes, '$', backticks, or parentheses. The
+			// command is parsed by g_shell_parse_argv inside Element::spawn().
+			gchar* quoted = g_shell_quote(path);
+			gchar* command = g_strdup_printf("exo-open --launch FileManager %s", quoted);
+			// FR-006d: Element::spawn() owns the single failure dialog for this
+			// fallback, so the default-handler error above is dropped here to
+			// avoid stacking a second dialog.
 			spawn(screen, command, nullptr, true, nullptr);
 			g_free(command);
+			g_free(quoted);
 			g_free(path);
+			if (error) g_error_free(error);
 			return;
 		}
+		g_free(path);
 	}
 
-	xfce_dialog_show_error(nullptr, nullptr,
-			_("Unable to open \"%s\"."), m_uri.c_str());
+	// FR-006: exactly one dialog, naming the item with a legible reason.
+	gchar* message = build_open_error_message(error, get_text());
+	GtkWindow* window = parent
+			? GTK_WINDOW(gtk_widget_get_toplevel(parent)) : nullptr;
+	xfce_dialog_show_error(window, nullptr, "%s", message);
+	g_free(message);
+	if (error) g_error_free(error);
 }
 
 //-----------------------------------------------------------------------------
 
-void PlacesItem::open_containing(GdkScreen* screen)
+/* open_containing:
+ * @screen: GdkScreen used to launch on the correct display.
+ * @parent: accepted so the Places open paths share a uniform (screen, parent)
+ *          signature; this path shows no dialog of its own, so it is unused.
+ *
+ * Opens the item's parent folder with the default handler. FR-010: when the
+ * item has no parent (e.g. a filesystem root) this is a defined silent no-op,
+ * and a failed launch is intentionally not reported — never a blank dialog.
+ */
+void PlacesItem::open_containing(GdkScreen* screen, GtkWidget* /*parent*/)
 {
 	if (!m_file)
 	{
 		return;
 	}
-	GFile* parent = g_file_get_parent(m_file);
-	if (!parent)
+	GFile* parent_dir = g_file_get_parent(m_file);
+	if (!parent_dir)
 	{
+		// Defined no-op: no parent to open (FR-010). Never a blank dialog.
 		return;
 	}
-	gchar* uri = g_file_get_uri(parent);
+	gchar* uri = g_file_get_uri(parent_dir);
 	if (uri)
 	{
 		GdkAppLaunchContext* ctx = gdk_display_get_app_launch_context(
 				gdk_screen_get_display(screen ? screen : gdk_screen_get_default()));
+		// NOTE: launch result is intentionally ignored — FR-010 defines this as
+		// a silent no-op on failure rather than an error dialog.
 		g_app_info_launch_default_for_uri(uri, G_APP_LAUNCH_CONTEXT(ctx), nullptr);
 		if (ctx) g_object_unref(ctx);
 		g_free(uri);
 	}
-	g_object_unref(parent);
+	g_object_unref(parent_dir);
 }
 
 //-----------------------------------------------------------------------------
@@ -218,7 +250,15 @@ void PlacesItem::copy_path()
 
 //-----------------------------------------------------------------------------
 
-void PlacesItem::open_in_terminal(GdkScreen* screen)
+/* open_in_terminal:
+ * @screen: GdkScreen used to launch on the correct display.
+ * @parent: accepted so the Places open paths share a uniform (screen, parent)
+ *          signature; Element::spawn() owns any failure dialog, so it is unused.
+ *
+ * Opens a terminal with its working directory set to this folder, via Xfce's
+ * TerminalEmulator launch alias.
+ */
+void PlacesItem::open_in_terminal(GdkScreen* screen, GtkWidget* /*parent*/)
 {
 	if (!m_file || !m_is_directory)
 	{
@@ -231,9 +271,13 @@ void PlacesItem::open_in_terminal(GdkScreen* screen)
 	}
 	// NOTE: defer to Xfce's TerminalEmulator launch alias; this honors the
 	// user's configured terminal without parsing xfce4-session.xml ourselves.
-	gchar* command = g_strdup_printf("exo-open --launch TerminalEmulator --working-directory \"%s\"", path);
+	// FR-008: quote the working directory so the terminal opens in the exact
+	// folder even when its name contains shell-significant characters.
+	gchar* quoted = g_shell_quote(path);
+	gchar* command = g_strdup_printf("exo-open --launch TerminalEmulator --working-directory %s", quoted);
 	spawn(screen, command, path, true, nullptr);
 	g_free(command);
+	g_free(quoted);
 	g_free(path);
 }
 
@@ -256,19 +300,34 @@ void PlacesItem::open_with(GtkWidget* parent)
 			GTK_DIALOG_MODAL,
 			content_type ? content_type : "application/octet-stream");
 
+	GError* error = nullptr;
+	gboolean launch_failed = FALSE;
 	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK)
 	{
 		GAppInfo* app = gtk_app_chooser_get_app_info(GTK_APP_CHOOSER(dialog));
 		if (app)
 		{
 			GList* files = g_list_append(nullptr, m_file);
-			g_app_info_launch(app, files, nullptr, nullptr);
+			launch_failed = !g_app_info_launch(app, files, nullptr, &error);
 			g_list_free(files);
 			g_object_unref(app);
 		}
 	}
+	// Destroy the chooser before reporting, so the error dialog is not parented
+	// to a window that is about to disappear.
 	gtk_widget_destroy(dialog);
 	if (info) g_object_unref(info);
+
+	if (launch_failed)
+	{
+		// FR-009: a failed launch is explained, not silently swallowed.
+		gchar* message = build_open_error_message(error, get_text());
+		xfce_dialog_show_error(
+				parent ? GTK_WINDOW(gtk_widget_get_toplevel(parent)) : nullptr,
+				nullptr, "%s", message);
+		g_free(message);
+	}
+	if (error) g_error_free(error);
 }
 
 //-----------------------------------------------------------------------------
@@ -331,6 +390,47 @@ gchar* PlacesItem::places_filter_casefold(const gchar* filter)
 		return nullptr;
 	}
 	return g_utf8_casefold(filter, -1);
+}
+
+//-----------------------------------------------------------------------------
+
+gchar* PlacesItem::build_open_error_message(const GError* error, const char* display_name)
+{
+	const char* name = (display_name && *display_name)
+			? display_name : _("the selected item");
+
+	// Prefer the underlying, already-localized GIO/spawn reason; fall back to a
+	// defined non-empty phrasing so a failed open is never reported blank.
+	const char* reason = (error && error->message && *error->message)
+			? error->message : _("the location could not be opened");
+
+	gchar* raw = g_strdup_printf(_("Unable to open \"%s\": %s"), name, reason);
+
+	// Walk the message one UTF-8 character at a time, dropping invalid bytes and
+	// control characters, so a corrupt reason can never render as a garbled
+	// dialog. g_utf8_get_char_validated() flags malformed/incomplete sequences;
+	// such bytes are skipped rather than copied.
+	GString* clean = g_string_new(nullptr);
+	const char* p = raw;
+	while (*p)
+	{
+		gunichar c = g_utf8_get_char_validated(p, -1);
+		if (c == static_cast<gunichar>(-1) || c == static_cast<gunichar>(-2))
+		{
+			// Invalid or incomplete sequence: drop one byte and resync.
+			++p;
+			continue;
+		}
+		const char* next = g_utf8_next_char(p);
+		if (c >= 0x20 && c != 0x7f)
+		{
+			g_string_append_len(clean, p, next - p);
+		}
+		p = next;
+	}
+	g_free(raw);
+
+	return g_string_free(clean, FALSE);
 }
 
 //-----------------------------------------------------------------------------
