@@ -1,4 +1,15 @@
 MEOW MENU DEVELOPMENT
+0.6.0 (2026-06-04)
+=====
+- add Top and Bottom sidebar positions with a horizontal scrollable icon strip
+- add "Enable sidebar" switch; when off, the Apps/Places switch moves into the search bar with a category heading in the results view
+- add "Show icons" option for the Apps/Places switch; orientation adapts to the current sidebar layout
+- sidebar width is now stable when switching between Apps and Places modes
+- built-in presets now fully reset all governed settings on apply (sidebar enabled, position, icon-only mode)
+- Properties dialog syncs all tabs and control sensitivities immediately when a preset is switched
+- Modern preset is now the fresh-install default; upgrades preserve the existing layout
+- icon-only mode is consistent across Apps and Places
+
 0.5.5 (2026-06-03)
 =====
 - menu background fallback now matches the active theme (light or dark)
