@@ -1,4 +1,15 @@
 MEOW MENU DEVELOPMENT
+0.6.1 (2026-XX-XX)
+=====
+- Places: fix use-after-free when activating a search result — item is
+  now opened before the menu closes.
+- Places: extend the same lifetime fix to context-menu actions (Open,
+  Open Containing, Open in Terminal, Open With).
+- Places: open failures now show a single dialog naming the item and
+  including the system error reason; blank/discarded errors are gone.
+- Places: shell-quote paths passed to the external file-manager and
+  terminal helper, fixing names with spaces, quotes, or $(...).
+
 0.6.0 (2026-06-04)
 =====
 - add Top and Bottom sidebar positions with a horizontal scrollable icon strip
