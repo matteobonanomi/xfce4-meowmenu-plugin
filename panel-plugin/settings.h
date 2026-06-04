@@ -406,6 +406,11 @@ public:
 	Integer schema_version;
 	String  current_preset_id;
 
+	// Active preset's stored identity name, surfaced as the active-preset label.
+	// Built-ins return their localized display name, custom presets their stored
+	// name; falls back to the stored id when no preset matches.
+	std::string current_preset_name() const;
+
 	// Layout Presets — visual properties
 	Integer corner_radius;
 	Integer panel_gap;

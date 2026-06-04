@@ -43,6 +43,34 @@ extern const char* const MEOW_SWITCH_PLACES_ICONS[];
  */
 const char* meow_resolve_icon_name(GtkIconTheme* theme, const char* const* chain);
 
+/* ModeButtonLabels:
+ *
+ * The resolved label selection for one Apps/Places mode button. visible_text is
+ * the text-mode GtkLabel content (NULL in icon mode); accessible_name is the ATK
+ * name in both modes; tooltip_text is the hover tooltip (the long name in icon
+ * mode, NULL in text mode where the visible label already reads it).
+ */
+struct ModeButtonLabels
+{
+	const char* visible_text;
+	const char* accessible_name;
+	const char* tooltip_text;
+};
+
+/* meow_mode_button_labels:
+ * @show_icons: whether the switch is in icon-only mode.
+ * @short_label: the short visible name ("Apps"/"Places").
+ * @long_label: the long descriptive name ("Applications"/"Places").
+ *
+ * Pure selection of which label goes where (FR-012/014): the short label is the
+ * visible text in text mode, the long label is always the accessible name and is
+ * the tooltip in icon mode. No GTK calls.
+ *
+ * Returns: the resolved ModeButtonLabels (borrowed pointers into the arguments).
+ */
+ModeButtonLabels meow_mode_button_labels(bool show_icons, const char* short_label,
+		const char* long_label);
+
 } // namespace WhiskerMenu
 
 #endif // MEOWMENU_UI_SWITCH_ICONS_H

@@ -72,7 +72,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Option | Description |
 |--------|-------------|
 | Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch moves to the right end of the search bar, and the results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
-| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom turn the categories into a horizontal, icon-only strip that scrolls sideways when it overflows; "Show category name" is unavailable there. |
+| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom turn the categories into a horizontal, icon-only strip. The strip is centred, as wide as the search box, and surrounded by equal gaps above and below; **Top** places it just below the search bar and above the results, **Bottom** places it below the results. It scrolls sideways when it has more icons than fit, and "Show category name" is unavailable there. The same geometry holds in Full Screen, where the centred results box keeps its symmetric side margins. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (-2 = inherit from theme). |
 | Sort categories | Sort the category list alphabetically. |

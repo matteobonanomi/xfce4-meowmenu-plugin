@@ -47,4 +47,14 @@ const char* meow_resolve_icon_name(GtkIconTheme* theme, const char* const* chain
 	return last;
 }
 
+ModeButtonLabels meow_mode_button_labels(bool show_icons, const char* short_label,
+		const char* long_label)
+{
+	ModeButtonLabels out;
+	out.visible_text    = show_icons ? nullptr : short_label;
+	out.accessible_name = long_label;
+	out.tooltip_text    = show_icons ? long_label : nullptr;
+	return out;
+}
+
 } // namespace WhiskerMenu
