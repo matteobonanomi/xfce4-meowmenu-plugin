@@ -19,6 +19,7 @@
 
 #include "launcher/command.h"
 #include "core/plugin.h"
+#include "presets/preset.h"
 #include "search/search-action.h"
 #include "ui/slot.h"
 
@@ -120,7 +121,11 @@ Settings::Settings(Plugin* plugin) :
 	apps_opacity(this, "/apps-opacity", 100, 0, 100),
 	full_screen_opacity(this, "/full-screen-opacity", 100, 0, 100),
 
+	// NOTE: GUI/preset write domain is {left,right,top,bottom}; the legacy
+	// "hidden" value is tolerated on read (free-form String, migrated to
+	// sidebar-enabled=false) and is never honoured as a position.
 	sidebar_position(this, "/sidebar-position", "left"),
+	sidebar_enabled(this, "/sidebar-enabled", true),
 	search_bar_position(this, "/search-bar-position", "top"),
 	profile_position(this, "/profile-position", "top"),
 	commands_position(this, "/commands-position", "top-right"),
@@ -140,7 +145,8 @@ Settings::Settings(Plugin* plugin) :
 	places_remember_last_mode(this, "/places/remember-last-mode", false),
 	places_show_metadata(this, "/places/show-metadata", false),
 	places_last_mode(this, "/places/last-mode", "apps"),
-	places_favourites(this, "/places/favourites", { })
+	places_favourites(this, "/places/favourites", { }),
+	places_switch_show_icons(this, "/places/switch-show-icons", false)
 {
 	command[CommandSettings] = new Command(this, "/command-settings", "/show-command-settings",
 			"org.xfce.settings.manager", "preferences-desktop",
@@ -378,6 +384,25 @@ void Settings::load(const gchar* base)
 
 //-----------------------------------------------------------------------------
 
+/* Settings::current_preset_name:
+ *
+ * Resolves the active preset's stored identity name for display as the
+ * active-preset label. A single code path serves built-ins (localized display
+ * name) and custom presets (user-entered stored name). Falls back to the raw
+ * stored id if the id resolves to no known preset (e.g. a deleted custom one).
+ *
+ * Returns: the name to show; never the hard-coded "Classic" default.
+ */
+std::string Settings::current_preset_name() const
+{
+	const gchar* id = static_cast<const gchar*>(current_preset_id);
+	const std::string sid = id ? id : "";
+	const LayoutPreset* p = find_preset_by_id(sid);
+	if (p)
+		return p->name.empty() ? p->display_name : p->name;
+	return sid;
+}
+
 void Settings::prevent_invalid()
 {
 	// Prevent empty categories
@@ -468,6 +493,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| apps_opacity.load(property, value)
 			|| full_screen_opacity.load(property, value)
 			|| sidebar_position.load(property, value)
+			|| sidebar_enabled.load(property, value)
 			|| search_bar_position.load(property, value)
 			|| profile_position.load(property, value)
 			|| commands_position.load(property, value)
@@ -484,7 +510,8 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| places_remember_last_mode.load(property, value)
 			|| places_show_metadata.load(property, value)
 			|| places_last_mode.load(property, value)
-			|| places_favourites.load(property, value, reload))
+			|| places_favourites.load(property, value, reload)
+			|| places_switch_show_icons.load(property, value))
 	{
 	}
 
