@@ -11,6 +11,28 @@ A preset is a snapshot of all visual and layout settings saved as a plain
 corner radius, icon style, sidebar position, and more — without touching
 individual options.
 
+A fresh installation starts on the **Modern** preset. Upgrades keep your
+existing layout untouched — nothing is reset on upgrade, and the active-preset
+label reflects the layout you are actually running.
+
+## Selecting a built-in preset is a full reset
+
+Choosing a built-in preset restores **that preset's complete documented
+layout**, regardless of any changes you made beforehand. The settings a preset
+governs include the whole appearance and layout surface — window size, corner
+radius, opacity, icon size, the sidebar position, **whether the sidebar is
+shown**, **whether categories show names or are icon-only**, the Apps/Places
+switch style, and more. None of your prior edits to those settings leak across a
+switch.
+
+Selecting the preset you are already on re-applies it — a convenient "reset to
+this preset". The **Reset preset** button on **Properties → General** does the
+same for the currently selected preset.
+
+Changes you make after selecting a preset are not saved back into a built-in
+preset. To keep a customised layout, save it as a custom preset (see below); the
+three built-ins are never modified.
+
 ## Built-in presets
 
 ### Classic

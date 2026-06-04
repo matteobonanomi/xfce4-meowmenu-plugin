@@ -88,4 +88,23 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 	return out;
 }
 
+StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr)
+{
+	(void)ltr; // vertical order is direction-independent for a horizontal strip
+	StripGeometry out;
+	out.order = (position == SidebarPosition::Bottom)
+			? StripOrder::StripBelowResults
+			: StripOrder::StripAboveResults;
+	out.centred = true;
+	out.width_from_search_box = true;
+	return out;
+}
+
+bool meow_category_label_visible(bool category_show_name, bool horizontal)
+{
+	// A Top/Bottom strip is icon-only; otherwise the stored intent stands. This
+	// is the one decision both Apps and Places sidebar buttons consult.
+	return category_show_name && !horizontal;
+}
+
 } // namespace WhiskerMenu

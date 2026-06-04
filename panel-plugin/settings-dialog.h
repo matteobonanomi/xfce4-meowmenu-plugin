@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_SETTINGS_DIALOG_H
 #define WHISKERMENU_SETTINGS_DIALOG_H
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -121,7 +122,29 @@ private:
 	GtkWidget* m_preset_rename_btn = nullptr;
 	GtkWidget* m_preset_delete_btn = nullptr;
 	GtkWidget* m_preset_export_btn = nullptr;
-	bool m_loading_preset = false;
+
+	// Dialog-wide "programmatic update in progress" guard. Set for the whole
+	// sync_preset_widgets() body (and the combo rebuild) so every widget signal
+	// handler early-returns before writing Settings — the cascade of set_active
+	// calls during a preset switch cannot write a divergent value back (FR-004).
+	bool m_programmatic_update = false;
+
+	// Last preset id applied via the combo. Tracked so re-applying the active
+	// preset behaves as "reset to this preset" (FR-006).
+	std::string m_last_applied_preset_id;
+
+	// Live sensitivity recompute hooks owned by the Places / Sidebar tab
+	// builders. Invoked at the end of sync_preset_widgets() so a preset switch
+	// refreshes every dependent control's enabled/greyed state across all tabs
+	// without a dialog reopen (FR-002).
+	std::function<void()> m_places_refresh_sensitivity;
+	std::function<void()> m_sidebar_apply_sub_enable;
+
+	// Switches owned by the Places / Sidebar tabs, driven during preset sync so
+	// the "Enable Places" and "Enable sidebar" controls follow the active preset
+	// (FR-001/003).
+	GtkWidget* m_places_enabled_switch = nullptr;
+	GtkWidget* m_enable_sidebar_switch = nullptr;
 
 	// Tracks Xfconf "property-changed" subscription that mirrors live
 	// menu_width/menu_height updates (e.g. drag-resize) into the spin buttons.

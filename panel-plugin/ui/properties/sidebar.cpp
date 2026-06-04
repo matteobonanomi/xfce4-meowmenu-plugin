@@ -66,7 +66,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	gtk_grid_set_row_spacing(enable_grid, 6);
 	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), GTK_WIDGET(enable_grid)), false, false, 0);
 
-	GtkWidget* enable_sidebar_switch = gtk_switch_new();
+	m_enable_sidebar_switch = gtk_switch_new();
+	GtkWidget* enable_sidebar_switch = m_enable_sidebar_switch;
 	GtkWidget* enable_sidebar_label = gtk_label_new_with_mnemonic(_("_Enable sidebar"));
 	gtk_widget_set_halign(enable_sidebar_label, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(enable_sidebar_label, true);
@@ -104,7 +105,11 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_show_category_names, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->category_show_name = gtk_toggle_button_get_active(button);
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
 		});
 
 	// Category icon size
@@ -148,6 +153,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_categories_opacity, "value-changed",
 		[this](GtkRange* range)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->categories_opacity = static_cast<int>(gtk_range_get_value(range));
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
@@ -199,9 +206,15 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		gtk_widget_set_sensitive(m_show_category_names, enabled && lr);
 	};
 
+	// Expose this tab's sub-enable recompute so sync_preset_widgets() can refresh
+	// the Sidebar greying after a preset switch (FR-002).
+	m_sidebar_apply_sub_enable = apply_sidebar_sub_enable;
+
 	connect(enable_sidebar_switch, "state-set",
 		[this, apply_sidebar_sub_enable](GtkSwitch*, gboolean state) -> gboolean
 		{
+			if (m_programmatic_update)
+				return FALSE;
 			m_settings->sidebar_enabled = state;
 			apply_sidebar_sub_enable();
 			m_plugin->reload_menu();
@@ -212,6 +225,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_sidebar_position_combo, "changed",
 		[this, apply_sidebar_sub_enable](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;
@@ -237,6 +252,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_hover_switch_category, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->category_hover_activate = gtk_toggle_button_get_active(button);
 		});
 
@@ -284,6 +301,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_display_favorites, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			if (gtk_toggle_button_get_active(button))
 				m_settings->default_category = Settings::CategoryFavorites;
 		});
@@ -291,6 +310,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_display_recent, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			if (gtk_toggle_button_get_active(button))
 				m_settings->default_category = Settings::CategoryRecent;
 		});
@@ -298,6 +319,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_display_applications, "toggled",
 		[this](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			if (gtk_toggle_button_get_active(button))
 				m_settings->default_category = Settings::CategoryAll;
 		});

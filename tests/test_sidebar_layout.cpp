@@ -166,6 +166,36 @@ void parse_positions()
 	CHECK(meow_parse_sidebar_position("nonsense") == SidebarPosition::Left);
 }
 
+// T023: Top/Bottom strip stacking order and width source (FR-017/018/020).
+void strip_geometry_ordering()
+{
+	// Bottom → strip below the results box; Top → strip above. The order is
+	// direction-independent: identical in LTR and RTL.
+	for (bool ltr : { true, false })
+	{
+		StripGeometry top = meow_compute_strip_geometry(SidebarPosition::Top, ltr);
+		CHECK(top.order == StripOrder::StripAboveResults);
+		CHECK(top.centred);
+		CHECK(top.width_from_search_box);
+
+		StripGeometry bottom = meow_compute_strip_geometry(SidebarPosition::Bottom, ltr);
+		CHECK(bottom.order == StripOrder::StripBelowResults);
+		CHECK(bottom.centred);
+		CHECK(bottom.width_from_search_box);
+	}
+}
+
+// T038: the single label-visibility decision is identical for Apps and Places
+// buttons (both call meow_category_label_visible). Names show only when
+// "show names" is on AND the sidebar is not a horizontal strip (FR-015/016).
+void label_visibility_decision()
+{
+	CHECK(meow_category_label_visible(true,  false) == true);   // names on, vertical
+	CHECK(meow_category_label_visible(true,  true)  == false);  // horizontal strip → icon-only
+	CHECK(meow_category_label_visible(false, false) == false);  // names off
+	CHECK(meow_category_label_visible(false, true)  == false);  // names off + strip
+}
+
 } // namespace
 
 int main()
@@ -178,6 +208,8 @@ int main()
 	row6_disabled_places_off();
 	fr029_reversion();
 	parse_positions();
+	strip_geometry_ordering();
+	label_visibility_decision();
 
 	if (g_failures != 0)
 	{

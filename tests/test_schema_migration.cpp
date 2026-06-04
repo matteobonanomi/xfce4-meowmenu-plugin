@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 4;
+	return 5;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -44,6 +44,43 @@ static bool needs_v2_block(int current_schema_version)
 static bool needs_v4_block(int current_schema_version)
 {
 	return current_schema_version < 4;
+}
+
+static bool needs_v5_block(int current_schema_version)
+{
+	return current_schema_version < 5;
+}
+
+/* fresh_install_preset_id:
+ *
+ * Fresh installs apply the Modern preset (FR-010). Pure mirror of the v1
+ * is_fresh_install branch for the regression guard.
+ *
+ * Returns: the preset id a fresh install lands on.
+ */
+static const char* fresh_install_preset_id()
+{
+	return "modern";
+}
+
+/* derive_upgrade_preset_name:
+ * @has_stored_id:        whether the channel already has a current-preset-id.
+ * @matched_builtin_name: the matching built-in's name, or nullptr if the live
+ *                        layout matches no built-in exactly.
+ * @stored_name:          the existing stored name when @has_stored_id is true.
+ *
+ * v4→v5 (R2): the upgrade path NEVER hard-defaults the label to "Classic".
+ * When an identity is already stored it is kept; otherwise an exact built-in
+ * match adopts that built-in's name and anything else becomes "Custom".
+ *
+ * Returns: the active-preset label after migration.
+ */
+static const char* derive_upgrade_preset_name(bool has_stored_id,
+	const char* matched_builtin_name, const char* stored_name)
+{
+	if (has_stored_id)
+		return stored_name;
+	return matched_builtin_name ? matched_builtin_name : "Custom";
 }
 
 /* migrate_hidden_sidebar_enabled:
@@ -138,24 +175,49 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 4);
+	assert(target_schema_version() == 5);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
 	assert(needs_migration(3) == true);
-	assert(needs_migration(4) == false);
+	assert(needs_migration(4) == true);
 	assert(needs_migration(5) == false);
+	assert(needs_migration(6) == false);
 
-	// v0 → v4 walks through every block
+	// v0 → v5 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
 	assert(needs_v4_block(0) == true);
+	assert(needs_v5_block(0) == true);
 
-	// v3 → v4 only runs the v4 block
-	assert(needs_v1_block(3) == false);
-	assert(needs_v2_block(3) == false);
-	assert(needs_v4_block(3) == true);
+	// v4 → v5 only runs the v5 block
+	assert(needs_v1_block(4) == false);
+	assert(needs_v2_block(4) == false);
 	assert(needs_v4_block(4) == false);
+	assert(needs_v5_block(4) == true);
+	assert(needs_v5_block(5) == false);
+}
+
+static void test_fresh_install_lands_on_modern()
+{
+	// FR-010 regression guard: a fresh install applies Modern, not Classic.
+	assert(std::strcmp(fresh_install_preset_id(), "modern") == 0);
+}
+
+static void test_upgrade_label_derivation()
+{
+	// Exact built-in match → adopt that built-in's name (never "Classic" by
+	// default). nullptr matched-name → the layout matched no built-in → Custom.
+	assert(std::strcmp(derive_upgrade_preset_name(false, "Modern", nullptr), "Modern") == 0);
+	assert(std::strcmp(derive_upgrade_preset_name(false, "Classic", nullptr), "Classic") == 0);
+	assert(std::strcmp(derive_upgrade_preset_name(false, "Full Screen", nullptr), "Full Screen") == 0);
+	assert(std::strcmp(derive_upgrade_preset_name(false, nullptr, nullptr), "Custom") == 0);
+
+	// An already-stored identity is preserved verbatim on upgrade.
+	assert(std::strcmp(derive_upgrade_preset_name(true, nullptr, "My Layout"), "My Layout") == 0);
+
+	// The old hard "classic" default must never appear for an unmatched layout.
+	assert(std::strcmp(derive_upgrade_preset_name(false, nullptr, nullptr), "classic") != 0);
 }
 
 static void test_hidden_sidebar_migration()
@@ -264,8 +326,9 @@ static void test_idempotent_guard()
 //   Bring up a real xfconfd on XDG_CONFIG_HOME=/tmp/meow-test-XXXXXX,
 //   write a v0 property set (favorites, view-mode, menu-opacity=60),
 //   instantiate Settings, call migrate_schema(false),
-//   assert: schema-version==1, categories-opacity==60,
-//            current-preset-id=="classic".
+//   assert: schema-version==5, categories-opacity==60, and the active-preset
+//            identity derived from the live layout (NOT hard-defaulted to
+//            "classic"; an exact built-in match adopts it, otherwise "Custom").
 //
 // TODO-INTEGRATION: test_fresh_install_sets_modern()
 //   Same fixture, but empty channel.
@@ -283,5 +346,7 @@ int main()
 	test_unified_bar_default_fresh_install();
 	test_hidden_sidebar_migration();
 	test_idempotent_guard();
+	test_fresh_install_lands_on_modern();
+	test_upgrade_label_derivation();
 	return 0;
 }

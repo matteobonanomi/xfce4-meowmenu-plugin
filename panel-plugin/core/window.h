@@ -163,15 +163,19 @@ private:
 	 * @button: one of the Apps/Places mode toggles.
 	 * @show_icons: TRUE for a themed icon child, FALSE for the text label.
 	 * @icon_chain: NULL-terminated icon fallback chain used when @show_icons.
-	 * @label: gettext-translated mode name; the text-mode child and, in icon
-	 *         mode, the tooltip + accessible name so the meaning survives.
+	 * @short_label: gettext-translated short name ("Apps"/"Places") used to
+	 *         build the visible text-mode label.
+	 * @long_label: gettext-translated descriptive name ("Applications"/"Places")
+	 *         used for the tooltip + accessible name in both modes, so the full
+	 *         meaning survives even in icon-only mode.
 	 *
 	 * Swaps the toggle's child between a GtkLabel and a GtkImage in place,
 	 * leaving the toggle's active state and styling untouched. A no-op when the
 	 * child is already in the requested form.
 	 */
 	void set_mode_button_content(GtkToggleButton* button, bool show_icons,
-			const char* const* icon_chain, const char* label);
+			const char* const* icon_chain, const char* short_label,
+			const char* long_label);
 
 	/* apply_switch_presentation:
 	 * @pres: the computed presentation for this layout pass.
@@ -258,6 +262,12 @@ private:
 	// width even while some buttons are hidden during an Apps↔Places switch.
 	GtkSizeGroup* m_category_width_group;
 	GtkSizeGroup* m_sidebar_size_group;
+	// Forces the two Apps/Places mode buttons to equal width in every layout
+	// and preset, surviving the icon↔text child swap (FR-013).
+	GtkSizeGroup* m_mode_button_size_group;
+	// Ties the Top/Bottom category strip to the search-box width and keeps it
+	// centred (FR-019/020). Built lazily on the first strip layout.
+	GtkSizeGroup* m_strip_width_group;
 
 	GdkRectangle m_geometry;
 	bool m_layout_ltr;

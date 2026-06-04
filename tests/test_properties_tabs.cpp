@@ -27,6 +27,12 @@
 #include <string>
 #include <vector>
 
+// T013: the display-free synced-keys list (driven by sync_preset_widgets) MUST
+// equal the governed-key set, so a preset switch leaves no governed control
+// stale (FR-001/003). Both lists live in the Settings-free preset-builtins.cpp,
+// linked directly so this assertion needs no GTK display.
+#include "presets/preset.h"
+
 namespace
 {
 
@@ -263,6 +269,19 @@ static void test_placement_grid_complete_and_no_extras()
 		assert(required.count(k) == 1 && "placement grid has orphan key not in required list");
 }
 
+// T013: synced_keys() must cover exactly governed_keys() — order-independent.
+void test_synced_keys_cover_governed_keys()
+{
+	std::set<std::string> governed(WhiskerMenu::governed_keys().begin(),
+		WhiskerMenu::governed_keys().end());
+	std::set<std::string> synced(WhiskerMenu::synced_keys().begin(),
+		WhiskerMenu::synced_keys().end());
+	for (const auto& k : governed)
+		assert(synced.count(k) == 1 && "governed key not synced by the Properties dialog");
+	for (const auto& k : synced)
+		assert(governed.count(k) == 1 && "synced key is not in the governed set");
+}
+
 int main()
 {
 	test_no_duplication();
@@ -270,5 +289,6 @@ int main()
 	test_exactly_six_tabs();
 	test_sane_enable_when();
 	test_placement_grid_complete_and_no_extras();
+	test_synced_keys_cover_governed_keys();
 	return 0;
 }

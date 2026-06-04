@@ -174,6 +174,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	connect(m_item_icon_size, "changed",
 		[this](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->launcher_icon_size = gtk_combo_box_get_active(combo) - 1;
 		});
 
@@ -231,6 +233,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	connect(m_show_as_icons, "toggled",
 		[this, apply_view_mode_sub_enables](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			if (!gtk_toggle_button_get_active(button))
 				return;
 			m_settings->view_mode = Settings::ViewAsIcons;
@@ -242,6 +246,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	connect(m_show_as_list, "toggled",
 		[this, apply_view_mode_sub_enables](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			if (!gtk_toggle_button_get_active(button))
 				return;
 			m_settings->view_mode = Settings::ViewAsList;
@@ -253,6 +259,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	connect(m_show_as_tree, "toggled",
 		[this, apply_view_mode_sub_enables](GtkToggleButton* button)
 		{
+			if (m_programmatic_update)
+				return;
 			if (!gtk_toggle_button_get_active(button))
 				return;
 			m_settings->view_mode = Settings::ViewAsTree;
@@ -286,6 +294,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	connect(m_apps_opacity, "value-changed",
 		[this](GtkRange* range)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->apps_opacity = static_cast<int>(gtk_range_get_value(range));
 			m_plugin->reload_menu();
 			refresh_customized_indicator();

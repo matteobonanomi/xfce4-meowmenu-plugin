@@ -104,6 +104,56 @@ SidebarPosition meow_parse_sidebar_position(const char* value);
  */
 SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state);
 
+// Vertical stacking of a docked Top/Bottom category strip relative to the
+// results box.
+enum class StripOrder
+{
+	StripAboveResults,   // strip is rendered above the results box (Top)
+	StripBelowResults    // strip is rendered below the results box (Bottom)
+};
+
+/* StripGeometry:
+ *
+ * The render-time geometry of a docked Top/Bottom category strip: where it sits
+ * relative to the results box, that it is horizontally centred, and that its
+ * width tracks the search box. centred / width_from_search_box are invariants
+ * (always true) — they are surfaced so the unit test pins them against drift.
+ */
+struct StripGeometry
+{
+	StripOrder order;
+	bool centred;                 // always true — strip is horizontally centred
+	bool width_from_search_box;   // always true — width source is the search box
+};
+
+/* meow_compute_strip_geometry:
+ * @position: the stored sidebar position (only Top/Bottom produce a strip).
+ * @ltr: text direction; passed for completeness — the vertical strip order is
+ *       direction-independent (a Top strip is above the results in LTR and RTL).
+ *
+ * Pure decision for a Top/Bottom strip's stacking order and width source. Top
+ * places the strip above the results box (it sits below the search bar); Bottom
+ * places it below the results box. Left/Right are not strips and default to the
+ * Top arrangement (the caller does not render a strip for them).
+ *
+ * Returns: the resolved StripGeometry; centred and width_from_search_box are
+ * always true.
+ */
+StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr);
+
+/* meow_category_label_visible:
+ * @category_show_name: the stored "show category names" intent.
+ * @horizontal: whether the sidebar is a horizontal Top/Bottom strip.
+ *
+ * The single label-visibility decision shared by every sidebar button — Apps
+ * category buttons and Places section buttons alike — so names appear or hide
+ * identically in both modes (FR-015/016). A horizontal strip is always
+ * icon-only regardless of the stored intent.
+ *
+ * Returns: true when sidebar buttons should show their text label.
+ */
+bool meow_category_label_visible(bool category_show_name, bool horizontal);
+
 } // namespace WhiskerMenu
 
 #endif // MEOWMENU_CORE_SIDEBAR_LAYOUT_H
