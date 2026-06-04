@@ -19,6 +19,7 @@
 
 #include "launcher/command.h"
 #include "core/plugin.h"
+#include "presets/preset.h"
 #include "search/search-action.h"
 #include "ui/slot.h"
 
@@ -382,6 +383,25 @@ void Settings::load(const gchar* base)
 }
 
 //-----------------------------------------------------------------------------
+
+/* Settings::current_preset_name:
+ *
+ * Resolves the active preset's stored identity name for display as the
+ * active-preset label. A single code path serves built-ins (localized display
+ * name) and custom presets (user-entered stored name). Falls back to the raw
+ * stored id if the id resolves to no known preset (e.g. a deleted custom one).
+ *
+ * Returns: the name to show; never the hard-coded "Classic" default.
+ */
+std::string Settings::current_preset_name() const
+{
+	const gchar* id = static_cast<const gchar*>(current_preset_id);
+	const std::string sid = id ? id : "";
+	const LayoutPreset* p = find_preset_by_id(sid);
+	if (p)
+		return p->name.empty() ? p->display_name : p->name;
+	return sid;
+}
 
 void Settings::prevent_invalid()
 {

@@ -48,6 +48,10 @@ struct LayoutPreset
 {
 	std::string   id;
 	std::string   display_name;
+	// Stored identity name surfaced as the active-preset label. For built-ins
+	// it equals the localized display name (from the .meowpreset Name= key or
+	// the C++ table); for custom presets it is the user's chosen name.
+	std::string   name;
 	std::string   description;
 	bool          is_builtin;
 	PresetValueMap values;
@@ -63,6 +67,18 @@ enum BuiltinPresetIndex
 };
 
 extern const LayoutPreset BUILTIN_PRESETS[PRESET_BUILTIN_COUNT];
+
+// Authoritative, complete set of settings a built-in preset fully determines.
+// This is the single source of truth for "what a preset governs": every
+// built-in (both its .meowpreset seed and the C++ fallback table) MUST define
+// a value for every key returned here, and a unit test enforces it.
+const std::vector<std::string>& governed_keys();
+
+// The set of governed keys the Properties dialog re-syncs onto its widgets when
+// a preset is applied (sync_preset_widgets). Kept as a display-free static list
+// so a unit test can assert it equals governed_keys() — i.e. no governed key is
+// left unsynced — without instantiating a GTK display.
+const std::vector<std::string>& synced_keys();
 
 // Apply all values from preset to settings; set current_preset_id at the end.
 void apply_preset(const LayoutPreset& preset, Settings& settings);

@@ -182,6 +182,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_switch_loc(SwitchLocation::InSidebar),
 	m_category_width_group(nullptr),
 	m_sidebar_size_group(nullptr),
+	m_mode_button_size_group(nullptr),
+	m_strip_width_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
 	m_layout_categories_horizontal(false),
@@ -568,6 +570,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_toggle_button_set_active(m_mode_btn_apps, true);
 	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_apps), true, true, 0);
 	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_places), true, true, 0);
+	// Equal-width Apps/Places buttons in every layout/preset (FR-013). A size
+	// group forces both to the larger natural width regardless of label length
+	// or the icon↔text child swap — more robust than box homogeneity, which the
+	// strip relocation can defeat.
+	m_mode_button_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	gtk_size_group_add_widget(m_mode_button_size_group, GTK_WIDGET(m_mode_btn_apps));
+	gtk_size_group_add_widget(m_mode_button_size_group, GTK_WIDGET(m_mode_btn_places));
 
 	connect(m_mode_btn_apps, "toggled",
 		[this](GtkToggleButton* b)
@@ -1050,10 +1059,16 @@ void WhiskerMenu::Window::show(const Position position)
 	m_recent->reset_selection();
 	m_applications->reset_selection();
 
-	// Make sure icon sizes are correct
+	// Make sure icon sizes are correct. The Places section buttons are reloaded
+	// on the SAME trigger as the Apps category buttons so sidebar label
+	// visibility (names vs icon-only) is identical in both modes — both consult
+	// the one shared decision in CategoryButton::reload_icon_size (FR-015/016).
 	m_favorites->get_button()->reload_icon_size();
 	m_recent->get_button()->reload_icon_size();
 	m_applications->get_button()->reload_icon_size();
+	m_places_home_btn->reload_icon_size();
+	m_places_history_btn->reload_icon_size();
+	m_places_fav_btn->reload_icon_size();
 
 	m_applications->reload_category_icon_size();
 
@@ -1213,8 +1228,21 @@ void WhiskerMenu::Window::show(const Position position)
 		const int sidebar_width = m_workarea.width / 6;
 		const bool sidebar_on_left = (m_layout_ltr == m_layout_categories_alternate);
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), sidebar_width, -1);
-		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_on_left ? 0 : sidebar_width);
-		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_on_left ? sidebar_width : 0);
+		// With a Top/Bottom strip the vertical sidebar is hidden, so a one-sided
+		// margin would shove the results box off-centre. Mirror the margin on
+		// both sides to keep the results box centred with the same symmetric
+		// empty space (FR-023/SC-007); the strip spans only the centred
+		// search-box-width column above/below it, never the full workarea.
+		if (cats_horizontal)
+		{
+			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_width);
+			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_width);
+		}
+		else
+		{
+			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_on_left ? 0 : sidebar_width);
+			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_on_left ? sidebar_width : 0);
+		}
 	}
 	else
 	{
@@ -2112,14 +2140,18 @@ void WhiskerMenu::Window::move_window()
 //-----------------------------------------------------------------------------
 
 void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
-		bool show_icons, const char* const* icon_chain, const char* label)
+		bool show_icons, const char* const* icon_chain, const char* short_label,
+		const char* long_label)
 {
 	GtkWidget* child = gtk_bin_get_child(GTK_BIN(button));
 
-	// Accessible name + tooltip carry the meaning in icon-only mode (FR-004);
-	// harmless to keep set in text mode too.
-	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(button)), label);
-	gtk_widget_set_tooltip_text(GTK_WIDGET(button), show_icons ? label : nullptr);
+	// The pure helper picks the label placement (FR-012/014): the long
+	// descriptive name is the accessible name in both modes and the tooltip in
+	// icon-only mode; the short label is the visible text in text mode.
+	const ModeButtonLabels labels =
+			meow_mode_button_labels(show_icons, short_label, long_label);
+	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(button)), labels.accessible_name);
+	gtk_widget_set_tooltip_text(GTK_WIDGET(button), labels.tooltip_text);
 
 	if (show_icons)
 	{
@@ -2135,9 +2167,14 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 	}
 	else
 	{
+		// Visible text mode shows the short label; the long name stays on the
+		// tooltip/accessible name set above.
 		if (GTK_IS_LABEL(child))
+		{
+			gtk_label_set_text(GTK_LABEL(child), labels.visible_text);
 			return;
-		GtkWidget* text = gtk_label_new(label);
+		}
+		GtkWidget* text = gtk_label_new(labels.visible_text);
 		if (child)
 			gtk_container_remove(GTK_CONTAINER(button), child);
 		gtk_container_add(GTK_CONTAINER(button), text);
@@ -2151,9 +2188,13 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 {
 	const bool icons = pres.effective_show_icons;
 
-	// Text↔icon child swap (FR-002/003) and tooltips/accessible names (FR-004).
-	set_mode_button_content(m_mode_btn_apps, icons, MEOW_SWITCH_APPS_ICONS, _("Applications"));
-	set_mode_button_content(m_mode_btn_places, icons, MEOW_SWITCH_PLACES_ICONS, _("Places"));
+	// Text↔icon child swap (FR-012/014): the visible text label is the short
+	// "Apps"/"Places"; the long "Applications"/"Places" stays as tooltip and
+	// accessible name in both modes.
+	set_mode_button_content(m_mode_btn_apps, icons, MEOW_SWITCH_APPS_ICONS,
+			_("Apps"), _("Applications"));
+	set_mode_button_content(m_mode_btn_places, icons, MEOW_SWITCH_PLACES_ICONS,
+			_("Places"), _("Places"));
 
 	// Switch-box orientation (FR-007/008/014): vertical only on a vertical
 	// sidebar with category names hidden; horizontal everywhere else.
@@ -2309,9 +2350,23 @@ void WhiskerMenu::Window::update_layout()
 				gtk_scrolled_window_set_policy(m_strip_scroll,
 						GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
 				gtk_scrolled_window_set_overlay_scrolling(m_strip_scroll, TRUE);
+				// Don't let an icon-heavy strip widen the menu: the scroller
+				// requests a minimal natural width and scrolls overflow within
+				// the search-box-matched width set by the size group (FR-020).
+				gtk_scrolled_window_set_propagate_natural_width(m_strip_scroll, FALSE);
 				gtk_box_pack_start(m_categories_box, GTK_WIDGET(m_strip_scroll), true, true, 0);
 			}
 			scroller_add_child(m_strip_scroll, GTK_WIDGET(m_category_buttons));
+			// Centre the strip and tie its width to the search box (FR-019/020).
+			// A shared horizontal size group keeps the strip == search-box width
+			// without re-deriving the workarea/2 figure used in fullscreen.
+			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_CENTER);
+			if (!m_strip_width_group)
+			{
+				m_strip_width_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+				gtk_size_group_add_widget(m_strip_width_group, GTK_WIDGET(m_search_box));
+				gtk_size_group_add_widget(m_strip_width_group, GTK_WIDGET(m_categories_box));
+			}
 			// Reveal the scroller/viewport without gtk_widget_show_all, which
 			// would override the per-button visibility set above.
 			gtk_widget_show(GTK_WIDGET(m_strip_scroll));
@@ -2330,6 +2385,9 @@ void WhiskerMenu::Window::update_layout()
 			scroller_add_child(m_sidebar, GTK_WIDGET(m_category_buttons));
 			gtk_widget_set_visible(GTK_WIDGET(m_categories_box), false);
 			gtk_widget_set_visible(GTK_WIDGET(m_sidebar), want_vertical);
+			// No strip in this structure: drop the centred-strip alignment so
+			// the (hidden) container imposes nothing on its size group.
+			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		}
 		g_object_unref(m_category_buttons);
 		m_sidebar_struct = want_struct;
@@ -2470,14 +2528,36 @@ void WhiskerMenu::Window::update_layout()
 		gtk_style_context_remove_class(context, "bottom");
 	}
 
+	// Top/Bottom strip ordering is driven by the sidebar position itself, not by
+	// m_layout_categories_alternate (which encodes left/right) nor by the
+	// search-bar position (FR-017/018, research R7). The pure helper resolves the
+	// stacking order; vertical (left/right) layouts keep the legacy mapping for
+	// the hidden strip container.
+	const StripGeometry strip_geom = meow_compute_strip_geometry(
+			meow_parse_sidebar_position(m_settings->sidebar_position), m_layout_ltr);
+	const bool strip_below_results = m_layout_categories_horizontal
+			&& strip_geom.order == StripOrder::StripBelowResults;
+	const bool strip_top_row = m_layout_categories_horizontal
+			? !strip_below_results
+			: !m_layout_categories_alternate;
+
+	// Rhythm-matched symmetric gap: equal space before and after the strip
+	// (one gap is the inter-row spacing, the other the strip's outer margin),
+	// so the strip is not flush against the menu edge (FR-021).
+	const int STRIP_GAP = 6;
+	gtk_widget_set_margin_top(GTK_WIDGET(m_categories_box),
+			m_layout_categories_horizontal && !strip_below_results ? STRIP_GAP : 0);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box),
+			m_layout_categories_horizontal && strip_below_results ? STRIP_GAP : 0);
+
 	gtk_grid_remove_row(m_contents_box, 1);
 	gtk_grid_remove_row(m_contents_box, 0);
 	if (m_layout_categories_horizontal)
 	{
 		gtk_grid_set_column_spacing(m_contents_box, 0);
-		gtk_grid_set_row_spacing(m_contents_box, 6);
+		gtk_grid_set_row_spacing(m_contents_box, STRIP_GAP);
 
-		gtk_style_context_add_class(context, m_layout_categories_alternate ? "bottom" : "top");
+		gtk_style_context_add_class(context, strip_below_results ? "bottom" : "top");
 	}
 	else
 	{
@@ -2502,13 +2582,16 @@ void WhiskerMenu::Window::update_layout()
 		gtk_box_reorder_child(m_commands_box, m_commands_spacer, 9);
 	}
 
-	if (!m_layout_categories_alternate)
+	if (strip_top_row)
 	{
+		// Strip above the results row (Top strip; below the search bar since the
+		// whole grid sits under it). The inserted row pushes the results down.
 		gtk_grid_insert_row(m_contents_box, 0);
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_categories_box), 0, 0, 2, 1);
 	}
 	else
 	{
+		// Strip below the results row (Bottom strip).
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_categories_box), 0, 1, 2, 1);
 	}
 

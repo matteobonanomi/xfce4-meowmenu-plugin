@@ -17,6 +17,7 @@
 
 #include "category-button.h"
 
+#include "core/sidebar-layout.h"
 #include "settings.h"
 #include "ui/slot.h"
 
@@ -236,9 +237,12 @@ void CategoryButton::reload_icon_size()
 	// NOTE: schema v2 — categories are rendered icon-only whenever the sidebar is
 	// laid out horizontally (sidebar-position ∈ {top, bottom}); the legacy
 	// /position-categories-horizontal key is migrated away (see migrate_schema).
+	// The single shared decision (FR-015/016) ensures Apps category buttons and
+	// Places section buttons — all CategoryButtons reloaded on the same trigger —
+	// show or hide labels identically in both modes.
 	const bool sidebar_horizontal = (g_strcmp0(m_settings->sidebar_position, "top") == 0
 			|| g_strcmp0(m_settings->sidebar_position, "bottom") == 0);
-	if (m_settings->category_show_name && !sidebar_horizontal)
+	if (meow_category_label_visible(m_settings->category_show_name, sidebar_horizontal))
 	{
 		gtk_widget_set_has_tooltip(GTK_WIDGET(m_button), false);
 		gtk_box_set_child_packing(m_box, m_icon, false, false, 0, GTK_PACK_START);

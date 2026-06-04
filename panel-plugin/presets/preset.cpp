@@ -37,112 +37,9 @@ static std::vector<LayoutPreset> g_user_presets;
 // ---------------------------------------------------------------------------
 static std::vector<LayoutPreset> g_file_presets;
 
-// ---------------------------------------------------------------------------
-// Helper: build a PresetValueMap from a brace-enclosed initializer list.
-// ---------------------------------------------------------------------------
-
-static PresetValueMap make_values(std::initializer_list<std::pair<const char*, PresetValue>> items)
-{
-	PresetValueMap m;
-	for (auto& item : items)
-		m[item.first] = item.second;
-	return m;
-}
-
-// ---------------------------------------------------------------------------
-// Built-in preset definitions — values from data-model.md §"Mappa proprietà ↔ preset"
-// Properties with (=) are absent from the map (inherit from current config).
-// ---------------------------------------------------------------------------
-
-const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
-	// PRESET_CLASSIC
-	{
-		"classic",
-		N_("Classic"),
-		N_("Traditional Whisker Menu layout. Compact window, sidebar on the right, apps as a list."),
-		true,
-		make_values({
-			{ "corner-radius",        PresetValue::from_int(0)              },
-			{ "panel-gap",            PresetValue::from_int(0)              },
-			{ "categories-opacity",   PresetValue::from_int(100)            },
-			{ "apps-opacity",         PresetValue::from_int(100)            },
-			{ "sidebar-position",     PresetValue::from_str("right")        },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
-			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("top")          },
-			{ "commands-position",    PresetValue::from_str("top-right")    },
-			{ "layout-mode",          PresetValue::from_str("docked")       },
-			{ "unified-bar",          PresetValue::from_bool(false)         },
-			{ "launcher-icon-size",   PresetValue::from_int(2)              }, // Small
-			{ "hover-switch-category",PresetValue::from_bool(false)         },
-			{ "view-mode-default",    PresetValue::from_str("list")         },
-			{ "default-category",     PresetValue::from_str("favorites")    },
-			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
-			{ "menu-width",           PresetValue::from_int(450)            },
-			{ "menu-height",          PresetValue::from_int(500)            },
-			{ "places-enabled",       PresetValue::from_bool(false)         },
-			{ "places-show-icons",    PresetValue::from_bool(false)         },
-		})
-	},
-	// PRESET_MODERN
-	{
-		"modern",
-		N_("Modern"),
-		N_("Contemporary layout with rounded corners, categories on the left, and hover-to-switch enabled."),
-		true,
-		make_values({
-			{ "corner-radius",        PresetValue::from_int(12)            },
-			{ "panel-gap",            PresetValue::from_int(8)             },
-			{ "categories-opacity",   PresetValue::from_int(80)            },
-			{ "apps-opacity",         PresetValue::from_int(70)            },
-			{ "sidebar-position",     PresetValue::from_str("left")        },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
-			{ "search-bar-position",  PresetValue::from_str("bottom")      },
-			{ "profile-position",     PresetValue::from_str("top")         },
-			{ "commands-position",    PresetValue::from_str("top-right")   },
-			{ "layout-mode",          PresetValue::from_str("docked")      },
-			{ "unified-bar",          PresetValue::from_bool(false)        },
-			{ "launcher-icon-size",   PresetValue::from_int(3)             }, // Normal
-			{ "grid-density",         PresetValue::from_str("medium")      },
-			{ "hover-switch-category",PresetValue::from_bool(true)         },
-			{ "view-mode-default",    PresetValue::from_str("icons")       },
-			{ "default-category",     PresetValue::from_str("recent")      },
-			{ "stay-on-focus-out",    PresetValue::from_bool(false)        },
-			{ "menu-width",           PresetValue::from_int(520)           },
-			{ "menu-height",          PresetValue::from_int(500)           },
-			{ "places-enabled",       PresetValue::from_bool(true)         },
-			{ "places-show-icons",    PresetValue::from_bool(true)         },
-		})
-	},
-	// PRESET_FULLSCREEN
-	{
-		"fullscreen",
-		N_("Full Screen"),
-		N_("Launcher fills the whole screen with a centered grid and categories on the left."),
-		true,
-		make_values({
-			{ "corner-radius",        PresetValue::from_int(0)              },
-			{ "panel-gap",            PresetValue::from_int(0)              },
-			{ "categories-opacity",   PresetValue::from_int(100)            },
-			{ "apps-opacity",         PresetValue::from_int(100)            },
-			{ "sidebar-position",     PresetValue::from_str("left")         },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
-			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("top")          },
-			{ "commands-position",    PresetValue::from_str("top-right")    },
-			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
-			{ "grid-density",         PresetValue::from_str("medium")       },
-			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
-			{ "unified-bar",          PresetValue::from_bool(true)          },
-			{ "hover-switch-category",PresetValue::from_bool(true)          },
-			{ "view-mode-default",    PresetValue::from_str("icons")        },
-			{ "default-category",     PresetValue::from_str("all")          },
-			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
-			{ "places-enabled",       PresetValue::from_bool(true)          },
-			{ "places-show-icons",    PresetValue::from_bool(false)         },
-		})
-	},
-};
+// NOTE: BUILTIN_PRESETS[] and governed_keys() live in preset-builtins.cpp —
+// a Settings-free translation unit so the unit tests can link the real table
+// and assert governed-key completeness / file-vs-table agreement.
 
 // ---------------------------------------------------------------------------
 // apply_preset: write each preset value to the matching Settings field.
@@ -166,6 +63,10 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.apps_opacity = val.i;
 		else if (prop == "sidebar-position" && val.kind == PresetValue::Str)
 			settings.sidebar_position = val.s;
+		else if (prop == "sidebar-enabled" && val.kind == PresetValue::Bool)
+			settings.sidebar_enabled = val.b;
+		else if (prop == "category-show-name" && val.kind == PresetValue::Bool)
+			settings.category_show_name = val.b;
 		else if (prop == "position-categories-horizontal" && val.kind == PresetValue::Bool)
 			settings.position_categories_horizontal = val.b;
 		else if (prop == "search-bar-position" && val.kind == PresetValue::Str)
@@ -325,6 +226,18 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 			if (val.kind == PresetValue::Str && !(settings.sidebar_position == val.s.c_str()))
 				return true;
 		}
+		else if (prop == "sidebar-enabled")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.sidebar_enabled) != val.b)
+				return true;
+		}
+		else if (prop == "category-show-name")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.category_show_name) != val.b)
+				return true;
+		}
 		else if (prop == "position-categories-horizontal")
 		{
 			if (val.kind == PresetValue::Bool
@@ -414,6 +327,24 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 					&& static_cast<int>(settings.menu_height) != val.i)
 				return true;
 		}
+		else if (prop == "full-screen-opacity")
+		{
+			if (val.kind == PresetValue::Int
+					&& static_cast<int>(settings.full_screen_opacity) != val.i)
+				return true;
+		}
+		else if (prop == "places-enabled")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.places_enabled) != val.b)
+				return true;
+		}
+		else if (prop == "places-show-icons")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.places_switch_show_icons) != val.b)
+				return true;
+		}
 	}
 	return false;
 }
@@ -432,8 +363,16 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		return g_user_presets;
 	}
 
-	// Group properties by uuid: uuid → (display_name, PresetValueMap)
-	std::map<std::string, std::pair<std::string, PresetValueMap>> by_uuid;
+	// Group properties by uuid. display_name is the legacy label key; name is
+	// the stored identity surfaced as the active-preset label (falls back to
+	// display_name when absent on a pre-v5 custom preset).
+	struct UuidEntry
+	{
+		std::string display_name;
+		std::string name;
+		PresetValueMap values;
+	};
+	std::map<std::string, UuidEntry> by_uuid;
 
 	GHashTableIter iter;
 	gpointer key_ptr, value_ptr;
@@ -460,7 +399,12 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		auto& entry = by_uuid[uuid];
 		if (strcmp(prop_name, "display-name") == 0 && G_VALUE_HOLDS_STRING(gval))
 		{
-			entry.first = g_value_get_string(gval);
+			entry.display_name = g_value_get_string(gval);
+		}
+		else if (strcmp(prop_name, "name") == 0 && G_VALUE_HOLDS_STRING(gval))
+		{
+			const gchar* nv = g_value_get_string(gval);
+			entry.name = nv ? nv : "";
 		}
 		else if (strcmp(prop_name, "created-by") == 0)
 		{
@@ -468,16 +412,16 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		}
 		else if (G_VALUE_HOLDS_INT(gval))
 		{
-			entry.second[prop_name] = PresetValue::from_int(g_value_get_int(gval));
+			entry.values[prop_name] = PresetValue::from_int(g_value_get_int(gval));
 		}
 		else if (G_VALUE_HOLDS_BOOLEAN(gval))
 		{
-			entry.second[prop_name] = PresetValue::from_bool(g_value_get_boolean(gval) != FALSE);
+			entry.values[prop_name] = PresetValue::from_bool(g_value_get_boolean(gval) != FALSE);
 		}
 		else if (G_VALUE_HOLDS_STRING(gval))
 		{
 			const gchar* sv = g_value_get_string(gval);
-			entry.second[prop_name] = PresetValue::from_str(sv ? sv : "");
+			entry.values[prop_name] = PresetValue::from_str(sv ? sv : "");
 		}
 	}
 
@@ -485,7 +429,7 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 
 	for (auto& pair : by_uuid)
 	{
-		const std::string& display_name = pair.second.first;
+		const std::string& display_name = pair.second.display_name;
 		if (display_name.empty())
 		{
 			continue; // entry without display-name is invalid
@@ -493,9 +437,11 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		LayoutPreset p;
 		p.id           = pair.first;
 		p.display_name = display_name;
+		// Fall back to display_name for pre-v5 presets that never stored a name.
+		p.name         = pair.second.name.empty() ? display_name : pair.second.name;
 		p.description  = "";
 		p.is_builtin   = false;
-		p.values       = std::move(pair.second.second);
+		p.values       = std::move(pair.second.values);
 		g_user_presets.push_back(std::move(p));
 	}
 
@@ -544,8 +490,10 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	std::string prefix = "/presets/" + uuid + "/";
 	XfconfChannel* ch = settings.channel;
 
-	// Metadata
+	// Metadata. The stored "name" is the identity surfaced as the active-preset
+	// label; for a freshly saved custom preset it equals the chosen display name.
 	xfconf_channel_set_string(ch, (prefix + "display-name").c_str(), display_name.c_str());
+	xfconf_channel_set_string(ch, (prefix + "name").c_str(), display_name.c_str());
 	xfconf_channel_set_string(ch, (prefix + "created-by").c_str(), "meowmenu-" PACKAGE_VERSION);
 
 	// Governed properties
@@ -554,6 +502,10 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	xfconf_channel_set_int(ch, (prefix + "categories-opacity").c_str(), settings.categories_opacity);
 	xfconf_channel_set_int(ch, (prefix + "apps-opacity").c_str(), settings.apps_opacity);
 	xfconf_channel_set_string(ch, (prefix + "sidebar-position").c_str(), settings.sidebar_position);
+	xfconf_channel_set_bool(ch, (prefix + "sidebar-enabled").c_str(),
+		static_cast<bool>(settings.sidebar_enabled));
+	xfconf_channel_set_bool(ch, (prefix + "category-show-name").c_str(),
+		static_cast<bool>(settings.category_show_name));
 	xfconf_channel_set_bool(ch, (prefix + "position-categories-horizontal").c_str(),
 		static_cast<bool>(settings.position_categories_horizontal));
 	xfconf_channel_set_string(ch, (prefix + "search-bar-position").c_str(), settings.search_bar_position);
@@ -570,6 +522,19 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	if (static_cast<int>(settings.view_mode) == Settings::ViewAsIcons) vm_str = "icons";
 	else if (static_cast<int>(settings.view_mode) == Settings::ViewAsTree) vm_str = "tree";
 	xfconf_channel_set_string(ch, (prefix + "view-mode-default").c_str(), vm_str);
+	const gchar* dc_str = "favorites";
+	if (static_cast<int>(settings.default_category) == Settings::CategoryRecent) dc_str = "recent";
+	else if (static_cast<int>(settings.default_category) == Settings::CategoryAll) dc_str = "all";
+	xfconf_channel_set_string(ch, (prefix + "default-category").c_str(), dc_str);
+	xfconf_channel_set_bool(ch, (prefix + "stay-on-focus-out").c_str(),
+		static_cast<bool>(settings.stay_on_focus_out));
+	xfconf_channel_set_int(ch, (prefix + "menu-width").c_str(), settings.menu_width);
+	xfconf_channel_set_int(ch, (prefix + "menu-height").c_str(), settings.menu_height);
+	xfconf_channel_set_int(ch, (prefix + "full-screen-opacity").c_str(), settings.full_screen_opacity);
+	xfconf_channel_set_bool(ch, (prefix + "places-enabled").c_str(),
+		static_cast<bool>(settings.places_enabled));
+	xfconf_channel_set_bool(ch, (prefix + "places-show-icons").c_str(),
+		static_cast<bool>(settings.places_switch_show_icons));
 
 	settings.current_preset_id = uuid;
 	enumerate_user_presets(ch);

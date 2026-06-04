@@ -1,6 +1,7 @@
 plugin_sources = [
   'launcher/applications-page.cpp',
   'presets/preset.cpp',
+  'presets/preset-builtins.cpp',
   'presets/preset-io.cpp',
   'launcher/category.cpp',
   'launcher/category-button.cpp',

@@ -21,6 +21,8 @@
 #include "presets/preset.h"
 #include "settings.h"
 
+#include <glib/gi18n-lib.h>
+
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
@@ -39,7 +41,7 @@ void Settings::migrate_schema(bool is_fresh_install)
 	if (!channel)
 		return;
 
-	const int current_schema = 4;
+	const int current_schema = 5;
 	if (schema_version >= current_schema)
 		return;
 
@@ -97,10 +99,13 @@ void Settings::migrate_schema(bool is_fresh_install)
 				xfconf_channel_set_string(channel, p.prop, p.val);
 		}
 
+		// Fresh installs land on Modern. Upgrades intentionally leave
+		// current_preset_id unset here — the v5 step derives the active-preset
+		// identity from the user's actual layout instead of hard-defaulting to
+		// "classic" (which would mislabel a non-classic layout). The user's
+		// stored layout values are never touched on upgrade.
 		if (is_fresh_install)
 			apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *this);
-		else
-			current_preset_id = "classic";
 
 		schema_version = 1;
 	}
@@ -217,6 +222,58 @@ void Settings::migrate_schema(bool is_fresh_install)
 		}
 
 		schema_version = 4;
+	}
+
+	if (schema_version < 5)
+	{
+		// Feature 021 — every preset carries a stored identity name surfaced as
+		// the active-preset label, and the upgrade path no longer hard-defaults
+		// to "classic". This step NEVER writes layout values; it only resolves
+		// the active-preset identity and seeds per-preset name metadata.
+
+		// 1. Seed /presets/<uuid>/name for any existing custom preset lacking
+		//    it, defaulting to the preset's display-name.
+		const auto& user_presets = enumerate_user_presets(channel);
+		for (const auto& p : user_presets)
+		{
+			std::string name_key = "/presets/" + p.id + "/name";
+			if (!xfconf_channel_has_property(channel, name_key.c_str()))
+				xfconf_channel_set_string(channel, name_key.c_str(), p.display_name.c_str());
+		}
+
+		// 2. Derive the active-preset identity when none is stored (the case
+		//    the old hard "classic" default used to clobber). Match the live
+		//    layout against the built-ins; on an exact match adopt that
+		//    built-in, otherwise record a distinct custom preset named "Custom"
+		//    capturing the running layout so the label reflects reality.
+		const gchar* stored_id = static_cast<const gchar*>(current_preset_id);
+		if (!stored_id || !*stored_id)
+		{
+			const LayoutPreset* match = nullptr;
+			for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
+			{
+				if (!compute_preset_diff(BUILTIN_PRESETS[i], *this))
+				{
+					match = &BUILTIN_PRESETS[i];
+					break;
+				}
+			}
+			if (match)
+			{
+				// Adopt the built-in identity only — no layout values written.
+				current_preset_id = match->id;
+			}
+			else
+			{
+				// NOTE: save_current_as_user_preset writes the snapshot under
+				// /presets/<uuid>/ (not the live keys) and sets
+				// current_preset_id to the new uuid, giving a truthful label
+				// the user can later rename or save over.
+				save_current_as_user_preset(_("Custom"), *this);
+			}
+		}
+
+		schema_version = 5;
 	}
 
 	end_property_update();

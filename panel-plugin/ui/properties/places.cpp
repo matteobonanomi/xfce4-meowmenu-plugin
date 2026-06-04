@@ -53,6 +53,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), GTK_WIDGET(enable_grid)), false, false, 0);
 
 	GtkWidget* enable_switch = gtk_switch_new();
+	m_places_enabled_switch = enable_switch;
 	GtkWidget* enable_label = gtk_label_new_with_mnemonic(_("Enable _Places"));
 	gtk_widget_set_halign(enable_label, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(enable_label, true);
@@ -164,10 +165,18 @@ GtkWidget* SettingsDialog::init_places_tab()
 	};
 	refresh_sensitivity();
 
+	// Expose this tab's sensitivity recompute so sync_preset_widgets() can
+	// re-evaluate the Places greying after a preset switch (FR-002). This also
+	// re-runs the "Show icons" forced-ON rule when a preset changes the sidebar
+	// position from another tab.
+	m_places_refresh_sensitivity = refresh_sensitivity;
+
 	// Signal wiring
 	connect(enable_switch, "state-set",
 		[this, refresh_sensitivity](GtkSwitch*, gboolean state) -> gboolean
 		{
+			if (m_programmatic_update)
+				return FALSE;
 			m_settings->places_enabled = state;
 			refresh_sensitivity();
 			return FALSE; // let the switch update its visual state
@@ -175,6 +184,8 @@ GtkWidget* SettingsDialog::init_places_tab()
 	connect(show_icons_switch, "state-set",
 		[this](GtkSwitch*, gboolean state) -> gboolean
 		{
+			if (m_programmatic_update)
+				return FALSE;
 			// Stored intent only; the switch re-renders on the next menu open
 			// when update_layout() reads the new value (FR-029, render-time).
 			m_settings->places_switch_show_icons = state;

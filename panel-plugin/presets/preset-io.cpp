@@ -60,6 +60,8 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "apps-opacity",          PresetValue::Int, INT_RANGE(0, 100) },
 	{ "full-screen-opacity",   PresetValue::Int, INT_RANGE(0, 100) },
 	{ "sidebar-position",      PresetValue::Str, 0, 0, STR_DOMAIN(SIDEBAR_DOMAIN) },
+	{ "sidebar-enabled",       PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "category-show-name",    PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "position-categories-horizontal", PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "search-bar-position",   PresetValue::Str, 0, 0, STR_DOMAIN(SEARCHBAR_DOMAIN) },
 	{ "profile-position",      PresetValue::Str, 0, 0, STR_DOMAIN(PROFILE_DOMAIN) },
@@ -306,6 +308,8 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 
 	std::string prefix = "/presets/" + uuid + "/";
 	xfconf_channel_set_string(ch, (prefix + "display-name").c_str(), display_name.c_str());
+	// Seed the stored identity name (active-preset label) alongside display-name.
+	xfconf_channel_set_string(ch, (prefix + "name").c_str(), display_name.c_str());
 	xfconf_channel_set_string(ch, (prefix + "created-by").c_str(), "meowmenu-" PACKAGE_VERSION);
 
 	for (const auto& kv : values)
@@ -498,6 +502,8 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 
 	out.id           = id;
 	out.display_name = display_name;
+	// Built-in identity name equals the localized display name (the Name= key).
+	out.name         = display_name;
 	out.description  = description;
 	out.is_builtin   = true;
 	out.values       = std::move(values);

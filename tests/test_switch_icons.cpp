@@ -115,6 +115,27 @@ int main()
 
 	g_object_unref(theme);
 
+	// Short-vs-long label selection (FR-012/014). Text mode: the visible label
+	// is the short word, the accessible name is the long descriptive name, no
+	// tooltip (the label already reads it). Icon mode: no visible text, the long
+	// name is both accessible name and tooltip.
+	{
+		ModeButtonLabels text_mode = meow_mode_button_labels(false, "Apps", "Applications");
+		CHECK(g_strcmp0(text_mode.visible_text, "Apps") == 0);
+		CHECK(g_strcmp0(text_mode.accessible_name, "Applications") == 0);
+		CHECK(text_mode.tooltip_text == nullptr);
+
+		ModeButtonLabels icon_mode = meow_mode_button_labels(true, "Apps", "Applications");
+		CHECK(icon_mode.visible_text == nullptr);
+		CHECK(g_strcmp0(icon_mode.accessible_name, "Applications") == 0);
+		CHECK(g_strcmp0(icon_mode.tooltip_text, "Applications") == 0);
+
+		// Places: short and long happen to coincide; selection still holds.
+		ModeButtonLabels places_text = meow_mode_button_labels(false, "Places", "Places");
+		CHECK(g_strcmp0(places_text.visible_text, "Places") == 0);
+		CHECK(places_text.tooltip_text == nullptr);
+	}
+
 	// Clean up the synthetic theme tree (best effort).
 	gchar* rm = g_strdup_printf("rm -rf '%s'", root);
 	if (system(rm) != 0)
