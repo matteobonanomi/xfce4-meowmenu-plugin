@@ -81,6 +81,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "menu-width",           PresetValue::from_int(450)            },
 			{ "menu-height",          PresetValue::from_int(500)            },
 			{ "places-enabled",       PresetValue::from_bool(false)         },
+			{ "places-show-icons",    PresetValue::from_bool(false)         },
 		})
 	},
 	// PRESET_MODERN
@@ -110,6 +111,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "menu-width",           PresetValue::from_int(520)           },
 			{ "menu-height",          PresetValue::from_int(500)           },
 			{ "places-enabled",       PresetValue::from_bool(true)         },
+			{ "places-show-icons",    PresetValue::from_bool(true)         },
 		})
 	},
 	// PRESET_FULLSCREEN
@@ -137,6 +139,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "default-category",     PresetValue::from_str("all")          },
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
 			{ "places-enabled",       PresetValue::from_bool(true)          },
+			{ "places-show-icons",    PresetValue::from_bool(false)         },
 		})
 	},
 };
@@ -209,6 +212,8 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.full_screen_opacity = val.i;
 		else if (prop == "places-enabled" && val.kind == PresetValue::Bool)
 			settings.places_enabled = val.b;
+		else if (prop == "places-show-icons" && val.kind == PresetValue::Bool)
+			settings.places_switch_show_icons = val.b;
 	}
 
 	settings.current_preset_id = preset.id;

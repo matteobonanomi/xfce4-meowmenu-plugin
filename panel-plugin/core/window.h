@@ -22,6 +22,7 @@
 
 #include <gtk/gtk.h>
 
+#include "sidebar-layout.h"
 #include "window-keyboard.h"
 
 namespace WhiskerMenu
@@ -158,6 +159,30 @@ private:
 	void search();
 	void update_layout();
 
+	/* set_mode_button_content:
+	 * @button: one of the Apps/Places mode toggles.
+	 * @show_icons: TRUE for a themed icon child, FALSE for the text label.
+	 * @icon_chain: NULL-terminated icon fallback chain used when @show_icons.
+	 * @label: gettext-translated mode name; the text-mode child and, in icon
+	 *         mode, the tooltip + accessible name so the meaning survives.
+	 *
+	 * Swaps the toggle's child between a GtkLabel and a GtkImage in place,
+	 * leaving the toggle's active state and styling untouched. A no-op when the
+	 * child is already in the requested form.
+	 */
+	void set_mode_button_content(GtkToggleButton* button, bool show_icons,
+			const char* const* icon_chain, const char* label);
+
+	/* apply_switch_presentation:
+	 * @pres: the computed presentation for this layout pass.
+	 *
+	 * Drives the Apps/Places switch from @pres: text↔icon child swap,
+	 * box orientation, and relocation between the category list and the
+	 * search-bar row (using per-pass g_object_ref guards). Reflects computed
+	 * state only — the stored switch/sidebar intent is never written.
+	 */
+	void apply_switch_presentation(const SwitchPresentation& pres);
+
 private:
 	Settings* const m_settings;
 	Plugin* m_plugin;
@@ -216,6 +241,17 @@ private:
 	std::vector<GtkWidget*> m_app_category_widgets;
 
 	GtkScrolledWindow* m_sidebar;
+	// Horizontally-scrolling container for the Top/Bottom category strip
+	// (FR-012). Created lazily on the first strip layout; the switch is pinned
+	// outside it (FR-014). nullptr until the sidebar is first shown on top/bottom.
+	GtkScrolledWindow* m_strip_scroll;
+	// Current structural placement of the category list, so update_layout()
+	// only reparents on an actual transition: 1 = vertical sidebar,
+	// 2 = horizontal strip, 3 = hidden (sidebar disabled).
+	int m_sidebar_struct;
+	// Where the Apps/Places switch currently lives, to avoid redundant
+	// reparenting across passes.
+	SwitchLocation m_switch_loc;
 	GtkBox* m_category_buttons;
 	CategoryButton* m_default_button;
 	// NOTE: ignore_hidden=FALSE keeps the sidebar at the widest button's
@@ -226,6 +262,11 @@ private:
 	GdkRectangle m_geometry;
 	bool m_layout_ltr;
 	bool m_layout_categories_horizontal;
+	// Tracked stored intent so show() can fire update_layout() when these
+	// switch/sidebar settings change (none are legacy layout booleans).
+	bool m_layout_sidebar_enabled;
+	bool m_layout_switch_show_icons;
+	bool m_layout_category_show_name;
 	bool m_layout_categories_alternate;
 	bool m_layout_search_alternate;
 	bool m_layout_commands_alternate;

@@ -39,7 +39,7 @@ void Settings::migrate_schema(bool is_fresh_install)
 	if (!channel)
 		return;
 
-	const int current_schema = 3;
+	const int current_schema = 4;
 	if (schema_version >= current_schema)
 		return;
 
@@ -180,6 +180,43 @@ void Settings::migrate_schema(bool is_fresh_install)
 			xfconf_channel_set_int(channel, "/places/max-items", 20);
 
 		schema_version = 3;
+	}
+
+	if (schema_version < 4)
+	{
+		// Feature 020 — "Enable sidebar" switch replaces the legacy "hidden"
+		// sidebar position. Map a stored hidden sidebar to the switch being OFF
+		// and restore a valid Position so the dropdown never shows "hidden".
+		gchar* current_sidebar = xfconf_channel_get_string(channel, "/sidebar-position", nullptr);
+		if (g_strcmp0(current_sidebar, "hidden") == 0)
+		{
+			xfconf_channel_set_bool(channel, "/sidebar-enabled", FALSE);
+			sidebar_enabled = false;
+			xfconf_channel_set_string(channel, "/sidebar-position", "left");
+			sidebar_position = "left";
+		}
+		g_free(current_sidebar);
+
+		// Seed the new keys when absent. switch-show-icons follows the active
+		// preset's default if a preset is set; otherwise the classic OFF.
+		if (!xfconf_channel_has_property(channel, "/sidebar-enabled"))
+			xfconf_channel_set_bool(channel, "/sidebar-enabled", TRUE);
+		if (!xfconf_channel_has_property(channel, "/places/switch-show-icons"))
+		{
+			const LayoutPreset* preset = find_preset_by_id(
+					std::string(static_cast<const char*>(current_preset_id)));
+			gboolean show_icons = FALSE;
+			if (preset)
+			{
+				auto it = preset->values.find("places-show-icons");
+				if (it != preset->values.end() && it->second.kind == PresetValue::Bool)
+					show_icons = it->second.b ? TRUE : FALSE;
+			}
+			xfconf_channel_set_bool(channel, "/places/switch-show-icons", show_icons);
+			places_switch_show_icons = show_icons;
+		}
+
+		schema_version = 4;
 	}
 
 	end_property_update();

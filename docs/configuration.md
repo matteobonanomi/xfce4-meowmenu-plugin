@@ -71,8 +71,9 @@ All MeowMenu settings are exposed in the **Properties** dialog
 
 | Option | Description |
 |--------|-------------|
-| Position | Place the sidebar on the **left**, **right**, or hide it. |
-| Show category name | Display the category label next to its icon. |
+| Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch moves to the right end of the search bar, and the results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
+| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom turn the categories into a horizontal, icon-only strip that scrolls sideways when it overflows; "Show category name" is unavailable there. |
+| Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (-2 = inherit from theme). |
 | Sort categories | Sort the category list alphabetically. |
 | Recent items max | Maximum number of recently-used apps to track. |
@@ -84,6 +85,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Option | Description |
 |--------|-------------|
 | Enable Places | Show a file/folder browser pane in the menu. |
+| Show icons | Render the Apps/Places switch as two icon buttons (an app-grid icon and a folder icon, with tooltips) instead of text labels. Forced on, and shown greyed in Preferences, when the sidebar is on top/bottom or disabled. |
 | Show recent files | Include recently opened files in the Places view. |
 | Show bookmarks | Include user bookmarks (from Thunar or GTK bookmarks). |
 | Bookmark sync | Keep the Places bookmarks in sync with **MeowMenu** or **Thunar**. |
@@ -134,7 +136,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `layout-mode` | string | `docked` | `docked` or `fullscreen`. |
-| `sidebar-position` | string | `left` | `left`, `right`, or `hidden`. |
+| `sidebar-position` | string | `left` | `left`, `right`, `top`, or `bottom`. (A legacy `hidden` value is migrated to `sidebar-enabled = false`.) |
 | `search-bar-position` | string | `top` | `top` or `bottom`. |
 | `profile-position` | string | `top` | `top`, `bottom`, `bottom-right`, or `hidden`. |
 | `commands-position` | string | `top-right` | `top-right`, `bottom-right`, or `hidden`. |
@@ -157,6 +159,7 @@ Replace `<id>` with the numeric plugin ID shown by
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| `sidebar-enabled` | bool | true | Show the category sidebar. When false the sidebar is removed and, with Places on, the Apps/Places switch moves into the search-bar row. |
 | `category-show-name` | bool | true | Show category label text. |
 | `category-icon-size` | int | -2 | Category icon size (-2 = theme default). |
 | `hover-switch-category` | bool | false | Switch category on hover instead of click. |
@@ -180,6 +183,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `places/enabled` | bool | false | Enable the Places pane. |
+| `places/switch-show-icons` | bool | false | Render the Apps/Places switch as icon buttons instead of text. Forced on (render-time only) when the sidebar is on top/bottom or disabled. |
 | `places/history-enabled` | bool | true | Show recently opened files. |
 | `places/favourites-enabled` | bool | true | Show bookmarks. |
 | `places/favourite-sync` | string | `meowmenu` | Keep bookmarks in sync with `meowmenu` or `thunar`. |
