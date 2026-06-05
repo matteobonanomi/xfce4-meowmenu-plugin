@@ -652,6 +652,16 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_box_pack_start(m_vbox, GTK_WIDGET(m_search_box), false, true, 0);
 	gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), true, true, 0);
 
+	// Unified-bar centring cluster (full-screen only). In unified-bar mode the
+	// search entry and the Apps/Places switch must travel together as one
+	// centred unit (switch trailing the entry), so they live in this box and the
+	// box — not the bare entry — becomes m_title_box's centre widget. A fixed
+	// width on the cluster makes the entry yield room to the switch instead of
+	// the row growing. We hold an owning ref because the cluster is unparented in
+	// every non-unified layout; it is released in the destructor.
+	m_search_cluster = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	g_object_ref_sink(m_search_cluster);
+
 	// Three void bands for FullScreen unified-bar mode (FR-008, FR-017, FR-018).
 	// All three are hidden until update_layout() activates the unified bar.
 	// Fixed size_request heights give breathing room; theme authors can override
@@ -925,6 +935,12 @@ WhiskerMenu::Window::~Window()
 	{
 		g_object_unref(m_category_width_group);
 		m_category_width_group = nullptr;
+	}
+
+	if (m_search_cluster)
+	{
+		g_object_unref(m_search_cluster);
+		m_search_cluster = nullptr;
 	}
 
 	if (m_css_provider)
@@ -1253,20 +1269,24 @@ void WhiskerMenu::Window::show(const Position position)
 		const int sidebar_width = m_workarea.width / 6;
 		const bool sidebar_on_left = (m_layout_ltr == m_layout_categories_alternate);
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), sidebar_width, -1);
-		// With a Top/Bottom strip the vertical sidebar is hidden, so a one-sided
-		// margin would shove the results box off-centre. Mirror the margin on
-		// both sides to keep the results box centred with the same symmetric
-		// empty space (FR-023/SC-007); the strip spans only the centred
-		// search-box-width column above/below it, never the full workarea.
-		if (cats_horizontal)
-		{
-			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_width);
-			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_width);
-		}
-		else
+		// The one-sided compensating margin is correct *only* when a vertical
+		// sidebar actually occupies one side. The sidebar is shown only when it is
+		// enabled and not laid out as a Top/Bottom strip; in every other case
+		// (sidebar disabled, or a horizontal strip) no widget fills that side, so a
+		// one-sided margin would shove the results box off-centre — exactly the
+		// "no void on the left" symptom. Mirror the margin on both sides there to
+		// keep the grid centred with symmetric voids, aligned with the centred
+		// search bar (FR-023/SC-007).
+		const bool vertical_sidebar_visible = sidebar_enabled && !cats_horizontal;
+		if (vertical_sidebar_visible)
 		{
 			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_on_left ? 0 : sidebar_width);
 			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_on_left ? sidebar_width : 0);
+		}
+		else
+		{
+			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), sidebar_width);
+			gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), sidebar_width);
 		}
 	}
 	else
@@ -2500,11 +2520,12 @@ void WhiskerMenu::Window::update_layout()
 			                     : GTK_WIDGET(m_category_buttons);
 			break;
 		case SwitchLocation::InSearchBar:
-			// Sidebar disabled: the switch joins whichever row hosts the search
-			// entry — m_title_box in unified-bar mode, else m_search_box (R1) — and
-			// is placed just before the command buttons (see below) so the commands
+			// Sidebar disabled: the switch joins the search entry. In unified-bar
+			// mode that means the centring cluster (so [entry][switch] stays
+			// centred as one unit); otherwise the plain search row, where it is
+			// placed just before the command buttons (see below) so the commands
 			// keep their trailing position and the entry yields the room (FR-019).
-			target = unified_now ? GTK_WIDGET(m_title_box) : GTK_WIDGET(m_search_box);
+			target = unified_now ? m_search_cluster : GTK_WIDGET(m_search_box);
 			break;
 		case SwitchLocation::None:
 		default:
@@ -2516,14 +2537,24 @@ void WhiskerMenu::Window::update_layout()
 			g_object_ref(sw);
 			if (cur)
 				gtk_container_remove(GTK_CONTAINER(cur), sw);
-			if (pres.switch_location == SwitchLocation::InSearchBar)
+			if (pres.switch_location == SwitchLocation::InSearchBar
+					&& target == m_search_cluster)
 			{
-				// Insert the switch directly before the command buttons in the
-				// search row, not at the very trailing edge: the commands stay
-				// rightmost and the search entry shrinks to make room (FR-019). In
-				// full-screen the row is a fixed half-width column, so entry +
-				// switch never exceed the entry's width with Places off. When no
-				// commands share the row, the switch becomes the trailing element.
+				// Unified bar: the switch trails the search entry inside the
+				// centring cluster, so [entry][switch] stay centred as one unit and
+				// the entry shrinks to leave room rather than the row growing
+				// (FR-019). The entry is reordered to child 0 in the unified-bar
+				// transition below, so reorder the switch to last here.
+				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
+				gtk_box_reorder_child(GTK_BOX(target), sw, -1);
+			}
+			else if (pres.switch_location == SwitchLocation::InSearchBar)
+			{
+				// Plain (non-unified) search row: insert the switch directly before
+				// the command buttons, not at the very trailing edge, so the
+				// commands stay rightmost and the search entry shrinks to make room
+				// (FR-019). When no commands share the row, the switch becomes the
+				// trailing element.
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				GtkWidget* cmd = GTK_WIDGET(m_commands_box);
 				if (gtk_widget_get_parent(cmd) == target)
@@ -2766,11 +2797,18 @@ void WhiskerMenu::Window::update_layout()
 	{
 		g_object_ref(m_search_entry);
 		gtk_container_remove(GTK_CONTAINER(m_search_box), GTK_WIDGET(m_search_entry));
-		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), FALSE);
+		// The entry hexpands inside the cluster: the cluster has a fixed width
+		// (set below), so the entry fills whatever the trailing switch leaves.
+		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
-		gtk_box_set_center_widget(m_title_box, GTK_WIDGET(m_search_entry));
+		gtk_box_pack_start(GTK_BOX(m_search_cluster), GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
+		// Entry leads, switch (if any) trails: the re-homing block above may have
+		// already parked the switch in the cluster, so pin the entry to child 0.
+		gtk_box_reorder_child(GTK_BOX(m_search_cluster), GTK_WIDGET(m_search_entry), 0);
+		gtk_widget_set_visible(m_search_cluster, TRUE);
+		gtk_box_set_center_widget(m_title_box, m_search_cluster);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), FALSE);
 		gtk_style_context_add_class(title_ctx, "unified-bar");
 		g_object_unref(m_search_entry);
@@ -2779,6 +2817,10 @@ void WhiskerMenu::Window::update_layout()
 	{
 		g_object_ref(m_search_entry);
 		gtk_box_set_center_widget(m_title_box, nullptr);
+		// The entry now lives in the cluster (the switch, if it was there, has
+		// already been re-homed to m_search_box by the block above on this pass).
+		gtk_container_remove(GTK_CONTAINER(m_search_cluster), GTK_WIDGET(m_search_entry));
+		gtk_widget_set_size_request(m_search_cluster, -1, -1);
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry), -1, -1);
 		gtk_widget_set_hexpand(GTK_WIDGET(m_search_entry), TRUE);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_entry), GTK_ALIGN_FILL);
@@ -2805,7 +2847,13 @@ void WhiskerMenu::Window::update_layout()
 	{
 		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;
 		const int col_gap = 6; // m_contents_box column-spacing in vertical-sidebar mode
-		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry),
+		// Fix the *cluster* width (entry + optional trailing switch) to the grid
+		// width so the pair stays centred and the entry shrinks to make room for
+		// the switch rather than the row growing past the Places-off width
+		// (FR-019). The entry itself hexpands inside the cluster, so it owns all
+		// the width when Places is off and yields the switch's share when it is on.
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry), -1, -1);
+		gtk_widget_set_size_request(m_search_cluster,
 				m_workarea.width - 2 * sidebar_w - col_gap, -1);
 	}
 
