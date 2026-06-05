@@ -65,9 +65,12 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	gtk_grid_attach(profile_table, prof_pos_label, 0, 0, 1, 1);
 
 	m_profile_position_combo = gtk_combo_box_text_new();
+	// NOTE: no "bottom-right" entry — for the profile it renders identically to
+	// "bottom" (there is no horizontal end distinction), so it would be a
+	// duplicate option. A stored "bottom-right" is normalised to "bottom" on
+	// upgrade; "bottom-right" remains a distinct Commands Position value.
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "top", _("Top"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom", _("Bottom"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom-right", _("Bottom Right"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "hidden", _("Hidden"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
 		static_cast<const gchar*>(m_settings->profile_position));
