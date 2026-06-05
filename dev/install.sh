@@ -173,14 +173,43 @@ fi
 # ---------------------------------------------------------------------------
 # Reset Xfconf state
 # ---------------------------------------------------------------------------
-# Delete the persisted channel XML so the plugin starts from the Modern preset
-# defaults (Settings::migrate_schema sees an empty channel and applies
-# PRESET_MODERN).  Kill xfconfd with SIGKILL *after* the delete so it cannot
-# flush its in-memory state back to disk before dying; D-Bus auto-restarts it.
+# Wipe all MeowMenu state so the next launch behaves like a first install on a
+# clean system: no leftover preset, no /initialized marker, no stale user data.
+#
+# Order matters:
+#   1. Remove user presets from ~/.local/share/meowmenu/.
+#   2. Reset xfce4-panel channel entries for every meowmenu slot via
+#      xfconf-query while xfconfd is alive — this writes the cleaned state to
+#      xfce4-panel.xml on disk before xfconfd is stopped.
+#   3. Delete meowmenu.xml (the plugin's own channel file).
+#   4. Kill xfconfd with SIGKILL so it cannot flush any remaining in-memory
+#      state back to disk; D-Bus auto-restarts it against the clean files.
+
+step "Remove user presets"
+rm -rf "${HOME}/.local/share/meowmenu/" 2>/dev/null || true
+
+if command -v xfconf-query >/dev/null 2>&1; then
+    step "Reset MeowMenu Xfconf state (xfce4-panel channel + /initialized marker)"
+    while IFS= read -r prop; do
+        # Match exactly /plugins/plugin-N (a plugin slot), not its children.
+        if [[ "${prop}" =~ ^/plugins/plugin-[0-9]+$ ]]; then
+            value="$(xfconf-query --channel xfce4-panel --property "${prop}" 2>/dev/null || true)"
+            if [[ "${value}" == "meowmenu" ]]; then
+                step "  Reset ${prop} (recursive)"
+                # Clears every key under the base, the preset and /initialized
+                # marker included, in xfconfd's in-memory store and on disk.
+                xfconf-query --channel xfce4-panel --property "${prop}" \
+                    --reset --recursive 2>/dev/null || true
+            fi
+        fi
+    done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
+else
+    step "xfconf-query not found — skipping channel reset (reinstall may not be detected as fresh)"
+fi
 
 XFCONF_FILE="${HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml"
 if [[ -f "${XFCONF_FILE}" ]]; then
-    step "Reset Xfconf channel (meowmenu.xml)"
+    step "Remove Xfconf channel file (meowmenu.xml)"
     rm -f "${XFCONF_FILE}"
 fi
 pkill -9 xfconfd 2>/dev/null || true
