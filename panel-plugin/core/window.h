@@ -275,9 +275,6 @@ private:
 	// Forces the two Apps/Places mode buttons to equal width in every layout
 	// and preset, surviving the icon↔text child swap (FR-013).
 	GtkSizeGroup* m_mode_button_size_group;
-	// Ties the Top/Bottom category strip to the search-box width and keeps it
-	// centred (FR-019/020). Built lazily on the first strip layout.
-	GtkSizeGroup* m_strip_width_group;
 
 	GdkRectangle m_geometry;
 	bool m_layout_ltr;
@@ -287,6 +284,9 @@ private:
 	bool m_layout_sidebar_enabled;
 	bool m_layout_switch_show_icons;
 	bool m_layout_category_show_name;
+	// Tracked category icon size so show() re-runs update_layout() when it
+	// changes, keeping the Apps/Places toggle in sync with the category icons.
+	int m_layout_category_icon_size;
 	bool m_layout_categories_alternate;
 	bool m_layout_search_alternate;
 	bool m_layout_commands_alternate;

@@ -600,6 +600,9 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_item_icon_size)
 		gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size),
 			static_cast<int>(m_settings->launcher_icon_size) + 1);
+	if (m_category_icon_size)
+		gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size),
+			static_cast<int>(m_settings->category_icon_size) + 1);
 	if (m_position_categories_horizontal)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_categories_horizontal),
 			static_cast<bool>(m_settings->position_categories_horizontal));

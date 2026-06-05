@@ -79,6 +79,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "layout-mode",          PresetValue::from_str("docked")       },
 			{ "unified-bar",          PresetValue::from_bool(false)         },
 			{ "launcher-icon-size",   PresetValue::from_int(2)              }, // Small
+			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
 			{ "hover-switch-category",PresetValue::from_bool(false)         },
 			{ "view-mode-default",    PresetValue::from_str("list")         },
 			{ "default-category",     PresetValue::from_str("favorites")    },
@@ -111,6 +112,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "layout-mode",          PresetValue::from_str("docked")      },
 			{ "unified-bar",          PresetValue::from_bool(false)        },
 			{ "launcher-icon-size",   PresetValue::from_int(3)             }, // Normal
+			{ "category-icon-size",   PresetValue::from_int(1)             }, // Smaller
 			{ "grid-density",         PresetValue::from_str("medium")      },
 			{ "hover-switch-category",PresetValue::from_bool(true)         },
 			{ "view-mode-default",    PresetValue::from_str("icons")       },
@@ -145,6 +147,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "profile-position",     PresetValue::from_str("top")          },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
+			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
 			{ "unified-bar",          PresetValue::from_bool(true)          },
@@ -190,6 +193,7 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 		"layout-mode",
 		"unified-bar",
 		"launcher-icon-size",
+		"category-icon-size",
 		"hover-switch-category",
 		"view-mode-default",
 		"default-category",

@@ -133,7 +133,11 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	connect(m_category_icon_size, "changed",
 		[this](GtkComboBox* combo)
 		{
+			if (m_programmatic_update)
+				return;
 			m_settings->category_icon_size = gtk_combo_box_get_active(combo) - 1;
+			m_plugin->reload_menu();
+			refresh_customized_indicator();
 		});
 
 	// Sidebar opacity (renamed from "Category opacity"; enable-when-docked).

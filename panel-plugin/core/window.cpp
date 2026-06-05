@@ -184,13 +184,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_category_width_group(nullptr),
 	m_sidebar_size_group(nullptr),
 	m_mode_button_size_group(nullptr),
-	m_strip_width_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
 	m_layout_categories_horizontal(false),
 	m_layout_sidebar_enabled(true),
 	m_layout_switch_show_icons(false),
 	m_layout_category_show_name(true),
+	m_layout_category_icon_size(-2),
 	m_layout_categories_alternate(false),
 	m_layout_search_alternate(false),
 	m_layout_commands_alternate(false),
@@ -1175,11 +1175,16 @@ void WhiskerMenu::Window::show(const Position position)
 	const bool sidebar_enabled = m_settings->sidebar_enabled;
 	const bool switch_show_icons = m_settings->places_switch_show_icons;
 	const bool category_show_name = m_settings->category_show_name;
+	// The Apps/Places toggle inherits the category icon size when it lives in a
+	// sidebar, so a live category-icon-size edit must re-run update_layout() to
+	// resize the toggle (the category buttons reload unconditionally below).
+	const int category_icon_size = m_settings->category_icon_size;
 	if ((m_layout_ltr != layout_ltr)
 			|| (m_layout_categories_horizontal != cats_horizontal)
 			|| (m_layout_sidebar_enabled != sidebar_enabled)
 			|| (m_layout_switch_show_icons != switch_show_icons)
 			|| (m_layout_category_show_name != category_show_name)
+			|| (m_layout_category_icon_size != category_icon_size)
 			|| (m_layout_categories_alternate != cats_alt)
 			|| (m_layout_search_alternate != search_alt)
 			|| (m_layout_commands_alternate != commands_alt)
@@ -1192,6 +1197,7 @@ void WhiskerMenu::Window::show(const Position position)
 		m_layout_sidebar_enabled = sidebar_enabled;
 		m_layout_switch_show_icons = switch_show_icons;
 		m_layout_category_show_name = category_show_name;
+		m_layout_category_icon_size = category_icon_size;
 		m_layout_categories_alternate = cats_alt;
 		m_layout_search_alternate = search_alt;
 		m_layout_commands_alternate = commands_alt;
@@ -1215,18 +1221,27 @@ void WhiskerMenu::Window::show(const Position position)
 	// than their configured menu-width when switching back from FullScreen.
 	if (is_fullscreen)
 	{
-		// Center search bar at 50% of screen width (issue #3)
-		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_CENTER);
-		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), m_workarea.width / 2, -1);
-		// Full-screen strip parity (FR-010/011): the horizontal category strip is
-		// anchored to the search-bar column, not the screen. m_strip_width_group
-		// already ties m_categories_box to m_search_box (== workarea/2, centred),
-		// so centre it like the search box; its outer margins then match the search
-		// bar's by construction. The leading/trailing in-column anchoring is set
-		// structurally in update_layout() — only the column alignment differs by
-		// mode, and setting it here (every relayout) keeps it correct across
-		// docked↔full-screen toggles (FR-014).
-		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_CENTER);
+		// Centre the search bar in a fixed half-width column (issue #3). FILL plus
+		// symmetric side margins pin the column to exactly workarea/2 regardless
+		// of the search entry's natural width or whether the Apps/Places switch
+		// shares the row, so entry + switch together never grow past the width the
+		// entry alone occupies with Places off. A bare halign CENTER would instead
+		// grow to the children's natural width and let the switch widen the row.
+		const int column_width  = m_workarea.width / 2;
+		const int column_margin = (m_workarea.width - column_width) / 2;
+		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
+		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_box), column_margin);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_box), column_margin);
+		// Full-screen strip parity (FR-010/011/019/020): the Top/Bottom category
+		// strip shares that exact column. Identical FILL + margins put the leading
+		// toggle on the search bar's left edge and the trailing category icons on
+		// its right edge, with the slack between them. Set on every relayout so
+		// docked↔full-screen and orientation flips reflow with no stale margins
+		// (FR-014).
+		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), column_margin);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), column_margin);
 		// Keep sidebar width meaningful, and compensate on the opposite side so
 		// the applications grid stays centered.
 		// NOTE (FR-026/027): the symmetry margin is a fixed fraction of the work
@@ -1258,12 +1273,16 @@ void WhiskerMenu::Window::show(const Position position)
 	{
 		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_box), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_box), 0);
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), 0);
 		// Docked: the strip fills the menu width so the toggle reaches the leading
 		// edge and the categories the trailing edge of the menu (FR-005/008).
 		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), 0);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), 0);
 	}
 
 	update_background_css();
@@ -2427,15 +2446,10 @@ void WhiskerMenu::Window::update_layout()
 			gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer, 0);
 			gtk_widget_show(m_strip_lead_spacer);
 			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
-			// Tie the strip width to the search box (FR-019/020): a shared
-			// horizontal size group keeps strip == search-box width without
-			// re-deriving the workarea/2 figure used in fullscreen.
-			if (!m_strip_width_group)
-			{
-				m_strip_width_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-				gtk_size_group_add_widget(m_strip_width_group, GTK_WIDGET(m_search_box));
-				gtk_size_group_add_widget(m_strip_width_group, GTK_WIDGET(m_categories_box));
-			}
+			// The strip's column width and its edge alignment with the search bar
+			// in full-screen are owned by the FILL + symmetric-margin geometry
+			// applied in show() (docked = menu width, full-screen = workarea/2),
+			// so no size group is needed to track the search box (FR-019/020).
 			// Reveal the scroller/viewport without gtk_widget_show_all, which
 			// would override the per-button visibility set above.
 			gtk_widget_show(GTK_WIDGET(m_strip_scroll));
@@ -2471,7 +2485,6 @@ void WhiskerMenu::Window::update_layout()
 		GtkWidget* sw = GTK_WIDGET(m_mode_selector_box);
 		GtkWidget* cur = gtk_widget_get_parent(sw);
 		GtkWidget* target = nullptr;
-		bool pack_end_target = false;
 		switch (pres.switch_location)
 		{
 		case SwitchLocation::InSidebar:
@@ -2487,10 +2500,11 @@ void WhiskerMenu::Window::update_layout()
 			                     : GTK_WIDGET(m_category_buttons);
 			break;
 		case SwitchLocation::InSearchBar:
-			// Sidebar disabled: trailing end of whichever row hosts the search
-			// entry — m_title_box in unified-bar mode, else m_search_box (R1).
+			// Sidebar disabled: the switch joins whichever row hosts the search
+			// entry — m_title_box in unified-bar mode, else m_search_box (R1) — and
+			// is placed just before the command buttons (see below) so the commands
+			// keep their trailing position and the entry yields the room (FR-019).
 			target = unified_now ? GTK_WIDGET(m_title_box) : GTK_WIDGET(m_search_box);
-			pack_end_target = true;
 			break;
 		case SwitchLocation::None:
 		default:
@@ -2502,14 +2516,31 @@ void WhiskerMenu::Window::update_layout()
 			g_object_ref(sw);
 			if (cur)
 				gtk_container_remove(GTK_CONTAINER(cur), sw);
-			if (pack_end_target)
+			if (pres.switch_location == SwitchLocation::InSearchBar)
 			{
-				// Two small theme gaps: entry↔switch (this spacing) and
-				// switch↔edge (the row's own end padding) (FR-019).
-				gtk_box_pack_end(GTK_BOX(target), sw, false, false, 6);
+				// Insert the switch directly before the command buttons in the
+				// search row, not at the very trailing edge: the commands stay
+				// rightmost and the search entry shrinks to make room (FR-019). In
+				// full-screen the row is a fixed half-width column, so entry +
+				// switch never exceed the entry's width with Places off. When no
+				// commands share the row, the switch becomes the trailing element.
+				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
+				GtkWidget* cmd = GTK_WIDGET(m_commands_box);
+				if (gtk_widget_get_parent(cmd) == target)
+				{
+					GList* kids = gtk_container_get_children(GTK_CONTAINER(target));
+					gtk_box_reorder_child(GTK_BOX(target), sw,
+							g_list_index(kids, cmd));
+					g_list_free(kids);
+				}
+				else
+				{
+					gtk_box_reorder_child(GTK_BOX(target), sw, -1);
+				}
 			}
 			else
 			{
+				// Strip / vertical sidebar: the toggle anchors leading (child 0).
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
 			}
