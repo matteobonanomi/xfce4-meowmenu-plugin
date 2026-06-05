@@ -43,7 +43,7 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "sidebar-position",      PropKind::Str,  0,   0,    {"left","right","hidden"} },
 	{ "position-categories-horizontal", PropKind::Bool, 0, 0, {} },
 	{ "search-bar-position",   PropKind::Str,  0,   0,    {"top","bottom"} },
-	{ "profile-position",      PropKind::Str,  0,   0,    {"top","bottom","bottom-right","hidden"} },
+	{ "profile-position",      PropKind::Str,  0,   0,    {"top","bottom","hidden"} },
 	{ "commands-position",     PropKind::Str,  0,   0,    {"top-right","bottom-right","hidden"} },
 	{ "grid-density",          PropKind::Str,  0,   0,    {"low","medium","high"} },
 	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },

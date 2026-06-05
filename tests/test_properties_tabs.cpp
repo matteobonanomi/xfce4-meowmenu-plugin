@@ -131,7 +131,6 @@ const Row kPlacementGrid[] = {
 	//   /places/favourite-sync         — additionally gated by favourites-enabled.
 	//   /places/max-items              — page-gated by /places/enabled.
 	//   /places/remember-last-mode     — page-gated by /places/enabled.
-	//   /places/show-metadata          — page-gated by /places/enabled.
 	// NOTE: /places/last-mode and /places/favourites are Xfconf-backed
 	// runtime state, not Properties-dialog controls, so they are NOT on the
 	// placement grid (test models the dialog surface, not the schema).
@@ -141,7 +140,6 @@ const Row kPlacementGrid[] = {
 	{ "places/favourite-sync",       Tab::Places,      EnableWhen::PlacesFavouritesEnabled, false },
 	{ "places/max-items",            Tab::Places,      EnableWhen::PlacesEnabled,           false },
 	{ "places/remember-last-mode",   Tab::Places,      EnableWhen::PlacesEnabled,           false },
-	{ "places/show-metadata",        Tab::Places,      EnableWhen::PlacesEnabled,           false },
 };
 
 // Every Xfconf key documented in contracts/xfconf-keys.md that surfaces in
@@ -171,7 +169,7 @@ const char* const kRequiredKeys[] = {
 	// Places milestone-005 controls
 	"places/enabled", "places/history-enabled", "places/favourites-enabled",
 	"places/favourite-sync", "places/max-items",
-	"places/remember-last-mode", "places/show-metadata",
+	"places/remember-last-mode",
 };
 
 constexpr size_t kRowCount = sizeof(kPlacementGrid) / sizeof(kPlacementGrid[0]);

@@ -436,9 +436,6 @@ public:
 	String commands_position;
 
 	// Layout Presets — grid (FullScreen mode)
-	Boolean grid_auto_size;
-	Integer grid_columns;
-	Integer grid_rows;
 	String  grid_density;
 
 	// Layout Presets — window mode
@@ -451,7 +448,6 @@ public:
 	String  places_favourite_sync;
 	Integer places_max_items;
 	Boolean places_remember_last_mode;
-	Boolean places_show_metadata;
 	String  places_last_mode;
 	StringList places_favourites;
 	// Render the Apps/Places switch as two themed icon buttons instead of text
