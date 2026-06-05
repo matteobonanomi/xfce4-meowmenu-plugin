@@ -166,23 +166,44 @@ void parse_positions()
 	CHECK(meow_parse_sidebar_position("nonsense") == SidebarPosition::Left);
 }
 
-// T023: Top/Bottom strip stacking order and width source (FR-017/018/020).
+// Top/Bottom strip stacking order, row anchoring, and width source
+// (FR-005/006/017/018/020). The toggle anchors leading and the category group
+// trailing on a single row; the order is direction-independent and the anchors
+// are direction-relative, so both LTR and RTL resolve identically here.
 void strip_geometry_ordering()
 {
-	// Bottom → strip below the results box; Top → strip above. The order is
-	// direction-independent: identical in LTR and RTL.
+	// Bottom → strip below the results box; Top → strip above. Anchoring is
+	// identical in LTR and RTL: toggle Leading, categories Trailing, always.
 	for (bool ltr : { true, false })
 	{
 		StripGeometry top = meow_compute_strip_geometry(SidebarPosition::Top, ltr);
 		CHECK(top.order == StripOrder::StripAboveResults);
-		CHECK(top.centred);
+		CHECK(top.toggle_anchor == StripAnchor::Leading);
+		CHECK(top.categories_anchor == StripAnchor::Trailing);
 		CHECK(top.width_from_search_box);
 
 		StripGeometry bottom = meow_compute_strip_geometry(SidebarPosition::Bottom, ltr);
 		CHECK(bottom.order == StripOrder::StripBelowResults);
-		CHECK(bottom.centred);
+		CHECK(bottom.toggle_anchor == StripAnchor::Leading);
+		CHECK(bottom.categories_anchor == StripAnchor::Trailing);
 		CHECK(bottom.width_from_search_box);
 	}
+}
+
+// Toggle icon-size source (ui-contract §1, FR-001/002/003/012/013): the toggle
+// inherits the category icon size in a sidebar, the search-bar height in the
+// search-bar row, and is unsized (0 → not applied) when hidden.
+void toggle_icon_size_source()
+{
+	const int category_px = 48;   // e.g. /category-icon-size == Normal
+	const int search_bar_px = 22; // e.g. measured from the search entry
+
+	CHECK(meow_toggle_icon_px(SwitchLocation::InSidebar, category_px, search_bar_px)
+			== category_px);
+	CHECK(meow_toggle_icon_px(SwitchLocation::InSearchBar, category_px, search_bar_px)
+			== search_bar_px);
+	CHECK(meow_toggle_icon_px(SwitchLocation::None, category_px, search_bar_px)
+			== 0);   // hidden — no size applied
 }
 
 // T038: the single label-visibility decision is identical for Apps and Places
@@ -209,6 +230,7 @@ int main()
 	fr029_reversion();
 	parse_positions();
 	strip_geometry_ordering();
+	toggle_icon_size_source();
 	label_visibility_decision();
 
 	if (g_failures != 0)
