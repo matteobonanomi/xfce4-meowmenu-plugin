@@ -331,3 +331,16 @@ test_switch_icons = executable(
 )
 
 test('switch_icons', test_switch_icons, timeout: 30)
+
+# test_user_session_row: headless coverage of the pure user/session-row
+# visibility decision mirrored from panel-plugin/core/window.cpp (both-hidden
+# collapse in docked layouts; shared row preserved in unified-bar/full-screen).
+test_user_session_row_sources = ['test_user_session_row.cpp']
+
+test_user_session_row = executable(
+  'test_user_session_row',
+  test_user_session_row_sources,
+  dependencies: [],
+)
+
+test('user_session_row', test_user_session_row)

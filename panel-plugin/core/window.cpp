@@ -1454,14 +1454,41 @@ void WhiskerMenu::Window::unset_items()
 
 //-----------------------------------------------------------------------------
 
+/* user_session_row_visible:
+ * @unified:              true when the unified search/profile/session bar is active.
+ * @profile_hidden:       true when profile_position == "hidden".
+ * @commands_hidden:      true when commands_position == "hidden".
+ * @categories_alternate: true when the category list sits at the alternate (bottom) end.
+ *
+ * Pure visibility decision for the docked user/session row (m_title_box). In a
+ * unified-bar / full-screen layout the row hosts the centred search cluster, so
+ * it is always kept and only the profile/commands clusters hide (FR-004). In a
+ * docked layout the row collapses entirely when both clusters are hidden so no
+ * empty strip remains (FR-003); otherwise it follows the existing
+ * bottom-categories suppression.
+ *
+ * Returns: true if the user/session row should be visible.
+ */
+static bool user_session_row_visible(bool unified, bool profile_hidden,
+                                     bool commands_hidden, bool categories_alternate)
+{
+	if (unified)
+		return true;
+	if (!profile_hidden)
+		return true;
+	if (commands_hidden)
+		return false;
+	return !categories_alternate;
+}
+
+//-----------------------------------------------------------------------------
+
 Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 {
 	// FR-030: Search and Results are never hidden. Optional zones follow
 	// the preset's per-zone "hidden" position string and the legacy
-	// visibility flags. Profile is the session-button row and is gated on
-	// commands_position != "hidden" with at least one visible command. The
-	// Apps/Places toggle is not a focus zone (FR-007), so it has no entry
-	// here; Tab reads places_enabled directly.
+	// visibility flags. The Apps/Places toggle is not a focus zone (FR-007),
+	// so it has no entry here; Tab reads places_enabled directly.
 	Keyboard::VisibilityMask mask;
 	mask.search  = true;
 	mask.results = true;
@@ -1471,6 +1498,11 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 
 	mask.sidebar = (g_strcmp0(sidebar_pos, "hidden") != 0);
 
+	// The "profile" focus zone is the session-command row: only the command
+	// buttons are focusable (the avatar/username are not), so a hidden profile
+	// contributes nothing focusable. The zone is therefore gated on
+	// commands_position != "hidden" with at least one visible command, which
+	// already keeps focus off both hidden commands and a hidden profile (FR-005).
 	bool any_command_visible = false;
 	if (g_strcmp0(commands_pos, "hidden") != 0)
 	{
@@ -1999,6 +2031,14 @@ void WhiskerMenu::Window::update_background_css()
 	const int blue  = CLAMP(static_cast<int>(bg.blue  * 255.0 + 0.5), 0, 255);
 	const double cats_alpha = CLAMP(m_settings->categories_opacity, 0, 100) / 100.0;
 	const double apps_alpha = CLAMP(m_settings->apps_opacity, 0, 100) / 100.0;
+	// In full-screen the whole menu window carries its own opacity control;
+	// docked layouts keep the categories opacity for the window background. The
+	// alpha is built exactly like cats_alpha/apps_alpha so the live reload path
+	// is shared.
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	const double window_alpha = is_fullscreen
+			? CLAMP(m_settings->full_screen_opacity, 0, 100) / 100.0
+			: cats_alpha;
 
 	gchar* css = g_strdup_printf(
 		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
@@ -2049,7 +2089,7 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
 		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }",
-		red, green, blue, cats_alpha,
+		red, green, blue, window_alpha,
 		red, green, blue, apps_alpha);
 
 	gtk_css_provider_load_from_data(m_css_provider, css, -1, nullptr);
@@ -2580,19 +2620,25 @@ void WhiskerMenu::Window::update_layout()
 		m_switch_loc = pres.switch_location;
 	}
 
-	// Handle showing username and profile
-	if (m_profile_shape != Settings::ProfileHidden)
-	{
-		gtk_widget_set_visible(m_profile->get_picture(), true);
-		gtk_widget_set_visible(m_profile->get_username(), true);
-		gtk_widget_set_visible(GTK_WIDGET(m_title_box), true);
-	}
-	else
-	{
-		gtk_widget_set_visible(m_profile->get_picture(), false);
-		gtk_widget_set_visible(m_profile->get_username(), false);
-		gtk_widget_set_visible(GTK_WIDGET(m_title_box), !m_layout_categories_alternate);
-	}
+	// Profile and session-command visibility. profile_position and
+	// commands_position are the authoritative hide signals; the legacy
+	// ProfileHidden shape is migrated to profile_position == "hidden" on upgrade
+	// and is no longer consulted here. The avatar + username follow the profile
+	// position; the whole session command box follows the commands position.
+	const bool profile_hidden  = (g_strcmp0(m_settings->profile_position, "hidden") == 0);
+	const bool commands_hidden = (g_strcmp0(m_settings->commands_position, "hidden") == 0);
+	const bool unified         = unified_bar_effective(*m_settings);
+
+	gtk_widget_set_visible(m_profile->get_picture(),  !profile_hidden);
+	gtk_widget_set_visible(m_profile->get_username(), !profile_hidden);
+	gtk_widget_set_visible(GTK_WIDGET(m_commands_box), !commands_hidden);
+
+	// Collapse the user/session row when both clusters are hidden in a docked
+	// layout (FR-003); keep it in unified-bar / full-screen where it carries the
+	// shared search row (FR-004).
+	gtk_widget_set_visible(GTK_WIDGET(m_title_box),
+			user_session_row_visible(unified, profile_hidden, commands_hidden,
+					m_layout_categories_alternate));
 
 	// Arrange horizontal order of profile picture, username, and commands
 	if (m_layout_ltr && m_layout_commands_alternate)
@@ -2827,9 +2873,10 @@ void WhiskerMenu::Window::update_layout()
 		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
 		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
-		// Restore username visibility and expand per the existing profile-shape rule.
+		// Restore username visibility per profile_position (the authoritative
+		// hide signal) and re-expand it for the docked row.
 		gtk_widget_set_visible(m_profile->get_username(),
-				m_profile_shape != Settings::ProfileHidden);
+				g_strcmp0(m_settings->profile_position, "hidden") != 0);
 		gtk_widget_set_hexpand(m_profile->get_username(), TRUE);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
 		gtk_style_context_remove_class(title_ctx, "unified-bar");

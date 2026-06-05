@@ -19,7 +19,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Layout mode | **Docked** (standard panel-attached window) or **FullScreen** (full-screen launcher). |
 | Menu width | Width of the menu window in pixels. |
 | Menu height | Height of the menu window in pixels. |
-| Full-screen opacity | Opacity of the full-screen overlay (0–100). |
+| Full-screen opacity | Opacity of the full-screen menu background (0–100), applied live. |
 | Stay visible when focus is lost | Keep the menu open when another window receives focus. |
 | Show panel button title | Display a text label next to the panel button icon. |
 | Panel button title | The label text shown on the panel button. |
@@ -33,8 +33,8 @@ All MeowMenu settings are exposed in the **Properties** dialog
 |--------|-------------|
 | Show user profile picture | Display the account avatar at the top of the menu. |
 | Show username | Display the logged-in user's name. |
-| Profile position | Where the profile block appears: top, bottom, bottom-right, or hidden. |
-| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. |
+| Profile position | Where the profile block appears: top, bottom, or hidden. **Hidden** removes the avatar and username (and keeps them out of keyboard focus). |
+| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. **Hidden** removes the session buttons. When both Profile and Session commands are hidden, the whole row collapses (the shared search row is kept in Full Screen). |
 | Lock screen command | Command run when the lock button is clicked. |
 | Log out command | Command run when the log out button is clicked. |
 | Suspend command | Command run when the suspend button is clicked. |
@@ -91,7 +91,6 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Bookmark sync | Keep the Places bookmarks in sync with **MeowMenu** or **Thunar**. |
 | Max items | Maximum number of items shown in the Places view. |
 | Remember last mode | Reopen MeowMenu showing the last-used Places sub-section. |
-| Show metadata | Display file size and modification date next to each item. |
 
 #### Missing recent files and bookmarks
 
@@ -128,7 +127,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | `menu-height` | int | 500 | Menu window height in pixels. |
 | `categories-opacity` | int | 100 | Sidebar opacity (0–100). |
 | `apps-opacity` | int | 100 | Results area opacity (0–100). |
-| `full-screen-opacity` | int | 100 | Full-screen overlay opacity (0–100). |
+| `full-screen-opacity` | int | 100 | Full-screen menu background opacity (0–100), applied live. |
 | `stay-on-focus-out` | bool | false | Keep menu open when focus moves away. |
 
 ### Layout
@@ -138,7 +137,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | `layout-mode` | string | `docked` | `docked` or `fullscreen`. |
 | `sidebar-position` | string | `left` | `left`, `right`, `top`, or `bottom`. (A legacy `hidden` value is migrated to `sidebar-enabled = false`.) |
 | `search-bar-position` | string | `top` | `top` or `bottom`. |
-| `profile-position` | string | `top` | `top`, `bottom`, `bottom-right`, or `hidden`. |
+| `profile-position` | string | `top` | `top`, `bottom`, or `hidden`. (A legacy `bottom-right` value is migrated to `bottom`.) |
 | `commands-position` | string | `top-right` | `top-right`, `bottom-right`, or `hidden`. |
 | `unified-bar` | bool | false | Merge profile, search, and session into one row (FullScreen only). |
 
@@ -152,8 +151,6 @@ Replace `<id>` with the numeric plugin ID shown by
 | `launcher-show-tooltip` | bool | true | Show a hover tooltip. |
 | `launcher-icon-size` | int | -1 | Icon size (-1 = theme default). |
 | `grid-density` | string | `medium` | `low`, `medium`, or `high` columns in grid mode. |
-| `grid-columns` | int | 4 | Explicit column count for grid mode. |
-| `grid-rows` | int | 3 | Visible rows in grid mode. |
 
 ### Sidebar
 
@@ -189,4 +186,3 @@ Replace `<id>` with the numeric plugin ID shown by
 | `places/favourite-sync` | string | `meowmenu` | Keep bookmarks in sync with `meowmenu` or `thunar`. |
 | `places/max-items` | int | 20 | Maximum items in the Places view. |
 | `places/remember-last-mode` | bool | false | Reopen in the last-used Places sub-section. |
-| `places/show-metadata` | bool | false | Show file size and modification date. |

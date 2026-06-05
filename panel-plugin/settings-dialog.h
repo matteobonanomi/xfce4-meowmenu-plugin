@@ -163,9 +163,6 @@ private:
 	// Behavior layout (T071)
 	GtkWidget* m_panel_gap = nullptr;
 	GtkWidget* m_layout_mode_combo = nullptr;
-	GtkWidget* m_grid_auto_size = nullptr;
-	GtkWidget* m_grid_columns = nullptr;
-	GtkWidget* m_grid_rows = nullptr;
 	GtkWidget* m_grid_density_combo = nullptr;
 	GtkWidget* m_grid_section = nullptr;
 

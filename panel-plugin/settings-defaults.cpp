@@ -82,13 +82,14 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		}
 
 		// Write defaults for V1 properties not yet in the channel
+		// NOTE: /grid-columns and /grid-rows were orphaned config (no control, no
+		// consumer) and are removed; they are intentionally not seeded here, and
+		// the schema-v6 block deletes any pre-existing values.
 		struct { const char* prop; int val; } int_props[] = {
 			{ "/corner-radius",       0   },
 			{ "/panel-gap",           0   },
 			{ "/categories-opacity",  100 },
 			{ "/apps-opacity",        100 },
-			{ "/grid-columns",        4   },
-			{ "/grid-rows",           3   },
 		};
 		for (auto& p : int_props)
 		{
@@ -180,12 +181,14 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 	{
 		// Milestone 005 — Places mode keys. Seed defaults on first upgrade so
 		// existing installs see consistent values without re-applying a preset.
+		// NOTE: /places/show-metadata had no consumer and is removed; it is
+		// intentionally not seeded here, and the schema-v6 block deletes any
+		// pre-existing value.
 		struct { const char* prop; gboolean val; } bool_props[] = {
 			{ "/places/enabled",            FALSE },
 			{ "/places/history-enabled",    TRUE  },
 			{ "/places/favourites-enabled", TRUE  },
 			{ "/places/remember-last-mode", FALSE },
-			{ "/places/show-metadata",      FALSE },
 		};
 		for (auto& p : bool_props)
 		{
@@ -296,6 +299,31 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		}
 
 		schema_version = 5;
+	}
+
+	if (schema_version < 6)
+	{
+		// Audit cleanup: drop orphaned/removed preference keys and normalise the
+		// redundant profile-position value. Resetting an absent key is a no-op,
+		// so this block is idempotent and touches only the named keys.
+		const char* removed_keys[] = {
+			"/grid-auto-size",
+			"/grid-columns",
+			"/grid-rows",
+			"/places/show-metadata",
+		};
+		for (const char* key : removed_keys)
+			xfconf_channel_reset_property(channel, key, FALSE);
+
+		// "bottom-right" rendered identically to "bottom" for the profile and is
+		// no longer offered; normalise any stored value so the combo never sees
+		// an option it cannot display.
+		gchar* profile_pos = xfconf_channel_get_string(channel, "/profile-position", nullptr);
+		if (g_strcmp0(profile_pos, "bottom-right") == 0)
+			xfconf_channel_set_string(channel, "/profile-position", "bottom");
+		g_free(profile_pos);
+
+		schema_version = 6;
 	}
 
 	// Back-fill the marker on every path (fresh, upgrade, or already-current
