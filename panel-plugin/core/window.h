@@ -206,6 +206,10 @@ private:
 	GtkBox* m_title_box;
 	GtkBox* m_commands_box;
 	GtkBox* m_search_box;
+	// Full-screen unified-bar only: holds the search entry and, when Places is
+	// on, the trailing Apps/Places switch, so the pair is centred as one unit.
+	// Owns a ref because it is unparented in every non-unified layout.
+	GtkWidget* m_search_cluster;
 	GtkStack* m_contents_stack;
 	GtkGrid* m_contents_box;
 	GtkBox* m_categories_box;

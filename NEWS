@@ -9,7 +9,8 @@ MEOW MENU DEVELOPMENT
 - Preset: Properties → General preset field is never blank; when the active layout matches no preset or the identity is unset, the field shows "Custom"
 - Dev: dev-uninstall.sh now clears the plugin's full Xfconf state (including the new /initialized marker) so a reinstall is always detected as a genuine fresh install
 - Dev: development tooling (dev-install.sh, dev-uninstall.sh, and the maintainer notes) is consolidated under dev/
-
+- Sidebar: fix weird FullScree behaviour when SideBar is off
+- Sidebar: fix sidebar width when it's horizontal in docked style presets
 
 0.6.0 (2026-06-04)
 =====
