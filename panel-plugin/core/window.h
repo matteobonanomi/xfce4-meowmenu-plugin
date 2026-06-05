@@ -168,14 +168,19 @@ private:
 	 * @long_label: gettext-translated descriptive name ("Applications"/"Places")
 	 *         used for the tooltip + accessible name in both modes, so the full
 	 *         meaning survives even in icon-only mode.
+	 * @icon_px: pixel size for the icon child, derived from the toggle's region
+	 *         (category icon size in a sidebar, search-bar height otherwise);
+	 *         <= 0 leaves the themed default and is used when the toggle is
+	 *         hidden.
 	 *
 	 * Swaps the toggle's child between a GtkLabel and a GtkImage in place,
-	 * leaving the toggle's active state and styling untouched. A no-op when the
-	 * child is already in the requested form.
+	 * leaving the toggle's active state and styling untouched. When the child is
+	 * already an image it is reused and only its icon name and pixel size are
+	 * refreshed, so a live category-icon-size change resizes the toggle too.
 	 */
 	void set_mode_button_content(GtkToggleButton* button, bool show_icons,
 			const char* const* icon_chain, const char* short_label,
-			const char* long_label);
+			const char* long_label, int icon_px);
 
 	/* apply_switch_presentation:
 	 * @pres: the computed presentation for this layout pass.
@@ -249,6 +254,11 @@ private:
 	// (FR-012). Created lazily on the first strip layout; the switch is pinned
 	// outside it (FR-014). nullptr until the sidebar is first shown on top/bottom.
 	GtkScrolledWindow* m_strip_scroll;
+	// Expanding spacer pinned as the leading child of m_category_buttons in
+	// strip mode so the category icons sit flush-trailing while the slack falls
+	// between them and the leading toggle (FR-005). Hidden (and thus ignored in
+	// allocation) in the vertical sidebar. Created lazily with m_strip_scroll.
+	GtkWidget* m_strip_lead_spacer;
 	// Current structural placement of the category list, so update_layout()
 	// only reparents on an actual transition: 1 = vertical sidebar,
 	// 2 = horizontal strip, 3 = hidden (sidebar disabled).

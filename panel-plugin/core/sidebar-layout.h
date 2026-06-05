@@ -112,34 +112,64 @@ enum class StripOrder
 	StripBelowResults    // strip is rendered below the results box (Bottom)
 };
 
+// Direction-relative anchoring of a group within the horizontal strip. Leading
+// maps to GTK START and Trailing to GTK END, so RTL is handled for free: the
+// leading edge is the left in LTR and the right in RTL.
+enum class StripAnchor
+{
+	Leading,
+	Trailing
+};
+
 /* StripGeometry:
  *
  * The render-time geometry of a docked Top/Bottom category strip: where it sits
- * relative to the results box, that it is horizontally centred, and that its
- * width tracks the search box. centred / width_from_search_box are invariants
- * (always true) — they are surfaced so the unit test pins them against drift.
+ * relative to the results box, where its two groups anchor on the single row,
+ * and that its width tracks the search box. The Apps/Places toggle anchors to
+ * the leading edge and the category-icon group to the trailing edge, with the
+ * slack between them; width_from_search_box is an invariant (always true). The
+ * fields are surfaced so the unit test pins them against drift.
  */
 struct StripGeometry
 {
 	StripOrder order;
-	bool centred;                 // always true — strip is horizontally centred
-	bool width_from_search_box;   // always true — width source is the search box
+	StripAnchor toggle_anchor;      // always Leading — toggle pinned to the row's leading edge
+	StripAnchor categories_anchor;  // always Trailing — categories pinned to the trailing edge
+	bool width_from_search_box;     // always true — width source is the search box
 };
 
 /* meow_compute_strip_geometry:
  * @position: the stored sidebar position (only Top/Bottom produce a strip).
  * @ltr: text direction; passed for completeness — the vertical strip order is
- *       direction-independent (a Top strip is above the results in LTR and RTL).
+ *       direction-independent (a Top strip is above the results in LTR and RTL),
+ *       and the leading/trailing anchors are themselves direction-relative.
  *
- * Pure decision for a Top/Bottom strip's stacking order and width source. Top
- * places the strip above the results box (it sits below the search bar); Bottom
- * places it below the results box. Left/Right are not strips and default to the
- * Top arrangement (the caller does not render a strip for them).
+ * Pure decision for a Top/Bottom strip's stacking order, row anchoring, and
+ * width source. Top places the strip above the results box (it sits below the
+ * search bar); Bottom places it below the results box. Left/Right are not strips
+ * and default to the Top arrangement (the caller does not render a strip for
+ * them).
  *
- * Returns: the resolved StripGeometry; centred and width_from_search_box are
- * always true.
+ * Returns: the resolved StripGeometry; toggle_anchor is always Leading,
+ * categories_anchor always Trailing, and width_from_search_box always true.
  */
 StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr);
+
+/* meow_toggle_icon_px:
+ * @location: where the Apps/Places toggle is rendered this pass.
+ * @category_px: the configured category icon pixel size (sidebar source).
+ * @search_bar_px: the measured search-bar-height-derived pixel size.
+ *
+ * Pure decision for the toggle icon's pixel size: the toggle always inherits
+ * from the region that contains it — the category icon size when it lives in a
+ * sidebar (vertical or strip), the search-bar height when it lives in the
+ * search-bar row. There is deliberately no independent value and no fourth
+ * state.
+ *
+ * Returns: the pixel size to apply with gtk_image_set_pixel_size(); 0 when the
+ * toggle is hidden (SwitchLocation::None), meaning no size is applied.
+ */
+int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px);
 
 /* meow_category_label_visible:
  * @category_show_name: the stored "show category names" intent.
