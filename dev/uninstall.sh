@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# dev-uninstall.sh — remove a MeowMenu dev install and wipe all user config.
+# dev-uninstall.sh — remove a MeowMenu dev install and wipe every trace of
+#                    user configuration, leaving the system as if MeowMenu had
+#                    never been installed.
 #
 # BACKGROUND
 #   Use this before creating a release branch or PR to verify you are starting
-#   from a clean slate — no installed files, no leftover Xfconf state.
-#   It is the counterpart of dev-install.sh; both are dev/debug helpers and are
-#   not part of the public install documentation.
+#   from a clean slate — no installed files, no leftover Xfconf state, no user
+#   presets, no /initialized marker.  It is the counterpart of dev-install.sh;
+#   both are dev/debug helpers and are not part of the public install
+#   documentation.
 #
 #   The script reads the install prefix from the build directory so it removes
 #   exactly what dev-install.sh put there.  If the build directory is missing
