@@ -600,6 +600,9 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_item_icon_size)
 		gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size),
 			static_cast<int>(m_settings->launcher_icon_size) + 1);
+	if (m_category_icon_size)
+		gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size),
+			static_cast<int>(m_settings->category_icon_size) + 1);
 	if (m_position_categories_horizontal)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_categories_horizontal),
 			static_cast<bool>(m_settings->position_categories_horizontal));
@@ -697,13 +700,30 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 			p.id.c_str(), label.c_str());
 	}
 
-	// Restore selection
+	// Restore selection. The preset field must never be blank (FR-005): when the
+	// stored id is unset or resolves to no row (empty, or a deleted/unknown
+	// preset), present and select a synthetic non-blank "Custom" entry that
+	// truthfully represents the current preset-less layout state.
+	// HACK: gtk_combo_box_set_active_id silently leaves the combo with no active
+	// selection when the id matches no row, which is exactly the blank case we
+	// must avoid; we detect that via its return value and fall back to "Custom".
+	static const char* const CUSTOM_PLACEHOLDER_ID = "__custom__";
+	bool selected = false;
 	if (!active_id.empty())
+		selected = gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), active_id.c_str());
+
+	bool is_custom_placeholder = false;
+	if (!selected)
 	{
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), active_id.c_str());
+		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
+			CUSTOM_PLACEHOLDER_ID, _("Custom"));
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), CUSTOM_PLACEHOLDER_ID);
+		is_custom_placeholder = true;
 	}
 
-	// Update button sensitivity: Rename/Delete only for user (non-builtin) presets.
+	// Update button sensitivity: Rename/Delete only for user (non-builtin)
+	// presets. The synthetic "Custom" placeholder is not a real preset, so it
+	// must never enable the user-preset actions.
 	bool is_builtin = false;
 	for (const auto& p : get_file_presets())
 		if (p.id == active_id) { is_builtin = true; break; }
@@ -712,7 +732,8 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 		for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
 			if (BUILTIN_PRESETS[i].id == active_id) { is_builtin = true; break; }
 	}
-	bool is_user = (gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo)) != nullptr)
+	bool is_user = !is_custom_placeholder
+		&& (gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo)) != nullptr)
 		&& !is_builtin;
 	if (m_preset_rename_btn)
 		gtk_widget_set_sensitive(m_preset_rename_btn, is_user);

@@ -15,6 +15,7 @@ panel-gap=0
 menu-width=450
 menu-height=500
 launcher-icon-size=2
+category-icon-size=1
 view-mode-default=list
 sidebar-position=right
 sidebar-enabled=true

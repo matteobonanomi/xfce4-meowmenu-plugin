@@ -114,6 +114,7 @@ Settings::Settings(Plugin* plugin) :
 
 	schema_version(this, "/schema-version", 0, 0, G_MAXINT),
 	current_preset_id(this, "/current-preset-id"),
+	initialized(this, "/initialized", false),
 
 	corner_radius(this, "/corner-radius", 0, 0, 24),
 	panel_gap(this, "/panel-gap", 0, 0, 50),
@@ -379,7 +380,13 @@ void Settings::load(const gchar* base)
 	g_hash_table_destroy(properties);
 	prevent_invalid();
 	load_aliases(channel);
-	migrate_schema(loaded_property_count == 0);
+	// NOTE: the persisted /initialized marker — not the raw property count — is
+	// the authoritative fresh-vs-upgrade signal. The count is fragile: a
+	// still-running xfconfd that served stale in-memory state (or panel-seeded
+	// keys) makes a genuine first run look non-empty. Passing both lets
+	// migrate_schema treat "marker absent AND empty channel" as the only fresh
+	// case while still back-filling the marker for existing users.
+	migrate_schema(initialized, loaded_property_count == 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -388,19 +395,24 @@ void Settings::load(const gchar* base)
  *
  * Resolves the active preset's stored identity name for display as the
  * active-preset label. A single code path serves built-ins (localized display
- * name) and custom presets (user-entered stored name). Falls back to the raw
- * stored id if the id resolves to no known preset (e.g. a deleted custom one).
+ * name) and custom presets (user-entered stored name). When the id is
+ * unset/empty or resolves to no known preset (e.g. a deleted custom one), the
+ * localized "Custom" label is returned so the field is never blank.
  *
- * Returns: the name to show; never the hard-coded "Classic" default.
+ * Returns: the name to show; never empty, never the hard-coded "Classic"
+ * default. The "Custom" wording matches save_current_as_user_preset.
  */
 std::string Settings::current_preset_name() const
 {
 	const gchar* id = static_cast<const gchar*>(current_preset_id);
 	const std::string sid = id ? id : "";
-	const LayoutPreset* p = find_preset_by_id(sid);
-	if (p)
-		return p->name.empty() ? p->display_name : p->name;
-	return sid;
+	if (!sid.empty())
+	{
+		const LayoutPreset* p = find_preset_by_id(sid);
+		if (p)
+			return p->name.empty() ? p->display_name : p->name;
+	}
+	return _("Custom");
 }
 
 void Settings::prevent_invalid()
@@ -487,6 +499,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| frecency_alpha.load(property, value)
 			|| schema_version.load(property, value)
 			|| current_preset_id.load(property, value)
+			|| initialized.load(property, value)
 			|| corner_radius.load(property, value)
 			|| panel_gap.load(property, value)
 			|| categories_opacity.load(property, value)

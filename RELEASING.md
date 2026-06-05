@@ -57,10 +57,10 @@ parses this format. Only edit `NEWS` when you are ready to tag.
 ### 3. Build and verify locally
 
 ```bash
-./dev-install.sh
+./dev/dev-install.sh
 ```
 
-> **What `dev-install.sh` does (and does not do)**
+> **What `dev/dev-install.sh` does (and does not do)**
 >
 > This script is a **local development tool only**. It reconfigures Meson
 > (which re-reads `NEWS` and regenerates `panel-plugin/version.h`), compiles,
@@ -73,8 +73,8 @@ parses this format. Only edit `NEWS` when you are ready to tag.
 > need this flag when the master SVG has changed.
 >
 > ```bash
-> ./dev-install.sh --icons   # regenerate icons, then build + reload
-> ./dev-install.sh           # build + reload only (normal case)
+> ./dev/dev-install.sh --icons   # regenerate icons, then build + reload
+> ./dev/dev-install.sh           # build + reload only (normal case)
 > ```
 
 Open the plugin's *About* dialog and confirm the version and date are correct.

@@ -69,6 +69,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "grid-density",          PresetValue::Str, 0, 0, STR_DOMAIN(GRID_DENSITY_DOMAIN) },
 	{ "layout-mode",           PresetValue::Str, 0, 0, STR_DOMAIN(LAYOUT_MODE_DOMAIN) },
 	{ "launcher-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },
+	{ "category-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },
 	{ "view-mode-default",     PresetValue::Str, 0, 0, STR_DOMAIN(VIEW_MODE_DOMAIN) },
 	{ "hover-switch-category", PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "unified-bar",           PresetValue::Bool, 0, 0, nullptr, 0 },
