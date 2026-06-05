@@ -15,6 +15,7 @@ panel-gap=8
 menu-width=450
 menu-height=500
 launcher-icon-size=3
+category-icon-size=1
 view-mode-default=icons
 grid-density=medium
 sidebar-position=left
