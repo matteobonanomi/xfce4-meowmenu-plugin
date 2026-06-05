@@ -1,5 +1,5 @@
 MEOW MENU DEVELOPMENT
-0.6.1 (2026-XX-XX)
+0.6.1 (2026-06-05)
 =====
 - Places: fix use-after-free when activating a search result — item is now opened before the menu closes.
 - Places: extend the same lifetime fix to context-menu actions (Open, Open Containing, Open in Terminal, Open With).
