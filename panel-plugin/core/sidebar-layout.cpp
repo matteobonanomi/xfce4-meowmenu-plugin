@@ -90,14 +90,34 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 
 StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr)
 {
-	(void)ltr; // vertical order is direction-independent for a horizontal strip
+	(void)ltr; // order is direction-independent; anchors are direction-relative
 	StripGeometry out;
 	out.order = (position == SidebarPosition::Bottom)
 			? StripOrder::StripBelowResults
 			: StripOrder::StripAboveResults;
-	out.centred = true;
+	// Single-row anchoring: toggle pinned leading, categories pinned trailing,
+	// with the slack between them. Leading/Trailing map to GTK START/END, so the
+	// physical side follows the text direction without a branch here.
+	out.toggle_anchor = StripAnchor::Leading;
+	out.categories_anchor = StripAnchor::Trailing;
 	out.width_from_search_box = true;
 	return out;
+}
+
+int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px)
+{
+	// The toggle inherits the pixel size of the region that contains it; a
+	// hidden toggle (None) gets no size, signalled by 0.
+	switch (location)
+	{
+	case SwitchLocation::InSidebar:
+		return category_px;
+	case SwitchLocation::InSearchBar:
+		return search_bar_px;
+	case SwitchLocation::None:
+	default:
+		return 0;
+	}
 }
 
 bool meow_category_label_visible(bool category_show_name, bool horizontal)
