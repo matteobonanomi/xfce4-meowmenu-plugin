@@ -406,6 +406,13 @@ public:
 	Integer schema_version;
 	String  current_preset_id;
 
+	// Persisted first-run marker. Records that the launcher has completed
+	// initialization. This — not the raw Xfconf property count — is the
+	// authoritative fresh-vs-upgrade signal: it stays correct even when a
+	// still-running xfconfd serves stale in-memory state for the channel.
+	// Internal flag only; not exposed in the GUI.
+	Boolean initialized;
+
 	// Active preset's stored identity name, surfaced as the active-preset label.
 	// Built-ins return their localized display name, custom presets their stored
 	// name; falls back to the stored id when no preset matches.
@@ -452,7 +459,7 @@ public:
 	// icon-only mode never overwrite it.
 	Boolean places_switch_show_icons;
 
-	void migrate_schema(bool is_fresh_install);
+	void migrate_schema(bool marker, bool empty_channel);
 
 	friend class Plugin;
 

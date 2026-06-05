@@ -52,10 +52,10 @@ public:
 	void set_accessed(gint64 t) { m_accessed = t; }
 	void set_is_favourite(bool v) { m_is_favourite = v; }
 
-	void open(GdkScreen* screen);
-	void open_containing(GdkScreen* screen);
+	void open(GdkScreen* screen, GtkWidget* parent);
+	void open_containing(GdkScreen* screen, GtkWidget* parent);
 	void copy_path();
-	void open_in_terminal(GdkScreen* screen);
+	void open_in_terminal(GdkScreen* screen, GtkWidget* parent);
 	void open_with(GtkWidget* parent);
 	void add_desktop_link(GtkWidget* parent);
 
@@ -74,6 +74,23 @@ public:
 	 * Returns: g_malloc'd casefolded copy (caller frees), or nullptr for empty.
 	 */
 	static gchar* places_filter_casefold(const gchar* filter);
+
+	/* build_open_error_message:
+	 * @error: the GError captured from a failed open, or nullptr if the
+	 *         failure produced no error object.
+	 * @display_name: the item's human-readable name; nullptr or empty falls
+	 *         back to a generic phrasing.
+	 *
+	 * Builds the single error-dialog message shown when an open fails: it names
+	 * the item and states a human-readable reason taken from @error->message,
+	 * with a defined non-empty fallback when @error is nullptr or carries an
+	 * empty message. The result is forced to valid UTF-8 with control bytes
+	 * stripped, so a failed open is never reported blank or garbled. GTK-free
+	 * so it is directly unit-testable.
+	 *
+	 * Returns: a newly-allocated string the caller must g_free().
+	 */
+	static gchar* build_open_error_message(const GError* error, const char* display_name);
 
 private:
 	GFile* m_file;

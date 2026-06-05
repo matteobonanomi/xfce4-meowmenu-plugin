@@ -83,6 +83,8 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.layout_mode = val.s;
 		else if (prop == "launcher-icon-size" && val.kind == PresetValue::Int)
 			settings.launcher_icon_size = val.i;
+		else if (prop == "category-icon-size" && val.kind == PresetValue::Int)
+			settings.category_icon_size = val.i;
 		else if (prop == "hover-switch-category" && val.kind == PresetValue::Bool)
 			settings.category_hover_activate = val.b;
 		else if (prop == "view-mode-default" && val.kind == PresetValue::Str)
@@ -278,6 +280,11 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 		else if (prop == "launcher-icon-size")
 		{
 			if (val.kind == PresetValue::Int && static_cast<int>(settings.launcher_icon_size) != val.i)
+				return true;
+		}
+		else if (prop == "category-icon-size")
+		{
+			if (val.kind == PresetValue::Int && static_cast<int>(settings.category_icon_size) != val.i)
 				return true;
 		}
 		else if (prop == "hover-switch-category")
@@ -516,6 +523,7 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	xfconf_channel_set_bool(ch, (prefix + "unified-bar").c_str(),
 		static_cast<bool>(settings.unified_bar));
 	xfconf_channel_set_int(ch, (prefix + "launcher-icon-size").c_str(), settings.launcher_icon_size);
+	xfconf_channel_set_int(ch, (prefix + "category-icon-size").c_str(), settings.category_icon_size);
 	xfconf_channel_set_bool(ch, (prefix + "hover-switch-category").c_str(),
 		static_cast<bool>(settings.category_hover_activate));
 	const gchar* vm_str = "list";

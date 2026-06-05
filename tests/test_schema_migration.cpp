@@ -163,6 +163,138 @@ static bool detect_fresh_install(unsigned int property_count)
 	return property_count == 0;
 }
 
+// ---------------------------------------------------------------------------
+// Marker-aware fresh-vs-upgrade decision (contracts/fresh-vs-upgrade-decision.md)
+// ---------------------------------------------------------------------------
+
+enum FreshUpgradeResult { FU_FRESH, FU_UPGRADE, FU_SAFE_FALLBACK };
+
+enum ConfigState { CFG_NONE, CFG_READABLE, CFG_CORRUPT };
+
+/* decide_fresh_vs_upgrade:
+ * @marker:         value of the persisted /initialized key (absent ⇒ false).
+ * @property_count: number of plugin properties present at load.
+ * @config_state:   whether stored config is none/readable/corrupt.
+ * @out_apply_modern: set to whether the Modern preset must be applied.
+ * @out_set_marker:   set to whether /initialized must be written true.
+ *
+ * Pure mirror of the gate implemented in Settings::migrate_schema. The marker
+ * — not the raw property count — is the authoritative fresh-vs-upgrade signal:
+ * a present marker always means UPGRADE (never reset the user's layout). The
+ * property count only distinguishes a truly empty channel from an existing
+ * user's first marker-aware run when the marker is absent.
+ *
+ * Returns: the classification for the given inputs.
+ */
+static FreshUpgradeResult decide_fresh_vs_upgrade(bool marker,
+	unsigned int property_count, ConfigState config_state,
+	bool* out_apply_modern, bool* out_set_marker)
+{
+	// Every completed path back-fills the marker so the next load is an upgrade.
+	*out_set_marker = true;
+
+	if (marker)
+	{
+		// Marker present ⇒ upgrade regardless of count/config; never reset.
+		*out_apply_modern = false;
+		return FU_UPGRADE;
+	}
+
+	if (property_count == 0 && config_state == CFG_NONE)
+	{
+		*out_apply_modern = true;
+		return FU_FRESH;
+	}
+
+	if (config_state == CFG_CORRUPT)
+	{
+		// Present but unmigratable ⇒ safe Modern fallback; never force Classic.
+		*out_apply_modern = true;
+		return FU_SAFE_FALLBACK;
+	}
+
+	// Marker absent but readable config ⇒ existing user's first marker-aware
+	// run: preserve layout, derive identity, back-fill the marker.
+	*out_apply_modern = false;
+	return FU_UPGRADE;
+}
+
+static void test_marker_decision_table()
+{
+	bool apply_modern = false, set_marker = false;
+
+	// Row 1: marker absent + empty channel ⇒ FRESH (Modern + marker set).
+	assert(decide_fresh_vs_upgrade(false, 0, CFG_NONE, &apply_modern, &set_marker) == FU_FRESH);
+	assert(apply_modern == true && set_marker == true);
+
+	// Row 2: marker absent + readable config ⇒ UPGRADE (preserve, back-fill).
+	assert(decide_fresh_vs_upgrade(false, 7, CFG_READABLE, &apply_modern, &set_marker) == FU_UPGRADE);
+	assert(apply_modern == false && set_marker == true);
+
+	// Row 3: marker present ⇒ UPGRADE (no reset), any count/config.
+	assert(decide_fresh_vs_upgrade(true, 0, CFG_NONE, &apply_modern, &set_marker) == FU_UPGRADE);
+	assert(apply_modern == false && set_marker == true);
+	assert(decide_fresh_vs_upgrade(true, 42, CFG_READABLE, &apply_modern, &set_marker) == FU_UPGRADE);
+	assert(apply_modern == false && set_marker == true);
+	assert(decide_fresh_vs_upgrade(true, 3, CFG_CORRUPT, &apply_modern, &set_marker) == FU_UPGRADE);
+	assert(apply_modern == false && set_marker == true);
+
+	// Row 4: marker absent + corrupt/unmigratable config ⇒ SAFE FALLBACK.
+	assert(decide_fresh_vs_upgrade(false, 5, CFG_CORRUPT, &apply_modern, &set_marker) == FU_SAFE_FALLBACK);
+	assert(apply_modern == true && set_marker == true);
+
+	// Postcondition (all paths): the marker is always set true afterwards.
+}
+
+/* apply_decision_to_identity:
+ * Models the observable identity/layout outcome of migrate_schema for the given
+ * decision inputs. On a path that applies Modern, the active-preset identity
+ * becomes "modern" and the layout is the Modern layout; otherwise the existing
+ * identity and layout are preserved verbatim (no reset on upgrade).
+ */
+static void apply_decision_to_identity(bool marker, unsigned int property_count,
+	ConfigState config_state, const char** identity, const char** layout)
+{
+	bool apply_modern = false, set_marker = false;
+	decide_fresh_vs_upgrade(marker, property_count, config_state,
+		&apply_modern, &set_marker);
+	if (apply_modern)
+	{
+		*identity = "modern";
+		*layout = "modern-layout";
+	}
+	// else: leave identity/layout untouched — upgrades preserve the user's data.
+}
+
+static void test_fresh_install_records_modern_identity()
+{
+	// Acceptance scenario 1: a genuinely fresh install lands on Modern and
+	// records the Modern active-preset identity.
+	const char* identity = "";
+	const char* layout = "";
+	apply_decision_to_identity(false, 0, CFG_NONE, &identity, &layout);
+	assert(std::strcmp(identity, "modern") == 0);
+	assert(std::strcmp(layout, "modern-layout") == 0);
+}
+
+static void test_upgrade_preserves_customized_layout()
+{
+	// Acceptance scenario 3: an upgrade with a customized layout is preserved,
+	// never reset to Modern, whether the marker is present or being back-filled.
+	const char* identity = "my-custom";
+	const char* layout = "custom-layout";
+	apply_decision_to_identity(true, 12, CFG_READABLE, &identity, &layout);
+	assert(std::strcmp(identity, "my-custom") == 0);
+	assert(std::strcmp(layout, "custom-layout") == 0);
+
+	// Marker-absent-but-readable (first marker-aware run) also preserves layout.
+	identity = "classic";
+	layout = "classic-layout";
+	apply_decision_to_identity(false, 12, CFG_READABLE, &identity, &layout);
+	assert(std::strcmp(identity, "classic") == 0);
+	assert(std::strcmp(layout, "classic-layout") == 0);
+}
+
 static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacity)
 {
 	// If categories-opacity is already set, keep it; otherwise use legacy.
@@ -339,6 +471,9 @@ int main()
 {
 	test_schema_version_guard();
 	test_fresh_install_detection();
+	test_marker_decision_table();
+	test_fresh_install_records_modern_identity();
+	test_upgrade_preserves_customized_layout();
 	test_legacy_opacity_mapping();
 	test_full_screen_opacity_default();
 	test_position_categories_horizontal_migration();
