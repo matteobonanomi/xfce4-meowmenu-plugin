@@ -16,13 +16,16 @@
 #   itself keeps running with all other plugins intact.
 #
 # USAGE
-#   ./dev-uninstall.sh [BUILD_DIR]
+#   ./dev/dev-uninstall.sh [BUILD_DIR]
 #
-#   BUILD_DIR  Meson build directory (default: ./build).
+#   BUILD_DIR  Meson build directory (default: ./build at the repo root).
 
 set -euo pipefail
 
-REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# This script lives under dev/; the repo root (and its default build dir) is its
+# parent directory.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${1:-${REPO}/build}"
 
 step() { echo "  » $*"; }
@@ -103,10 +106,38 @@ find "${LOCALEDIR}" -name 'xfce4-meowmenu-plugin.mo' -exec ${NEEDS_SUDO} rm -f {
 step "Remove user presets"
 rm -rf "${HOME}/.local/share/meowmenu/" 2>/dev/null || true
 
+# Legacy on-disk channel file (pre-rename installs); harmless to remove if present.
 XFCONF_FILE="${HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml"
 if [[ -f "${XFCONF_FILE}" ]]; then
-    step "Reset Xfconf channel (meowmenu.xml)"
+    step "Remove legacy Xfconf channel file (meowmenu.xml)"
     rm -f "${XFCONF_FILE}"
+fi
+
+# The plugin's live settings are NOT in meowmenu.xml: they sit in the
+# xfce4-panel channel under each instance's base (/plugins/plugin-N), including
+# the /initialized first-run marker. Removing only the file would leave xfconfd
+# serving the stale in-memory state, so the next install would be misdetected as
+# an upgrade and land on the wrong preset. Reset the marker and the whole plugin
+# subtree directly through xfconfd so a reinstall is a genuine clean install.
+# NOTE: a targeted --reset --recursive is used deliberately INSTEAD of killing
+# xfconfd, which would race with the panel and corrupt the panel layout.
+if command -v xfconf-query >/dev/null 2>&1; then
+    step "Reset MeowMenu Xfconf state (xfce4-panel channel + /initialized marker)"
+    while IFS= read -r prop; do
+        # Match exactly /plugins/plugin-N (a plugin slot), not its children.
+        if [[ "${prop}" =~ ^/plugins/plugin-[0-9]+$ ]]; then
+            value="$(xfconf-query --channel xfce4-panel --property "${prop}" 2>/dev/null || true)"
+            if [[ "${value}" == "meowmenu" ]]; then
+                step "  Reset ${prop} (recursive)"
+                # Clears every key under the base, marker included, in xfconfd's
+                # in-memory store and on disk.
+                xfconf-query --channel xfce4-panel --property "${prop}" \
+                    --reset --recursive 2>/dev/null || true
+            fi
+        fi
+    done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
+else
+    step "xfconf-query not found — skipping channel reset (reinstall may not be detected as fresh)"
 fi
 
 # ---------------------------------------------------------------------------

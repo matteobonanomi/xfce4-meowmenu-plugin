@@ -397,6 +397,46 @@ static void test_find_by_id()
 }
 
 // ---------------------------------------------------------------------------
+// Preset-field label resolution (contracts/preset-field-label.md).
+// Pure mirror of Settings::current_preset_name(): a known id yields the
+// preset's stored name; an unset/empty id or one that resolves to no known
+// preset yields the localized "Custom" string. The result is never empty.
+// ---------------------------------------------------------------------------
+
+/* resolve_preset_label:
+ * @id:          stored active-preset identity (may be empty).
+ * @lookup_name: the resolved preset's name, or nullptr if the id resolves to
+ *               no known preset.
+ *
+ * Returns: the label to display; never empty.
+ */
+static std::string resolve_preset_label(const std::string& id, const char* lookup_name)
+{
+	if (!id.empty() && lookup_name && *lookup_name)
+		return lookup_name;
+	return "Custom";
+}
+
+static void test_preset_label_resolution()
+{
+	// Known built-in / user ids adopt their resolved name.
+	assert(resolve_preset_label("modern", "Modern") == "Modern");
+	assert(resolve_preset_label("classic", "Classic") == "Classic");
+	assert(resolve_preset_label("uuid-7", "My Layout") == "My Layout");
+
+	// Unset/empty id → "Custom"; lookup is irrelevant.
+	assert(resolve_preset_label("", nullptr) == "Custom");
+	assert(resolve_preset_label("", "Modern") == "Custom");
+
+	// Non-empty but unknown id (resolves to nothing) → "Custom".
+	assert(resolve_preset_label("deleted-uuid", nullptr) == "Custom");
+
+	// The label is never empty in any state.
+	assert(!resolve_preset_label("", nullptr).empty());
+	assert(!resolve_preset_label("ghost", nullptr).empty());
+}
+
+// ---------------------------------------------------------------------------
 // Shadow user-preset store — mirrors the CRUD logic in preset.cpp without Xfconf.
 // ---------------------------------------------------------------------------
 
@@ -810,6 +850,7 @@ int main()
 	test_fullscreen_sidebar_left();
 	test_fullscreen_to_docked_restores_menu_size();
 	test_find_by_id();
+	test_preset_label_resolution();
 	// T084: user preset CRUD
 	test_user_preset_save_then_enumerate();
 	test_user_preset_rename_updates_name();

@@ -28,24 +28,47 @@ using namespace WhiskerMenu;
 //-----------------------------------------------------------------------------
 
 /* migrate_schema:
- * @is_fresh_install: true when no Xfconf properties were present at load.
+ * @marker:        value of the persisted /initialized key at load time.
+ * @empty_channel: true when no plugin Xfconf properties were present at load.
  *
- * Walks the channel forward through every known schema version, applying
- * additive migrations. Versions are cumulative: each block runs once per
- * upgrade. The defaults tables here are the single source of truth for
- * Xfconf key defaults seeded on schema upgrade; they MUST stay aligned
- * with the inline defaults supplied in the Settings constructor.
+ * Decides fresh-vs-upgrade from the marker (authoritative), not the raw
+ * property count, then walks the channel forward through every known schema
+ * version applying additive migrations. Versions are cumulative: each block
+ * runs once per upgrade. The defaults tables here are the single source of
+ * truth for Xfconf key defaults seeded on schema upgrade; they MUST stay
+ * aligned with the inline defaults supplied in the Settings constructor.
+ *
+ * Decision (contracts/fresh-vs-upgrade-decision.md):
+ *   - marker absent AND empty channel  ⇒ FRESH: apply the Modern preset.
+ *   - marker present                   ⇒ UPGRADE: preserve the user's layout.
+ *   - marker absent with stored config ⇒ UPGRADE (existing user's first
+ *                                        marker-aware run): preserve layout,
+ *                                        derive identity, back-fill the marker.
+ *   - present but unmigratable config  ⇒ degrades to a safe Modern-equivalent
+ *                                        state (xfconf getters fall back to
+ *                                        defaults); never crashes, never
+ *                                        forces Classic.
+ *
+ * INVARIANT: a `true` marker NEVER causes a layout reset. The marker is
+ * back-filled on every path so a still-running xfconfd serving stale state can
+ * never trigger a later reset.
  */
-void Settings::migrate_schema(bool is_fresh_install)
+void Settings::migrate_schema(bool marker, bool empty_channel)
 {
 	if (!channel)
 		return;
 
-	const int current_schema = 5;
-	if (schema_version >= current_schema)
-		return;
+	// Marker is authoritative: only a never-initialized, genuinely empty
+	// channel is a fresh install. Everything else is an upgrade.
+	const bool is_fresh_install = !marker && empty_channel;
 
 	begin_property_update();
+
+	// Fresh installs land on Modern (applied once, up front, so it runs
+	// regardless of the stored schema version). Upgrades intentionally skip
+	// this and keep the user's stored layout untouched.
+	if (is_fresh_install)
+		apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *this);
 
 	if (schema_version < 1)
 	{
@@ -99,13 +122,12 @@ void Settings::migrate_schema(bool is_fresh_install)
 				xfconf_channel_set_string(channel, p.prop, p.val);
 		}
 
-		// Fresh installs land on Modern. Upgrades intentionally leave
-		// current_preset_id unset here — the v5 step derives the active-preset
-		// identity from the user's actual layout instead of hard-defaulting to
-		// "classic" (which would mislabel a non-classic layout). The user's
-		// stored layout values are never touched on upgrade.
-		if (is_fresh_install)
-			apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *this);
+		// NOTE: the fresh-install Modern preset is applied up front (see the
+		// top of this function), not here. Upgrades intentionally leave
+		// current_preset_id unset in this block — the v5 step derives the
+		// active-preset identity from the user's actual layout instead of
+		// hard-defaulting to "classic" (which would mislabel a non-classic
+		// layout). The user's stored layout values are never touched on upgrade.
 
 		schema_version = 1;
 	}
@@ -275,6 +297,12 @@ void Settings::migrate_schema(bool is_fresh_install)
 
 		schema_version = 5;
 	}
+
+	// Back-fill the marker on every path (fresh, upgrade, or already-current
+	// schema) so the next load is unambiguously an upgrade and the user's
+	// layout is never reset again. Written inside the active begin/end batch.
+	if (!marker)
+		initialized = true;
 
 	end_property_update();
 }
