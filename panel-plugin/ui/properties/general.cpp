@@ -443,10 +443,14 @@ GtkWidget* SettingsDialog::init_general_tab()
 			}
 		});
 
-	// Populate preset combo and initial description.
-	refresh_preset_combo(static_cast<const gchar*>(m_settings->current_preset_id)
-		? std::string(static_cast<const gchar*>(m_settings->current_preset_id))
-		: std::string());
+	// Populate preset combo and initial description. Pass the stored active
+	// identity so the field reflects it on open; when the id is unset or
+	// resolves to no preset, refresh_preset_combo selects a non-blank "Custom"
+	// entry rather than leaving the field empty (FR-005/006).
+	{
+		const gchar* pid = static_cast<const gchar*>(m_settings->current_preset_id);
+		refresh_preset_combo(pid ? std::string(pid) : std::string());
+	}
 	{
 		const gchar* pid = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
 		const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());

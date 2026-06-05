@@ -12,7 +12,7 @@
 #   one you just installed under /usr/local.  The script removes that stale copy.
 #
 # USAGE
-#   ./dev-install.sh [--icons] [--reconfigure] [BUILD_DIR]
+#   ./dev/dev-install.sh [--icons] [--reconfigure] [BUILD_DIR]
 #
 #   --icons        Re-render icons/hi*-app-meowmenu.png from build-aux/art/meowmenu.svg
 #                  before building.  Requires rsvg-convert (preferred) or inkscape.
@@ -24,8 +24,9 @@
 #                  Must already exist; run `meson setup build` once first.
 #
 # LOGS
-#   Verbose output from meson and the compiler is redirected to .logs/dev-install.log
-#   (rotated on each run).  Check that file if a step fails.
+#   Verbose output from meson and the compiler is redirected to
+#   dev/.logs/dev-install.log (rotated on each run).  Check that file if a step
+#   fails.
 
 set -euo pipefail
 
@@ -33,8 +34,12 @@ set -euo pipefail
 # Helpers
 # ---------------------------------------------------------------------------
 
-REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${REPO}/.logs"
+# This script lives under dev/; the repo root is its parent. REPO must point at
+# the root so the meson build, build-aux helpers, and icons resolve correctly;
+# logs stay alongside the script under dev/.logs/.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+LOG_DIR="${SCRIPT_DIR}/.logs"
 LOG_FILE="${LOG_DIR}/dev-install.log"
 
 mkdir -p "${LOG_DIR}"
