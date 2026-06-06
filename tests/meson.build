@@ -352,12 +352,20 @@ test('switch_icons', test_switch_icons, timeout: 30)
 
 # test_user_session_row: headless coverage of the pure user/session-row
 # visibility decision mirrored from panel-plugin/core/window.cpp (both-hidden
-# collapse in docked layouts; shared row preserved in unified-bar/full-screen).
-test_user_session_row_sources = ['test_user_session_row.cpp']
+# collapse in docked layouts; shared row preserved in unified-bar/full-screen)
+# PLUS the normalize_user_session() coupling/normalisation contract — the docked
+# Profile↔Commands edge coupling, the full-screen search-bar↔both coupling, the
+# auto-snap direction, the per-option greying masks, and idempotency. The pure
+# helper translation unit is linked directly; no display or Settings is needed.
+test_user_session_row_sources = [
+  'test_user_session_row.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+]
 
 test_user_session_row = executable(
   'test_user_session_row',
   test_user_session_row_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [],
 )
 
