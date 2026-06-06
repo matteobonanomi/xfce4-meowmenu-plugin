@@ -19,7 +19,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Layout mode | **Docked** (standard panel-attached window) or **FullScreen** (full-screen launcher). |
 | Menu width | Width of the menu window in pixels. |
 | Menu height | Height of the menu window in pixels. |
-| Full-screen opacity | Opacity of the full-screen menu background (0–100), applied live. |
+| Full-screen opacity | Opacity of the entire full-screen menu, including the results area (0–100, where 0 is fully transparent and 100 fully solid), applied live. |
 | Stay visible when focus is lost | Keep the menu open when another window receives focus. |
 | Show panel button title | Display a text label next to the panel button icon. |
 | Panel button title | The label text shown on the panel button. |
@@ -125,9 +125,9 @@ Replace `<id>` with the numeric plugin ID shown by
 | `panel-gap` | int | 0 | Gap between the panel and the menu window. |
 | `menu-width` | int | 450 | Menu window width in pixels. |
 | `menu-height` | int | 500 | Menu window height in pixels. |
-| `categories-opacity` | int | 100 | Sidebar opacity (0–100). |
-| `apps-opacity` | int | 100 | Results area opacity (0–100). |
-| `full-screen-opacity` | int | 100 | Full-screen menu background opacity (0–100), applied live. |
+| `categories-opacity` | int | 100 | Sidebar opacity in docked mode (0 = fully transparent, 100 = fully solid). |
+| `apps-opacity` | int | 100 | Results area opacity in docked mode (0 = fully transparent, 100 = fully solid). |
+| `full-screen-opacity` | int | 100 | Opacity of the whole full-screen menu, results area included (0 = fully transparent, 100 = fully solid), applied live. |
 | `stay-on-focus-out` | bool | false | Keep menu open when focus moves away. |
 
 ### Layout

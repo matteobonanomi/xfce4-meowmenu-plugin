@@ -314,6 +314,24 @@ test_sidebar_layout = executable(
 
 test('sidebar_layout', test_sidebar_layout)
 
+# test_opacity_model: headless coverage of the pure percentage->alpha and
+# per-region alpha-assignment helper in panel-plugin/core/opacity-model.cpp
+# (the 0=transparent / 100=solid contract, no dead zone, no inter-region
+# compounding). GTK-free helper; no display.
+test_opacity_model_sources = [
+  'test_opacity_model.cpp',
+  '..' / 'panel-plugin' / 'core' / 'opacity-model.cpp',
+]
+
+test_opacity_model = executable(
+  'test_opacity_model',
+  test_opacity_model_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('opacity_model', test_opacity_model)
+
 # test_switch_icons: coverage of the Apps/Places icon-chain resolver in
 # panel-plugin/ui/switch-icons.cpp. Builds a synthetic on-disk icon theme so
 # the present/absent cases are deterministic; GtkIconTheme lookups need no

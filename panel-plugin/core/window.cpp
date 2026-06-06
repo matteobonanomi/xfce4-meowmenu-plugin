@@ -30,6 +30,7 @@
 #include "profile.h"
 #include "launcher/recent-page.h"
 #include "resizer.h"
+#include "opacity-model.h"
 #include "search/search-page.h"
 #include "settings.h"
 #include "sidebar-layout.h"
@@ -876,7 +877,8 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 			{
 				if (g_strcmp0(property, "/corner-radius") != 0
 						&& g_strcmp0(property, "/categories-opacity") != 0
-						&& g_strcmp0(property, "/apps-opacity") != 0)
+						&& g_strcmp0(property, "/apps-opacity") != 0
+						&& g_strcmp0(property, "/full-screen-opacity") != 0)
 					return;
 				auto* self = static_cast<Window*>(user_data);
 				if (g_strcmp0(property, "/corner-radius") == 0 && self->m_frame)
@@ -1991,20 +1993,6 @@ void WhiskerMenu::Window::update_background_css()
 		bg_found = gtk_style_context_lookup_color(context, "bg_color", &bg);
 	}
 
-	// TEMPORARY DIAGNOSTIC — remove before merge
-	{
-		gchar* theme = nullptr;
-		gboolean prefer_dark = FALSE;
-		g_object_get(gtk_settings_get_default(),
-			"gtk-theme-name", &theme,
-			"gtk-application-prefer-dark-theme", &prefer_dark, nullptr);
-		gboolean realized = gtk_widget_get_realized(GTK_WIDGET(m_window));
-		g_message("update_background_css: theme=%s prefer_dark=%d realized=%d bg_found=%d bg=rgb(%d,%d,%d)",
-			theme ? theme : "(null)", (int)prefer_dark, (int)realized, (int)bg_found,
-			(int)(bg.red * 255 + 0.5), (int)(bg.green * 255 + 0.5), (int)(bg.blue * 255 + 0.5));
-		g_free(theme);
-	}
-
 	if (!bg_found)
 	{
 		// Both background lookups failed. The old code kept the unconditional
@@ -2029,19 +2017,49 @@ void WhiskerMenu::Window::update_background_css()
 	const int red   = CLAMP(static_cast<int>(bg.red   * 255.0 + 0.5), 0, 255);
 	const int green = CLAMP(static_cast<int>(bg.green * 255.0 + 0.5), 0, 255);
 	const int blue  = CLAMP(static_cast<int>(bg.blue  * 255.0 + 0.5), 0, 255);
-	const double cats_alpha = CLAMP(m_settings->categories_opacity, 0, 100) / 100.0;
-	const double apps_alpha = CLAMP(m_settings->apps_opacity, 0, 100) / 100.0;
-	// In full-screen the whole menu window carries its own opacity control;
-	// docked layouts keep the categories opacity for the window background. The
-	// alpha is built exactly like cats_alpha/apps_alpha so the live reload path
-	// is shared.
+	// Separator colour for the docked results-area outline. The docked window
+	// shell is fully transparent (so apps-opacity 0 reaches true transparency),
+	// which means the inter-region gaps the window background used to fill are
+	// no longer painted. The visible boundaries all sit around the results area,
+	// so a single opaque 1 px outline owned by that region restores them without
+	// putting any paint behind it. Nudge the seed toward or away from black by a
+	// fixed step depending on the theme's lightness so the line reads on both
+	// dark and light themes.
+	const double sep_luma = 0.299 * red + 0.587 * green + 0.114 * blue;
+	const int sep_step = 45;
+	const int sep_r = (sep_luma < 128.0) ? CLAMP(red   + sep_step, 0, 255) : CLAMP(red   - sep_step, 0, 255);
+	const int sep_g = (sep_luma < 128.0) ? CLAMP(green + sep_step, 0, 255) : CLAMP(green - sep_step, 0, 255);
+	const int sep_b = (sep_luma < 128.0) ? CLAMP(blue  + sep_step, 0, 255) : CLAMP(blue  - sep_step, 0, 255);
+	// Resolve which absolute alpha each region receives for this render pass.
+	// The pure helper enforces the 0=transparent / 100=solid contract and the
+	// dual single-alpha model: docked => transparent window with each region
+	// owning its alpha (so apps-opacity 0 reaches true transparency with no
+	// categories floor showing through); full-screen => the window shell owns
+	// the one full-screen alpha and the regions are transparent (so the whole
+	// surface, results area included, reads at exactly that one value). Neither
+	// mode lets two backgrounds compound.
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
-	const double window_alpha = is_fullscreen
-			? CLAMP(m_settings->full_screen_opacity, 0, 100) / 100.0
-			: cats_alpha;
+	const OpacityRegionAlphas alphas = meowmenu_region_alphas(
+			is_fullscreen,
+			m_settings->categories_opacity,
+			m_settings->apps_opacity,
+			m_settings->full_screen_opacity);
+
+	// The results outline only applies in docked mode. In full-screen the whole
+	// surface carries one alpha and the regions are transparent, so an outline
+	// there would draw a stray rectangle over an intentionally seamless menu.
+	gchar* apps_border = is_fullscreen
+			? g_strdup("")
+			: g_strdup_printf(
+				".meowmenu .applications-area"
+				"{ border: 1px solid rgba(%d, %d, %d, 1.0); }",
+				sep_r, sep_g, sep_b);
 
 	gchar* css = g_strdup_printf(
 		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		// NOTE: .contents stays transparent on purpose — it is an ancestor of
+		// the applications area, so giving it a background would re-introduce a
+		// solid floor under the results region and defeat true-0 apps opacity.
 		".meowmenu > *,"
 		".meowmenu frame,"
 		".meowmenu frame > *,"
@@ -2051,21 +2069,28 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu scrolledwindow > *,"
 		".meowmenu grid,"
 		".meowmenu grid > *,"
-		".meowmenu .search-area,"
-		".meowmenu .title-area,"
-		".meowmenu .commands-area,"
 		".meowmenu .contents,"
 		".meowmenu .contents > *,"
-		".meowmenu .categories,"
 		".meowmenu treeview,"
 		".meowmenu flowbox,"
 		".meowmenu flowboxchild,"
 		".meowmenu list,"
 		".meowmenu row"
 		"{ background-color: transparent; background-image: none; }"
+		// Sidebar/categories region plus the chrome strips (search, title,
+		// commands bars) share one absolute alpha so the menu frame stays
+		// cohesive. In full-screen this alpha is 0 (transparent) so only the
+		// window shell carries the single full-screen opacity.
+		".meowmenu .categories,"
+		".meowmenu .search-area,"
+		".meowmenu .title-area,"
+		".meowmenu .commands-area"
+		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
 		".meowmenu .applications-area,"
 		".meowmenu .applications-area > *"
 		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		// Docked-only crisp 1 px results outline (empty string in full-screen).
+		"%s"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2089,11 +2114,14 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
 		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }",
-		red, green, blue, window_alpha,
-		red, green, blue, apps_alpha);
+		red, green, blue, alphas.window,
+		red, green, blue, alphas.categories,
+		red, green, blue, alphas.apps,
+		apps_border);
 
 	gtk_css_provider_load_from_data(m_css_provider, css, -1, nullptr);
 	g_free(css);
+	g_free(apps_border);
 }
 
 //-----------------------------------------------------------------------------
@@ -2737,6 +2765,15 @@ void WhiskerMenu::Window::update_layout()
 	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box),
 			m_layout_categories_horizontal && strip_below_results ? STRIP_GAP : 0);
 
+	// Docked mode paints a transparent window shell, so any spacing between
+	// regions would be a transparent band rather than the frame grey the window
+	// background used to supply. Collapse the inter-region spacing to 0 in docked
+	// mode and let the results-area outline (update_background_css) draw the
+	// boundaries; full-screen keeps the 6 px rhythm because its single window
+	// alpha fills the gaps and the centring math depends on the column gap.
+	const bool docked = !layout_state.fullscreen;
+	gtk_box_set_spacing(m_vbox, docked ? 0 : 6);
+
 	gtk_grid_remove_row(m_contents_box, 1);
 	gtk_grid_remove_row(m_contents_box, 0);
 	if (m_layout_categories_horizontal)
@@ -2748,7 +2785,7 @@ void WhiskerMenu::Window::update_layout()
 	}
 	else
 	{
-		gtk_grid_set_column_spacing(m_contents_box, 6);
+		gtk_grid_set_column_spacing(m_contents_box, docked ? 0 : 6);
 		gtk_grid_set_row_spacing(m_contents_box, 0);
 
 		gtk_style_context_add_class(context, (m_layout_ltr == m_layout_categories_alternate) ? "left" : "right");
