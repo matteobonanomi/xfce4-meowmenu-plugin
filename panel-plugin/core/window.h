@@ -295,6 +295,12 @@ private:
 	bool m_layout_search_alternate;
 	bool m_layout_commands_alternate;
 	bool m_layout_profile_alternate;
+	// Cached hidden state of the profile/commands clusters. Tracked separately
+	// from the *_alternate edge flags because a hidden ↔ visible transition can
+	// leave both edge flags unchanged; without these, show() would skip
+	// update_layout() and the restored element would never re-render.
+	bool m_layout_profile_hidden;
+	bool m_layout_commands_hidden;
 	bool m_layout_unified_bar;
 	int m_profile_shape;
 	bool m_supports_alpha;

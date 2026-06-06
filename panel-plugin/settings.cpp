@@ -19,6 +19,7 @@
 
 #include "launcher/command.h"
 #include "core/plugin.h"
+#include "core/user-session-layout.h"
 #include "presets/preset.h"
 #include "search/search-action.h"
 #include "ui/slot.h"
@@ -435,6 +436,32 @@ void Settings::prevent_invalid()
 		else if (button_title.empty())
 		{
 			button_title = m_button_title_default;
+		}
+	}
+
+	// Normalise the Profile/Commands edge coupling toward the governing edge
+	// (the Profile edge when docked, the search-bar edge when full-screen) and
+	// persist any snapped value. The pure helper is the single authority shared
+	// with the renderer and the Preferences combos, so a stored or live-edited
+	// disallowed combination resolves the same way everywhere (FR-014/FR-017).
+	//
+	// NOTE: the snapped value is written back through the existing
+	// /profile-position and /commands-position keys (no new key) so the stored
+	// configuration and the rendered row stay in sync — reopening Preferences
+	// shows the resolved value. A "hidden" component is never un-hidden here;
+	// only the edge of an already-visible component moves.
+	{
+		const LayoutMode mode = (g_strcmp0(layout_mode, "fullscreen") == 0)
+				? LayoutMode::FullScreen : LayoutMode::Docked;
+		const UserSessionResolution res = normalize_user_session(
+				mode, search_bar_position, profile_position, commands_position);
+		if (res.profile_changed)
+		{
+			profile_position = res.profile_position;
+		}
+		if (res.commands_changed)
+		{
+			commands_position = res.commands_position;
 		}
 	}
 }
