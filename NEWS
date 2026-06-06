@@ -1,4 +1,18 @@
 MEOW MENU DEVELOPMENT
+0.6.2 (2026-06-XX)
+=====
+- Fixed: setting Profile Position or Commands Position to "Hidden" now actually hides the avatar/username or session buttons in the menu (was stored but never applied).
+- Fixed: when both Profile and Commands are set to "Hidden" in a docked layout, the entire user/session row collapses instead of leaving an empty strip.
+- Fixed: Full-Screen opacity slider now applies live without restarting the panel.
+- Fixed: Full-screen opacity now governs the entire menu surface, including the results/applications area (previously only the background was affected).
+- Fixed: App-box opacity now reaches true full transparency at 0; there is no longer a minimum floor below which the slider has no effect.
+- Fixed: All opacity controls (sidebar, app-box, full-screen) now honor a consistent 0 = fully transparent / 100 = fully solid contract.
+- Fixed: In docked mode, setting app-box opacity to 0 no longer lets the categories/sidebar region bleed through as a solid floor behind the results area.
+- Removed: "Show item metadata" toggle from the Places preferences tab — the option was stored but never used.
+- Removed: redundant "Bottom Right" option from the Profile Position dropdown (it rendered identically to "Bottom"); Commands Position retains it as it is distinct there.
+- Removed: orphaned grid layout settings (auto-size, columns, rows) that were stored but had no effect.
+- Migration: upgrading from a previous configuration automatically cleans the stored keys for all removed settings and rewrites "bottom-right" profile position to "bottom" (schema v6).
+
 0.6.1 (2026-06-05)
 =====
 - Places: fix use-after-free when activating a search result — item is now opened before the menu closes.

@@ -23,6 +23,7 @@ plugin_sources = [
   'launcher/page.cpp',
   'places/places-item.cpp',
   'places/places-page.cpp',
+  'core/opacity-model.cpp',
   'core/plugin.cpp',
   'core/sidebar-layout.cpp',
   'core/theme-fallback.cpp',
