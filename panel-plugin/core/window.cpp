@@ -35,6 +35,7 @@
 #include "settings.h"
 #include "sidebar-layout.h"
 #include "theme-fallback.h"
+#include "user-session-layout.h"
 #include "ui/slot.h"
 #include "ui/switch-icons.h"
 #include "search/unified-bar.h"
@@ -196,6 +197,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_layout_search_alternate(false),
 	m_layout_commands_alternate(false),
 	m_layout_profile_alternate(false),
+	m_layout_profile_hidden(false),
+	m_layout_commands_hidden(false),
 	m_layout_unified_bar(false),
 	m_profile_shape(0),
 	m_supports_alpha(false),
@@ -1177,6 +1180,12 @@ void WhiskerMenu::Window::show(const Position position)
 	const bool commands_alt = (g_strcmp0(commands_pos, "bottom-right") == 0)
 			|| (g_strcmp0(commands_pos, "top-right") != 0 && g_strcmp0(commands_pos, "hidden") != 0
 				&& m_settings->position_commands_alternate);
+	// NOTE: hidden state is tracked independently of the edge flags above. A
+	// Hidden ↔ visible transition (e.g. "hidden" → "top") leaves *_alternate
+	// unchanged, so without these comparisons show() would skip update_layout()
+	// and the restored element would never re-render (defect 2, FR-005/006).
+	const bool profile_hidden  = (g_strcmp0(profile_pos, "hidden") == 0);
+	const bool commands_hidden = (g_strcmp0(commands_pos, "hidden") == 0);
 
 	// NOTE: schema v2 — horizontal-categories is derived from sidebar-position
 	// (top|bottom); the legacy /position-categories-horizontal key is migrated
@@ -1207,6 +1216,8 @@ void WhiskerMenu::Window::show(const Position position)
 			|| (m_layout_search_alternate != search_alt)
 			|| (m_layout_commands_alternate != commands_alt)
 			|| (m_layout_profile_alternate != profile_alt)
+			|| (m_layout_profile_hidden != profile_hidden)
+			|| (m_layout_commands_hidden != commands_hidden)
 			|| (m_layout_unified_bar != unified_eff)
 			|| (m_profile_shape != m_settings->profile_shape))
 	{
@@ -1220,6 +1231,8 @@ void WhiskerMenu::Window::show(const Position position)
 		m_layout_search_alternate = search_alt;
 		m_layout_commands_alternate = commands_alt;
 		m_layout_profile_alternate = profile_alt;
+		m_layout_profile_hidden = profile_hidden;
+		m_layout_commands_hidden = commands_hidden;
 		m_profile->update_picture();
 		m_profile_shape = m_settings->profile_shape;
 		update_layout();
@@ -1460,27 +1473,28 @@ void WhiskerMenu::Window::unset_items()
  * @unified:              true when the unified search/profile/session bar is active.
  * @profile_hidden:       true when profile_position == "hidden".
  * @commands_hidden:      true when commands_position == "hidden".
- * @categories_alternate: true when the category list sits at the alternate (bottom) end.
+ * @categories_alternate: unused; retained for signature stability with the
+ *                        mirrored unit test.
  *
  * Pure visibility decision for the docked user/session row (m_title_box). In a
  * unified-bar / full-screen layout the row hosts the centred search cluster, so
  * it is always kept and only the profile/commands clusters hide (FR-004). In a
- * docked layout the row collapses entirely when both clusters are hidden so no
- * empty strip remains (FR-003); otherwise it follows the existing
- * bottom-categories suppression.
+ * docked layout the row is present whenever either cluster is visible and
+ * collapses only when both are hidden, so no empty strip remains (FR-003).
+ *
+ * NOTE: row visibility must NOT depend on category placement. The previous
+ * `return !categories_alternate` branch coupled the row's existence to where
+ * the category list sat, which suppressed a visible commands cluster whenever
+ * the categories were at the bottom (defect 1, FR-001).
  *
  * Returns: true if the user/session row should be visible.
  */
 static bool user_session_row_visible(bool unified, bool profile_hidden,
-                                     bool commands_hidden, bool categories_alternate)
+                                     bool commands_hidden, bool /*categories_alternate*/)
 {
 	if (unified)
 		return true;
-	if (!profile_hidden)
-		return true;
-	if (commands_hidden)
-		return false;
-	return !categories_alternate;
+	return !(profile_hidden && commands_hidden);
 }
 
 //-----------------------------------------------------------------------------
@@ -2653,20 +2667,50 @@ void WhiskerMenu::Window::update_layout()
 	// ProfileHidden shape is migrated to profile_position == "hidden" on upgrade
 	// and is no longer consulted here. The avatar + username follow the profile
 	// position; the whole session command box follows the commands position.
-	const bool profile_hidden  = (g_strcmp0(m_settings->profile_position, "hidden") == 0);
-	const bool commands_hidden = (g_strcmp0(m_settings->commands_position, "hidden") == 0);
 	const bool unified         = unified_bar_effective(*m_settings);
+
+	// Resolve the Profile/Commands pair through the shared coupling helper so the
+	// rendered row reflects a coherent edge combination — the same resolution the
+	// Preferences combos grey and prevent_invalid() persists (FR-014). A "hidden"
+	// value is always preserved by the helper, so the visibility decisions below
+	// are unchanged for hidden inputs; the edge resolution matters for the
+	// reorder/packing that follows. Full-screen coupling is finalised in the
+	// unified-bar packing further down.
+	const LayoutMode user_session_mode =
+			(g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+			? LayoutMode::FullScreen : LayoutMode::Docked;
+	const UserSessionResolution user_session = normalize_user_session(
+			user_session_mode, m_settings->search_bar_position,
+			m_settings->profile_position, m_settings->commands_position);
+	const bool profile_hidden  = (g_strcmp0(user_session.profile_position, "hidden") == 0);
+	const bool commands_hidden = (g_strcmp0(user_session.commands_position, "hidden") == 0);
 
 	gtk_widget_set_visible(m_profile->get_picture(),  !profile_hidden);
 	gtk_widget_set_visible(m_profile->get_username(), !profile_hidden);
 	gtk_widget_set_visible(GTK_WIDGET(m_commands_box), !commands_hidden);
 
-	// Collapse the user/session row when both clusters are hidden in a docked
-	// layout (FR-003); keep it in unified-bar / full-screen where it carries the
-	// shared search row (FR-004).
+	// A bottom-right commands cluster is packed into the search row (the
+	// m_layout_commands_alternate branch above), not the user/session row, so it
+	// does not keep the title row alive on its own — only commands that share the
+	// title row count toward its visibility.
+	const bool commands_in_title_row = !commands_hidden && !m_layout_commands_alternate;
+
+	// Collapse the user/session row only when nothing remains in it (FR-003);
+	// keep it in unified-bar / full-screen where it carries the shared search row
+	// (FR-004). Independent of category placement (FR-001).
 	gtk_widget_set_visible(GTK_WIDGET(m_title_box),
-			user_session_row_visible(unified, profile_hidden, commands_hidden,
+			user_session_row_visible(unified, profile_hidden, !commands_in_title_row,
 					m_layout_categories_alternate));
+
+	// When the profile cluster is hidden, no expanding username remains in the
+	// title row to push the surviving commands cluster to the trailing edge, so
+	// give the commands box the expand + end alignment itself (FR-002). Reset to
+	// the neutral state otherwise; the unified bar handles its own right-edge
+	// placement via pack_end below.
+	const bool docked_solo_commands = commands_in_title_row && profile_hidden && !unified;
+	gtk_widget_set_hexpand(GTK_WIDGET(m_commands_box), docked_solo_commands);
+	gtk_widget_set_halign(GTK_WIDGET(m_commands_box),
+			docked_solo_commands ? GTK_ALIGN_END : GTK_ALIGN_FILL);
 
 	// Arrange horizontal order of profile picture, username, and commands
 	if (m_layout_ltr && m_layout_commands_alternate)
@@ -2927,6 +2971,14 @@ void WhiskerMenu::Window::update_layout()
 	// not overflow the app-grid boundary (sidebar_w + 6 + panels_stack + 6 + void
 	// == workarea, so each side effectively costs sidebar_w + 3; we subtract the
 	// full column gap once here to stay within the visual content column).
+	//
+	// NOTE: this width is computed purely from the workarea/sidebar geometry and
+	// is independent of whether the profile or commands clusters are visible, so
+	// hiding both (FR-013) leaves the centred search bar — and therefore the
+	// results grid and the left/right void widths — at exactly the same size and
+	// position as when both clusters are shown (SC-005, INV-4). The merged row
+	// reads profile + void + search bar + void + session via the centre widget;
+	// hiding a cluster only blanks that child, it never re-flows the geometry.
 	if (eff)
 	{
 		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;

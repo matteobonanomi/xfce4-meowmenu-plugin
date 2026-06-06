@@ -14,19 +14,41 @@
  *   - a single visible cluster keeps the row.
  */
 
-#include <cassert>
+#include "core/user-session-layout.h"
 
-/* Mirror of user_session_row_visible() in panel-plugin/core/window.cpp. */
+#include <cassert>
+#include <cstring>
+
+using namespace WhiskerMenu;
+
+/* Mirror of user_session_row_visible() in panel-plugin/core/window.cpp. The
+ * canonical implementation collapses the docked row only when both clusters are
+ * hidden, independent of category placement (FR-001/004); this mirror is kept
+ * in lockstep with it. */
 static bool user_session_row_visible(bool unified, bool profile_hidden,
-                                     bool commands_hidden, bool categories_alternate)
+                                     bool commands_hidden, bool /*categories_alternate*/)
 {
 	if (unified)
 		return true;
-	if (!profile_hidden)
-		return true;
-	if (commands_hidden)
-		return false;
-	return !categories_alternate;
+	return !(profile_hidden && commands_hidden);
+}
+
+static bool seq(const char* a, const char* b)
+{
+	return std::strcmp(a, b) == 0;
+}
+
+/* check_vector: assert one normalize_user_session() input→output row from the
+ * coupling-matrix contract, including the *_changed expectations. */
+static void check_vector(LayoutMode mode, const char* search, const char* pin,
+                         const char* cin, const char* pout, const char* cout,
+                         bool pchanged, bool cchanged)
+{
+	UserSessionResolution r = normalize_user_session(mode, search, pin, cin);
+	assert(seq(r.profile_position, pout));
+	assert(seq(r.commands_position, cout));
+	assert(r.profile_changed == pchanged);
+	assert(r.commands_changed == cchanged);
 }
 
 int main()
@@ -47,10 +69,56 @@ int main()
 	assert(user_session_row_visible(false, false, true,  false) == true);
 	assert(user_session_row_visible(false, false, true,  true)  == true);
 
-	// Profile hidden but commands visible (docked): the row stays, following the
-	// existing bottom-categories suppression.
+	// FR-001/004: profile hidden but commands visible (docked) keeps the row —
+	// and it no longer depends on category placement (the old bug suppressed it
+	// when the category list sat at the bottom).
 	assert(user_session_row_visible(false, true, false, false) == true);
-	assert(user_session_row_visible(false, true, false, true)  == false);
+	assert(user_session_row_visible(false, true, false, true)  == true);
+
+	// ---------------------------------------------------------------------
+	// normalize_user_session() contract (coupling-matrix §A/§C/§D).
+	// Each row is "mode, search, profile_in, commands_in → profile_out,
+	// commands_out, profile_changed, commands_changed".
+	// ---------------------------------------------------------------------
+
+	// Docked — Commands edge follows the Profile edge (§A); Profile is free.
+	check_vector(LayoutMode::Docked, nullptr, "top",    "top-right",    "top",    "top-right",    false, false);
+	check_vector(LayoutMode::Docked, nullptr, "top",    "bottom-right", "top",    "top-right",    false, true);
+	check_vector(LayoutMode::Docked, nullptr, "bottom", "top-right",    "bottom", "bottom-right", false, true);
+	check_vector(LayoutMode::Docked, nullptr, "hidden", "bottom-right", "hidden", "bottom-right", false, false);
+	check_vector(LayoutMode::Docked, nullptr, "hidden", "hidden",       "hidden", "hidden",       false, false);
+
+	// FullScreen — both edges follow the search-bar edge (§C/§D).
+	check_vector(LayoutMode::FullScreen, "top",    "top",    "bottom-right", "top",    "top-right",    false, true);
+	check_vector(LayoutMode::FullScreen, "bottom", "top",    "top-right",    "bottom", "bottom-right", true,  true);
+	check_vector(LayoutMode::FullScreen, "bottom", "hidden", "top-right",    "hidden", "bottom-right", false, true);
+	check_vector(LayoutMode::FullScreen, "top",    "hidden", "hidden",       "hidden", "hidden",       false, false);
+
+	// Mask assertions.
+	{
+		// Docked Profile=top ⇒ Commands Bottom Right greyed; hidden always on.
+		UserSessionResolution d = normalize_user_session(LayoutMode::Docked, nullptr, "top", "top-right");
+		assert(d.commands_bottom_right_enabled == false);
+		assert(d.commands_top_right_enabled == true);
+		assert(d.profile_top_enabled == true && d.profile_bottom_enabled == true);
+		assert(d.profile_hidden_enabled && d.commands_hidden_enabled);
+
+		// FullScreen search=top ⇒ both bottom edges greyed; hidden always on.
+		UserSessionResolution f = normalize_user_session(LayoutMode::FullScreen, "top", "top", "top-right");
+		assert(f.profile_bottom_enabled == false);
+		assert(f.commands_bottom_right_enabled == false);
+		assert(f.profile_hidden_enabled && f.commands_hidden_enabled);
+	}
+
+	// Idempotency: feeding a resolved pair back in yields no further change.
+	{
+		UserSessionResolution once = normalize_user_session(LayoutMode::FullScreen, "bottom", "top", "top-right");
+		UserSessionResolution twice = normalize_user_session(LayoutMode::FullScreen, "bottom",
+				once.profile_position, once.commands_position);
+		assert(seq(twice.profile_position, once.profile_position));
+		assert(seq(twice.commands_position, once.commands_position));
+		assert(twice.profile_changed == false && twice.commands_changed == false);
+	}
 
 	return 0;
 }

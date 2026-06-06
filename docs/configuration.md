@@ -34,7 +34,30 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Show user profile picture | Display the account avatar at the top of the menu. |
 | Show username | Display the logged-in user's name. |
 | Profile position | Where the profile block appears: top, bottom, or hidden. **Hidden** removes the avatar and username (and keeps them out of keyboard focus). |
-| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. **Hidden** removes the session buttons. When both Profile and Session commands are hidden, the whole row collapses (the shared search row is kept in Full Screen). |
+| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. **Hidden** removes the session buttons. |
+
+Profile and Session commands are **independent**: hiding one always keeps the
+other on its own side (profile on the left, session buttons on the right),
+regardless of where the category list sits. The row collapses only when **both**
+are hidden. **Hidden is fully reversible** — switching a hidden element back to a
+visible position restores it (and the row, if it had collapsed) immediately, with
+no restart and no need to reset to defaults.
+
+The two positions are **coupled** so the row always stays coherent:
+
+* **Docked layout** — the Session commands edge follows the Profile edge.
+  Choosing Profile = *Top* makes Session commands = *Top Right* (and *Bottom
+  Right* is greyed out); Profile = *Bottom* makes Session commands = *Bottom
+  Right*. When Profile is *Hidden* both Session-commands edges are available.
+* **Full Screen layout** — both Profile and Session commands follow the
+  **search bar** edge. With the search bar on top, both sit on the top edge (the
+  bottom options are greyed); moving the search bar to the bottom moves both with
+  it. Hiding both leaves only the centred search bar, at exactly the same size and
+  position as when they are shown.
+
+Disallowed edges are shown greyed rather than removed, and if a stored
+combination is no longer valid for the current layout it is automatically snapped
+to the nearest coherent edge (the element stays visible — only its edge moves).
 | Lock screen command | Command run when the lock button is clicked. |
 | Log out command | Command run when the log out button is clicked. |
 | Suspend command | Command run when the suspend button is clicked. |
