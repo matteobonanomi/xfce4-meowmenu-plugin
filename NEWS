@@ -1,5 +1,5 @@
 MEOW MENU DEVELOPMENT
-0.6.2 (2026-06-XX)
+0.6.2 (2026-06-08)
 =====
 - Fixed: setting Profile Position or Commands Position to "Hidden" now actually hides the avatar/username or session buttons in the menu (was stored but never applied).
 - Fixed: when both Profile and Commands are set to "Hidden" in a docked layout, the entire user/session row collapses instead of leaving an empty strip.
