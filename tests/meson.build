@@ -297,6 +297,24 @@ test_window_size_clamp = executable(
 
 test('window_size_clamp', test_window_size_clamp)
 
+# test_window_frame: headless coverage of the pure window-frame helpers in
+# panel-plugin/core/window-frame.cpp (radius clamp [0,24] + the composited
+# rounded-border predicate). Pulls only the GTK-free helper translation unit;
+# no display server, no GTK widgets.
+test_window_frame_sources = [
+  'test_window_frame.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
+]
+
+test_window_frame = executable(
+  'test_window_frame',
+  test_window_frame_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('window_frame', test_window_frame)
+
 # test_sidebar_layout: headless coverage of the pure layout-decision mapping in
 # panel-plugin/core/sidebar-layout.cpp (sidebar visibility, switch placement /
 # orientation, forced icon/name states). GTK-free helper; no display.
