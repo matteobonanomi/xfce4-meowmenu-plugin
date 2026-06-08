@@ -145,6 +145,36 @@ private:
 	void on_state_flags_changed(GtkWidget* widget);
 	void on_screen_changed(GtkWidget* widget);
 	gboolean on_draw_event(GtkWidget* widget, cairo_t* cr);
+
+	/* apply_window_shape:
+	 * @width:      current window allocation width in pixels.
+	 * @height:     current window allocation height in pixels.
+	 * @radius:     clamped corner radius in pixels (0 = square).
+	 * @composited: true when an RGBA visual / compositor is available.
+	 *
+	 * Masks the toplevel GdkWindow to the rounded silhouette so the corner
+	 * rounding clips EVERY child, including native-windowed regions (the apps
+	 * scrolledwindow/treeview) that composite straight onto the toplevel surface
+	 * and therefore ignore the cairo rounded clip in on_draw_event — they would
+	 * otherwise leave an opaque square corner outside the rounded outline. The
+	 * mask is reset (square, full rectangle) when radius is 0 or the desktop is
+	 * not composited. The (width, height, radius, composited) signature is cached
+	 * so a re-entrant draw only touches the shape when the silhouette changes.
+	 */
+	void apply_window_shape(int width, int height, int radius, bool composited);
+
+	/* fill_resizer_ring:
+	 * @cr:     the toplevel draw context.
+	 * @width:  window allocation width in pixels.
+	 * @height: window allocation height in pixels.
+	 *
+	 * Paints the strip the 3x3 resizer grid reserves around the content vbox
+	 * (the window rectangle minus the vbox rectangle) with the chrome background.
+	 * The docked window shell is transparent, so this prevents that strip from
+	 * showing the desktop as a band between the border and the content. The vbox
+	 * area is deliberately left unpainted so the apps region keeps its own alpha.
+	 */
+	void fill_resizer_ring(cairo_t* cr, double width, double height);
 	void update_background_css();
 	void check_scrollbar_needed();
 	void favorites_toggled();
@@ -295,9 +325,32 @@ private:
 	bool m_layout_search_alternate;
 	bool m_layout_commands_alternate;
 	bool m_layout_profile_alternate;
+	// Cached hidden state of the profile/commands clusters. Tracked separately
+	// from the *_alternate edge flags because a hidden ↔ visible transition can
+	// leave both edge flags unchanged; without these, show() would skip
+	// update_layout() and the restored element would never re-render.
+	bool m_layout_profile_hidden;
+	bool m_layout_commands_hidden;
 	bool m_layout_unified_bar;
 	int m_profile_shape;
 	bool m_supports_alpha;
+	// Theme-derived separator colour (luminance-nudged from the menu background),
+	// computed once in update_background_css() and reused by on_draw_event so the
+	// single window border and the CSS region styling cannot diverge in colour.
+	GdkRGBA m_separator_rgba = { 0.0, 0.0, 0.0, 1.0 };
+	// Chrome/frame background (theme bg at the categories-region alpha), computed
+	// in update_background_css() and reused by on_draw_event to fill the resizer
+	// ring around the content. The docked window shell is transparent, so without
+	// this the 6 px the 3x3 resizer grid reserves around the content would show
+	// the desktop as a band between the border and the content.
+	GdkRGBA m_chrome_rgba = { 0.0, 0.0, 0.0, 1.0 };
+	// Cached signature of the last shape mask applied to the toplevel window, so
+	// apply_window_shape() re-masks only when the rounded silhouette changes.
+	// Initialised to -1 so the first draw always applies a shape.
+	int m_shape_width = -1;
+	int m_shape_height = -1;
+	int m_shape_radius = -1;
+	bool m_shape_composited = false;
 	bool m_child_has_focus;
 	bool m_resizing;
 };

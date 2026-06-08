@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 5;
+	return 6;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -49,6 +49,11 @@ static bool needs_v4_block(int current_schema_version)
 static bool needs_v5_block(int current_schema_version)
 {
 	return current_schema_version < 5;
+}
+
+static bool needs_v6_block(int current_schema_version)
+{
+	return current_schema_version < 6;
 }
 
 /* fresh_install_preset_id:
@@ -307,27 +312,29 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 5);
+	assert(target_schema_version() == 6);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
 	assert(needs_migration(3) == true);
 	assert(needs_migration(4) == true);
-	assert(needs_migration(5) == false);
+	assert(needs_migration(5) == true);
 	assert(needs_migration(6) == false);
 
-	// v0 → v5 walks through every block
+	// v0 → v6 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
 	assert(needs_v4_block(0) == true);
 	assert(needs_v5_block(0) == true);
+	assert(needs_v6_block(0) == true);
 
-	// v4 → v5 only runs the v5 block
-	assert(needs_v1_block(4) == false);
-	assert(needs_v2_block(4) == false);
-	assert(needs_v4_block(4) == false);
-	assert(needs_v5_block(4) == true);
+	// v5 → v6 only runs the v6 block
+	assert(needs_v1_block(5) == false);
+	assert(needs_v2_block(5) == false);
+	assert(needs_v4_block(5) == false);
 	assert(needs_v5_block(5) == false);
+	assert(needs_v6_block(5) == true);
+	assert(needs_v6_block(6) == false);
 }
 
 static void test_fresh_install_lands_on_modern()
@@ -454,6 +461,72 @@ static void test_idempotent_guard()
 	assert(needs_migration(target_schema_version()) == false);
 }
 
+// ---------------------------------------------------------------------------
+// schema-v6 cleanup mirror
+//
+// Mirrors the schema-v6 block in settings-defaults.cpp: a fixed set of removed
+// keys is reset, and a stored profile-position of "bottom-right" is normalised
+// to "bottom". Modelled over a tiny key set so the delete/keep/rewrite decisions
+// can be asserted without a live xfconfd.
+// ---------------------------------------------------------------------------
+
+/* v6_resets_key:
+ * @key: an xfconf property path.
+ *
+ * Returns: true iff the schema-v6 block deletes @key (orphaned/removed config).
+ */
+static bool v6_resets_key(const char* key)
+{
+	const char* removed[] = {
+		"/grid-auto-size",
+		"/grid-columns",
+		"/grid-rows",
+		"/places/show-metadata",
+	};
+	for (const char* k : removed)
+		if (std::strcmp(key, k) == 0)
+			return true;
+	return false;
+}
+
+/* v6_rewrite_profile_position:
+ * @value: the stored /profile-position string, or NULL when absent.
+ *
+ * Returns: the value to write, or NULL to leave the key untouched. Only the
+ * retired "bottom-right" is rewritten to "bottom"; every other value (and an
+ * absent key) is left as-is.
+ */
+static const char* v6_rewrite_profile_position(const char* value)
+{
+	if (value && std::strcmp(value, "bottom-right") == 0)
+		return "bottom";
+	return nullptr;
+}
+
+static void test_v6_cleanup()
+{
+	// The four orphaned/removed keys are deleted.
+	assert(v6_resets_key("/grid-auto-size") == true);
+	assert(v6_resets_key("/grid-columns") == true);
+	assert(v6_resets_key("/grid-rows") == true);
+	assert(v6_resets_key("/places/show-metadata") == true);
+
+	// Unrelated keys are left untouched (SC-005).
+	assert(v6_resets_key("/categories-opacity") == false);
+	assert(v6_resets_key("/profile-position") == false);
+	assert(v6_resets_key("/full-screen-opacity") == false);
+
+	// Redundant "bottom-right" profile value is normalised to "bottom".
+	const char* rewritten = v6_rewrite_profile_position("bottom-right");
+	assert(rewritten && std::strcmp(rewritten, "bottom") == 0);
+
+	// Every other profile value, and an absent key, is left as-is (no-op).
+	assert(v6_rewrite_profile_position("top") == nullptr);
+	assert(v6_rewrite_profile_position("bottom") == nullptr);
+	assert(v6_rewrite_profile_position("hidden") == nullptr);
+	assert(v6_rewrite_profile_position(nullptr) == nullptr);
+}
+
 // TODO-INTEGRATION: test_v0_to_v1_snapshot()
 //   Bring up a real xfconfd on XDG_CONFIG_HOME=/tmp/meow-test-XXXXXX,
 //   write a v0 property set (favorites, view-mode, menu-opacity=60),
@@ -483,5 +556,6 @@ int main()
 	test_idempotent_guard();
 	test_fresh_install_lands_on_modern();
 	test_upgrade_label_derivation();
+	test_v6_cleanup();
 	return 0;
 }
