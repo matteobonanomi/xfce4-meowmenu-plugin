@@ -62,6 +62,13 @@ public:
 
 	ButtonStyle get_button_style() const;
 	std::string get_button_title_default() const;
+
+	// The Xfconf property base of this plugin instance (e.g.
+	// "/plugins/meowmenu-N"). Empty only if the panel reports none. Needed to
+	// translate full property paths back to the base-relative form the channel's
+	// reset/set API expects.
+	std::string get_property_base() const;
+
 	void get_menu_position(int* x, int* y) const;
 	XfceScreenPosition get_screen_position() const;
 

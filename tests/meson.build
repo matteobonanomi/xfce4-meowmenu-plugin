@@ -50,6 +50,32 @@ test_preset_io = executable(
 
 test('preset_io', test_preset_io)
 
+# test_preset_xfconf: real integration coverage of the Settings-free preset data
+# layer against a live xfconfd (save-refresh read side + schema-lenient seeded
+# import). It links the real preset.cpp / preset-io.cpp / preset-builtins.cpp;
+# the Settings-coupled functions in those units (save/rename/delete/import/export,
+# apply_preset) reach the full Plugin graph, so they are pruned at link time with
+# --gc-sections — only enumerate_user_presets(), find_preset_by_id() and
+# enumerate_preset_files() and their Settings-free dependencies survive. The test
+# skips cleanly (TAP SKIP, exit 0) when xfconfd / dbus-daemon are unavailable.
+test_preset_xfconf_sources = [
+  'test_preset_xfconf.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-io.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+]
+
+test_preset_xfconf = executable(
+  'test_preset_xfconf',
+  test_preset_xfconf_sources,
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gio, xfconf, libxfce4ui],
+)
+
+test('preset_xfconf', test_preset_xfconf, timeout: 60)
+
 # test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
 # coverage gate (T013). preset-builtins.cpp is Settings-free, so it links
 # directly to expose governed_keys()/synced_keys() without a GTK display.
