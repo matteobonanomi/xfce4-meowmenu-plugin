@@ -21,6 +21,7 @@
 
 #include "ui/command-edit.h"
 #include "core/plugin.h"
+#include "core/user-session-layout.h"
 #include "settings.h"
 #include "ui/slot.h"
 
@@ -65,9 +66,12 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	gtk_grid_attach(profile_table, prof_pos_label, 0, 0, 1, 1);
 
 	m_profile_position_combo = gtk_combo_box_text_new();
+	// NOTE: no "bottom-right" entry — for the profile it renders identically to
+	// "bottom" (there is no horizontal end distinction), so it would be a
+	// duplicate option. A stored "bottom-right" is normalised to "bottom" on
+	// upgrade; "bottom-right" remains a distinct Commands Position value.
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "top", _("Top"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom", _("Bottom"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom-right", _("Bottom Right"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "hidden", _("Hidden"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
 		static_cast<const gchar*>(m_settings->profile_position));
@@ -162,6 +166,43 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			refresh_customized_indicator();
 		});
 
+	// Per-row greying of the Profile/Commands position combos and live
+	// reflection of any persisted auto-snap, both driven by the shared coupling
+	// helper (FR-010/FR-017). A sensitivity data func on each combo's text
+	// renderer greys disallowed options without removing them; the property
+	// signal refreshes both whenever a governing key changes (e.g. a Profile
+	// edge flip snaps Commands, or a layout-mode switch re-couples both).
+	auto attach_sensitivity = [this](GtkWidget* combo)
+	{
+		GList* cells = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(combo));
+		if (cells)
+		{
+			gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(combo),
+					GTK_CELL_RENDERER(cells->data),
+					&SettingsDialog::on_user_session_cell_data, this, nullptr);
+			g_list_free(cells);
+		}
+	};
+	attach_sensitivity(m_profile_position_combo);
+	attach_sensitivity(m_commands_position_combo);
+
+	if (m_settings && m_settings->channel)
+	{
+		m_user_session_coupling_slot = g_signal_connect(m_settings->channel,
+			"property-changed",
+			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer data) -> void
+			{
+				if (g_strcmp0(property, "/layout-mode") != 0
+						&& g_strcmp0(property, "/search-bar-position") != 0
+						&& g_strcmp0(property, "/profile-position") != 0
+						&& g_strcmp0(property, "/commands-position") != 0)
+					return;
+				static_cast<SettingsDialog*>(data)->apply_user_session_coupling();
+			}), this);
+	}
+
+	apply_user_session_coupling();
+
 	// Unified-bar toggle (spec 004). Sits immediately under the
 	// commands-position combobox; live sensitivity drops in via
 	// apply_unified_bar_sensitivity(), which is invoked on any of the four
@@ -225,4 +266,101 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	}
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
+}
+
+//-----------------------------------------------------------------------------
+
+/* SettingsDialog::on_user_session_cell_data:
+ *
+ * GtkCellLayoutDataFunc trampoline. @data is the owning SettingsDialog.
+ */
+void SettingsDialog::on_user_session_cell_data(GtkCellLayout* layout,
+		GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter, gpointer data)
+{
+	static_cast<SettingsDialog*>(data)
+			->apply_user_session_combo_sensitivity(layout, cell, model, iter);
+}
+
+//-----------------------------------------------------------------------------
+
+/* apply_user_session_combo_sensitivity:
+ * @layout: the combo whose row is being rendered (Profile or Commands).
+ * @cell:   the text renderer to set sensitive/insensitive.
+ * @model:  the GtkComboBoxText model (text in column 0, id in column 1).
+ * @iter:   the row being rendered.
+ *
+ * Greys a single combo row when the current layout coupling disallows that
+ * option (FR-010). The decision comes from the shared helper so the dialog can
+ * never disagree with the renderer; Hidden is always left selectable.
+ */
+void SettingsDialog::apply_user_session_combo_sensitivity(GtkCellLayout* layout,
+		GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter)
+{
+	gchar* id = nullptr;
+	// GtkComboBoxText keeps the option id in model column 1.
+	gtk_tree_model_get(model, iter, 1, &id, -1);
+
+	const LayoutMode mode = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+			? LayoutMode::FullScreen : LayoutMode::Docked;
+	const UserSessionResolution res = normalize_user_session(mode,
+			m_settings->search_bar_position, m_settings->profile_position,
+			m_settings->commands_position);
+
+	bool enabled = true;
+	if (layout == GTK_CELL_LAYOUT(m_profile_position_combo))
+	{
+		if (g_strcmp0(id, "top") == 0)
+			enabled = res.profile_top_enabled;
+		else if (g_strcmp0(id, "bottom") == 0)
+			enabled = res.profile_bottom_enabled;
+		else
+			enabled = res.profile_hidden_enabled;
+	}
+	else
+	{
+		if (g_strcmp0(id, "top-right") == 0)
+			enabled = res.commands_top_right_enabled;
+		else if (g_strcmp0(id, "bottom-right") == 0)
+			enabled = res.commands_bottom_right_enabled;
+		else
+			enabled = res.commands_hidden_enabled;
+	}
+
+	g_object_set(cell, "sensitive", enabled, nullptr);
+	g_free(id);
+}
+
+//-----------------------------------------------------------------------------
+
+/* apply_user_session_coupling:
+ *
+ * Re-resolves the Profile/Commands coupling for the current layout and reflects
+ * the result in the two position combos: their active id is set to the resolved
+ * (possibly auto-snapped) value so the dialog matches what was persisted
+ * (FR-017), and both are redrawn so the per-row greying re-evaluates. Invoked at
+ * build time and whenever a governing key changes on the channel.
+ */
+void SettingsDialog::apply_user_session_coupling()
+{
+	if (!m_profile_position_combo || !m_commands_position_combo)
+		return;
+
+	const LayoutMode mode = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+			? LayoutMode::FullScreen : LayoutMode::Docked;
+	const UserSessionResolution res = normalize_user_session(mode,
+			m_settings->search_bar_position, m_settings->profile_position,
+			m_settings->commands_position);
+
+	// Guard the programmatic active-id updates so the combos' "changed" handlers
+	// (which write back to Settings) do not re-fire for a value we are merely
+	// mirroring.
+	m_programmatic_update = true;
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
+			res.profile_position);
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_commands_position_combo),
+			res.commands_position);
+	m_programmatic_update = false;
+
+	gtk_widget_queue_draw(m_profile_position_combo);
+	gtk_widget_queue_draw(m_commands_position_combo);
 }

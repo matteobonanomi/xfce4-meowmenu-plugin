@@ -94,6 +94,21 @@ private:
 	gulong m_unified_bar_slot = 0;
 	void apply_unified_bar_sensitivity();
 
+	// User/Session coupling (feature 027) — per-row greying of the Profile and
+	// Commands position combos plus reflecting any persisted auto-snap, driven
+	// by the shared normalize_user_session() helper. Refreshed whenever
+	// /layout-mode, /search-bar-position, /profile-position or /commands-position
+	// changes. The combo widget itself disambiguates Profile from Commands.
+	gulong m_user_session_coupling_slot = 0;
+	void apply_user_session_coupling();
+	void apply_user_session_combo_sensitivity(GtkCellLayout* layout,
+			GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter);
+	// GtkCellLayoutDataFunc trampoline: forwards to the member above (a static
+	// member can reach the private combo/settings state the C callback needs).
+	static void on_user_session_cell_data(GtkCellLayout* layout,
+			GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter,
+			gpointer data);
+
 private:
 	Settings* const m_settings;
 	Plugin* m_plugin;
@@ -163,9 +178,6 @@ private:
 	// Behavior layout (T071)
 	GtkWidget* m_panel_gap = nullptr;
 	GtkWidget* m_layout_mode_combo = nullptr;
-	GtkWidget* m_grid_auto_size = nullptr;
-	GtkWidget* m_grid_columns = nullptr;
-	GtkWidget* m_grid_rows = nullptr;
 	GtkWidget* m_grid_density_combo = nullptr;
 	GtkWidget* m_grid_section = nullptr;
 
