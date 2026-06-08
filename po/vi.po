@@ -15,7 +15,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-04 17:15+0200\n"
+"POT-Creation-Date: 2026-06-08 15:22+0200\n"
 "PO-Revision-Date: 2014-05-05 02:44+0000\n"
 "Last-Translator: Anh Phan <vietnamesel10n@gmail.com>, 2013\n"
 "Language-Team: MeowMenu vi <mbonanomi.dev@proton.me>\n"
@@ -27,7 +27,7 @@ msgstr ""
 
 #: panel-plugin/launcher/applications-page.cpp:35
 #: panel-plugin/launcher/category.cpp:52
-#: panel-plugin/ui/properties/sidebar.cpp:285
+#: panel-plugin/ui/properties/sidebar.cpp:289
 msgid "All Applications"
 msgstr "Tất cả ứng dụng"
 
@@ -51,20 +51,20 @@ msgstr "Duyệt hệ thống để chọn một lệnh tùy thích."
 msgid "Select Command"
 msgstr "Lựa chọn lệnh"
 
-#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:215
-#: panel-plugin/settings-dialog.cpp:388
-#: panel-plugin/ui/properties/general.cpp:127
-#: panel-plugin/ui/properties/general.cpp:183
-#: panel-plugin/ui/properties/general.cpp:273
-#: panel-plugin/ui/properties/general.cpp:309
-#: panel-plugin/ui/properties/general.cpp:343
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
+#: panel-plugin/settings-dialog.cpp:394
+#: panel-plugin/ui/properties/general.cpp:139
+#: panel-plugin/ui/properties/general.cpp:198
+#: panel-plugin/ui/properties/general.cpp:292
+#: panel-plugin/ui/properties/general.cpp:328
+#: panel-plugin/ui/properties/general.cpp:362
+#: panel-plugin/ui/properties/general.cpp:376
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "_Thôi"
 
-#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:216
-#: panel-plugin/settings-dialog.cpp:389
+#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:222
+#: panel-plugin/settings-dialog.cpp:395
 msgid "_OK"
 msgstr "_OK"
 
@@ -74,7 +74,7 @@ msgid "Failed to execute command \"%s\"."
 msgstr "Thi hành lệnh \"%s\", thất bại."
 
 #: panel-plugin/launcher/favorites-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:276
+#: panel-plugin/ui/properties/sidebar.cpp:280
 msgid "Favorites"
 msgstr "Ưa Thích"
 
@@ -204,31 +204,40 @@ msgstr ""
 msgid "%s (missing)"
 msgstr ""
 
-#: panel-plugin/places/places-item.cpp:177
-#, c-format
-msgid "Unable to open \"%s\"."
-msgstr "Không thể mở \"%s\"."
-
-#: panel-plugin/places/places-item.cpp:301
+#: panel-plugin/places/places-item.cpp:360
 msgid "Unable to add desktop link."
 msgstr "Không thể thêm liên kết trên màn hình nền."
+
+#: panel-plugin/places/places-item.cpp:400
+#, fuzzy
+msgid "the selected item"
+msgstr "Hủy bỏ "
+
+#: panel-plugin/places/places-item.cpp:405
+msgid "the location could not be opened"
+msgstr ""
+
+#: panel-plugin/places/places-item.cpp:407
+#, fuzzy, c-format
+msgid "Unable to open \"%s\": %s"
+msgstr "Không thể mở \"%s\"."
 
 #: panel-plugin/places/places-page.cpp:64
 msgid "No items to show."
 msgstr "Không có mục nào để hiển thị."
 
-#: panel-plugin/places/places-page.cpp:436
+#: panel-plugin/places/places-page.cpp:441
 msgid "_Open"
 msgstr "Mở(_O)"
 
 #. Left enabled for missing favourites (not gated on exists()) so a
 #. stale favourite can always be removed even though "Open" above is
 #. greyed — this is the greyed-out-favourite behaviour from 005.
-#: panel-plugin/places/places-page.cpp:459
+#: panel-plugin/places/places-page.cpp:466
 msgid "Remove from Favourites"
 msgstr "Xóa khỏi yêu thích"
 
-#: panel-plugin/places/places-page.cpp:470
+#: panel-plugin/places/places-page.cpp:477
 msgid "Add to Favourites"
 msgstr "Thêm vào yêu thích"
 
@@ -236,23 +245,23 @@ msgstr "Thêm vào yêu thích"
 #. enabled even when the target is missing so a renamed file can be located
 #. from its parent folder. PlacesItem::open_containing() fails silently (no
 #. dialog) when the parent is also gone.
-#: panel-plugin/places/places-page.cpp:485
+#: panel-plugin/places/places-page.cpp:492
 msgid "Open Containing Folder"
 msgstr "Mở thư mục chứa"
 
-#: panel-plugin/places/places-page.cpp:495
+#: panel-plugin/places/places-page.cpp:503
 msgid "Copy Path"
 msgstr "Sao chép đường dẫn"
 
-#: panel-plugin/places/places-page.cpp:502
+#: panel-plugin/places/places-page.cpp:510
 msgid "Open in Terminal"
 msgstr "Mở trong thiết bị đầu cuối"
 
-#: panel-plugin/places/places-page.cpp:514
+#: panel-plugin/places/places-page.cpp:523
 msgid "Open With…"
 msgstr "Mở bằng…"
 
-#: panel-plugin/places/places-page.cpp:519
+#: panel-plugin/places/places-page.cpp:528
 msgid "Add Desktop Link"
 msgstr "Thêm liên kết trên màn hình nền"
 
@@ -279,7 +288,7 @@ msgid "Based on Whisker Menu"
 msgstr "Dựa trên Whisker Menu"
 
 #: panel-plugin/launcher/recent-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:280
+#: panel-plugin/ui/properties/sidebar.cpp:284
 msgid "Recently Used"
 msgstr "Truy cập gần đây"
 
@@ -338,80 +347,84 @@ msgstr ""
 msgid "Sidebar"
 msgstr "Thanh bên"
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:558
-#: panel-plugin/core/window.cpp:2197
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
+#: panel-plugin/core/window.cpp:2555
 msgid "Places"
 msgstr "Vị trí"
 
-#: panel-plugin/settings-dialog.cpp:210 panel-plugin/settings-dialog.cpp:212
+#: panel-plugin/settings-dialog.cpp:216 panel-plugin/settings-dialog.cpp:218
 msgid "Select an Icon"
 msgstr "Chọn biểu tượng"
 
-#: panel-plugin/settings-dialog.cpp:309
-#: panel-plugin/ui/properties/general.cpp:221
+#: panel-plugin/settings-dialog.cpp:315
 #: panel-plugin/ui/properties/general.cpp:236
+#: panel-plugin/ui/properties/general.cpp:251
 msgid "_Delete"
 msgstr "_Xóa bỏ"
 
-#: panel-plugin/settings-dialog.cpp:310
+#: panel-plugin/settings-dialog.cpp:316
 msgid "The action will be deleted permanently."
 msgstr "Hành động sẽ bị xóa vĩnh viễn"
 
-#: panel-plugin/settings-dialog.cpp:311
+#: panel-plugin/settings-dialog.cpp:317
 #, c-format
 msgid "Remove action \"%s\"?"
 msgstr "Xóa bỏ hành động %s?"
 
-#: panel-plugin/settings-dialog.cpp:385
+#: panel-plugin/settings-dialog.cpp:391
 #, fuzzy
 msgid "Edit search action"
 msgstr "Tìm "
 
-#: panel-plugin/settings-dialog.cpp:400
+#: panel-plugin/settings-dialog.cpp:406
 msgid "Nam_e:"
 msgstr "Tên"
 
-#: panel-plugin/settings-dialog.cpp:410
+#: panel-plugin/settings-dialog.cpp:416
 msgid "_Pattern:"
 msgstr "_Mẫu"
 
-#: panel-plugin/settings-dialog.cpp:420
+#: panel-plugin/settings-dialog.cpp:426
 msgid "C_ommand:"
 msgstr "Lệnh"
 
-#: panel-plugin/settings-dialog.cpp:430
+#: panel-plugin/settings-dialog.cpp:436
 #, fuzzy
 msgid "Is _regular expression"
 msgstr "_Quy tắc thể hiện"
 
-#: panel-plugin/settings-dialog.cpp:474
+#: panel-plugin/settings-dialog.cpp:480
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr ""
 
+#: panel-plugin/settings-dialog.cpp:566
+msgid "Unsaved custom"
+msgstr ""
+
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:687
+#: panel-plugin/settings-dialog.cpp:800
 msgid "Classic"
 msgstr "Cổ điển"
 
-#: panel-plugin/settings-dialog.cpp:688
+#: panel-plugin/settings-dialog.cpp:801
 msgid "Modern"
 msgstr "Hiện đại"
 
-#: panel-plugin/settings-dialog.cpp:689
+#: panel-plugin/settings-dialog.cpp:802
 #, fuzzy
 msgid "Full Screen"
 msgstr "_Khóa màn hình"
 
-#: panel-plugin/settings-dialog.cpp:791
+#: panel-plugin/settings-dialog.cpp:884
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:793
+#: panel-plugin/settings-dialog.cpp:886
 msgid "This option requires the FullScreen layout."
 msgstr "Tùy chọn này yêu cầu bố cục toàn màn hình."
 
-#: panel-plugin/settings-dialog.cpp:795
+#: panel-plugin/settings-dialog.cpp:888
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
@@ -425,235 +438,231 @@ msgstr "Cài đặt trước"
 msgid "_Preset:"
 msgstr "Cài đặt trước(_P):"
 
-#: panel-plugin/ui/properties/general.cpp:86
-msgid "● Customized"
-msgstr "● Đã tùy chỉnh"
-
-#: panel-plugin/ui/properties/general.cpp:96
+#: panel-plugin/ui/properties/general.cpp:108
 #, fuzzy
 msgid "_Reset preset"
 msgstr "Khởi động _lại"
 
-#: panel-plugin/ui/properties/general.cpp:107
-#: panel-plugin/ui/properties/general.cpp:416
+#: panel-plugin/ui/properties/general.cpp:119
+#: panel-plugin/ui/properties/general.cpp:446
 #, fuzzy
 msgid "_Reset"
 msgstr "Khởi động _lại"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:120
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:109
+#: panel-plugin/ui/properties/general.cpp:121
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "Đặt lại cài đặt trước \"%s\"?"
 
-#: panel-plugin/ui/properties/general.cpp:118
+#: panel-plugin/ui/properties/general.cpp:130
 msgid "_Save as new…"
 msgstr "Lưu là mới(_S)…"
 
-#: panel-plugin/ui/properties/general.cpp:124
+#: panel-plugin/ui/properties/general.cpp:136
 msgid "Save as new preset"
 msgstr "Lưu là cài đặt trước mới"
 
-#: panel-plugin/ui/properties/general.cpp:128
+#: panel-plugin/ui/properties/general.cpp:140
 msgid "_Save"
 msgstr "Lưu(_S)"
 
-#: panel-plugin/ui/properties/general.cpp:137
-#: panel-plugin/ui/properties/general.cpp:193
-#: panel-plugin/ui/properties/general.cpp:365
+#: panel-plugin/ui/properties/general.cpp:149
+#: panel-plugin/ui/properties/general.cpp:208
+#: panel-plugin/ui/properties/general.cpp:384
 #, fuzzy
 msgid "_Name:"
 msgstr "Tên"
 
-#: panel-plugin/ui/properties/general.cpp:153
-#: panel-plugin/ui/properties/general.cpp:210
+#: panel-plugin/ui/properties/general.cpp:165
+#: panel-plugin/ui/properties/general.cpp:225
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:154
+#: panel-plugin/ui/properties/general.cpp:166
 msgid "Could not save preset"
 msgstr "Không thể lưu cài đặt trước"
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:181
 msgid "Re_name…"
 msgstr "Đổi tên(_n)…"
 
-#: panel-plugin/ui/properties/general.cpp:180
+#: panel-plugin/ui/properties/general.cpp:195
 msgid "Rename preset"
 msgstr "Đổi tên cài đặt trước"
 
-#: panel-plugin/ui/properties/general.cpp:184
+#: panel-plugin/ui/properties/general.cpp:199
 msgid "_Rename"
 msgstr "Đổi tên(_R)"
 
-#: panel-plugin/ui/properties/general.cpp:211
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "Could not rename preset"
 msgstr "Không thể đổi tên cài đặt trước"
 
-#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "Hành động sẽ bị xóa vĩnh viễn"
 
-#: panel-plugin/ui/properties/general.cpp:238
+#: panel-plugin/ui/properties/general.cpp:253
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:255
+#: panel-plugin/ui/properties/general.cpp:274
 msgid "E_xport…"
 msgstr "Xuất(_x)…"
 
-#: panel-plugin/ui/properties/general.cpp:270
+#: panel-plugin/ui/properties/general.cpp:289
 msgid "Export preset"
 msgstr "Xuất cài đặt trước"
 
-#: panel-plugin/ui/properties/general.cpp:273
+#: panel-plugin/ui/properties/general.cpp:292
 msgid "_Export"
 msgstr "Xuất(_E)"
 
-#: panel-plugin/ui/properties/general.cpp:279
-#: panel-plugin/ui/properties/general.cpp:312
+#: panel-plugin/ui/properties/general.cpp:298
+#: panel-plugin/ui/properties/general.cpp:331
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "Cài đặt trước MeowMenu (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:291
+#: panel-plugin/ui/properties/general.cpp:310
 msgid "Could not export preset."
 msgstr "Không thể xuất cài đặt trước."
 
-#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:318
 msgid "_Import…"
 msgstr "Nhập(_I)…"
 
-#: panel-plugin/ui/properties/general.cpp:306
+#: panel-plugin/ui/properties/general.cpp:325
 msgid "Import preset"
 msgstr "Nhập cài đặt trước"
 
-#: panel-plugin/ui/properties/general.cpp:309
-#: panel-plugin/ui/properties/general.cpp:358
+#: panel-plugin/ui/properties/general.cpp:328
+#: panel-plugin/ui/properties/general.cpp:377
 msgid "_Import"
 msgstr "Nhập(_I)"
 
-#: panel-plugin/ui/properties/general.cpp:338
+#: panel-plugin/ui/properties/general.cpp:357
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "Cài đặt trước có tên \"%s\" đã tồn tại. Bạn muốn làm gì?"
 
-#: panel-plugin/ui/properties/general.cpp:341
+#: panel-plugin/ui/properties/general.cpp:360
 msgid "_Overwrite"
 msgstr "Ghi đè(_O)"
 
-#: panel-plugin/ui/properties/general.cpp:342
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "Re_name"
 msgstr "Đổi tên(_n)"
 
-#: panel-plugin/ui/properties/general.cpp:354
+#: panel-plugin/ui/properties/general.cpp:373
 msgid "Rename imported preset"
 msgstr "Đổi tên cài đặt trước đã nhập"
 
-#: panel-plugin/ui/properties/general.cpp:400
+#: panel-plugin/ui/properties/general.cpp:430
 msgid "Could not import preset"
 msgstr "Không thể nhập cài đặt trước"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:407
+#: panel-plugin/ui/properties/general.cpp:437
 msgid "Reset to _defaults"
 msgstr "Đặt lại về mặc định(_d)"
 
-#: panel-plugin/ui/properties/general.cpp:417
+#: panel-plugin/ui/properties/general.cpp:447
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:418
+#: panel-plugin/ui/properties/general.cpp:448
 msgid "Reset all settings to defaults?"
 msgstr "Đặt lại tất cả cài đặt về mặc định?"
 
-#: panel-plugin/ui/properties/general.cpp:498
+#: panel-plugin/ui/properties/general.cpp:521
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:520
+#: panel-plugin/ui/properties/general.cpp:543
 #, fuzzy
 msgid "Panel plugin"
 msgstr "Nút điều khiển"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:526
+#: panel-plugin/ui/properties/general.cpp:549
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:533
+#: panel-plugin/ui/properties/general.cpp:556
 #, fuzzy
 msgid "T_itle:"
 msgstr "_Tiêu đề:"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:570
+#: panel-plugin/ui/properties/general.cpp:593
 msgid "Show panel button _icon"
 msgstr ""
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:577
+#: panel-plugin/ui/properties/general.cpp:600
 msgid "Ic_on:"
 msgstr "Biểu tượng(_o):"
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:614
+#: panel-plugin/ui/properties/general.cpp:637
 msgid "Use a single panel _row"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:638
+#: panel-plugin/ui/properties/general.cpp:661
 msgid "General menu settings"
 msgstr "Cài đặt chung của menu"
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:644
+#: panel-plugin/ui/properties/general.cpp:667
 msgid "_Layout mode:"
 msgstr "Chế độ bố cục(_L):"
 
-#: panel-plugin/ui/properties/general.cpp:649
+#: panel-plugin/ui/properties/general.cpp:672
 msgid "Docked"
 msgstr "Gắn"
 
-#: panel-plugin/ui/properties/general.cpp:650
+#: panel-plugin/ui/properties/general.cpp:673
 msgid "FullScreen"
 msgstr "Toàn màn hình"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:679
+#: panel-plugin/ui/properties/general.cpp:702
 msgid "_Panel gap:"
 msgstr "Khoảng cách bảng(_P):"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:703
+#: panel-plugin/ui/properties/general.cpp:726
 msgid "Menu _width:"
 msgstr ""
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:725
+#: panel-plugin/ui/properties/general.cpp:748
 msgid "Menu _height:"
 msgstr ""
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:747
+#: panel-plugin/ui/properties/general.cpp:770
 msgid "_Corner radius:"
 msgstr "Bán kính góc(_C):"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:771
+#: panel-plugin/ui/properties/general.cpp:794
 msgid "F_ull-screen opacity:"
 msgstr "Độ mờ toàn màn hình(_u):"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:795
+#: panel-plugin/ui/properties/general.cpp:818
 msgid "Stay _visible when focus is lost"
 msgstr ""
 
@@ -698,7 +707,7 @@ msgid "Maximum places _items:"
 msgstr "Số mục vị trí tối đa(_i):"
 
 #: panel-plugin/ui/properties/places.cpp:133
-#: panel-plugin/ui/properties/sidebar.cpp:243
+#: panel-plugin/ui/properties/sidebar.cpp:247
 #, fuzzy
 msgid "Behaviour"
 msgstr "_Thói quen"
@@ -706,10 +715,6 @@ msgstr "_Thói quen"
 #: panel-plugin/ui/properties/places.cpp:137
 msgid "_Remember last selected mode"
 msgstr "Ghi nhớ chế độ đã chọn lần cuối(_R)"
-
-#: panel-plugin/ui/properties/places.cpp:142
-msgid "Show item _metadata"
-msgstr "Hiển thị siêu dữ liệu mục(_m)"
 
 #: panel-plugin/ui/properties/results-view.cpp:62
 msgid "View"
@@ -780,7 +785,7 @@ msgid "App _box opacity:"
 msgstr "Độ mờ hộp ứng dụng(_b):"
 
 #: panel-plugin/ui/properties/search-bar.cpp:58
-#: panel-plugin/ui/properties/sidebar.cpp:173
+#: panel-plugin/ui/properties/sidebar.cpp:177
 msgid "Position"
 msgstr ""
 
@@ -789,15 +794,19 @@ msgstr ""
 msgid "_Search bar position:"
 msgstr "Tìm "
 
+#. NOTE: no "bottom-right" entry — for the profile it renders identically to
+#. "bottom" (there is no horizontal end distinction), so it would be a
+#. duplicate option. A stored "bottom-right" is normalised to "bottom" on
+#. upgrade; "bottom-right" remains a distinct Commands Position value.
 #: panel-plugin/ui/properties/search-bar.cpp:66
-#: panel-plugin/ui/properties/sidebar.cpp:184
-#: panel-plugin/ui/properties/user-session.cpp:68
+#: panel-plugin/ui/properties/sidebar.cpp:188
+#: panel-plugin/ui/properties/user-session.cpp:73
 msgid "Top"
 msgstr "Trên cùng"
 
 #: panel-plugin/ui/properties/search-bar.cpp:67
-#: panel-plugin/ui/properties/sidebar.cpp:185
-#: panel-plugin/ui/properties/user-session.cpp:69
+#: panel-plugin/ui/properties/sidebar.cpp:189
+#: panel-plugin/ui/properties/user-session.cpp:74
 msgid "Bottom"
 msgstr "Dưới cùng"
 
@@ -916,259 +925,258 @@ msgid "Categ_ory icon size:"
 msgstr "Kích thước biểu tượng phân l_oại:"
 
 #. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
-#: panel-plugin/ui/properties/sidebar.cpp:140
+#: panel-plugin/ui/properties/sidebar.cpp:144
 msgid "_Sidebar opacity:"
 msgstr "Độ mờ thanh bên(_S):"
 
-#: panel-plugin/ui/properties/sidebar.cpp:177
+#: panel-plugin/ui/properties/sidebar.cpp:181
 msgid "Sidebar _position:"
 msgstr "Vị trí thanh bên(_p):"
 
-#: panel-plugin/ui/properties/sidebar.cpp:182
+#: panel-plugin/ui/properties/sidebar.cpp:186
 msgid "Left"
 msgstr "Trái"
 
-#: panel-plugin/ui/properties/sidebar.cpp:183
+#: panel-plugin/ui/properties/sidebar.cpp:187
 msgid "Right"
 msgstr "Phải"
 
-#: panel-plugin/ui/properties/sidebar.cpp:247
+#: panel-plugin/ui/properties/sidebar.cpp:251
 msgid "Switch categories by _hovering"
 msgstr "Chuyển đổi tiêu đề khi rê ch_uột"
 
-#: panel-plugin/ui/properties/sidebar.cpp:260
+#: panel-plugin/ui/properties/sidebar.cpp:264
 msgid "Sort ca_tegories"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:273
+#: panel-plugin/ui/properties/sidebar.cpp:277
 msgid "Default category"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:335
+#: panel-plugin/ui/properties/sidebar.cpp:339
 #, fuzzy
 msgid "Recently used"
 msgstr "Truy cập gần đây"
 
-#: panel-plugin/ui/properties/sidebar.cpp:339
+#: panel-plugin/ui/properties/sidebar.cpp:343
 msgid "Maximum _items:"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:360
+#: panel-plugin/ui/properties/sidebar.cpp:364
 msgid "Include _favorites in \"Recent\""
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:59
+#: panel-plugin/ui/properties/user-session.cpp:60
 msgid "Profile"
 msgstr ""
 
 #. Profile position
-#: panel-plugin/ui/properties/user-session.cpp:63
+#: panel-plugin/ui/properties/user-session.cpp:64
 msgid "_Position:"
 msgstr "Vị trí(_P):"
 
-#: panel-plugin/ui/properties/user-session.cpp:70
-#: panel-plugin/ui/properties/user-session.cpp:142
-msgid "Bottom Right"
-msgstr "Dưới bên phải"
-
-#: panel-plugin/ui/properties/user-session.cpp:71
-#: panel-plugin/ui/properties/user-session.cpp:143
+#: panel-plugin/ui/properties/user-session.cpp:75
+#: panel-plugin/ui/properties/user-session.cpp:147
 msgid "Hidden"
 msgstr "Ẩn"
 
 #. Avatar shape (sub-enabled when profile-position != hidden).
-#: panel-plugin/ui/properties/user-session.cpp:81
+#: panel-plugin/ui/properties/user-session.cpp:85
 msgid "Avatar _shape:"
 msgstr "Hình dạng đại diện(_s):"
 
-#: panel-plugin/ui/properties/user-session.cpp:86
+#: panel-plugin/ui/properties/user-session.cpp:90
 msgid "Round Picture"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:87
+#: panel-plugin/ui/properties/user-session.cpp:91
 msgid "Square Picture"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:133
+#: panel-plugin/ui/properties/user-session.cpp:137
 #, fuzzy
 msgid "Commands"
 msgstr "Lệnh"
 
-#: panel-plugin/ui/properties/user-session.cpp:136
+#: panel-plugin/ui/properties/user-session.cpp:140
 msgid "_Commands position:"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:141
+#: panel-plugin/ui/properties/user-session.cpp:145
 msgid "Top Right"
 msgstr "Trên bên phải"
 
-#: panel-plugin/ui/properties/user-session.cpp:170
+#: panel-plugin/ui/properties/user-session.cpp:146
+msgid "Bottom Right"
+msgstr "Dưới bên phải"
+
+#: panel-plugin/ui/properties/user-session.cpp:211
 msgid "Place profile, search and session on a single _line"
 msgstr "Đặt hồ sơ, tìm kiếm và phiên trên một dòng(_l)"
 
-#: panel-plugin/ui/properties/user-session.cpp:201
+#: panel-plugin/ui/properties/user-session.cpp:242
 msgid "Show c_onfirmation dialog"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:216
+#: panel-plugin/ui/properties/user-session.cpp:257
 #, fuzzy
 msgid "Session commands"
 msgstr "Lựa chọn lệnh"
 
-#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2195
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2553
 msgid "Applications"
 msgstr ""
 
-#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
 msgid "Man Pages"
 msgstr "Trang chính"
 
-#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
 msgid "Search the Web"
 msgstr ""
 
-#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
+#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
 msgid "Search for Files"
 msgstr ""
 
-#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
 msgid "Wikipedia"
 msgstr "Wikipedia"
 
-#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
 msgid "Run in Terminal"
 msgstr "Chạy trong dòng lệnh"
 
-#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
+#: panel-plugin/settings.cpp:95 panel-plugin/settings.cpp:102
 msgid "Open URI"
 msgstr "Mở URI"
 
-#: panel-plugin/settings.cpp:153
+#: panel-plugin/settings.cpp:151
 msgid "_Settings Manager"
 msgstr ""
 
-#: panel-plugin/settings.cpp:155
+#: panel-plugin/settings.cpp:153
 msgid "Failed to open settings manager."
 msgstr "Thất bại khi mở quản lý thiết lập."
 
-#: panel-plugin/settings.cpp:158
+#: panel-plugin/settings.cpp:156
 msgid "_Lock Screen"
 msgstr "_Khóa màn hình"
 
-#: panel-plugin/settings.cpp:160
+#: panel-plugin/settings.cpp:158
 msgid "Failed to lock screen."
 msgstr "Thất bại khi khóa màn hình."
 
-#: panel-plugin/settings.cpp:163
+#: panel-plugin/settings.cpp:161
 msgid "Switch _User"
 msgstr ""
 
-#: panel-plugin/settings.cpp:165
+#: panel-plugin/settings.cpp:163
 msgid "Failed to switch user."
 msgstr ""
 
-#: panel-plugin/settings.cpp:168
+#: panel-plugin/settings.cpp:166
 msgid "Log _Out"
 msgstr "Đăng xuất"
 
-#: panel-plugin/settings.cpp:170 panel-plugin/settings.cpp:205
+#: panel-plugin/settings.cpp:168 panel-plugin/settings.cpp:203
 msgid "Failed to log out."
 msgstr "Thất bại khi đăng xuất."
 
-#: panel-plugin/settings.cpp:171
+#: panel-plugin/settings.cpp:169
 msgid "Are you sure you want to log out?"
 msgstr "Bạn có chắc là muốn đăng xuất?"
 
-#: panel-plugin/settings.cpp:172
+#: panel-plugin/settings.cpp:170
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr "Chuẩn đăng xuất trong vòng %d giây."
 
-#: panel-plugin/settings.cpp:175
+#: panel-plugin/settings.cpp:173
 msgid "_Restart"
 msgstr "Khởi động _lại"
 
-#: panel-plugin/settings.cpp:177
+#: panel-plugin/settings.cpp:175
 msgid "Failed to restart."
 msgstr ""
 
-#: panel-plugin/settings.cpp:178
+#: panel-plugin/settings.cpp:176
 msgid "Are you sure you want to restart?"
 msgstr "Bạn có muốn khởi động lại?"
 
-#: panel-plugin/settings.cpp:179
+#: panel-plugin/settings.cpp:177
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr "Chuẩn bị khởi động lại trong vòng %d giây."
 
-#: panel-plugin/settings.cpp:182
+#: panel-plugin/settings.cpp:180
 msgid "Shut _Down"
 msgstr "Tắt _máy"
 
-#: panel-plugin/settings.cpp:184
+#: panel-plugin/settings.cpp:182
 msgid "Failed to shut down."
 msgstr ""
 
-#: panel-plugin/settings.cpp:185
+#: panel-plugin/settings.cpp:183
 msgid "Are you sure you want to shut down?"
 msgstr "Bạn có thực sự muốn tắt máy?"
 
-#: panel-plugin/settings.cpp:186
+#: panel-plugin/settings.cpp:184
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr "Chuẩn bị tắt máy trong vòng %d giây."
 
-#: panel-plugin/settings.cpp:189
+#: panel-plugin/settings.cpp:187
 msgid "Suspe_nd"
 msgstr ""
 
-#: panel-plugin/settings.cpp:191
+#: panel-plugin/settings.cpp:189
 msgid "Failed to suspend."
 msgstr ""
 
-#: panel-plugin/settings.cpp:192
+#: panel-plugin/settings.cpp:190
 msgid "Do you want to suspend to RAM?"
 msgstr "Bạn có muốn tạm dừng vào RAM?"
 
-#: panel-plugin/settings.cpp:193
+#: panel-plugin/settings.cpp:191
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr "Chuẩn bị tạm dừng máy tính trong vòng %d giây."
 
-#: panel-plugin/settings.cpp:196
+#: panel-plugin/settings.cpp:194
 msgid "_Hibernate"
 msgstr "N_gủ đông"
 
-#: panel-plugin/settings.cpp:198
+#: panel-plugin/settings.cpp:196
 msgid "Failed to hibernate."
 msgstr ""
 
-#: panel-plugin/settings.cpp:199
+#: panel-plugin/settings.cpp:197
 msgid "Do you want to suspend to disk?"
 msgstr "Bạn có muốn tạm dừng ổ đĩa?"
 
-#: panel-plugin/settings.cpp:200
+#: panel-plugin/settings.cpp:198
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr "Chuẩn bị ngủ đông trong khoảng %d giây."
 
-#: panel-plugin/settings.cpp:203
+#: panel-plugin/settings.cpp:201
 msgid "Log Ou_t..."
 msgstr ""
 
-#: panel-plugin/settings.cpp:208
+#: panel-plugin/settings.cpp:206
 msgid "_Edit Applications"
 msgstr "_Sửa Ứng dụng"
 
-#: panel-plugin/settings.cpp:210
+#: panel-plugin/settings.cpp:208
 msgid "Failed to launch menu editor."
 msgstr "Không thể chạy trình chỉnh sửa thực đơn."
 
-#: panel-plugin/settings.cpp:213
+#: panel-plugin/settings.cpp:211
 msgid "Edit _Profile"
 msgstr ""
 
-#: panel-plugin/settings.cpp:215
+#: panel-plugin/settings.cpp:213
 msgid "Failed to edit profile."
 msgstr ""
 
@@ -1176,12 +1184,12 @@ msgstr ""
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings-defaults.cpp:272
+#: panel-plugin/settings.cpp:412 panel-plugin/settings-defaults.cpp:297
 #, fuzzy
 msgid "Custom"
 msgstr "● Đã tùy chỉnh"
 
-#: panel-plugin/core/window.cpp:557 panel-plugin/core/window.cpp:2195
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2553
 msgid "Apps"
 msgstr "Ứng dụng"
 
@@ -1216,6 +1224,12 @@ msgstr "In thông tin phiên bản và thoát"
 #: panel-plugin/meowmenu.desktop.in:5
 msgid "Show a menu to easily access installed applications"
 msgstr "Hiển thị thực đơn để chạy ứng dụng dễ dàng"
+
+#~ msgid "● Customized"
+#~ msgstr "● Đã tùy chỉnh"
+
+#~ msgid "Show item _metadata"
+#~ msgstr "Hiển thị siêu dữ liệu mục(_m)"
 
 #~ msgid "translator-credits"
 #~ msgstr "Giới thiệu-Người dịch"

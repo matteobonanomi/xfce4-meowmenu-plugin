@@ -447,6 +447,26 @@ struct UserPresetShadow
 	PVMap       values;
 };
 
+// Built-in preset display names, mirroring BUILTIN_PRESETS[]. Name conflicts in
+// the real save_current_as_user_preset()/rename_user_preset() are tested against
+// these too, case-insensitively (g_ascii_strcasecmp).
+static const char* SHADOW_BUILTIN_NAMES[] = { "Classic", "Modern", "Full Screen", nullptr };
+
+// Case-insensitive name match, mirroring g_ascii_strcasecmp() in the real impl.
+// NOTE: the real conflict check is case-INSENSITIVE; do not assume exact-case.
+static bool names_equal_ci(const std::string& a, const std::string& b)
+{
+	return g_ascii_strcasecmp(a.c_str(), b.c_str()) == 0;
+}
+
+static bool name_conflicts_builtin_ci(const std::string& name)
+{
+	for (int i = 0; SHADOW_BUILTIN_NAMES[i]; ++i)
+		if (names_equal_ci(name, SHADOW_BUILTIN_NAMES[i]))
+			return true;
+	return false;
+}
+
 struct UserPresetStore
 {
 	std::vector<UserPresetShadow> presets;
@@ -456,8 +476,10 @@ struct UserPresetStore
 	{
 		if (display_name.empty())
 			return {};
+		if (name_conflicts_builtin_ci(display_name))
+			return {};
 		for (const auto& p : presets)
-			if (p.display_name == display_name)
+			if (names_equal_ci(p.display_name, display_name))
 				return {};
 		std::string uuid = "uuid-" + std::to_string(next_uuid_counter++);
 		presets.push_back({ uuid, display_name, values });
@@ -468,8 +490,10 @@ struct UserPresetStore
 	{
 		if (new_name.empty())
 			return false;
+		if (name_conflicts_builtin_ci(new_name))
+			return false;
 		for (const auto& p : presets)
-			if (p.display_name == new_name && p.uuid != uuid)
+			if (names_equal_ci(p.display_name, new_name) && p.uuid != uuid)
 				return false;
 		for (auto& p : presets)
 			if (p.uuid == uuid) { p.display_name = new_name; return true; }
@@ -567,6 +591,127 @@ static void test_user_preset_delete_non_current_preserves_id()
 
 	assert(current_id == uuid1);
 	assert(store.presets.size() == 1);
+}
+
+// T007: empty and duplicate names are rejected, case-insensitively, against both
+// existing customs and the built-in names; the store is left unchanged (FR-012,
+// SC-006). Mirrors the real preset_name_conflicts() (g_ascii_strcasecmp).
+static void test_user_preset_save_rejects_case_insensitive_duplicate()
+{
+	UserPresetStore store;
+	std::string uuid = store.save("My Layout", {});
+	assert(!uuid.empty());
+
+	// Same name in a different case must still be rejected.
+	std::string dup = store.save("my layout", {});
+	assert(dup.empty());
+	assert(store.presets.size() == 1);
+}
+
+static void test_user_preset_save_rejects_builtin_name()
+{
+	UserPresetStore store;
+	// Built-in names are reserved, regardless of case.
+	assert(store.save("Modern", {}).empty());
+	assert(store.save("classic", {}).empty());
+	assert(store.save("FULL SCREEN", {}).empty());
+	assert(store.presets.empty());
+}
+
+static void test_user_preset_save_rejects_empty_name()
+{
+	UserPresetStore store;
+	assert(store.save("", {}).empty());
+	assert(store.presets.empty());
+}
+
+static void test_user_preset_rename_rejects_conflicts()
+{
+	UserPresetStore store;
+	std::string a = store.save("Alpha", {});
+	std::string b = store.save("Beta", {});
+	assert(!a.empty() && !b.empty());
+
+	// Renaming Beta to an existing custom name (any case) is rejected.
+	assert(!store.rename(b, "alpha"));
+	// Renaming to a built-in name is rejected.
+	assert(!store.rename(b, "Modern"));
+	// Empty name rejected.
+	assert(!store.rename(b, ""));
+	// A unique name succeeds and leaves no stale entry.
+	assert(store.rename(b, "Gamma"));
+	assert(store.find(b)->display_name == "Gamma");
+}
+
+// T015: deleting the active custom clears the current id so the field falls back
+// to the Modern built-in (FR-008/009, SC-005). Mirrors the UI handler, which
+// applies BUILTIN_PRESETS[PRESET_MODERN] once current_preset_id is cleared.
+static std::string fallback_preset_id(const std::string& current_id)
+{
+	// The field is never blank: an unset/cleared applied id resolves to Modern.
+	return current_id.empty() ? std::string("modern") : current_id;
+}
+
+static void test_user_preset_delete_active_falls_back_to_modern()
+{
+	UserPresetStore store;
+	std::string uuid = store.save("Doomed", {});
+	assert(!uuid.empty());
+
+	std::string current_id = uuid;
+	store.del(uuid, current_id);
+	assert(current_id.empty());
+	assert(fallback_preset_id(current_id) == "modern");
+}
+
+// ---------------------------------------------------------------------------
+// T011: data-driven dropdown typography. Each preset kind maps to a fixed Pango
+// weight/style: built-in → BOLD/NORMAL, saved custom → NORMAL/NORMAL, the
+// transient "Unsaved custom" placeholder → NORMAL/ITALIC. Classification is
+// keyed on is_builtin, so a future built-in inherits bold with no test change
+// (FR-013/014, SC-004).
+// NOTE: the integer literals equal the Pango constants used by the combo's cell
+// renderer — 700 = PANGO_WEIGHT_BOLD, 400 = PANGO_WEIGHT_NORMAL,
+// 0 = PANGO_STYLE_NORMAL, 2 = PANGO_STYLE_ITALIC.
+// ---------------------------------------------------------------------------
+
+static int row_weight(bool is_builtin)  { return is_builtin ? 700 : 400; }
+static int row_style(bool is_unsaved)   { return is_unsaved ? 2 : 0; }
+
+static void test_preset_typography_classification()
+{
+	// Every real built-in classifies bold/upright — data-driven over the table,
+	// so adding a built-in needs no edit here.
+	for (int i = 0; i < WhiskerMenu::PRESET_BUILTIN_COUNT; ++i)
+	{
+		assert(WhiskerMenu::BUILTIN_PRESETS[i].is_builtin);
+		assert(row_weight(WhiskerMenu::BUILTIN_PRESETS[i].is_builtin) == 700);
+		assert(row_style(false) == 0);
+	}
+	// Saved custom: standard weight, upright.
+	assert(row_weight(false) == 400);
+	assert(row_style(false) == 0);
+	// Unsaved-custom placeholder: standard weight, italic.
+	assert(row_weight(false) == 400);
+	assert(row_style(true) == 2);
+}
+
+// T012: divergence is reversible. compute_preset_diff(applied, settings) is true
+// on any governed-key divergence and false again once the value is edited back
+// to an exact match (FR-001 snap-back).
+static void test_diff_snapback()
+{
+	auto m = make_modern();
+	SettingsShadow s;
+	apply_preset_shadow(m, s);
+	assert(!compute_diff_shadow(m, s)); // matches right after apply
+
+	const int original = s.corner_radius;
+	s.corner_radius = original + 5;
+	assert(compute_diff_shadow(m, s));  // diverged
+
+	s.corner_radius = original;
+	assert(!compute_diff_shadow(m, s)); // snapped back
 }
 
 // ---------------------------------------------------------------------------
@@ -858,6 +1003,15 @@ int main()
 	test_user_preset_name_conflict_rejected();
 	test_user_preset_empty_name_rejected();
 	test_user_preset_delete_non_current_preserves_id();
+	// 029-custom-presets: name-rejection (case-insensitive + built-in),
+	// rename conflicts, delete→Modern fallback, typography, divergence snap-back
+	test_user_preset_save_rejects_case_insensitive_duplicate();
+	test_user_preset_save_rejects_builtin_name();
+	test_user_preset_save_rejects_empty_name();
+	test_user_preset_rename_rejects_conflicts();
+	test_user_preset_delete_active_falls_back_to_modern();
+	test_preset_typography_classification();
+	test_diff_snapback();
 	// T042: file-seeded preset tests
 	test_file_preset_overrides_cpp_table();
 	test_fallback_to_cpp_table_when_files_absent();

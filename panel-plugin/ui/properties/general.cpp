@@ -72,7 +72,24 @@ GtkWidget* SettingsDialog::init_general_tab()
 	gtk_widget_set_halign(preset_label, GTK_ALIGN_START);
 	gtk_grid_attach(preset_table, preset_label, 0, 0, 1, 1);
 
-	m_preset_combo = gtk_combo_box_text_new();
+	// Model-driven selector: an explicit GtkListStore lets each row carry its own
+	// Pango weight/style so refresh_preset_combo() can render built-ins bold,
+	// saved customs standard, and the "Unsaved custom" placeholder italic. The
+	// id column keeps gtk_combo_box_set_active_id()-based selection working.
+	m_preset_model = gtk_list_store_new(PRESET_N_COLS,
+		G_TYPE_STRING, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT);
+	m_preset_combo = gtk_combo_box_new_with_model(GTK_TREE_MODEL(m_preset_model));
+	g_object_unref(m_preset_model); // combo holds the only owning reference
+	gtk_combo_box_set_id_column(GTK_COMBO_BOX(m_preset_combo), PRESET_COL_ID);
+	{
+		GtkCellRenderer* cell = gtk_cell_renderer_text_new();
+		gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(m_preset_combo), cell, true);
+		gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(m_preset_combo), cell,
+			"text",   PRESET_COL_LABEL,
+			"weight", PRESET_COL_WEIGHT,
+			"style",  PRESET_COL_STYLE,
+			nullptr);
+	}
 	gtk_widget_set_hexpand(m_preset_combo, true);
 	gtk_grid_attach(preset_table, m_preset_combo, 1, 0, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(preset_label), m_preset_combo);
@@ -82,11 +99,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 	gtk_label_set_xalign(GTK_LABEL(m_preset_description), 0.0f);
 	gtk_widget_set_hexpand(m_preset_description, true);
 	gtk_grid_attach(preset_table, m_preset_description, 0, 1, 2, 1);
-
-	m_preset_customized = gtk_label_new(_("● Customized"));
-	gtk_label_set_xalign(GTK_LABEL(m_preset_customized), 0.0f);
-	gtk_grid_attach(preset_table, m_preset_customized, 0, 2, 2, 1);
-	gtk_widget_hide(m_preset_customized);
 
 	// Preset action buttons row.
 	GtkWidget* action_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
@@ -155,9 +167,12 @@ GtkWidget* SettingsDialog::init_general_tab()
 				}
 				else
 				{
-					refresh_preset_combo(uuid);
+					// save_current_as_user_preset set /current-preset-id to the new
+					// uuid and re-enumerated, so the rebuilt combo's recompute lands
+					// on the new row (settings match it → not diverged), selected and
+					// named, with no dialog reopen (FR-003/004/005, SC-001).
+					refresh_preset_combo();
 					m_plugin->reload_menu();
-					refresh_customized_indicator();
 				}
 			}
 			gtk_widget_destroy(dlg);
@@ -238,12 +253,16 @@ GtkWidget* SettingsDialog::init_general_tab()
 				_("Delete preset \"%s\"?"), preset->display_name.c_str()))
 			{
 				std::string uuid = preset->id;
+				// delete_user_preset clears /current-preset-id when the removed
+				// preset was the active one (the only deletable case from this UI,
+				// since Delete is enabled only for the applied custom). Apply Modern
+				// as the fallback BEFORE rebuilding the combo so the recompute lands
+				// directly on Modern instead of flashing "Unsaved custom" (FR-009).
 				delete_user_preset(uuid, *m_settings);
-				refresh_preset_combo("modern");
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_plugin->reload_menu();
 				sync_preset_widgets();
-				refresh_customized_indicator();
+				refresh_preset_combo(); // drops the deleted row; recompute selects Modern
 			}
 		});
 
@@ -392,7 +411,18 @@ GtkWidget* SettingsDialog::init_general_tab()
 
 			if (result.status == ImportStatus::Ok)
 			{
-				refresh_preset_combo(result.new_uuid);
+				// Apply the imported preset so it both appears in the dropdown and
+				// takes effect (AC US4#2): import writes the /presets/<uuid>/ subtree
+				// but not /current-preset-id, so without this the freshly imported
+				// preset would list but not become the active selection.
+				const LayoutPreset* imported = find_preset_by_id(result.new_uuid);
+				if (imported)
+				{
+					apply_preset(*imported, *m_settings);
+					m_plugin->reload_menu();
+					sync_preset_widgets();
+				}
+				refresh_preset_combo();
 			}
 			else if (result.status != ImportStatus::ParseError)
 			{
@@ -417,23 +447,12 @@ GtkWidget* SettingsDialog::init_general_tab()
 				_("All settings will be reset to defaults and the Modern preset will be applied."),
 				_("Reset all settings to defaults?")))
 			{
-				// Hard reset: clear all plugin properties except saved user presets.
-				GHashTable* props = xfconf_channel_get_properties(m_settings->channel, nullptr);
-				if (props)
-				{
-					GHashTableIter iter;
-					gpointer key_ptr, value_ptr;
-					g_hash_table_iter_init(&iter, props);
-					while (g_hash_table_iter_next(&iter, &key_ptr, &value_ptr))
-					{
-						(void)value_ptr;
-						const gchar* path = static_cast<const gchar*>(key_ptr);
-						if (g_str_has_prefix(path, "/presets"))
-							continue;
-						xfconf_channel_reset_property(m_settings->channel, path, FALSE);
-					}
-					g_hash_table_unref(props);
-				}
+				// Hard reset: clear all plugin properties except saved user
+				// presets. The channel is property-base-anchored, so reset must
+				// run on base-relative paths — reset_settings_to_defaults() strips
+				// the base get_properties() embeds (see that helper for why a
+				// full path would silently no-op here).
+				reset_settings_to_defaults(m_settings->channel, m_plugin->get_property_base());
 
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_plugin->reload_menu();
@@ -443,20 +462,11 @@ GtkWidget* SettingsDialog::init_general_tab()
 			}
 		});
 
-	// Populate preset combo and initial description. Pass the stored active
-	// identity so the field reflects it on open; when the id is unset or
-	// resolves to no preset, refresh_preset_combo selects a non-blank "Custom"
-	// entry rather than leaving the field empty (FR-005/006).
-	{
-		const gchar* pid = static_cast<const gchar*>(m_settings->current_preset_id);
-		refresh_preset_combo(pid ? std::string(pid) : std::string());
-	}
-	{
-		const gchar* pid = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
-		const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
-		if (preset)
-			gtk_label_set_text(GTK_LABEL(m_preset_description), _(preset->description.c_str()));
-	}
+	// Populate the preset combo. refresh_preset_combo() rebuilds the rows and then
+	// the divergence recompute selects the applied preset's row (or the italic
+	// "Unsaved custom" placeholder when the live settings already diverge on
+	// open) and sets the description — the field is never blank (FR-005).
+	refresh_preset_combo();
 
 	connect(m_preset_combo, "changed",
 		[this](GtkComboBox* combo)
@@ -480,11 +490,9 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_last_applied_preset_id = preset->id;
 			m_plugin->reload_menu();
 			sync_preset_widgets();
+			// Recompute drives the active row, the description, and Rename/Delete/
+			// Export sensitivity from the freshly-applied /current-preset-id.
 			refresh_customized_indicator();
-			const bool is_user = !preset->is_builtin;
-			gtk_widget_set_sensitive(m_preset_rename_btn, is_user);
-			gtk_widget_set_sensitive(m_preset_delete_btn, is_user);
-			gtk_widget_set_sensitive(m_preset_export_btn, is_user);
 		});
 
 	// FullScreen warning InfoBar — shown when fullscreen is active but

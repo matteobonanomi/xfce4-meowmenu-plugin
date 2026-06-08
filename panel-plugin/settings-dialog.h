@@ -130,10 +130,26 @@ private:
 	GtkWidget* m_category_icon_size = nullptr;
 	GtkWidget* m_item_icon_size = nullptr;
 
-	// Preset hub
+public:
+	// Preset hub. The selector is a model-driven GtkComboBox (not the convenience
+	// GtkComboBoxText) so each row can carry its own Pango weight/style: built-ins
+	// render bold, saved customs standard, and the transient "Unsaved custom"
+	// placeholder italic. m_preset_model is the backing store; its columns are
+	// indexed by the PresetCol enum below. The enum is public so the file-local
+	// model helpers in settings-dialog.cpp can name the columns.
+	enum PresetCol
+	{
+		PRESET_COL_ID = 0,     // G_TYPE_STRING — selection key (gtk_combo_box_set_active_id)
+		PRESET_COL_LABEL,      // G_TYPE_STRING — translated display text
+		PRESET_COL_WEIGHT,     // G_TYPE_INT    — PANGO_WEIGHT_* for the row
+		PRESET_COL_STYLE,      // G_TYPE_INT    — PANGO_STYLE_* for the row
+		PRESET_N_COLS
+	};
+
+private:
 	GtkWidget* m_preset_combo = nullptr;
+	GtkListStore* m_preset_model = nullptr;
 	GtkWidget* m_preset_description = nullptr;
-	GtkWidget* m_preset_customized = nullptr;
 	GtkWidget* m_preset_rename_btn = nullptr;
 	GtkWidget* m_preset_delete_btn = nullptr;
 	GtkWidget* m_preset_export_btn = nullptr;

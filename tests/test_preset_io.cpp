@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <cstring>
 #include <map>
 #include <string>
@@ -432,6 +433,155 @@ static void test_new_schema_keys_accepted()
 	assert(result.count("default-category")    == 1 && result.at("default-category").s    == "recent");
 }
 
+// ---------------------------------------------------------------------------
+// T019/T020: schema-lenient import gate (FR-018) and name-conflict resolution
+// (FR-011). Mirrors the accept/reject decision of import_user_preset() before
+// the per-key [Settings] validation already covered above.
+//
+// Reject ONLY when: unparseable, a required section ([Preset]/[Settings]) is
+// missing, or [Preset].Name is absent. Otherwise accept best-effort — a missing
+// SchemaVersion is assumed current and a newer SchemaVersion is accepted.
+// ---------------------------------------------------------------------------
+
+enum class ImportGate { Ok, ParseError, MissingSection, MissingKey };
+
+struct ImportFile
+{
+	bool parseable = true;
+	bool has_preset = true;
+	bool has_settings = true;
+	bool has_name = true;
+	// -1 means the SchemaVersion key is absent; otherwise the integer value.
+	int  schema_version = 1;
+};
+
+static ImportGate import_gate(const ImportFile& f)
+{
+	if (!f.parseable)
+		return ImportGate::ParseError;
+	if (!f.has_preset || !f.has_settings)
+		return ImportGate::MissingSection;
+	if (!f.has_name)
+		return ImportGate::MissingKey;
+	// SchemaVersion is advisory: neither a missing nor a newer version rejects.
+	return ImportGate::Ok;
+}
+
+static void test_import_accepts_missing_schema_version()
+{
+	ImportFile f; f.schema_version = -1; // key absent → assume current
+	assert(import_gate(f) == ImportGate::Ok);
+}
+
+static void test_import_accepts_newer_schema_version()
+{
+	ImportFile f; f.schema_version = 99; // newer → accept best-effort
+	assert(import_gate(f) == ImportGate::Ok);
+}
+
+static void test_import_rejects_unparseable()
+{
+	ImportFile f; f.parseable = false;
+	assert(import_gate(f) == ImportGate::ParseError);
+}
+
+static void test_import_rejects_missing_section()
+{
+	{ ImportFile f; f.has_preset = false;   assert(import_gate(f) == ImportGate::MissingSection); }
+	{ ImportFile f; f.has_settings = false; assert(import_gate(f) == ImportGate::MissingSection); }
+}
+
+static void test_import_rejects_missing_name()
+{
+	ImportFile f; f.has_name = false;
+	assert(import_gate(f) == ImportGate::MissingKey);
+}
+
+// Name-conflict resolution: a built-in collision returns ConflictBuiltin (and the
+// caller must withhold Overwrite); a user collision returns ConflictUser; a novel
+// name imports cleanly. Comparison is case-insensitive, as in the real impl.
+enum class ConflictKind { None, User, Builtin };
+
+static std::string to_lower(std::string s)
+{
+	for (char& c : s)
+		c = (char) tolower((unsigned char) c);
+	return s;
+}
+
+static ConflictKind classify_conflict(const std::string& name,
+	const std::vector<std::string>& user_names)
+{
+	for (int i = 0; BUILTIN_NAMES[i]; ++i)
+		if (to_lower(name) == to_lower(BUILTIN_NAMES[i]))
+			return ConflictKind::Builtin;
+	for (const auto& u : user_names)
+		if (to_lower(name) == to_lower(u))
+			return ConflictKind::User;
+	return ConflictKind::None;
+}
+
+static void test_conflict_builtin_withholds_overwrite()
+{
+	std::vector<std::string> users = { "My Layout" };
+	// Built-in collision → ConflictBuiltin (Overwrite must not be offered).
+	assert(classify_conflict("Modern", users) == ConflictKind::Builtin);
+	assert(classify_conflict("modern", users) == ConflictKind::Builtin);
+}
+
+static void test_conflict_user_offers_overwrite()
+{
+	std::vector<std::string> users = { "My Layout" };
+	assert(classify_conflict("my layout", users) == ConflictKind::User);
+	assert(classify_conflict("Brand New", users) == ConflictKind::None);
+}
+
+// T030: export→import round-trip equality. A saved preset's validated value set,
+// serialised on export and re-validated on import, must be byte-for-byte the same
+// governed-key map — locking SC-007 automatically (contract Export/Import).
+static void test_export_import_round_trip_equality()
+{
+	// Start from a fully-valid saved-custom value set.
+	RawSettings original = make_valid_modern_raw();
+	std::vector<std::string> sk0;
+	ShadowValueMap saved = validate_settings(original, sk0);
+	assert(sk0.empty());
+
+	// "Export": serialise each governed value back to its raw string form.
+	RawSettings exported;
+	for (const auto& kv : saved)
+	{
+		const ShadowValue& v = kv.second;
+		if (v.kind == PropKind::Int)
+			exported.put(kv.first, std::to_string(v.i));
+		else if (v.kind == PropKind::Bool)
+			exported.put(kv.first, v.b ? "true" : "false");
+		else
+			exported.put(kv.first, v.s);
+	}
+
+	// "Import" the exported file under a fresh name.
+	std::vector<std::string> sk1;
+	ShadowValueMap reimported = validate_settings(exported, sk1);
+	assert(sk1.empty());
+
+	// The governed-key set and every value must be identical.
+	assert(reimported.size() == saved.size());
+	for (const auto& kv : saved)
+	{
+		auto it = reimported.find(kv.first);
+		assert(it != reimported.end());
+		assert(it->second.kind == kv.second.kind);
+		// Compare only the field the kind populates (the others are unset).
+		if (kv.second.kind == PropKind::Int)
+			assert(it->second.i == kv.second.i);
+		else if (kv.second.kind == PropKind::Bool)
+			assert(it->second.b == kv.second.b);
+		else
+			assert(it->second.s == kv.second.s);
+	}
+}
+
 int main()
 {
 	test_round_trip_all_valid();
@@ -449,5 +599,15 @@ int main()
 	test_enumerate_wrong_type_key_dropped_rest_loaded();
 	test_enumerate_unknown_key_dropped();
 	test_new_schema_keys_accepted();
+	// 029-custom-presets: schema-lenient import gate, conflict resolution,
+	// export→import round-trip equality (FR-011/FR-018, SC-007)
+	test_import_accepts_missing_schema_version();
+	test_import_accepts_newer_schema_version();
+	test_import_rejects_unparseable();
+	test_import_rejects_missing_section();
+	test_import_rejects_missing_name();
+	test_conflict_builtin_withholds_overwrite();
+	test_conflict_user_offers_overwrite();
+	test_export_import_round_trip_equality();
 	return 0;
 }

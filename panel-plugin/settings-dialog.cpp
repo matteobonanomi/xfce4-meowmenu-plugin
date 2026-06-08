@@ -502,14 +502,91 @@ void SettingsDialog::response(int response_id)
 
 //-----------------------------------------------------------------------------
 
+// Reserved synthetic id for the transient "Unsaved custom" row. Never a real
+// preset: it is appended to the model only while the live settings diverge from
+// the applied preset and removed again the moment they re-match.
+static const char* const UNSAVED_PLACEHOLDER_ID = "__unsaved__";
+
+/* remove_unsaved_row:
+ * @model: the preset combo's backing store.
+ *
+ * Drops the synthetic "Unsaved custom" placeholder row if present. Safe to call
+ * when no placeholder exists.
+ */
+static void remove_unsaved_row(GtkListStore* model)
+{
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter_first(GTK_TREE_MODEL(model), &iter))
+		return;
+	do
+	{
+		gchar* id = nullptr;
+		gtk_tree_model_get(GTK_TREE_MODEL(model), &iter,
+			SettingsDialog::PRESET_COL_ID, &id, -1);
+		const bool is_placeholder = id && strcmp(id, UNSAVED_PLACEHOLDER_ID) == 0;
+		g_free(id);
+		if (is_placeholder)
+		{
+			gtk_list_store_remove(model, &iter);
+			return;
+		}
+	}
+	while (gtk_tree_model_iter_next(GTK_TREE_MODEL(model), &iter));
+}
+
 void SettingsDialog::refresh_customized_indicator()
 {
-	const gchar* pid = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
-	const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
-	if (preset)
+	// Continuous, reversible divergence recompute (FR-001). Every governed-widget
+	// change handler across all tabs calls this, so the active-preset field always
+	// reflects whether the live settings still match the applied preset: it reads
+	// "Unsaved custom" (italic) while diverged and snaps back to the applied
+	// preset's own row the instant the values match again. The field is never
+	// blank (SC-003) — an unset or unknown applied id counts as diverged.
+	if (!m_preset_combo || !m_preset_model)
+		return;
+
+	// Re-entrancy guard: setting the active row fires the combo "changed" handler,
+	// which would otherwise re-apply a preset.
+	m_programmatic_update = true;
+
+	// NOTE: the applied preset is the one whose values were last written, tracked
+	// by /current-preset-id — not whatever row happens to be active in the combo.
+	const gchar* cur = static_cast<const gchar*>(m_settings->current_preset_id);
+	const LayoutPreset* applied = find_preset_by_id(cur ? std::string(cur) : std::string());
+	const bool diverged = !applied || compute_preset_diff(*applied, *m_settings);
+
+	remove_unsaved_row(m_preset_model);
+
+	if (diverged)
 	{
-		gtk_widget_set_visible(m_preset_customized, compute_preset_diff(*preset, *m_settings));
+		GtkTreeIter iter;
+		gtk_list_store_append(m_preset_model, &iter);
+		gtk_list_store_set(m_preset_model, &iter,
+			PRESET_COL_ID,     UNSAVED_PLACEHOLDER_ID,
+			PRESET_COL_LABEL,  _("Unsaved custom"),
+			PRESET_COL_WEIGHT, PANGO_WEIGHT_NORMAL,
+			PRESET_COL_STYLE,  PANGO_STYLE_ITALIC,
+			-1);
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), UNSAVED_PLACEHOLDER_ID);
+		gtk_label_set_text(GTK_LABEL(m_preset_description), "");
 	}
+	else
+	{
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), applied->id.c_str());
+		gtk_label_set_text(GTK_LABEL(m_preset_description), _(applied->description.c_str()));
+	}
+
+	// Rename/Delete/Export apply only to a real, saved user preset — never a
+	// built-in and never the transient "Unsaved custom" placeholder.
+	const bool is_user = !diverged && applied && !applied->is_builtin;
+	if (m_preset_rename_btn)
+		gtk_widget_set_sensitive(m_preset_rename_btn, is_user);
+	if (m_preset_delete_btn)
+		gtk_widget_set_sensitive(m_preset_delete_btn, is_user);
+	if (m_preset_export_btn)
+		gtk_widget_set_sensitive(m_preset_export_btn, is_user);
+
+	m_programmatic_update = false;
 }
 
 void SettingsDialog::update_grid_controls_state()
@@ -663,92 +740,81 @@ void SettingsDialog::sync_preset_widgets()
 	m_programmatic_update = false;
 }
 
+/* append_preset_row:
+ * @model:      the preset combo's backing store.
+ * @id:         stable selection id.
+ * @label:      translated display text.
+ * @is_builtin: true → bold (built-in), false → standard weight (saved custom).
+ *
+ * Appends one concrete preset row with its data-driven typography. Built-ins
+ * render bold so a future built-in inherits bold automatically (FR-013/014);
+ * saved customs render at normal weight. The italic "Unsaved custom" row is not
+ * a preset and is added separately by the divergence recompute.
+ */
+static void append_preset_row(GtkListStore* model, const std::string& id,
+	const std::string& label, bool is_builtin)
+{
+	GtkTreeIter iter;
+	gtk_list_store_append(model, &iter);
+	gtk_list_store_set(model, &iter,
+		SettingsDialog::PRESET_COL_ID,     id.c_str(),
+		SettingsDialog::PRESET_COL_LABEL,  label.c_str(),
+		SettingsDialog::PRESET_COL_WEIGHT, is_builtin ? PANGO_WEIGHT_BOLD : PANGO_WEIGHT_NORMAL,
+		SettingsDialog::PRESET_COL_STYLE,  PANGO_STYLE_NORMAL,
+		-1);
+}
+
 void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 {
-	// Guard against the programmatic rebuild re-triggering the combo's "changed"
-	// handler (which would re-apply a preset). Shares the dialog-wide flag.
+	// (void) the legacy select_id parameter: row selection is no longer driven by
+	// the caller's hint but by the applied preset id (/current-preset-id) and the
+	// live divergence state, resolved in refresh_customized_indicator(). Callers
+	// set /current-preset-id (via apply/save) before invoking this, so the active
+	// row follows the applied preset automatically.
+	(void) select_id;
+
+	if (!m_preset_combo || !m_preset_model)
+		return;
+
+	// Guard the rebuild: clearing the model resets the active row, which would
+	// otherwise fire the combo "changed" handler and re-apply a preset.
 	m_programmatic_update = true;
 
-	// Preserve active ID before clearing
-	const gchar* current_raw = gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo));
-	std::string active_id = select_id.empty()
-		? (current_raw ? std::string(current_raw) : std::string())
-		: select_id;
+	gtk_list_store_clear(m_preset_model);
 
-	// Rebuild combo entries — built-ins from on-disk files (T041), then user presets.
-	gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(m_preset_combo));
-
+	// Built-ins first (file-seeded order), bold.
 	const auto& file_presets = get_file_presets();
 	if (!file_presets.empty())
 	{
 		for (const auto& p : file_presets)
 		{
 			// Label from the stored identity name — one code path for built-in
-			// and custom presets (FR-011a). For built-ins name == display name.
+			// and custom presets. For built-ins name == display name.
 			const std::string& label = p.name.empty() ? p.display_name : p.name;
-			gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
-				p.id.c_str(), label.c_str());
+			append_preset_row(m_preset_model, p.id, label, true);
 		}
 	}
 	else
 	{
 		// NOTE: fallback if initialize_file_presets() was not called or all files missing.
-		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo), "classic",    _("Classic"));
-		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo), "modern",     _("Modern"));
-		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo), "fullscreen", _("Full Screen"));
+		append_preset_row(m_preset_model, "classic",    _("Classic"),     true);
+		append_preset_row(m_preset_model, "modern",     _("Modern"),      true);
+		append_preset_row(m_preset_model, "fullscreen", _("Full Screen"), true);
 	}
 
+	// Then saved customs (uuid order), standard weight.
 	const auto& user = enumerate_user_presets(m_settings->channel);
 	for (const auto& p : user)
 	{
 		const std::string& label = p.name.empty() ? p.display_name : p.name;
-		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
-			p.id.c_str(), label.c_str());
+		append_preset_row(m_preset_model, p.id, label, false);
 	}
-
-	// Restore selection. The preset field must never be blank (FR-005): when the
-	// stored id is unset or resolves to no row (empty, or a deleted/unknown
-	// preset), present and select a synthetic non-blank "Custom" entry that
-	// truthfully represents the current preset-less layout state.
-	// HACK: gtk_combo_box_set_active_id silently leaves the combo with no active
-	// selection when the id matches no row, which is exactly the blank case we
-	// must avoid; we detect that via its return value and fall back to "Custom".
-	static const char* const CUSTOM_PLACEHOLDER_ID = "__custom__";
-	bool selected = false;
-	if (!active_id.empty())
-		selected = gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), active_id.c_str());
-
-	bool is_custom_placeholder = false;
-	if (!selected)
-	{
-		gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_preset_combo),
-			CUSTOM_PLACEHOLDER_ID, _("Custom"));
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), CUSTOM_PLACEHOLDER_ID);
-		is_custom_placeholder = true;
-	}
-
-	// Update button sensitivity: Rename/Delete only for user (non-builtin)
-	// presets. The synthetic "Custom" placeholder is not a real preset, so it
-	// must never enable the user-preset actions.
-	bool is_builtin = false;
-	for (const auto& p : get_file_presets())
-		if (p.id == active_id) { is_builtin = true; break; }
-	if (!is_builtin)
-	{
-		for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
-			if (BUILTIN_PRESETS[i].id == active_id) { is_builtin = true; break; }
-	}
-	bool is_user = !is_custom_placeholder
-		&& (gtk_combo_box_get_active_id(GTK_COMBO_BOX(m_preset_combo)) != nullptr)
-		&& !is_builtin;
-	if (m_preset_rename_btn)
-		gtk_widget_set_sensitive(m_preset_rename_btn, is_user);
-	if (m_preset_delete_btn)
-		gtk_widget_set_sensitive(m_preset_delete_btn, is_user);
-	if (m_preset_export_btn)
-		gtk_widget_set_sensitive(m_preset_export_btn, is_user);
 
 	m_programmatic_update = false;
+
+	// Resolve the active row + the transient "Unsaved custom" placeholder, and
+	// drive Rename/Delete/Export sensitivity. The field is never left blank.
+	refresh_customized_indicator();
 }
 
 //-----------------------------------------------------------------------------
