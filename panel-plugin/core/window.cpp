@@ -36,6 +36,7 @@
 #include "sidebar-layout.h"
 #include "theme-fallback.h"
 #include "user-session-layout.h"
+#include "window-frame.h"
 #include "ui/slot.h"
 #include "ui/switch-icons.h"
 #include "search/unified-bar.h"
@@ -306,10 +307,12 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	g_signal_connect(G_OBJECT(m_window), "delete-event", G_CALLBACK(&gtk_widget_hide_on_delete), nullptr);
 
-	// Create the border of the window
+	// Structural container only — the frame no longer carries a visible border.
+	// The single intentional window border is stroked along the rounded clip path
+	// in on_draw_event; a frame shadow here would draw a second, square outline
+	// that ignores the corner radius (the doubled/ghost line defect).
 	m_frame = GTK_FRAME(gtk_frame_new(nullptr));
-	GtkShadowType initial_shadow = (m_settings->corner_radius > 0) ? GTK_SHADOW_NONE : GTK_SHADOW_OUT;
-	gtk_frame_set_shadow_type(m_frame, initial_shadow);
+	gtk_frame_set_shadow_type(m_frame, GTK_SHADOW_NONE);
 	gtk_container_add(GTK_CONTAINER(m_window), GTK_WIDGET(m_frame));
 
 	// Create window contents stack
@@ -883,14 +886,10 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 						&& g_strcmp0(property, "/apps-opacity") != 0
 						&& g_strcmp0(property, "/full-screen-opacity") != 0)
 					return;
+				// The corner radius is applied entirely by re-clipping and
+				// re-stroking in on_draw_event; the redraw queued below picks up
+				// the new radius live. No frame-shadow toggle remains.
 				auto* self = static_cast<Window*>(user_data);
-				if (g_strcmp0(property, "/corner-radius") == 0 && self->m_frame)
-				{
-					const int r = CLAMP(static_cast<int>(self->m_settings->corner_radius), 0, 24);
-					gtk_frame_set_shadow_type(self->m_frame,
-						r > 0 ? GTK_SHADOW_NONE : GTK_SHADOW_OUT);
-				}
-
 				self->update_background_css();
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
 				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
@@ -2044,6 +2043,14 @@ void WhiskerMenu::Window::update_background_css()
 	const int sep_r = (sep_luma < 128.0) ? CLAMP(red   + sep_step, 0, 255) : CLAMP(red   - sep_step, 0, 255);
 	const int sep_g = (sep_luma < 128.0) ? CLAMP(green + sep_step, 0, 255) : CLAMP(green - sep_step, 0, 255);
 	const int sep_b = (sep_luma < 128.0) ? CLAMP(blue  + sep_step, 0, 255) : CLAMP(blue  - sep_step, 0, 255);
+	// Publish the seed for on_draw_event: the single window border stroke reuses
+	// exactly this theme-derived colour, so the boundary keeps its previous hue
+	// even though it is now drawn once along the rounded path instead of as a
+	// per-region CSS outline.
+	m_separator_rgba.red   = sep_r / 255.0;
+	m_separator_rgba.green = sep_g / 255.0;
+	m_separator_rgba.blue  = sep_b / 255.0;
+	m_separator_rgba.alpha = 1.0;
 	// Resolve which absolute alpha each region receives for this render pass.
 	// The pure helper enforces the 0=transparent / 100=solid contract and the
 	// dual single-alpha model: docked => transparent window with each region
@@ -2059,18 +2066,45 @@ void WhiskerMenu::Window::update_background_css()
 			m_settings->apps_opacity,
 			m_settings->full_screen_opacity);
 
-	// The results outline only applies in docked mode. In full-screen the whole
-	// surface carries one alpha and the regions are transparent, so an outline
-	// there would draw a stray rectangle over an intentionally seamless menu.
-	gchar* apps_border = is_fullscreen
-			? g_strdup("")
-			: g_strdup_printf(
-				".meowmenu .applications-area"
-				"{ border: 1px solid rgba(%d, %d, %d, 1.0); }",
-				sep_r, sep_g, sep_b);
+	// Chrome/frame fill used by on_draw_event for the resizer ring: the theme
+	// background at the categories-region alpha, so the 6 px the resizer grid
+	// reserves around the content reads as part of the menu frame (same alpha as
+	// the search/title/commands strips) instead of showing the desktop through
+	// the transparent docked shell.
+	m_chrome_rgba.red   = red   / 255.0;
+	m_chrome_rgba.green = green / 255.0;
+	m_chrome_rgba.blue  = blue  / 255.0;
+	m_chrome_rgba.alpha = alphas.categories;
 
+	// NOTE: the results area no longer emits its own 1 px outline. The single
+	// intentional menu border is drawn once in on_draw_event along the rounded
+	// clip path (docked only); a per-region CSS border here would double that
+	// line and ignore the corner radius. Full-screen continues to show no
+	// outline at all (one seamless surface).
 	gchar* css = g_strdup_printf(
 		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		// NOTE: GTK wraps an undecorated, client-side-decorated toplevel in a
+		// `decoration` subnode that the active theme styles with a drop shadow
+		// (and often its own border-radius/border/margin). That node is painted
+		// outside everything on_draw_event controls, so it surfaces as a faint
+		// translucent halo sitting just beyond the single custom border — the
+		// ghost outline FR-003 forbids. Neutralise it so the only thing framing
+		// the menu is the one border stroked along the rounded clip path.
+		"window.meowmenu decoration,"
+		".meowmenu decoration"
+		"{ box-shadow: none; border: none; background: transparent;"
+		"  margin: 0; padding: 0; border-radius: 0; }"
+		// NOTE: the GtkFrame is a structural container only, but GTK3 still
+		// renders its themed `border` subnode and reserves that border/padding
+		// as an inset. That inset used to hide under the opaque pre-026 shell;
+		// the docked shell is now transparent, so the reserved ring shows the
+		// desktop through it as a band between the content and the single drawn
+		// border. Collapse the frame border/padding so the regions sit flush to
+		// the window edge where the border is stroked.
+		".meowmenu frame,"
+		".meowmenu frame > border"
+		"{ border: none; padding: 0; margin: 0;"
+		"  min-width: 0; min-height: 0; }"
 		// NOTE: .contents stays transparent on purpose — it is an ancestor of
 		// the applications area, so giving it a background would re-introduce a
 		// solid floor under the results region and defeat true-0 apps opacity.
@@ -2103,8 +2137,6 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .applications-area,"
 		".meowmenu .applications-area > *"
 		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
-		// Docked-only crisp 1 px results outline (empty string in full-screen).
-		"%s"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2130,12 +2162,10 @@ void WhiskerMenu::Window::update_background_css()
 		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }",
 		red, green, blue, alphas.window,
 		red, green, blue, alphas.categories,
-		red, green, blue, alphas.apps,
-		apps_border);
+		red, green, blue, alphas.apps);
 
 	gtk_css_provider_load_from_data(m_css_provider, css, -1, nullptr);
 	g_free(css);
-	g_free(apps_border);
 }
 
 //-----------------------------------------------------------------------------
@@ -2161,6 +2191,94 @@ void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::apply_window_shape(int width, int height, int radius, bool composited)
+{
+	// Re-mask only when the silhouette actually changes; on_draw_event runs
+	// often and re-applying the shape every frame would thrash the window mask.
+	if (width == m_shape_width && height == m_shape_height
+			&& radius == m_shape_radius && composited == m_shape_composited)
+		return;
+	m_shape_width = width;
+	m_shape_height = height;
+	m_shape_radius = radius;
+	m_shape_composited = composited;
+
+	GtkWidget* widget = GTK_WIDGET(m_window);
+	if (!gtk_widget_get_realized(widget))
+		return;
+
+	// Square window: clear any prior mask so the toplevel is its full rectangle.
+	// Covers both corner radius 0 (FR-002) and the non-composited fallback
+	// (FR-006), which both render clean square corners.
+	if (radius <= 0 || !composited || width <= 0 || height <= 0)
+	{
+		gtk_widget_shape_combine_region(widget, nullptr);
+		return;
+	}
+
+	// Build a 1-bit (no anti-alias) rounded-rect mask matching the cairo clip in
+	// on_draw_event, then apply it as the window's bounding shape. The crisp mask
+	// edge sits one pixel outside the inset AA border stroke, so the border still
+	// reads smoothly while the hard mask removes the square native-window corner.
+	cairo_surface_t* mask = cairo_image_surface_create(CAIRO_FORMAT_A1, width, height);
+	cairo_t* mc = cairo_create(mask);
+	cairo_set_antialias(mc, CAIRO_ANTIALIAS_NONE);
+	cairo_set_operator(mc, CAIRO_OPERATOR_SOURCE);
+	cairo_set_source_rgba(mc, 0.0, 0.0, 0.0, 0.0);
+	cairo_paint(mc);
+	cairo_set_source_rgba(mc, 0.0, 0.0, 0.0, 1.0);
+	const double rr = radius;
+	cairo_new_path(mc);
+	cairo_arc(mc, rr,         rr,          rr, G_PI,       G_PI * 1.5);
+	cairo_arc(mc, width - rr, rr,          rr, G_PI * 1.5, G_PI * 2.0);
+	cairo_arc(mc, width - rr, height - rr, rr, 0.0,        G_PI * 0.5);
+	cairo_arc(mc, rr,         height - rr, rr, G_PI * 0.5, G_PI);
+	cairo_close_path(mc);
+	cairo_fill(mc);
+	cairo_destroy(mc);
+	cairo_surface_flush(mask);
+
+	cairo_region_t* region = gdk_cairo_region_create_from_surface(mask);
+	gtk_widget_shape_combine_region(widget, region);
+	cairo_region_destroy(region);
+	cairo_surface_destroy(mask);
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::fill_resizer_ring(cairo_t* cr, double width, double height)
+{
+	// The content vbox sits in the centre cell of the 3x3 resizer grid, inset by
+	// the drag-handle strip on every side. Fill that strip — the window rectangle
+	// minus the vbox rectangle — with the chrome background so the menu frame is
+	// continuous up to the border. The vbox itself is left untouched so the
+	// regions inside it (notably the apps area) keep their own alpha.
+	GtkAllocation va;
+	gtk_widget_get_allocation(GTK_WIDGET(m_vbox), &va);
+	if (va.width <= 0 || va.height <= 0)
+		return;
+
+	const double vx = va.x;
+	const double vy = va.y;
+	const double vw = va.width;
+	const double vh = va.height;
+
+	cairo_save(cr);
+	gdk_cairo_set_source_rgba(cr, &m_chrome_rgba);
+	if (vy > 0.0)                       // top strip
+		cairo_rectangle(cr, 0.0, 0.0, width, vy);
+	if (vy + vh < height)               // bottom strip
+		cairo_rectangle(cr, 0.0, vy + vh, width, height - (vy + vh));
+	if (vx > 0.0)                       // left strip (between top and bottom)
+		cairo_rectangle(cr, 0.0, vy, vx, vh);
+	if (vx + vw < width)                // right strip
+		cairo_rectangle(cr, vx + vw, vy, width - (vx + vw), vh);
+	cairo_fill(cr);
+	cairo_restore(cr);
+}
+
+//-----------------------------------------------------------------------------
+
 gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 {
 	if (!gtk_widget_get_realized(widget))
@@ -2175,8 +2293,17 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	const bool enabled = gdk_screen_is_composited(screen);
 
-	// Build rounded-rect clip path (T040: corner-radius)
-	const double r = CLAMP(m_settings->corner_radius, 0, 24);
+	// Single shared corner-radius clamp [0,24] — the live property-changed
+	// handler queues a redraw that re-enters here, so the visible rounding can
+	// never diverge from the control's range.
+	const double r = meow::meowmenu_clamp_corner_radius(m_settings->corner_radius);
+
+	// Mask the toplevel window itself to the rounded silhouette. The cairo clip
+	// below only bounds windowless children; native-windowed regions ignore it
+	// and would paint a square corner outside the outline without this shape.
+	apply_window_shape(static_cast<int>(width), static_cast<int>(height),
+		static_cast<int>(r), enabled && m_supports_alpha);
+
 	auto clip_rounded = [&](cairo_t* c)
 	{
 		if (r > 0.0)
@@ -2194,6 +2321,32 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		}
 	};
 
+	// Path for the single border: the same silhouette as the clip, inset by half
+	// the 1 px line width so the whole stroke stays inside the surface (and inside
+	// the rounded clip at the corners) instead of being half-clipped at the edge.
+	const double border_width = 1.0;
+	auto border_path = [&](cairo_t* c)
+	{
+		const double inset = border_width / 2.0;
+		const double br = (r > inset) ? (r - inset) : 0.0;
+		cairo_new_path(c);
+		if (br > 0.0)
+		{
+			cairo_arc(c, inset + br,         inset + br,          br, G_PI,       G_PI * 1.5);
+			cairo_arc(c, width - inset - br, inset + br,          br, G_PI * 1.5, G_PI * 2.0);
+			cairo_arc(c, width - inset - br, height - inset - br, br, 0.0,        G_PI * 0.5);
+			cairo_arc(c, inset + br,         height - inset - br, br, G_PI * 0.5, G_PI);
+			cairo_close_path(c);
+		}
+		else
+		{
+			cairo_rectangle(c, inset, inset, width - border_width, height - border_width);
+		}
+	};
+
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	GtkWidget* child = gtk_bin_get_child(GTK_BIN(widget));
+
 	if (enabled && m_supports_alpha)
 	{
 		// Erase the previous frame so pixels outside the rounded clip are transparent.
@@ -2202,28 +2355,67 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		cairo_paint(cr);
 		cairo_restore(cr);
 
-		cairo_surface_t* background = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-		cairo_t* cr_background = cairo_create(background);
-		cairo_set_operator(cr_background, CAIRO_OPERATOR_SOURCE);
-		gtk_render_background(context, cr_background, 0.0, 0.0, width, height);
-		cairo_destroy(cr_background);
-
-		cairo_set_source_surface(cr, background, 0.0, 0.0);
-		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+		// Clip the ENTIRE window draw — shell background AND the propagated child
+		// regions — to the rounded silhouette. Post-026 the visible fill is painted
+		// by the regions (the docked shell is transparent), so the clip must bound
+		// the children for the radius to round what the user actually sees. At r==0
+		// this is a plain rectangular clip, so corners reduce to clean squares.
 		cairo_save(cr);
 		clip_rounded(cr);
 		cairo_clip(cr);
-		cairo_paint(cr);
+		gtk_render_background(context, cr, 0.0, 0.0, width, height);
+		// Docked only: fill the resizer ring with the chrome background. The 3x3
+		// resizer grid reserves a strip (the drag handles) around the content
+		// vbox; with the transparent docked shell that strip would otherwise show
+		// the desktop as a band between the border and the content. Painting only
+		// the ring — the window minus the content vbox — keeps the apps area's own
+		// alpha intact (no opaque floor under the results). Full-screen needs no
+		// fill: there the shell itself carries the single full-screen alpha.
+		if (!is_fullscreen && m_vbox)
+			fill_resizer_ring(cr, width, height);
+		if (child)
+			gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
 		cairo_restore(cr);
 
-		cairo_surface_destroy(background);
-	}
-	else
-	{
-		gtk_render_background(context, cr, 0.0, 0.0, width, height);
+		// Exactly one intentional border, following the same rounded path, drawn
+		// only docked + composited; full-screen reads as one seamless surface.
+		if (meow::meowmenu_frame_draws_border(is_fullscreen, m_supports_alpha))
+		{
+			cairo_save(cr);
+			cairo_set_line_width(cr, border_width);
+			gdk_cairo_set_source_rgba(cr, &m_separator_rgba);
+			border_path(cr);
+			cairo_stroke(cr);
+			cairo_restore(cr);
+		}
+
+		// We have drawn the background, the clipped children, and the border, so
+		// stop emission: the default handler must not re-draw the children
+		// unclipped (which would leave their square fill outside the rounded edge).
+		return GDK_EVENT_STOP;
 	}
 
-	return GDK_EVENT_PROPAGATE;
+	// Non-composited fallback (no RGBA visual): solid, square, no rounding
+	// (FR-006). Draw the shell background and propagate the children unclipped,
+	// then a single SQUARE border — gated on docked only (not the composited
+	// predicate, which requires supports_alpha), so a non-composited full-screen
+	// menu stays one seamless square surface with no outline.
+	gtk_render_background(context, cr, 0.0, 0.0, width, height);
+	if (!is_fullscreen && m_vbox)
+		fill_resizer_ring(cr, width, height);
+	if (child)
+		gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
+	if (!is_fullscreen)
+	{
+		cairo_save(cr);
+		cairo_set_line_width(cr, border_width);
+		gdk_cairo_set_source_rgba(cr, &m_separator_rgba);
+		cairo_rectangle(cr, border_width / 2.0, border_width / 2.0,
+			width - border_width, height - border_width);
+		cairo_stroke(cr);
+		cairo_restore(cr);
+	}
+	return GDK_EVENT_STOP;
 }
 
 //-----------------------------------------------------------------------------
