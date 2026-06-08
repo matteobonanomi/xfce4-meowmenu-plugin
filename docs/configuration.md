@@ -144,7 +144,7 @@ Replace `<id>` with the numeric plugin ID shown by
 
 | Key (relative to `/plugins/<id>/`) | Type | Default | Description |
 |------------------------------------|------|---------|-------------|
-| `corner-radius` | int | 0 | Menu window corner radius in pixels. |
+| `corner-radius` | int | 0 | Radius, in pixels, that rounds the menu's visible outer corners (0 = square). |
 | `panel-gap` | int | 0 | Gap between the panel and the menu window. |
 | `menu-width` | int | 450 | Menu window width in pixels. |
 | `menu-height` | int | 500 | Menu window height in pixels. |

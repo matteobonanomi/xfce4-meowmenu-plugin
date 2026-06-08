@@ -29,6 +29,7 @@ plugin_sources = [
   'core/theme-fallback.cpp',
   'core/user-session-layout.cpp',
   'core/window-size-clamp.cpp',
+  'core/window-frame.cpp',
   'profile.cpp',
   'search/query.cpp',
   'launcher/recent-page.cpp',
