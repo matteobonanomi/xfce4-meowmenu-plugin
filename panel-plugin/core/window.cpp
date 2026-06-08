@@ -1100,7 +1100,10 @@ void WhiskerMenu::Window::show(const Position position)
 	m_places->get_view()->reload_icon_size();
 
 	GdkMonitor* monitor_gdk = nullptr;
-	if (position == PositionAtButton)
+	// Centered always references the panel button's monitor (FR-004), so it takes
+	// the button-detection branch even when launched by a keyboard shortcut
+	// (which would otherwise pick the cursor's monitor).
+	if (position == PositionAtButton || centered_layout())
 	{
 		// Wait up to half a second for auto-hidden panels to be shown
 		int parent_x = 0, parent_y = 0;
@@ -1129,6 +1132,17 @@ void WhiskerMenu::Window::show(const Position position)
 		GdkDevice* device = gdk_seat_get_pointer(seat);
 		gdk_device_get_position(device, nullptr, &m_geometry.x, &m_geometry.y);
 		monitor_gdk = gdk_display_get_monitor_at_point(display, m_geometry.x, m_geometry.y);
+	}
+
+	// Fall back to a usable monitor if detection failed — e.g. the panel
+	// button's monitor was just disconnected — so geometry/centering never
+	// dereferences a null monitor or lands off-screen.
+	if (monitor_gdk == nullptr)
+	{
+		GdkDisplay* display = gdk_display_get_default();
+		monitor_gdk = gdk_display_get_primary_monitor(display);
+		if (monitor_gdk == nullptr)
+			monitor_gdk = gdk_display_get_monitor(display, 0);
 	}
 
 	// Resize window if necessary, and also prevent it from being larger than screen
@@ -1366,8 +1380,15 @@ void WhiskerMenu::Window::show(const Position position)
 		check_scrollbar_needed();
 	}
 
-	// Fetch position again to make sure window does not overlap panel
-	if (position == PositionAtButton)
+	// Fetch position again to make sure window does not overlap panel.
+	// Centered overrides the launch trigger: it always re-centres on the target
+	// monitor using the now-final size (full monitor geometry, gap suppressed in
+	// move_window()).
+	if (centered_layout())
+	{
+		center_window();
+	}
+	else if (position == PositionAtButton)
 	{
 		m_plugin->get_menu_position(&m_geometry.x, &m_geometry.y);
 	}
@@ -2420,19 +2441,38 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 
 //-----------------------------------------------------------------------------
 
+/* Window::centered_layout:
+ *
+ * Returns: true when /layout-mode classifies as Centered. Reads the stored key
+ * through the shared classifier so an unknown/stale value falls back to Docked
+ * (false) without ever being written back.
+ */
+bool WhiskerMenu::Window::centered_layout() const
+{
+	return layout_mode_from_key(m_settings->layout_mode) == LayoutMode::Centered;
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::center_window()
 {
-	m_geometry.x = (m_monitor.width - m_geometry.width) / 2;
-	m_geometry.y = (m_monitor.height - m_geometry.height) / 2;
+	// Add the monitor origin so the window centres on the *target* monitor, not
+	// only on a monitor whose origin happens to be (0,0). Uses full monitor
+	// geometry (m_monitor), which is the Centered-mode reference rectangle.
+	m_geometry.x = m_monitor.x + (m_monitor.width - m_geometry.width) / 2;
+	m_geometry.y = m_monitor.y + (m_monitor.height - m_geometry.height) / 2;
 }
 
 //-----------------------------------------------------------------------------
 
 void WhiskerMenu::Window::move_window()
 {
-	// T042: apply panel-gap offset away from the panel
+	// T042: apply panel-gap offset away from the panel.
+	// Centered placement never sits flush against a panel edge, so the gap is
+	// meaningless there and is suppressed without mutating the stored value
+	// (the Properties dialog also greys the gap control in Centered).
 	const int gap = m_settings->panel_gap;
-	if (gap > 0 && m_position == PositionAtButton)
+	if (gap > 0 && m_position == PositionAtButton && !centered_layout())
 	{
 		const XfceScreenPosition screen_pos = m_plugin->get_screen_position();
 		if (xfce_screen_position_is_top(screen_pos))

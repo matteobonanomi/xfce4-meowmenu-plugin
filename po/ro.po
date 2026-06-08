@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 15:22+0200\n"
+"POT-Creation-Date: 2026-06-08 22:54+0200\n"
 "PO-Revision-Date: 2020-02-12 22:14+0000\n"
 "Last-Translator: Sebastian Brici <bricisebastian@gmail.com>, 2018\n"
 "Language-Team: MeowMenu ro <mbonanomi.dev@proton.me>\n"
@@ -55,12 +55,12 @@ msgstr "Alegeți comanda"
 
 #: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
 #: panel-plugin/settings-dialog.cpp:394
-#: panel-plugin/ui/properties/general.cpp:139
-#: panel-plugin/ui/properties/general.cpp:198
-#: panel-plugin/ui/properties/general.cpp:292
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:362
-#: panel-plugin/ui/properties/general.cpp:376
+#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:293
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:363
+#: panel-plugin/ui/properties/general.cpp:377
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "_Anulează"
@@ -267,25 +267,25 @@ msgstr "Deschideți cu…"
 msgid "Add Desktop Link"
 msgstr "Adăugați legătură pe desktop"
 
-#: panel-plugin/core/plugin.cpp:447
+#: panel-plugin/core/plugin.cpp:456
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:453 panel-plugin/core/plugin.cpp:552
+#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
 msgid "What's New"
 msgstr "Noutăți"
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/core/plugin.cpp:465
 msgid "Close"
 msgstr "Închideți"
 
-#: panel-plugin/core/plugin.cpp:544
+#: panel-plugin/core/plugin.cpp:553
 msgid "Alternate launcher for XFCE4"
 msgstr "Lansător alternativ pentru XFCE4"
 
-#: panel-plugin/core/plugin.cpp:550
+#: panel-plugin/core/plugin.cpp:559
 msgid "Based on Whisker Menu"
 msgstr "Bazat pe Whisker Menu"
 
@@ -350,7 +350,7 @@ msgid "Sidebar"
 msgstr "Bara laterală"
 
 #: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
-#: panel-plugin/core/window.cpp:2555
+#: panel-plugin/core/window.cpp:2595
 msgid "Places"
 msgstr "Locații"
 
@@ -359,8 +359,8 @@ msgid "Select an Icon"
 msgstr "Selectează o iconiță"
 
 #: panel-plugin/settings-dialog.cpp:315
-#: panel-plugin/ui/properties/general.cpp:236
-#: panel-plugin/ui/properties/general.cpp:251
+#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 msgid "_Delete"
 msgstr "Șt_erge"
 
@@ -418,175 +418,175 @@ msgstr "Modern"
 msgid "Full Screen"
 msgstr "B_lochează ecranul"
 
-#: panel-plugin/settings-dialog.cpp:884
+#: panel-plugin/settings-dialog.cpp:897
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:886
+#: panel-plugin/settings-dialog.cpp:899
 msgid "This option requires the FullScreen layout."
 msgstr "Această opțiune necesită aspectul Ecran complet."
 
-#: panel-plugin/settings-dialog.cpp:888
+#: panel-plugin/settings-dialog.cpp:901
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:68
+#: panel-plugin/ui/properties/general.cpp:69
 msgid "Preset"
 msgstr "Preset"
 
-#: panel-plugin/ui/properties/general.cpp:71
+#: panel-plugin/ui/properties/general.cpp:72
 msgid "_Preset:"
 msgstr "_Preset:"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:109
 #, fuzzy
 msgid "_Reset preset"
 msgstr "_Repornire"
 
-#: panel-plugin/ui/properties/general.cpp:119
-#: panel-plugin/ui/properties/general.cpp:446
+#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:447
 #, fuzzy
 msgid "_Reset"
 msgstr "_Repornire"
 
-#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:121
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:121
+#: panel-plugin/ui/properties/general.cpp:122
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "Resetați presetul „%s”?"
 
-#: panel-plugin/ui/properties/general.cpp:130
+#: panel-plugin/ui/properties/general.cpp:131
 msgid "_Save as new…"
 msgstr "Salvați ca _nou…"
 
-#: panel-plugin/ui/properties/general.cpp:136
+#: panel-plugin/ui/properties/general.cpp:137
 msgid "Save as new preset"
 msgstr "Salvați ca preset nou"
 
-#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:141
 msgid "_Save"
 msgstr "_Salvați"
 
-#: panel-plugin/ui/properties/general.cpp:149
-#: panel-plugin/ui/properties/general.cpp:208
-#: panel-plugin/ui/properties/general.cpp:384
+#: panel-plugin/ui/properties/general.cpp:150
+#: panel-plugin/ui/properties/general.cpp:209
+#: panel-plugin/ui/properties/general.cpp:385
 #, fuzzy
 msgid "_Name:"
 msgstr "Nume"
 
-#: panel-plugin/ui/properties/general.cpp:165
-#: panel-plugin/ui/properties/general.cpp:225
+#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:167
 msgid "Could not save preset"
 msgstr "Nu s-a putut salva presetul"
 
-#: panel-plugin/ui/properties/general.cpp:181
+#: panel-plugin/ui/properties/general.cpp:182
 msgid "Re_name…"
 msgstr "Re_denumiți…"
 
-#: panel-plugin/ui/properties/general.cpp:195
+#: panel-plugin/ui/properties/general.cpp:196
 msgid "Rename preset"
 msgstr "Redenumiți presetul"
 
-#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:200
 msgid "_Rename"
 msgstr "_Redenumiți"
 
-#: panel-plugin/ui/properties/general.cpp:226
+#: panel-plugin/ui/properties/general.cpp:227
 msgid "Could not rename preset"
 msgstr "Nu s-a putut redenumi presetul"
 
-#: panel-plugin/ui/properties/general.cpp:252
+#: panel-plugin/ui/properties/general.cpp:253
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "Această acțiune va fi ștearsă permanent"
 
-#: panel-plugin/ui/properties/general.cpp:253
+#: panel-plugin/ui/properties/general.cpp:254
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:274
+#: panel-plugin/ui/properties/general.cpp:275
 msgid "E_xport…"
 msgstr "E_xportați…"
 
-#: panel-plugin/ui/properties/general.cpp:289
+#: panel-plugin/ui/properties/general.cpp:290
 msgid "Export preset"
 msgstr "Exportați presetul"
 
-#: panel-plugin/ui/properties/general.cpp:292
+#: panel-plugin/ui/properties/general.cpp:293
 msgid "_Export"
 msgstr "_Exportați"
 
-#: panel-plugin/ui/properties/general.cpp:298
-#: panel-plugin/ui/properties/general.cpp:331
+#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:332
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "Preset MeowMenu (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:310
+#: panel-plugin/ui/properties/general.cpp:311
 msgid "Could not export preset."
 msgstr "Nu s-a putut exporta presetul."
 
-#: panel-plugin/ui/properties/general.cpp:318
+#: panel-plugin/ui/properties/general.cpp:319
 msgid "_Import…"
 msgstr "_Importați…"
 
-#: panel-plugin/ui/properties/general.cpp:325
+#: panel-plugin/ui/properties/general.cpp:326
 msgid "Import preset"
 msgstr "Importați presetul"
 
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:377
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:378
 msgid "_Import"
 msgstr "_Importați"
 
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/properties/general.cpp:358
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "Un preset numit „%s” există deja. Ce doriți să faceți?"
 
-#: panel-plugin/ui/properties/general.cpp:360
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "_Overwrite"
 msgstr "_Suprascrieți"
 
-#: panel-plugin/ui/properties/general.cpp:361
+#: panel-plugin/ui/properties/general.cpp:362
 msgid "Re_name"
 msgstr "Re_denumiți"
 
-#: panel-plugin/ui/properties/general.cpp:373
+#: panel-plugin/ui/properties/general.cpp:374
 msgid "Rename imported preset"
 msgstr "Redenumiți presetul importat"
 
-#: panel-plugin/ui/properties/general.cpp:430
+#: panel-plugin/ui/properties/general.cpp:431
 msgid "Could not import preset"
 msgstr "Nu s-a putut importa presetul"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:437
+#: panel-plugin/ui/properties/general.cpp:438
 msgid "Reset to _defaults"
 msgstr "Resetați la _valorile implicite"
 
-#: panel-plugin/ui/properties/general.cpp:447
+#: panel-plugin/ui/properties/general.cpp:448
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 "Toate setările vor fi resetate la valorile implicite și se va aplica "
 "presetul Modern."
 
-#: panel-plugin/ui/properties/general.cpp:448
+#: panel-plugin/ui/properties/general.cpp:449
 msgid "Reset all settings to defaults?"
 msgstr "Resetați toate setările la valorile implicite?"
 
-#: panel-plugin/ui/properties/general.cpp:521
+#: panel-plugin/ui/properties/general.cpp:511
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
@@ -594,82 +594,86 @@ msgstr ""
 "Modul ecran complet necesită gtk-layer-shell pe Wayland. Meniul se va "
 "deschide ca o fereastră obișnuită."
 
-#: panel-plugin/ui/properties/general.cpp:543
+#: panel-plugin/ui/properties/general.cpp:533
 #, fuzzy
 msgid "Panel plugin"
 msgstr "Buton panou"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:549
+#: panel-plugin/ui/properties/general.cpp:539
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:556
+#: panel-plugin/ui/properties/general.cpp:546
 #, fuzzy
 msgid "T_itle:"
 msgstr "_Titlu"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:593
+#: panel-plugin/ui/properties/general.cpp:583
 msgid "Show panel button _icon"
 msgstr ""
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:600
+#: panel-plugin/ui/properties/general.cpp:590
 msgid "Ic_on:"
 msgstr "_Pictogramă:"
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:637
+#: panel-plugin/ui/properties/general.cpp:627
 #, fuzzy
 msgid "Use a single panel _row"
 msgstr "Folosește un singur rând de _panou"
 
-#: panel-plugin/ui/properties/general.cpp:661
+#: panel-plugin/ui/properties/general.cpp:651
 msgid "General menu settings"
 msgstr ""
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:667
+#: panel-plugin/ui/properties/general.cpp:657
 msgid "_Layout mode:"
 msgstr "_Modul de aspect:"
 
-#: panel-plugin/ui/properties/general.cpp:672
+#: panel-plugin/ui/properties/general.cpp:662
 msgid "Docked"
 msgstr "Andocat"
 
-#: panel-plugin/ui/properties/general.cpp:673
+#: panel-plugin/ui/properties/general.cpp:663
+msgid "Centered"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:664
 msgid "FullScreen"
 msgstr "Ecran complet"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:702
+#: panel-plugin/ui/properties/general.cpp:701
 msgid "_Panel gap:"
 msgstr "_Spațiul panoului:"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:726
+#: panel-plugin/ui/properties/general.cpp:725
 msgid "Menu _width:"
 msgstr ""
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:748
+#: panel-plugin/ui/properties/general.cpp:747
 msgid "Menu _height:"
 msgstr ""
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:770
+#: panel-plugin/ui/properties/general.cpp:769
 msgid "_Corner radius:"
 msgstr "_Raza colțului:"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:794
+#: panel-plugin/ui/properties/general.cpp:793
 msgid "F_ull-screen opacity:"
 msgstr "Opacitate _ecran complet:"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:818
+#: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr ""
 
@@ -1034,7 +1038,7 @@ msgstr ""
 msgid "Session commands"
 msgstr "Alegeți comanda"
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2553
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2593
 msgid "Applications"
 msgstr "Aplicații"
 
@@ -1200,7 +1204,7 @@ msgstr "A eșuat editarea profilului."
 msgid "Custom"
 msgstr "● Personalizat"
 
-#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2553
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2593
 msgid "Apps"
 msgstr "Aplicații"
 

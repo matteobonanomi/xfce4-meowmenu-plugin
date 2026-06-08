@@ -914,6 +914,28 @@ static GKeyFile* load_meowpreset(const char* fname)
 	return kf;
 }
 
+// FR-014 / SC-005: Centered is opt-in only. No built-in preset may emit
+// layout-mode == "centered" — applying any built-in must never silently move a
+// user into Centered. classic→docked, modern→docked, fullscreen→fullscreen.
+static void test_no_builtin_emits_centered()
+{
+	struct { const char* id; const char* mode; } expected[] = {
+		{ "classic",    "docked"     },
+		{ "modern",     "docked"     },
+		{ "fullscreen", "fullscreen" },
+	};
+	for (const auto& e : expected)
+	{
+		const WhiskerMenu::LayoutPreset* p = find_builtin(e.id);
+		assert(p);
+		auto it = p->values.find("layout-mode");
+		assert(it != p->values.end());
+		assert(it->second.kind == WhiskerMenu::PresetValue::Str);
+		assert(it->second.s != "centered");
+		assert(it->second.s == e.mode);
+	}
+}
+
 static void test_governed_keys_completeness_table()
 {
 	const auto& keys = WhiskerMenu::governed_keys();
@@ -1020,6 +1042,7 @@ int main()
 	test_parity_modern_cpp_vs_file();
 	test_parity_fullscreen_cpp_vs_file();
 	// T008: real-table governed-key completeness + file↔table agreement
+	test_no_builtin_emits_centered();
 	test_governed_keys_completeness_table();
 	test_governed_keys_completeness_files();
 	test_file_table_agreement();

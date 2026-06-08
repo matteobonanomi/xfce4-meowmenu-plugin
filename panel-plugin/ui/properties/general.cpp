@@ -46,10 +46,11 @@ using namespace WhiskerMenu;
  *                        corner-radius, full-screen-opacity, stay-on-focus-out
  *                        (T016).
  *
- * Widgets that are sensitive only in one layout mode are pushed onto
- * m_layout_enable_when_docked / m_layout_enable_when_fullscreen so the live
- * handler installed by install_layout_mode_handler() can flip their state
- * on /layout-mode change without a dialog reopen (T017, FR-003).
+ * Width, height, panel gap, corner radius and full-screen opacity register a
+ * (widget, LayoutControl) pair in m_layout_controls so the live handler
+ * installed by install_layout_mode_handler() can flip their state through the
+ * FR-006 control_enabled() matrix on /layout-mode change without a dialog
+ * reopen.
  *
  * Returns: a scrolled container ready to be packed into the dialog's stack.
  */
@@ -659,9 +660,18 @@ GtkWidget* SettingsDialog::init_general_tab()
 
 	m_layout_mode_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_layout_mode_combo), "docked", _("Docked"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_layout_mode_combo), "centered", _("Centered"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_layout_mode_combo), "fullscreen", _("FullScreen"));
-	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo),
-		static_cast<const gchar*>(m_settings->layout_mode));
+	// Select the active entry from the classified mode so a stale/unknown stored
+	// value falls back to Docked instead of leaving the combo blank (C-5).
+	const gchar* active_id = "docked";
+	switch (WhiskerMenu::layout_mode_from_key(m_settings->layout_mode))
+	{
+	case WhiskerMenu::LayoutMode::Centered:   active_id = "centered";   break;
+	case WhiskerMenu::LayoutMode::FullScreen: active_id = "fullscreen"; break;
+	case WhiskerMenu::LayoutMode::Docked:     active_id = "docked";     break;
+	}
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo), active_id);
 	gtk_widget_set_halign(m_layout_mode_combo, GTK_ALIGN_START);
 	gtk_grid_attach(menu_table, m_layout_mode_combo, 1, menu_row, 1, 1);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(layout_label), m_layout_mode_combo);
@@ -817,13 +827,21 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_settings->stay_on_focus_out = gtk_toggle_button_get_active(button);
 		});
 
-	// Layout-mode-driven live sensitivity (T017).
-	m_layout_enable_when_docked.push_back(m_menu_width);
-	m_layout_enable_when_docked.push_back(m_menu_height);
-	m_layout_enable_when_docked.push_back(width_label);
-	m_layout_enable_when_docked.push_back(height_label);
-	m_layout_enable_when_fullscreen.push_back(m_full_screen_opacity);
-	m_layout_enable_when_fullscreen.push_back(fso_label);
+	// Layout-mode-driven live sensitivity (FR-006). Each control and its label
+	// register the same LayoutControl so they grey together; the pure
+	// control_enabled() matrix decides each state per mode. Panel gap and corner
+	// radius — previously always enabled — are now governed here too (FR-007 greys
+	// both in Full-Screen; FR-008 greys the gap in Centered).
+	m_layout_controls.push_back({m_menu_width,         WhiskerMenu::LayoutControl::MenuWidth});
+	m_layout_controls.push_back({width_label,          WhiskerMenu::LayoutControl::MenuWidth});
+	m_layout_controls.push_back({m_menu_height,        WhiskerMenu::LayoutControl::MenuHeight});
+	m_layout_controls.push_back({height_label,         WhiskerMenu::LayoutControl::MenuHeight});
+	m_layout_controls.push_back({m_panel_gap,          WhiskerMenu::LayoutControl::PanelGap});
+	m_layout_controls.push_back({panel_gap_label,      WhiskerMenu::LayoutControl::PanelGap});
+	m_layout_controls.push_back({m_corner_radius,      WhiskerMenu::LayoutControl::CornerRadius});
+	m_layout_controls.push_back({corner_label,         WhiskerMenu::LayoutControl::CornerRadius});
+	m_layout_controls.push_back({m_full_screen_opacity, WhiskerMenu::LayoutControl::FullScreenOpacity});
+	m_layout_controls.push_back({fso_label,            WhiskerMenu::LayoutControl::FullScreenOpacity});
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

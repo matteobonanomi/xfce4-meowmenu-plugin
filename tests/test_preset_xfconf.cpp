@@ -326,21 +326,33 @@ void test_reset_preserves_presets_clears_rest()
 	xfconf_channel_set_int(ch, "/menu-width", 640);
 	xfconf_channel_set_string(ch, "/favorites/0", "firefox.desktop");
 	xfconf_channel_set_string(ch, "/search-actions/0/name", "Web Search");
+	// A user who opted into Centered must be returned to the docked default by a
+	// reset (FR-015): the stored value is cleared, so a read falls back to the
+	// "docked" schema default.
+	xfconf_channel_set_string(ch, "/layout-mode", "centered");
 
 	// Sanity: everything is present before the reset.
 	assert(xfconf_channel_has_property(ch, "/menu-width"));
 	assert(xfconf_channel_has_property(ch, "/favorites/0"));
 	assert(xfconf_channel_has_property(ch, "/search-actions/0/name"));
+	assert(xfconf_channel_has_property(ch, "/layout-mode"));
 	assert(xfconf_channel_has_property(ch,
 		("/presets/" + uuid + "/name").c_str()));
 
 	int reset_count = WhiskerMenu::reset_settings_to_defaults(ch, base);
-	assert(reset_count >= 3); // at least the three non-preset keys above
+	assert(reset_count >= 4); // at least the four non-preset keys above
 
 	// Non-preset keys are gone; the saved preset subtree is untouched.
 	assert(!xfconf_channel_has_property(ch, "/menu-width"));
 	assert(!xfconf_channel_has_property(ch, "/favorites/0"));
 	assert(!xfconf_channel_has_property(ch, "/search-actions/0/name"));
+	// /layout-mode is cleared, so a read now yields the "docked" default.
+	assert(!xfconf_channel_has_property(ch, "/layout-mode"));
+	{
+		gchar* lm = xfconf_channel_get_string(ch, "/layout-mode", "docked");
+		assert(lm && g_strcmp0(lm, "docked") == 0);
+		g_free(lm);
+	}
 	assert(xfconf_channel_has_property(ch,
 		("/presets/" + uuid + "/name").c_str()));
 	assert(xfconf_channel_has_property(ch,

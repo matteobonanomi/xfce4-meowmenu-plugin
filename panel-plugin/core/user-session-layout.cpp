@@ -40,6 +40,46 @@ bool str_eq(const char* a, const char* b)
 
 }
 
+/* layout_mode_from_key:
+ * See user-session-layout.h for the full contract. NULL and any unrecognised
+ * value fall through to Docked — the safe windowed default — so callers can
+ * read /layout-mode defensively without a separate validity check and without
+ * ever normalising the stored value.
+ */
+LayoutMode
+WhiskerMenu::layout_mode_from_key(const char* value)
+{
+	if (str_eq(value, "centered"))
+		return LayoutMode::Centered;
+	if (str_eq(value, "fullscreen"))
+		return LayoutMode::FullScreen;
+	// "docked", empty, NULL, or any unknown string → Docked.
+	return LayoutMode::Docked;
+}
+
+/* control_enabled:
+ * See user-session-layout.h. Direct transcription of the FR-006 matrix:
+ * size/shape controls are enabled in both windowed modes (Docked, Centered)
+ * and greyed in Full-Screen; the panel gap is enabled only in Docked; the
+ * full-screen opacity is enabled only in Full-Screen.
+ */
+bool
+WhiskerMenu::control_enabled(LayoutControl control, LayoutMode mode)
+{
+	switch (control)
+	{
+	case LayoutControl::MenuWidth:
+	case LayoutControl::MenuHeight:
+	case LayoutControl::CornerRadius:
+		return mode != LayoutMode::FullScreen;
+	case LayoutControl::PanelGap:
+		return mode == LayoutMode::Docked;
+	case LayoutControl::FullScreenOpacity:
+		return mode == LayoutMode::FullScreen;
+	}
+	return false;
+}
+
 /* normalize_user_session:
  * See user-session-layout.h for the full contract. The body is a direct
  * transcription of the coupling-matrix rule tables: §A for Docked (Commands
