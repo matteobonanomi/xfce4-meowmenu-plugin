@@ -43,7 +43,7 @@ struct PropDef
 
 static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "top", "bottom" };
 static const char* SEARCHBAR_DOMAIN[]       = { "top", "bottom" };
-static const char* PROFILE_DOMAIN[]         = { "top", "bottom", "bottom-right", "hidden" };
+static const char* PROFILE_DOMAIN[]         = { "top", "bottom", "hidden" };
 static const char* COMMANDS_DOMAIN[]        = { "top-right", "bottom-right", "hidden" };
 static const char* GRID_DENSITY_DOMAIN[]    = { "low", "medium", "high" };
 static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "fullscreen" };
@@ -90,6 +90,28 @@ static const PropDef* find_prop_def(const char* name)
 			return &GOVERNED_PROPS[i];
 	}
 	return nullptr;
+}
+
+/* normalize_str_value:
+ * @key: the governed property name being parsed.
+ * @sv:  the raw string read from the preset file; ownership is taken.
+ *
+ * Applies forward-compatibility rewrites to a stored string before domain
+ * validation. The retired profile-position "bottom-right" rendered identically
+ * to "bottom" and is no longer a valid option, so a preset still carrying it is
+ * normalised to "bottom" on import rather than rejected.
+ *
+ * Returns: a newly-allocated string the caller owns (freed with g_free), or
+ *          NULL when @sv was NULL.
+ */
+static gchar* normalize_str_value(const char* key, gchar* sv)
+{
+	if (sv && strcmp(key, "profile-position") == 0 && strcmp(sv, "bottom-right") == 0)
+	{
+		g_free(sv);
+		return g_strdup("bottom");
+	}
+	return sv;
 }
 
 // ---------------------------------------------------------------------------
@@ -263,7 +285,8 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 			}
 			else // Str
 			{
-				gchar* sv = g_key_file_get_string(kf, "Settings", key, nullptr);
+				gchar* sv = normalize_str_value(key,
+					g_key_file_get_string(kf, "Settings", key, nullptr));
 				bool valid = false;
 				for (int di = 0; di < pd->domain_len; ++di)
 				{
@@ -475,7 +498,8 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 			}
 			else // Str
 			{
-				gchar* sv = g_key_file_get_string(kf, "Settings", key, nullptr);
+				gchar* sv = normalize_str_value(key,
+					g_key_file_get_string(kf, "Settings", key, nullptr));
 				bool valid = false;
 				for (int di = 0; di < pd->domain_len; ++di)
 				{

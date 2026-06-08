@@ -139,11 +139,6 @@ GtkWidget* SettingsDialog::init_places_tab()
 			m_settings->places_remember_last_mode);
 	gtk_grid_attach(behaviour_grid, remember_check, 0, 0, 2, 1);
 
-	GtkWidget* meta_check = gtk_check_button_new_with_mnemonic(_("Show item _metadata"));
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(meta_check),
-			m_settings->places_show_metadata);
-	gtk_grid_attach(behaviour_grid, meta_check, 0, 1, 2, 1);
-
 	// Sensitivity helpers (FR-037, FR-038).
 	auto refresh_sensitivity = [=]()
 	{
@@ -219,11 +214,6 @@ GtkWidget* SettingsDialog::init_places_tab()
 		[this](GtkToggleButton* btn)
 		{
 			m_settings->places_remember_last_mode = gtk_toggle_button_get_active(btn);
-		});
-	connect(meta_check, "toggled",
-		[this](GtkToggleButton* btn)
-		{
-			m_settings->places_show_metadata = gtk_toggle_button_get_active(btn);
 		});
 
 	return wrap_in_scrolled(GTK_WIDGET(page));

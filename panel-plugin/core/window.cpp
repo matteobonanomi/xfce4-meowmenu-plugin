@@ -30,10 +30,13 @@
 #include "profile.h"
 #include "launcher/recent-page.h"
 #include "resizer.h"
+#include "opacity-model.h"
 #include "search/search-page.h"
 #include "settings.h"
 #include "sidebar-layout.h"
 #include "theme-fallback.h"
+#include "user-session-layout.h"
+#include "window-frame.h"
 #include "ui/slot.h"
 #include "ui/switch-icons.h"
 #include "search/unified-bar.h"
@@ -195,6 +198,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_layout_search_alternate(false),
 	m_layout_commands_alternate(false),
 	m_layout_profile_alternate(false),
+	m_layout_profile_hidden(false),
+	m_layout_commands_hidden(false),
 	m_layout_unified_bar(false),
 	m_profile_shape(0),
 	m_supports_alpha(false),
@@ -302,10 +307,12 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	g_signal_connect(G_OBJECT(m_window), "delete-event", G_CALLBACK(&gtk_widget_hide_on_delete), nullptr);
 
-	// Create the border of the window
+	// Structural container only — the frame no longer carries a visible border.
+	// The single intentional window border is stroked along the rounded clip path
+	// in on_draw_event; a frame shadow here would draw a second, square outline
+	// that ignores the corner radius (the doubled/ghost line defect).
 	m_frame = GTK_FRAME(gtk_frame_new(nullptr));
-	GtkShadowType initial_shadow = (m_settings->corner_radius > 0) ? GTK_SHADOW_NONE : GTK_SHADOW_OUT;
-	gtk_frame_set_shadow_type(m_frame, initial_shadow);
+	gtk_frame_set_shadow_type(m_frame, GTK_SHADOW_NONE);
 	gtk_container_add(GTK_CONTAINER(m_window), GTK_WIDGET(m_frame));
 
 	// Create window contents stack
@@ -876,16 +883,13 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 			{
 				if (g_strcmp0(property, "/corner-radius") != 0
 						&& g_strcmp0(property, "/categories-opacity") != 0
-						&& g_strcmp0(property, "/apps-opacity") != 0)
+						&& g_strcmp0(property, "/apps-opacity") != 0
+						&& g_strcmp0(property, "/full-screen-opacity") != 0)
 					return;
+				// The corner radius is applied entirely by re-clipping and
+				// re-stroking in on_draw_event; the redraw queued below picks up
+				// the new radius live. No frame-shadow toggle remains.
 				auto* self = static_cast<Window*>(user_data);
-				if (g_strcmp0(property, "/corner-radius") == 0 && self->m_frame)
-				{
-					const int r = CLAMP(static_cast<int>(self->m_settings->corner_radius), 0, 24);
-					gtk_frame_set_shadow_type(self->m_frame,
-						r > 0 ? GTK_SHADOW_NONE : GTK_SHADOW_OUT);
-				}
-
 				self->update_background_css();
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
 				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
@@ -1175,6 +1179,12 @@ void WhiskerMenu::Window::show(const Position position)
 	const bool commands_alt = (g_strcmp0(commands_pos, "bottom-right") == 0)
 			|| (g_strcmp0(commands_pos, "top-right") != 0 && g_strcmp0(commands_pos, "hidden") != 0
 				&& m_settings->position_commands_alternate);
+	// NOTE: hidden state is tracked independently of the edge flags above. A
+	// Hidden ↔ visible transition (e.g. "hidden" → "top") leaves *_alternate
+	// unchanged, so without these comparisons show() would skip update_layout()
+	// and the restored element would never re-render (defect 2, FR-005/006).
+	const bool profile_hidden  = (g_strcmp0(profile_pos, "hidden") == 0);
+	const bool commands_hidden = (g_strcmp0(commands_pos, "hidden") == 0);
 
 	// NOTE: schema v2 — horizontal-categories is derived from sidebar-position
 	// (top|bottom); the legacy /position-categories-horizontal key is migrated
@@ -1205,6 +1215,8 @@ void WhiskerMenu::Window::show(const Position position)
 			|| (m_layout_search_alternate != search_alt)
 			|| (m_layout_commands_alternate != commands_alt)
 			|| (m_layout_profile_alternate != profile_alt)
+			|| (m_layout_profile_hidden != profile_hidden)
+			|| (m_layout_commands_hidden != commands_hidden)
 			|| (m_layout_unified_bar != unified_eff)
 			|| (m_profile_shape != m_settings->profile_shape))
 	{
@@ -1218,6 +1230,8 @@ void WhiskerMenu::Window::show(const Position position)
 		m_layout_search_alternate = search_alt;
 		m_layout_commands_alternate = commands_alt;
 		m_layout_profile_alternate = profile_alt;
+		m_layout_profile_hidden = profile_hidden;
+		m_layout_commands_hidden = commands_hidden;
 		m_profile->update_picture();
 		m_profile_shape = m_settings->profile_shape;
 		update_layout();
@@ -1454,14 +1468,42 @@ void WhiskerMenu::Window::unset_items()
 
 //-----------------------------------------------------------------------------
 
+/* user_session_row_visible:
+ * @unified:              true when the unified search/profile/session bar is active.
+ * @profile_hidden:       true when profile_position == "hidden".
+ * @commands_hidden:      true when commands_position == "hidden".
+ * @categories_alternate: unused; retained for signature stability with the
+ *                        mirrored unit test.
+ *
+ * Pure visibility decision for the docked user/session row (m_title_box). In a
+ * unified-bar / full-screen layout the row hosts the centred search cluster, so
+ * it is always kept and only the profile/commands clusters hide (FR-004). In a
+ * docked layout the row is present whenever either cluster is visible and
+ * collapses only when both are hidden, so no empty strip remains (FR-003).
+ *
+ * NOTE: row visibility must NOT depend on category placement. The previous
+ * `return !categories_alternate` branch coupled the row's existence to where
+ * the category list sat, which suppressed a visible commands cluster whenever
+ * the categories were at the bottom (defect 1, FR-001).
+ *
+ * Returns: true if the user/session row should be visible.
+ */
+static bool user_session_row_visible(bool unified, bool profile_hidden,
+                                     bool commands_hidden, bool /*categories_alternate*/)
+{
+	if (unified)
+		return true;
+	return !(profile_hidden && commands_hidden);
+}
+
+//-----------------------------------------------------------------------------
+
 Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 {
 	// FR-030: Search and Results are never hidden. Optional zones follow
 	// the preset's per-zone "hidden" position string and the legacy
-	// visibility flags. Profile is the session-button row and is gated on
-	// commands_position != "hidden" with at least one visible command. The
-	// Apps/Places toggle is not a focus zone (FR-007), so it has no entry
-	// here; Tab reads places_enabled directly.
+	// visibility flags. The Apps/Places toggle is not a focus zone (FR-007),
+	// so it has no entry here; Tab reads places_enabled directly.
 	Keyboard::VisibilityMask mask;
 	mask.search  = true;
 	mask.results = true;
@@ -1471,6 +1513,11 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 
 	mask.sidebar = (g_strcmp0(sidebar_pos, "hidden") != 0);
 
+	// The "profile" focus zone is the session-command row: only the command
+	// buttons are focusable (the avatar/username are not), so a hidden profile
+	// contributes nothing focusable. The zone is therefore gated on
+	// commands_position != "hidden" with at least one visible command, which
+	// already keeps focus off both hidden commands and a hidden profile (FR-005).
 	bool any_command_visible = false;
 	if (g_strcmp0(commands_pos, "hidden") != 0)
 	{
@@ -1959,20 +2006,6 @@ void WhiskerMenu::Window::update_background_css()
 		bg_found = gtk_style_context_lookup_color(context, "bg_color", &bg);
 	}
 
-	// TEMPORARY DIAGNOSTIC — remove before merge
-	{
-		gchar* theme = nullptr;
-		gboolean prefer_dark = FALSE;
-		g_object_get(gtk_settings_get_default(),
-			"gtk-theme-name", &theme,
-			"gtk-application-prefer-dark-theme", &prefer_dark, nullptr);
-		gboolean realized = gtk_widget_get_realized(GTK_WIDGET(m_window));
-		g_message("update_background_css: theme=%s prefer_dark=%d realized=%d bg_found=%d bg=rgb(%d,%d,%d)",
-			theme ? theme : "(null)", (int)prefer_dark, (int)realized, (int)bg_found,
-			(int)(bg.red * 255 + 0.5), (int)(bg.green * 255 + 0.5), (int)(bg.blue * 255 + 0.5));
-		g_free(theme);
-	}
-
 	if (!bg_found)
 	{
 		// Both background lookups failed. The old code kept the unconditional
@@ -1997,11 +2030,84 @@ void WhiskerMenu::Window::update_background_css()
 	const int red   = CLAMP(static_cast<int>(bg.red   * 255.0 + 0.5), 0, 255);
 	const int green = CLAMP(static_cast<int>(bg.green * 255.0 + 0.5), 0, 255);
 	const int blue  = CLAMP(static_cast<int>(bg.blue  * 255.0 + 0.5), 0, 255);
-	const double cats_alpha = CLAMP(m_settings->categories_opacity, 0, 100) / 100.0;
-	const double apps_alpha = CLAMP(m_settings->apps_opacity, 0, 100) / 100.0;
+	// Separator colour for the docked results-area outline. The docked window
+	// shell is fully transparent (so apps-opacity 0 reaches true transparency),
+	// which means the inter-region gaps the window background used to fill are
+	// no longer painted. The visible boundaries all sit around the results area,
+	// so a single opaque 1 px outline owned by that region restores them without
+	// putting any paint behind it. Nudge the seed toward or away from black by a
+	// fixed step depending on the theme's lightness so the line reads on both
+	// dark and light themes.
+	const double sep_luma = 0.299 * red + 0.587 * green + 0.114 * blue;
+	const int sep_step = 45;
+	const int sep_r = (sep_luma < 128.0) ? CLAMP(red   + sep_step, 0, 255) : CLAMP(red   - sep_step, 0, 255);
+	const int sep_g = (sep_luma < 128.0) ? CLAMP(green + sep_step, 0, 255) : CLAMP(green - sep_step, 0, 255);
+	const int sep_b = (sep_luma < 128.0) ? CLAMP(blue  + sep_step, 0, 255) : CLAMP(blue  - sep_step, 0, 255);
+	// Publish the seed for on_draw_event: the single window border stroke reuses
+	// exactly this theme-derived colour, so the boundary keeps its previous hue
+	// even though it is now drawn once along the rounded path instead of as a
+	// per-region CSS outline.
+	m_separator_rgba.red   = sep_r / 255.0;
+	m_separator_rgba.green = sep_g / 255.0;
+	m_separator_rgba.blue  = sep_b / 255.0;
+	m_separator_rgba.alpha = 1.0;
+	// Resolve which absolute alpha each region receives for this render pass.
+	// The pure helper enforces the 0=transparent / 100=solid contract and the
+	// dual single-alpha model: docked => transparent window with each region
+	// owning its alpha (so apps-opacity 0 reaches true transparency with no
+	// categories floor showing through); full-screen => the window shell owns
+	// the one full-screen alpha and the regions are transparent (so the whole
+	// surface, results area included, reads at exactly that one value). Neither
+	// mode lets two backgrounds compound.
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	const OpacityRegionAlphas alphas = meowmenu_region_alphas(
+			is_fullscreen,
+			m_settings->categories_opacity,
+			m_settings->apps_opacity,
+			m_settings->full_screen_opacity);
 
+	// Chrome/frame fill used by on_draw_event for the resizer ring: the theme
+	// background at the categories-region alpha, so the 6 px the resizer grid
+	// reserves around the content reads as part of the menu frame (same alpha as
+	// the search/title/commands strips) instead of showing the desktop through
+	// the transparent docked shell.
+	m_chrome_rgba.red   = red   / 255.0;
+	m_chrome_rgba.green = green / 255.0;
+	m_chrome_rgba.blue  = blue  / 255.0;
+	m_chrome_rgba.alpha = alphas.categories;
+
+	// NOTE: the results area no longer emits its own 1 px outline. The single
+	// intentional menu border is drawn once in on_draw_event along the rounded
+	// clip path (docked only); a per-region CSS border here would double that
+	// line and ignore the corner radius. Full-screen continues to show no
+	// outline at all (one seamless surface).
 	gchar* css = g_strdup_printf(
 		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		// NOTE: GTK wraps an undecorated, client-side-decorated toplevel in a
+		// `decoration` subnode that the active theme styles with a drop shadow
+		// (and often its own border-radius/border/margin). That node is painted
+		// outside everything on_draw_event controls, so it surfaces as a faint
+		// translucent halo sitting just beyond the single custom border — the
+		// ghost outline FR-003 forbids. Neutralise it so the only thing framing
+		// the menu is the one border stroked along the rounded clip path.
+		"window.meowmenu decoration,"
+		".meowmenu decoration"
+		"{ box-shadow: none; border: none; background: transparent;"
+		"  margin: 0; padding: 0; border-radius: 0; }"
+		// NOTE: the GtkFrame is a structural container only, but GTK3 still
+		// renders its themed `border` subnode and reserves that border/padding
+		// as an inset. That inset used to hide under the opaque pre-026 shell;
+		// the docked shell is now transparent, so the reserved ring shows the
+		// desktop through it as a band between the content and the single drawn
+		// border. Collapse the frame border/padding so the regions sit flush to
+		// the window edge where the border is stroked.
+		".meowmenu frame,"
+		".meowmenu frame > border"
+		"{ border: none; padding: 0; margin: 0;"
+		"  min-width: 0; min-height: 0; }"
+		// NOTE: .contents stays transparent on purpose — it is an ancestor of
+		// the applications area, so giving it a background would re-introduce a
+		// solid floor under the results region and defeat true-0 apps opacity.
 		".meowmenu > *,"
 		".meowmenu frame,"
 		".meowmenu frame > *,"
@@ -2011,18 +2117,23 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu scrolledwindow > *,"
 		".meowmenu grid,"
 		".meowmenu grid > *,"
-		".meowmenu .search-area,"
-		".meowmenu .title-area,"
-		".meowmenu .commands-area,"
 		".meowmenu .contents,"
 		".meowmenu .contents > *,"
-		".meowmenu .categories,"
 		".meowmenu treeview,"
 		".meowmenu flowbox,"
 		".meowmenu flowboxchild,"
 		".meowmenu list,"
 		".meowmenu row"
 		"{ background-color: transparent; background-image: none; }"
+		// Sidebar/categories region plus the chrome strips (search, title,
+		// commands bars) share one absolute alpha so the menu frame stays
+		// cohesive. In full-screen this alpha is 0 (transparent) so only the
+		// window shell carries the single full-screen opacity.
+		".meowmenu .categories,"
+		".meowmenu .search-area,"
+		".meowmenu .title-area,"
+		".meowmenu .commands-area"
+		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
 		".meowmenu .applications-area,"
 		".meowmenu .applications-area > *"
 		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
@@ -2049,8 +2160,9 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
 		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }",
-		red, green, blue, cats_alpha,
-		red, green, blue, apps_alpha);
+		red, green, blue, alphas.window,
+		red, green, blue, alphas.categories,
+		red, green, blue, alphas.apps);
 
 	gtk_css_provider_load_from_data(m_css_provider, css, -1, nullptr);
 	g_free(css);
@@ -2079,6 +2191,94 @@ void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::apply_window_shape(int width, int height, int radius, bool composited)
+{
+	// Re-mask only when the silhouette actually changes; on_draw_event runs
+	// often and re-applying the shape every frame would thrash the window mask.
+	if (width == m_shape_width && height == m_shape_height
+			&& radius == m_shape_radius && composited == m_shape_composited)
+		return;
+	m_shape_width = width;
+	m_shape_height = height;
+	m_shape_radius = radius;
+	m_shape_composited = composited;
+
+	GtkWidget* widget = GTK_WIDGET(m_window);
+	if (!gtk_widget_get_realized(widget))
+		return;
+
+	// Square window: clear any prior mask so the toplevel is its full rectangle.
+	// Covers both corner radius 0 (FR-002) and the non-composited fallback
+	// (FR-006), which both render clean square corners.
+	if (radius <= 0 || !composited || width <= 0 || height <= 0)
+	{
+		gtk_widget_shape_combine_region(widget, nullptr);
+		return;
+	}
+
+	// Build a 1-bit (no anti-alias) rounded-rect mask matching the cairo clip in
+	// on_draw_event, then apply it as the window's bounding shape. The crisp mask
+	// edge sits one pixel outside the inset AA border stroke, so the border still
+	// reads smoothly while the hard mask removes the square native-window corner.
+	cairo_surface_t* mask = cairo_image_surface_create(CAIRO_FORMAT_A1, width, height);
+	cairo_t* mc = cairo_create(mask);
+	cairo_set_antialias(mc, CAIRO_ANTIALIAS_NONE);
+	cairo_set_operator(mc, CAIRO_OPERATOR_SOURCE);
+	cairo_set_source_rgba(mc, 0.0, 0.0, 0.0, 0.0);
+	cairo_paint(mc);
+	cairo_set_source_rgba(mc, 0.0, 0.0, 0.0, 1.0);
+	const double rr = radius;
+	cairo_new_path(mc);
+	cairo_arc(mc, rr,         rr,          rr, G_PI,       G_PI * 1.5);
+	cairo_arc(mc, width - rr, rr,          rr, G_PI * 1.5, G_PI * 2.0);
+	cairo_arc(mc, width - rr, height - rr, rr, 0.0,        G_PI * 0.5);
+	cairo_arc(mc, rr,         height - rr, rr, G_PI * 0.5, G_PI);
+	cairo_close_path(mc);
+	cairo_fill(mc);
+	cairo_destroy(mc);
+	cairo_surface_flush(mask);
+
+	cairo_region_t* region = gdk_cairo_region_create_from_surface(mask);
+	gtk_widget_shape_combine_region(widget, region);
+	cairo_region_destroy(region);
+	cairo_surface_destroy(mask);
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::fill_resizer_ring(cairo_t* cr, double width, double height)
+{
+	// The content vbox sits in the centre cell of the 3x3 resizer grid, inset by
+	// the drag-handle strip on every side. Fill that strip — the window rectangle
+	// minus the vbox rectangle — with the chrome background so the menu frame is
+	// continuous up to the border. The vbox itself is left untouched so the
+	// regions inside it (notably the apps area) keep their own alpha.
+	GtkAllocation va;
+	gtk_widget_get_allocation(GTK_WIDGET(m_vbox), &va);
+	if (va.width <= 0 || va.height <= 0)
+		return;
+
+	const double vx = va.x;
+	const double vy = va.y;
+	const double vw = va.width;
+	const double vh = va.height;
+
+	cairo_save(cr);
+	gdk_cairo_set_source_rgba(cr, &m_chrome_rgba);
+	if (vy > 0.0)                       // top strip
+		cairo_rectangle(cr, 0.0, 0.0, width, vy);
+	if (vy + vh < height)               // bottom strip
+		cairo_rectangle(cr, 0.0, vy + vh, width, height - (vy + vh));
+	if (vx > 0.0)                       // left strip (between top and bottom)
+		cairo_rectangle(cr, 0.0, vy, vx, vh);
+	if (vx + vw < width)                // right strip
+		cairo_rectangle(cr, vx + vw, vy, width - (vx + vw), vh);
+	cairo_fill(cr);
+	cairo_restore(cr);
+}
+
+//-----------------------------------------------------------------------------
+
 gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 {
 	if (!gtk_widget_get_realized(widget))
@@ -2093,8 +2293,17 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	const bool enabled = gdk_screen_is_composited(screen);
 
-	// Build rounded-rect clip path (T040: corner-radius)
-	const double r = CLAMP(m_settings->corner_radius, 0, 24);
+	// Single shared corner-radius clamp [0,24] — the live property-changed
+	// handler queues a redraw that re-enters here, so the visible rounding can
+	// never diverge from the control's range.
+	const double r = meow::meowmenu_clamp_corner_radius(m_settings->corner_radius);
+
+	// Mask the toplevel window itself to the rounded silhouette. The cairo clip
+	// below only bounds windowless children; native-windowed regions ignore it
+	// and would paint a square corner outside the outline without this shape.
+	apply_window_shape(static_cast<int>(width), static_cast<int>(height),
+		static_cast<int>(r), enabled && m_supports_alpha);
+
 	auto clip_rounded = [&](cairo_t* c)
 	{
 		if (r > 0.0)
@@ -2112,6 +2321,32 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		}
 	};
 
+	// Path for the single border: the same silhouette as the clip, inset by half
+	// the 1 px line width so the whole stroke stays inside the surface (and inside
+	// the rounded clip at the corners) instead of being half-clipped at the edge.
+	const double border_width = 1.0;
+	auto border_path = [&](cairo_t* c)
+	{
+		const double inset = border_width / 2.0;
+		const double br = (r > inset) ? (r - inset) : 0.0;
+		cairo_new_path(c);
+		if (br > 0.0)
+		{
+			cairo_arc(c, inset + br,         inset + br,          br, G_PI,       G_PI * 1.5);
+			cairo_arc(c, width - inset - br, inset + br,          br, G_PI * 1.5, G_PI * 2.0);
+			cairo_arc(c, width - inset - br, height - inset - br, br, 0.0,        G_PI * 0.5);
+			cairo_arc(c, inset + br,         height - inset - br, br, G_PI * 0.5, G_PI);
+			cairo_close_path(c);
+		}
+		else
+		{
+			cairo_rectangle(c, inset, inset, width - border_width, height - border_width);
+		}
+	};
+
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	GtkWidget* child = gtk_bin_get_child(GTK_BIN(widget));
+
 	if (enabled && m_supports_alpha)
 	{
 		// Erase the previous frame so pixels outside the rounded clip are transparent.
@@ -2120,28 +2355,67 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		cairo_paint(cr);
 		cairo_restore(cr);
 
-		cairo_surface_t* background = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-		cairo_t* cr_background = cairo_create(background);
-		cairo_set_operator(cr_background, CAIRO_OPERATOR_SOURCE);
-		gtk_render_background(context, cr_background, 0.0, 0.0, width, height);
-		cairo_destroy(cr_background);
-
-		cairo_set_source_surface(cr, background, 0.0, 0.0);
-		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+		// Clip the ENTIRE window draw — shell background AND the propagated child
+		// regions — to the rounded silhouette. Post-026 the visible fill is painted
+		// by the regions (the docked shell is transparent), so the clip must bound
+		// the children for the radius to round what the user actually sees. At r==0
+		// this is a plain rectangular clip, so corners reduce to clean squares.
 		cairo_save(cr);
 		clip_rounded(cr);
 		cairo_clip(cr);
-		cairo_paint(cr);
+		gtk_render_background(context, cr, 0.0, 0.0, width, height);
+		// Docked only: fill the resizer ring with the chrome background. The 3x3
+		// resizer grid reserves a strip (the drag handles) around the content
+		// vbox; with the transparent docked shell that strip would otherwise show
+		// the desktop as a band between the border and the content. Painting only
+		// the ring — the window minus the content vbox — keeps the apps area's own
+		// alpha intact (no opaque floor under the results). Full-screen needs no
+		// fill: there the shell itself carries the single full-screen alpha.
+		if (!is_fullscreen && m_vbox)
+			fill_resizer_ring(cr, width, height);
+		if (child)
+			gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
 		cairo_restore(cr);
 
-		cairo_surface_destroy(background);
-	}
-	else
-	{
-		gtk_render_background(context, cr, 0.0, 0.0, width, height);
+		// Exactly one intentional border, following the same rounded path, drawn
+		// only docked + composited; full-screen reads as one seamless surface.
+		if (meow::meowmenu_frame_draws_border(is_fullscreen, m_supports_alpha))
+		{
+			cairo_save(cr);
+			cairo_set_line_width(cr, border_width);
+			gdk_cairo_set_source_rgba(cr, &m_separator_rgba);
+			border_path(cr);
+			cairo_stroke(cr);
+			cairo_restore(cr);
+		}
+
+		// We have drawn the background, the clipped children, and the border, so
+		// stop emission: the default handler must not re-draw the children
+		// unclipped (which would leave their square fill outside the rounded edge).
+		return GDK_EVENT_STOP;
 	}
 
-	return GDK_EVENT_PROPAGATE;
+	// Non-composited fallback (no RGBA visual): solid, square, no rounding
+	// (FR-006). Draw the shell background and propagate the children unclipped,
+	// then a single SQUARE border — gated on docked only (not the composited
+	// predicate, which requires supports_alpha), so a non-composited full-screen
+	// menu stays one seamless square surface with no outline.
+	gtk_render_background(context, cr, 0.0, 0.0, width, height);
+	if (!is_fullscreen && m_vbox)
+		fill_resizer_ring(cr, width, height);
+	if (child)
+		gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
+	if (!is_fullscreen)
+	{
+		cairo_save(cr);
+		cairo_set_line_width(cr, border_width);
+		gdk_cairo_set_source_rgba(cr, &m_separator_rgba);
+		cairo_rectangle(cr, border_width / 2.0, border_width / 2.0,
+			width - border_width, height - border_width);
+		cairo_stroke(cr);
+		cairo_restore(cr);
+	}
+	return GDK_EVENT_STOP;
 }
 
 //-----------------------------------------------------------------------------
@@ -2580,19 +2854,55 @@ void WhiskerMenu::Window::update_layout()
 		m_switch_loc = pres.switch_location;
 	}
 
-	// Handle showing username and profile
-	if (m_profile_shape != Settings::ProfileHidden)
-	{
-		gtk_widget_set_visible(m_profile->get_picture(), true);
-		gtk_widget_set_visible(m_profile->get_username(), true);
-		gtk_widget_set_visible(GTK_WIDGET(m_title_box), true);
-	}
-	else
-	{
-		gtk_widget_set_visible(m_profile->get_picture(), false);
-		gtk_widget_set_visible(m_profile->get_username(), false);
-		gtk_widget_set_visible(GTK_WIDGET(m_title_box), !m_layout_categories_alternate);
-	}
+	// Profile and session-command visibility. profile_position and
+	// commands_position are the authoritative hide signals; the legacy
+	// ProfileHidden shape is migrated to profile_position == "hidden" on upgrade
+	// and is no longer consulted here. The avatar + username follow the profile
+	// position; the whole session command box follows the commands position.
+	const bool unified         = unified_bar_effective(*m_settings);
+
+	// Resolve the Profile/Commands pair through the shared coupling helper so the
+	// rendered row reflects a coherent edge combination — the same resolution the
+	// Preferences combos grey and prevent_invalid() persists (FR-014). A "hidden"
+	// value is always preserved by the helper, so the visibility decisions below
+	// are unchanged for hidden inputs; the edge resolution matters for the
+	// reorder/packing that follows. Full-screen coupling is finalised in the
+	// unified-bar packing further down.
+	const LayoutMode user_session_mode =
+			(g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+			? LayoutMode::FullScreen : LayoutMode::Docked;
+	const UserSessionResolution user_session = normalize_user_session(
+			user_session_mode, m_settings->search_bar_position,
+			m_settings->profile_position, m_settings->commands_position);
+	const bool profile_hidden  = (g_strcmp0(user_session.profile_position, "hidden") == 0);
+	const bool commands_hidden = (g_strcmp0(user_session.commands_position, "hidden") == 0);
+
+	gtk_widget_set_visible(m_profile->get_picture(),  !profile_hidden);
+	gtk_widget_set_visible(m_profile->get_username(), !profile_hidden);
+	gtk_widget_set_visible(GTK_WIDGET(m_commands_box), !commands_hidden);
+
+	// A bottom-right commands cluster is packed into the search row (the
+	// m_layout_commands_alternate branch above), not the user/session row, so it
+	// does not keep the title row alive on its own — only commands that share the
+	// title row count toward its visibility.
+	const bool commands_in_title_row = !commands_hidden && !m_layout_commands_alternate;
+
+	// Collapse the user/session row only when nothing remains in it (FR-003);
+	// keep it in unified-bar / full-screen where it carries the shared search row
+	// (FR-004). Independent of category placement (FR-001).
+	gtk_widget_set_visible(GTK_WIDGET(m_title_box),
+			user_session_row_visible(unified, profile_hidden, !commands_in_title_row,
+					m_layout_categories_alternate));
+
+	// When the profile cluster is hidden, no expanding username remains in the
+	// title row to push the surviving commands cluster to the trailing edge, so
+	// give the commands box the expand + end alignment itself (FR-002). Reset to
+	// the neutral state otherwise; the unified bar handles its own right-edge
+	// placement via pack_end below.
+	const bool docked_solo_commands = commands_in_title_row && profile_hidden && !unified;
+	gtk_widget_set_hexpand(GTK_WIDGET(m_commands_box), docked_solo_commands);
+	gtk_widget_set_halign(GTK_WIDGET(m_commands_box),
+			docked_solo_commands ? GTK_ALIGN_END : GTK_ALIGN_FILL);
 
 	// Arrange horizontal order of profile picture, username, and commands
 	if (m_layout_ltr && m_layout_commands_alternate)
@@ -2691,6 +3001,15 @@ void WhiskerMenu::Window::update_layout()
 	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box),
 			m_layout_categories_horizontal && strip_below_results ? STRIP_GAP : 0);
 
+	// Docked mode paints a transparent window shell, so any spacing between
+	// regions would be a transparent band rather than the frame grey the window
+	// background used to supply. Collapse the inter-region spacing to 0 in docked
+	// mode and let the results-area outline (update_background_css) draw the
+	// boundaries; full-screen keeps the 6 px rhythm because its single window
+	// alpha fills the gaps and the centring math depends on the column gap.
+	const bool docked = !layout_state.fullscreen;
+	gtk_box_set_spacing(m_vbox, docked ? 0 : 6);
+
 	gtk_grid_remove_row(m_contents_box, 1);
 	gtk_grid_remove_row(m_contents_box, 0);
 	if (m_layout_categories_horizontal)
@@ -2702,7 +3021,7 @@ void WhiskerMenu::Window::update_layout()
 	}
 	else
 	{
-		gtk_grid_set_column_spacing(m_contents_box, 6);
+		gtk_grid_set_column_spacing(m_contents_box, docked ? 0 : 6);
 		gtk_grid_set_row_spacing(m_contents_box, 0);
 
 		gtk_style_context_add_class(context, (m_layout_ltr == m_layout_categories_alternate) ? "left" : "right");
@@ -2827,9 +3146,10 @@ void WhiskerMenu::Window::update_layout()
 		gtk_widget_set_margin_start(GTK_WIDGET(m_search_entry), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_search_entry), 0);
 		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
-		// Restore username visibility and expand per the existing profile-shape rule.
+		// Restore username visibility per profile_position (the authoritative
+		// hide signal) and re-expand it for the docked row.
 		gtk_widget_set_visible(m_profile->get_username(),
-				m_profile_shape != Settings::ProfileHidden);
+				g_strcmp0(m_settings->profile_position, "hidden") != 0);
 		gtk_widget_set_hexpand(m_profile->get_username(), TRUE);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
 		gtk_style_context_remove_class(title_ctx, "unified-bar");
@@ -2843,6 +3163,14 @@ void WhiskerMenu::Window::update_layout()
 	// not overflow the app-grid boundary (sidebar_w + 6 + panels_stack + 6 + void
 	// == workarea, so each side effectively costs sidebar_w + 3; we subtract the
 	// full column gap once here to stay within the visual content column).
+	//
+	// NOTE: this width is computed purely from the workarea/sidebar geometry and
+	// is independent of whether the profile or commands clusters are visible, so
+	// hiding both (FR-013) leaves the centred search bar — and therefore the
+	// results grid and the left/right void widths — at exactly the same size and
+	// position as when both clusters are shown (SC-005, INV-4). The merged row
+	// reads profile + void + search bar + void + session via the centre widget;
+	// hiding a cluster only blanks that child, it never re-flows the geometry.
 	if (eff)
 	{
 		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;

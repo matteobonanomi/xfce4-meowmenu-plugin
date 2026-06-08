@@ -19,7 +19,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Layout mode | **Docked** (standard panel-attached window) or **FullScreen** (full-screen launcher). |
 | Menu width | Width of the menu window in pixels. |
 | Menu height | Height of the menu window in pixels. |
-| Full-screen opacity | Opacity of the full-screen overlay (0–100). |
+| Full-screen opacity | Opacity of the entire full-screen menu, including the results area (0–100, where 0 is fully transparent and 100 fully solid), applied live. |
 | Stay visible when focus is lost | Keep the menu open when another window receives focus. |
 | Show panel button title | Display a text label next to the panel button icon. |
 | Panel button title | The label text shown on the panel button. |
@@ -33,8 +33,31 @@ All MeowMenu settings are exposed in the **Properties** dialog
 |--------|-------------|
 | Show user profile picture | Display the account avatar at the top of the menu. |
 | Show username | Display the logged-in user's name. |
-| Profile position | Where the profile block appears: top, bottom, bottom-right, or hidden. |
-| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. |
+| Profile position | Where the profile block appears: top, bottom, or hidden. **Hidden** removes the avatar and username (and keeps them out of keyboard focus). |
+| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. **Hidden** removes the session buttons. |
+
+Profile and Session commands are **independent**: hiding one always keeps the
+other on its own side (profile on the left, session buttons on the right),
+regardless of where the category list sits. The row collapses only when **both**
+are hidden. **Hidden is fully reversible** — switching a hidden element back to a
+visible position restores it (and the row, if it had collapsed) immediately, with
+no restart and no need to reset to defaults.
+
+The two positions are **coupled** so the row always stays coherent:
+
+* **Docked layout** — the Session commands edge follows the Profile edge.
+  Choosing Profile = *Top* makes Session commands = *Top Right* (and *Bottom
+  Right* is greyed out); Profile = *Bottom* makes Session commands = *Bottom
+  Right*. When Profile is *Hidden* both Session-commands edges are available.
+* **Full Screen layout** — both Profile and Session commands follow the
+  **search bar** edge. With the search bar on top, both sit on the top edge (the
+  bottom options are greyed); moving the search bar to the bottom moves both with
+  it. Hiding both leaves only the centred search bar, at exactly the same size and
+  position as when they are shown.
+
+Disallowed edges are shown greyed rather than removed, and if a stored
+combination is no longer valid for the current layout it is automatically snapped
+to the nearest coherent edge (the element stays visible — only its edge moves).
 | Lock screen command | Command run when the lock button is clicked. |
 | Log out command | Command run when the log out button is clicked. |
 | Suspend command | Command run when the suspend button is clicked. |
@@ -91,7 +114,6 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Bookmark sync | Keep the Places bookmarks in sync with **MeowMenu** or **Thunar**. |
 | Max items | Maximum number of items shown in the Places view. |
 | Remember last mode | Reopen MeowMenu showing the last-used Places sub-section. |
-| Show metadata | Display file size and modification date next to each item. |
 
 #### Missing recent files and bookmarks
 
@@ -122,13 +144,13 @@ Replace `<id>` with the numeric plugin ID shown by
 
 | Key (relative to `/plugins/<id>/`) | Type | Default | Description |
 |------------------------------------|------|---------|-------------|
-| `corner-radius` | int | 0 | Menu window corner radius in pixels. |
+| `corner-radius` | int | 0 | Radius, in pixels, that rounds the menu's visible outer corners (0 = square). |
 | `panel-gap` | int | 0 | Gap between the panel and the menu window. |
 | `menu-width` | int | 450 | Menu window width in pixels. |
 | `menu-height` | int | 500 | Menu window height in pixels. |
-| `categories-opacity` | int | 100 | Sidebar opacity (0–100). |
-| `apps-opacity` | int | 100 | Results area opacity (0–100). |
-| `full-screen-opacity` | int | 100 | Full-screen overlay opacity (0–100). |
+| `categories-opacity` | int | 100 | Sidebar opacity in docked mode (0 = fully transparent, 100 = fully solid). |
+| `apps-opacity` | int | 100 | Results area opacity in docked mode (0 = fully transparent, 100 = fully solid). |
+| `full-screen-opacity` | int | 100 | Opacity of the whole full-screen menu, results area included (0 = fully transparent, 100 = fully solid), applied live. |
 | `stay-on-focus-out` | bool | false | Keep menu open when focus moves away. |
 
 ### Layout
@@ -138,7 +160,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | `layout-mode` | string | `docked` | `docked` or `fullscreen`. |
 | `sidebar-position` | string | `left` | `left`, `right`, `top`, or `bottom`. (A legacy `hidden` value is migrated to `sidebar-enabled = false`.) |
 | `search-bar-position` | string | `top` | `top` or `bottom`. |
-| `profile-position` | string | `top` | `top`, `bottom`, `bottom-right`, or `hidden`. |
+| `profile-position` | string | `top` | `top`, `bottom`, or `hidden`. (A legacy `bottom-right` value is migrated to `bottom`.) |
 | `commands-position` | string | `top-right` | `top-right`, `bottom-right`, or `hidden`. |
 | `unified-bar` | bool | false | Merge profile, search, and session into one row (FullScreen only). |
 
@@ -152,8 +174,6 @@ Replace `<id>` with the numeric plugin ID shown by
 | `launcher-show-tooltip` | bool | true | Show a hover tooltip. |
 | `launcher-icon-size` | int | -1 | Icon size (-1 = theme default). |
 | `grid-density` | string | `medium` | `low`, `medium`, or `high` columns in grid mode. |
-| `grid-columns` | int | 4 | Explicit column count for grid mode. |
-| `grid-rows` | int | 3 | Visible rows in grid mode. |
 
 ### Sidebar
 
@@ -189,4 +209,3 @@ Replace `<id>` with the numeric plugin ID shown by
 | `places/favourite-sync` | string | `meowmenu` | Keep bookmarks in sync with `meowmenu` or `thunar`. |
 | `places/max-items` | int | 20 | Maximum items in the Places view. |
 | `places/remember-last-mode` | bool | false | Reopen in the last-used Places sub-section. |
-| `places/show-metadata` | bool | false | Show file size and modification date. |

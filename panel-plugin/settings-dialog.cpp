@@ -193,6 +193,12 @@ SettingsDialog::~SettingsDialog()
 		m_unified_bar_slot = 0;
 	}
 
+	if (m_user_session_coupling_slot && m_settings && m_settings->channel)
+	{
+		g_signal_handler_disconnect(m_settings->channel, m_user_session_coupling_slot);
+		m_user_session_coupling_slot = 0;
+	}
+
 	for (auto command : m_commands)
 	{
 		delete command;
