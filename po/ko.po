@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 15:22+0200\n"
+"POT-Creation-Date: 2026-06-08 22:54+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Seok Chae <seok.chae@gmail.com>, 2020,2026\n"
 "Language-Team: MeowMenu ko <mbonanomi.dev@proton.me>\n"
@@ -54,12 +54,12 @@ msgstr "명령어 선택"
 
 #: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
 #: panel-plugin/settings-dialog.cpp:394
-#: panel-plugin/ui/properties/general.cpp:139
-#: panel-plugin/ui/properties/general.cpp:198
-#: panel-plugin/ui/properties/general.cpp:292
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:362
-#: panel-plugin/ui/properties/general.cpp:376
+#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:293
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:363
+#: panel-plugin/ui/properties/general.cpp:377
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "취소"
@@ -266,25 +266,25 @@ msgstr "다른 앱으로 열기…"
 msgid "Add Desktop Link"
 msgstr "바탕화면에 링크 추가"
 
-#: panel-plugin/core/plugin.cpp:447
+#: panel-plugin/core/plugin.cpp:456
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:453 panel-plugin/core/plugin.cpp:552
+#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
 msgid "What's New"
 msgstr "새 소식"
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/core/plugin.cpp:465
 msgid "Close"
 msgstr "닫기"
 
-#: panel-plugin/core/plugin.cpp:544
+#: panel-plugin/core/plugin.cpp:553
 msgid "Alternate launcher for XFCE4"
 msgstr "XFCE4용 대체 런처"
 
-#: panel-plugin/core/plugin.cpp:550
+#: panel-plugin/core/plugin.cpp:559
 msgid "Based on Whisker Menu"
 msgstr "Whisker Menu 기반"
 
@@ -348,7 +348,7 @@ msgid "Sidebar"
 msgstr "사이드바"
 
 #: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
-#: panel-plugin/core/window.cpp:2555
+#: panel-plugin/core/window.cpp:2595
 msgid "Places"
 msgstr "장소"
 
@@ -357,8 +357,8 @@ msgid "Select an Icon"
 msgstr "아이콘 선택"
 
 #: panel-plugin/settings-dialog.cpp:315
-#: panel-plugin/ui/properties/general.cpp:236
-#: panel-plugin/ui/properties/general.cpp:251
+#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 msgid "_Delete"
 msgstr "지우기"
 
@@ -416,255 +416,259 @@ msgstr "모던"
 msgid "Full Screen"
 msgstr "화면 잠그기"
 
-#: panel-plugin/settings-dialog.cpp:884
+#: panel-plugin/settings-dialog.cpp:897
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:886
+#: panel-plugin/settings-dialog.cpp:899
 msgid "This option requires the FullScreen layout."
 msgstr "이 옵션은 전체 화면 레이아웃이 필요합니다."
 
-#: panel-plugin/settings-dialog.cpp:888
+#: panel-plugin/settings-dialog.cpp:901
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:68
+#: panel-plugin/ui/properties/general.cpp:69
 msgid "Preset"
 msgstr "사전 설정"
 
-#: panel-plugin/ui/properties/general.cpp:71
+#: panel-plugin/ui/properties/general.cpp:72
 msgid "_Preset:"
 msgstr "사전 설정(_P):"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:109
 #, fuzzy
 msgid "_Reset preset"
 msgstr "다시 시작(_R)"
 
-#: panel-plugin/ui/properties/general.cpp:119
-#: panel-plugin/ui/properties/general.cpp:446
+#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:447
 #, fuzzy
 msgid "_Reset"
 msgstr "다시 시작(_R)"
 
-#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:121
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:121
+#: panel-plugin/ui/properties/general.cpp:122
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "사전 설정 \"%s\"을(를) 재설정하시겠습니까?"
 
-#: panel-plugin/ui/properties/general.cpp:130
+#: panel-plugin/ui/properties/general.cpp:131
 msgid "_Save as new…"
 msgstr "새로 저장(_S)…"
 
-#: panel-plugin/ui/properties/general.cpp:136
+#: panel-plugin/ui/properties/general.cpp:137
 msgid "Save as new preset"
 msgstr "새 사전 설정으로 저장"
 
-#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:141
 msgid "_Save"
 msgstr "저장(_S)"
 
-#: panel-plugin/ui/properties/general.cpp:149
-#: panel-plugin/ui/properties/general.cpp:208
-#: panel-plugin/ui/properties/general.cpp:384
+#: panel-plugin/ui/properties/general.cpp:150
+#: panel-plugin/ui/properties/general.cpp:209
+#: panel-plugin/ui/properties/general.cpp:385
 #, fuzzy
 msgid "_Name:"
 msgstr "이름"
 
-#: panel-plugin/ui/properties/general.cpp:165
-#: panel-plugin/ui/properties/general.cpp:225
+#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:167
 msgid "Could not save preset"
 msgstr "사전 설정을 저장할 수 없습니다"
 
-#: panel-plugin/ui/properties/general.cpp:181
+#: panel-plugin/ui/properties/general.cpp:182
 msgid "Re_name…"
 msgstr "이름 바꾸기(_n)…"
 
-#: panel-plugin/ui/properties/general.cpp:195
+#: panel-plugin/ui/properties/general.cpp:196
 msgid "Rename preset"
 msgstr "사전 설정 이름 바꾸기"
 
-#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:200
 msgid "_Rename"
 msgstr "이름 바꾸기(_R)"
 
-#: panel-plugin/ui/properties/general.cpp:226
+#: panel-plugin/ui/properties/general.cpp:227
 msgid "Could not rename preset"
 msgstr "사전 설정 이름을 바꿀 수 없습니다"
 
-#: panel-plugin/ui/properties/general.cpp:252
+#: panel-plugin/ui/properties/general.cpp:253
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "설정값이 완전히 제거됩니다."
 
-#: panel-plugin/ui/properties/general.cpp:253
+#: panel-plugin/ui/properties/general.cpp:254
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:274
+#: panel-plugin/ui/properties/general.cpp:275
 msgid "E_xport…"
 msgstr "내보내기(_x)…"
 
-#: panel-plugin/ui/properties/general.cpp:289
+#: panel-plugin/ui/properties/general.cpp:290
 msgid "Export preset"
 msgstr "사전 설정 내보내기"
 
-#: panel-plugin/ui/properties/general.cpp:292
+#: panel-plugin/ui/properties/general.cpp:293
 msgid "_Export"
 msgstr "내보내기(_E)"
 
-#: panel-plugin/ui/properties/general.cpp:298
-#: panel-plugin/ui/properties/general.cpp:331
+#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:332
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "MeowMenu 사전 설정 (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:310
+#: panel-plugin/ui/properties/general.cpp:311
 msgid "Could not export preset."
 msgstr "사전 설정을 내보낼 수 없습니다."
 
-#: panel-plugin/ui/properties/general.cpp:318
+#: panel-plugin/ui/properties/general.cpp:319
 msgid "_Import…"
 msgstr "가져오기(_I)…"
 
-#: panel-plugin/ui/properties/general.cpp:325
+#: panel-plugin/ui/properties/general.cpp:326
 msgid "Import preset"
 msgstr "사전 설정 가져오기"
 
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:377
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:378
 msgid "_Import"
 msgstr "가져오기(_I)"
 
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/properties/general.cpp:358
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "\"%s\"이라는 이름의 사전 설정이 이미 있습니다. 어떻게 하시겠습니까?"
 
-#: panel-plugin/ui/properties/general.cpp:360
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "_Overwrite"
 msgstr "덮어쓰기(_O)"
 
-#: panel-plugin/ui/properties/general.cpp:361
+#: panel-plugin/ui/properties/general.cpp:362
 msgid "Re_name"
 msgstr "이름 바꾸기(_n)"
 
-#: panel-plugin/ui/properties/general.cpp:373
+#: panel-plugin/ui/properties/general.cpp:374
 msgid "Rename imported preset"
 msgstr "가져온 사전 설정 이름 바꾸기"
 
-#: panel-plugin/ui/properties/general.cpp:430
+#: panel-plugin/ui/properties/general.cpp:431
 msgid "Could not import preset"
 msgstr "사전 설정을 가져올 수 없습니다"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:437
+#: panel-plugin/ui/properties/general.cpp:438
 msgid "Reset to _defaults"
 msgstr "기본값으로 재설정(_d)"
 
-#: panel-plugin/ui/properties/general.cpp:447
+#: panel-plugin/ui/properties/general.cpp:448
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:448
+#: panel-plugin/ui/properties/general.cpp:449
 msgid "Reset all settings to defaults?"
 msgstr "모든 설정을 기본값으로 재설정하시겠습니까?"
 
-#: panel-plugin/ui/properties/general.cpp:521
+#: panel-plugin/ui/properties/general.cpp:511
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:543
+#: panel-plugin/ui/properties/general.cpp:533
 #, fuzzy
 msgid "Panel plugin"
 msgstr "패널 버튼"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:549
+#: panel-plugin/ui/properties/general.cpp:539
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:556
+#: panel-plugin/ui/properties/general.cpp:546
 #, fuzzy
 msgid "T_itle:"
 msgstr "제목"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:593
+#: panel-plugin/ui/properties/general.cpp:583
 #, fuzzy
 msgid "Show panel button _icon"
 msgstr "아이콘으로 보기(_I)"
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:600
+#: panel-plugin/ui/properties/general.cpp:590
 msgid "Ic_on:"
 msgstr ""
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:637
+#: panel-plugin/ui/properties/general.cpp:627
 #, fuzzy
 msgid "Use a single panel _row"
 msgstr "한 줄 패널 사용하기"
 
-#: panel-plugin/ui/properties/general.cpp:661
+#: panel-plugin/ui/properties/general.cpp:651
 msgid "General menu settings"
 msgstr ""
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:667
+#: panel-plugin/ui/properties/general.cpp:657
 msgid "_Layout mode:"
 msgstr "레이아웃 모드(_L):"
 
-#: panel-plugin/ui/properties/general.cpp:672
+#: panel-plugin/ui/properties/general.cpp:662
 msgid "Docked"
 msgstr "도킹됨"
 
-#: panel-plugin/ui/properties/general.cpp:673
+#: panel-plugin/ui/properties/general.cpp:663
+msgid "Centered"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:664
 msgid "FullScreen"
 msgstr "전체 화면"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:702
+#: panel-plugin/ui/properties/general.cpp:701
 msgid "_Panel gap:"
 msgstr "패널 간격(_P):"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:726
+#: panel-plugin/ui/properties/general.cpp:725
 msgid "Menu _width:"
 msgstr "메뉴 너비(_W):"
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:748
+#: panel-plugin/ui/properties/general.cpp:747
 msgid "Menu _height:"
 msgstr "메뉴 높이(_H):"
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:770
+#: panel-plugin/ui/properties/general.cpp:769
 msgid "_Corner radius:"
 msgstr "모서리 반경(_C):"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:794
+#: panel-plugin/ui/properties/general.cpp:793
 msgid "F_ull-screen opacity:"
 msgstr "전체 화면 불투명도(_u):"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:818
+#: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr "초점을 잃었을 때 보이기(_V)"
 
@@ -1032,7 +1036,7 @@ msgstr "확인 대화 상자 보이기(_O)"
 msgid "Session commands"
 msgstr "세션 명령어"
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2553
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2593
 msgid "Applications"
 msgstr "프로그램"
 
@@ -1198,7 +1202,7 @@ msgstr "프로필 편집을 못 했습니다."
 msgid "Custom"
 msgstr "● 사용자 정의"
 
-#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2553
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2593
 msgid "Apps"
 msgstr "앱"
 

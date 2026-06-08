@@ -61,4 +61,25 @@ void clamp_default_size(int desired_w, int desired_h,
 	*out_h = clamp_axis(desired_h, workarea_h);
 }
 
+/* centered_origin:
+ * See window-size-clamp.h for the full contract. The position is recomputed
+ * from the (clamped) size and the monitor every call — it is never derived
+ * from a prior position or a drag delta — which is what guarantees the centre
+ * stays fixed during an interactive resize (SC-003).
+ */
+void centered_origin(const GdkRectangle& monitor, int win_w, int win_h,
+                     int* out_x, int* out_y)
+{
+	// Clamp to the full monitor so an oversize window stays on-screen; never
+	// enlarge. The window may then exactly fill, but never exceed, the monitor.
+	int w = win_w < monitor.width  ? win_w : monitor.width;
+	int h = win_h < monitor.height ? win_h : monitor.height;
+
+	// Top-left so the window centre coincides with the monitor centre. With
+	// w <= monitor.width / h <= monitor.height these offsets are >= 0, so the
+	// window is always fully within the monitor.
+	*out_x = monitor.x + (monitor.width  - w) / 2;
+	*out_y = monitor.y + (monitor.height - h) / 2;
+}
+
 } // namespace meow

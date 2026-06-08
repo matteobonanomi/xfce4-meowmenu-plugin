@@ -16,11 +16,30 @@ All MeowMenu settings are exposed in the **Properties** dialog
 | Option | Description |
 |--------|-------------|
 | Preset | Select, save, rename, delete, export, or import a layout preset. |
-| Layout mode | **Docked** (standard panel-attached window) or **FullScreen** (full-screen launcher). |
+| Layout mode | **Docked** (panel-attached window), **Centered** (a floating window pinned to the centre of the screen), or **FullScreen** (full-screen launcher). |
+| Panel gap | Distance between the panel and the menu window, in pixels (Docked only). |
 | Menu width | Width of the menu window in pixels. |
 | Menu height | Height of the menu window in pixels. |
+| Corner radius | Rounded-corner radius of the menu window, in pixels. |
 | Full-screen opacity | Opacity of the entire full-screen menu, including the results area (0–100, where 0 is fully transparent and 100 fully solid), applied live. |
 | Stay visible when focus is lost | Keep the menu open when another window receives focus. |
+
+**Centered** opens the launcher as a floating window at the exact centre of the
+monitor holding the panel button, at your configured width and height. It stays
+centred while open: drag any edge to resize and the window grows or shrinks
+around its fixed centre, and the new size is remembered. The panel gap does not
+apply (the window never touches a panel edge).
+
+The Layout mode selected controls which other options are available. Disabled
+options are greyed out and switch live as you change the mode:
+
+| Option | Docked | Centered | FullScreen |
+|--------|:------:|:--------:|:----------:|
+| Menu width | ✓ | ✓ | — |
+| Menu height | ✓ | ✓ | — |
+| Panel gap | ✓ | — | — |
+| Corner radius | ✓ | ✓ | — |
+| Full-screen opacity | — | — | ✓ |
 | Show panel button title | Display a text label next to the panel button icon. |
 | Panel button title | The label text shown on the panel button. |
 | Show panel button icon | Show the icon on the panel button. |
@@ -157,7 +176,7 @@ Replace `<id>` with the numeric plugin ID shown by
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `layout-mode` | string | `docked` | `docked` or `fullscreen`. |
+| `layout-mode` | string | `docked` | `docked`, `centered`, or `fullscreen`. |
 | `sidebar-position` | string | `left` | `left`, `right`, `top`, or `bottom`. (A legacy `hidden` value is migrated to `sidebar-enabled = false`.) |
 | `search-bar-position` | string | `top` | `top` or `bottom`. |
 | `profile-position` | string | `top` | `top`, `bottom`, or `hidden`. (A legacy `bottom-right` value is migrated to `bottom`.) |

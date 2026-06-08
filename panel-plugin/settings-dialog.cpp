@@ -843,22 +843,35 @@ void SettingsDialog::install_layout_mode_handler()
 
 /* apply_layout_mode_sensitivity:
  *
- * Walks the two per-mode widget vectors and calls gtk_widget_set_sensitive().
- * Builders push widgets onto m_layout_enable_when_docked or
- * m_layout_enable_when_fullscreen as they create them (data-model E-6).
+ * Classifies the current /layout-mode once, then refreshes every layout-driven
+ * control. The five FR-006 matrix controls registered in m_layout_controls are
+ * driven by the pure control_enabled() table; the remaining out-of-matrix
+ * per-region opacity controls keep their windowed-vs-full-screen rule (enabled
+ * in Docked and Centered, greyed in Full-Screen). Idempotent and safe to call
+ * repeatedly on every layout-mode change.
  */
 void SettingsDialog::apply_layout_mode_sensitivity()
 {
-	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
+	const LayoutMode mode = layout_mode_from_key(m_settings->layout_mode);
+
+	for (const auto& entry : m_layout_controls)
+	{
+		if (entry.first)
+			gtk_widget_set_sensitive(entry.first, control_enabled(entry.second, mode));
+	}
+
+	// Out-of-matrix per-region opacity controls: windowed (Docked/Centered)
+	// enables them, Full-Screen greys them.
+	const bool windowed = (mode != LayoutMode::FullScreen);
 	for (GtkWidget* w : m_layout_enable_when_docked)
 	{
 		if (w)
-			gtk_widget_set_sensitive(w, !is_fullscreen);
+			gtk_widget_set_sensitive(w, windowed);
 	}
 	for (GtkWidget* w : m_layout_enable_when_fullscreen)
 	{
 		if (w)
-			gtk_widget_set_sensitive(w, is_fullscreen);
+			gtk_widget_set_sensitive(w, !windowed);
 	}
 }
 
