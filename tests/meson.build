@@ -318,10 +318,46 @@ test_window_size_clamp = executable(
   'test_window_size_clamp',
   test_window_size_clamp_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
+  dependencies: [gtk],
 )
 
 test('window_size_clamp', test_window_size_clamp)
+
+# test_centered_geometry: headless coverage of the pure Centered-mode decision
+# logic — the /layout-mode classifier in core/user-session-layout.cpp and the
+# centred-origin geometry helper in core/window-size-clamp.cpp. GdkRectangle is
+# a plain integer struct, so gtk is linked for the type only; no display.
+test_centered_geometry_sources = [
+  'test_centered_geometry.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+]
+
+test_centered_geometry = executable(
+  'test_centered_geometry',
+  test_centered_geometry_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('centered_geometry', test_centered_geometry)
+
+# test_layout_sensitivity: headless coverage of the pure FR-006 control-
+# sensitivity matrix (control_enabled) in core/user-session-layout.cpp. No
+# display; the helper is GTK-free.
+test_layout_sensitivity_sources = [
+  'test_layout_sensitivity.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+]
+
+test_layout_sensitivity = executable(
+  'test_layout_sensitivity',
+  test_layout_sensitivity_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('layout_sensitivity', test_layout_sensitivity)
 
 # test_window_frame: headless coverage of the pure window-frame helpers in
 # panel-plugin/core/window-frame.cpp (radius clamp [0,24] + the composited

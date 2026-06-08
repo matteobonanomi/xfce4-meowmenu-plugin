@@ -23,7 +23,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 15:22+0200\n"
+"POT-Creation-Date: 2026-06-08 22:54+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Luna Jernberg <droidbittin@gmail.com>, 2025-2026\n"
 "Language-Team: MeowMenu sv <mbonanomi.dev@proton.me>\n"
@@ -61,12 +61,12 @@ msgstr "Välj kommando"
 
 #: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
 #: panel-plugin/settings-dialog.cpp:394
-#: panel-plugin/ui/properties/general.cpp:139
-#: panel-plugin/ui/properties/general.cpp:198
-#: panel-plugin/ui/properties/general.cpp:292
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:362
-#: panel-plugin/ui/properties/general.cpp:376
+#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:293
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:363
+#: panel-plugin/ui/properties/general.cpp:377
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "_Avbryt"
@@ -273,25 +273,25 @@ msgstr "Öppna med…"
 msgid "Add Desktop Link"
 msgstr "Lägg till skrivbordslänk"
 
-#: panel-plugin/core/plugin.cpp:447
+#: panel-plugin/core/plugin.cpp:456
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:453 panel-plugin/core/plugin.cpp:552
+#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
 msgid "What's New"
 msgstr "Nyheter"
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/core/plugin.cpp:465
 msgid "Close"
 msgstr "Stäng"
 
-#: panel-plugin/core/plugin.cpp:544
+#: panel-plugin/core/plugin.cpp:553
 msgid "Alternate launcher for XFCE4"
 msgstr "Alternativ startare för XFCE4"
 
-#: panel-plugin/core/plugin.cpp:550
+#: panel-plugin/core/plugin.cpp:559
 msgid "Based on Whisker Menu"
 msgstr "Baserad på Whisker Menu"
 
@@ -355,7 +355,7 @@ msgid "Sidebar"
 msgstr "Sidofält"
 
 #: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
-#: panel-plugin/core/window.cpp:2555
+#: panel-plugin/core/window.cpp:2595
 msgid "Places"
 msgstr "Platser"
 
@@ -364,8 +364,8 @@ msgid "Select an Icon"
 msgstr "Välj en Ikon"
 
 #: panel-plugin/settings-dialog.cpp:315
-#: panel-plugin/ui/properties/general.cpp:236
-#: panel-plugin/ui/properties/general.cpp:251
+#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 msgid "_Delete"
 msgstr "Ta bort"
 
@@ -423,174 +423,174 @@ msgstr "Modern"
 msgid "Full Screen"
 msgstr "_Lås skärm"
 
-#: panel-plugin/settings-dialog.cpp:884
+#: panel-plugin/settings-dialog.cpp:897
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:886
+#: panel-plugin/settings-dialog.cpp:899
 msgid "This option requires the FullScreen layout."
 msgstr "Detta alternativ kräver helskärmslayouten."
 
-#: panel-plugin/settings-dialog.cpp:888
+#: panel-plugin/settings-dialog.cpp:901
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:68
+#: panel-plugin/ui/properties/general.cpp:69
 msgid "Preset"
 msgstr "Preset"
 
-#: panel-plugin/ui/properties/general.cpp:71
+#: panel-plugin/ui/properties/general.cpp:72
 msgid "_Preset:"
 msgstr "_Preset:"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:109
 #, fuzzy
 msgid "_Reset preset"
 msgstr "Sta_rta om"
 
-#: panel-plugin/ui/properties/general.cpp:119
-#: panel-plugin/ui/properties/general.cpp:446
+#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:447
 #, fuzzy
 msgid "_Reset"
 msgstr "Sta_rta om"
 
-#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:121
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:121
+#: panel-plugin/ui/properties/general.cpp:122
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "Återställ preset \"%s\"?"
 
-#: panel-plugin/ui/properties/general.cpp:130
+#: panel-plugin/ui/properties/general.cpp:131
 msgid "_Save as new…"
 msgstr "Spara som _ny…"
 
-#: panel-plugin/ui/properties/general.cpp:136
+#: panel-plugin/ui/properties/general.cpp:137
 msgid "Save as new preset"
 msgstr "Spara som ny preset"
 
-#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:141
 msgid "_Save"
 msgstr "_Spara"
 
-#: panel-plugin/ui/properties/general.cpp:149
-#: panel-plugin/ui/properties/general.cpp:208
-#: panel-plugin/ui/properties/general.cpp:384
+#: panel-plugin/ui/properties/general.cpp:150
+#: panel-plugin/ui/properties/general.cpp:209
+#: panel-plugin/ui/properties/general.cpp:385
 #, fuzzy
 msgid "_Name:"
 msgstr "Namn"
 
-#: panel-plugin/ui/properties/general.cpp:165
-#: panel-plugin/ui/properties/general.cpp:225
+#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:167
 msgid "Could not save preset"
 msgstr "Kunde inte spara preset"
 
-#: panel-plugin/ui/properties/general.cpp:181
+#: panel-plugin/ui/properties/general.cpp:182
 msgid "Re_name…"
 msgstr "Byt _namn…"
 
-#: panel-plugin/ui/properties/general.cpp:195
+#: panel-plugin/ui/properties/general.cpp:196
 msgid "Rename preset"
 msgstr "Byt namn på preset"
 
-#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:200
 msgid "_Rename"
 msgstr "_Byt namn"
 
-#: panel-plugin/ui/properties/general.cpp:226
+#: panel-plugin/ui/properties/general.cpp:227
 msgid "Could not rename preset"
 msgstr "Kunde inte byta namn på preset"
 
-#: panel-plugin/ui/properties/general.cpp:252
+#: panel-plugin/ui/properties/general.cpp:253
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "Åtgärden kommer att tas bort permanent."
 
-#: panel-plugin/ui/properties/general.cpp:253
+#: panel-plugin/ui/properties/general.cpp:254
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:274
+#: panel-plugin/ui/properties/general.cpp:275
 msgid "E_xport…"
 msgstr "E_xportera…"
 
-#: panel-plugin/ui/properties/general.cpp:289
+#: panel-plugin/ui/properties/general.cpp:290
 msgid "Export preset"
 msgstr "Exportera preset"
 
-#: panel-plugin/ui/properties/general.cpp:292
+#: panel-plugin/ui/properties/general.cpp:293
 msgid "_Export"
 msgstr "_Exportera"
 
-#: panel-plugin/ui/properties/general.cpp:298
-#: panel-plugin/ui/properties/general.cpp:331
+#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:332
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "MeowMenu-preset (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:310
+#: panel-plugin/ui/properties/general.cpp:311
 msgid "Could not export preset."
 msgstr "Kunde inte exportera preset."
 
-#: panel-plugin/ui/properties/general.cpp:318
+#: panel-plugin/ui/properties/general.cpp:319
 msgid "_Import…"
 msgstr "_Importera…"
 
-#: panel-plugin/ui/properties/general.cpp:325
+#: panel-plugin/ui/properties/general.cpp:326
 msgid "Import preset"
 msgstr "Importera preset"
 
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:377
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:378
 msgid "_Import"
 msgstr "_Importera"
 
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/properties/general.cpp:358
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "En preset med namnet \"%s\" finns redan. Vad vill du göra?"
 
-#: panel-plugin/ui/properties/general.cpp:360
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "_Overwrite"
 msgstr "_Skriv över"
 
-#: panel-plugin/ui/properties/general.cpp:361
+#: panel-plugin/ui/properties/general.cpp:362
 msgid "Re_name"
 msgstr "Byt _namn"
 
-#: panel-plugin/ui/properties/general.cpp:373
+#: panel-plugin/ui/properties/general.cpp:374
 msgid "Rename imported preset"
 msgstr "Byt namn på importerad preset"
 
-#: panel-plugin/ui/properties/general.cpp:430
+#: panel-plugin/ui/properties/general.cpp:431
 msgid "Could not import preset"
 msgstr "Kunde inte importera preset"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:437
+#: panel-plugin/ui/properties/general.cpp:438
 msgid "Reset to _defaults"
 msgstr "Återställ till _standard"
 
-#: panel-plugin/ui/properties/general.cpp:447
+#: panel-plugin/ui/properties/general.cpp:448
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 "Alla inställningar återställs till standard och preset Modern tillämpas."
 
-#: panel-plugin/ui/properties/general.cpp:448
+#: panel-plugin/ui/properties/general.cpp:449
 msgid "Reset all settings to defaults?"
 msgstr "Återställa alla inställningar till standard?"
 
-#: panel-plugin/ui/properties/general.cpp:521
+#: panel-plugin/ui/properties/general.cpp:511
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
@@ -598,83 +598,87 @@ msgstr ""
 "Helskärmsläge kräver gtk-layer-shell på Wayland. Menyn öppnas i stället som "
 "ett vanligt fönster."
 
-#: panel-plugin/ui/properties/general.cpp:543
+#: panel-plugin/ui/properties/general.cpp:533
 #, fuzzy
 msgid "Panel plugin"
 msgstr "Panelknapp"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:549
+#: panel-plugin/ui/properties/general.cpp:539
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:556
+#: panel-plugin/ui/properties/general.cpp:546
 #, fuzzy
 msgid "T_itle:"
 msgstr "Tite_l:"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:593
+#: panel-plugin/ui/properties/general.cpp:583
 #, fuzzy
 msgid "Show panel button _icon"
 msgstr "Visa som _ikoner"
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:600
+#: panel-plugin/ui/properties/general.cpp:590
 msgid "Ic_on:"
 msgstr ""
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:637
+#: panel-plugin/ui/properties/general.cpp:627
 #, fuzzy
 msgid "Use a single panel _row"
 msgstr "Använd en _enskild panel rad"
 
-#: panel-plugin/ui/properties/general.cpp:661
+#: panel-plugin/ui/properties/general.cpp:651
 msgid "General menu settings"
 msgstr ""
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:667
+#: panel-plugin/ui/properties/general.cpp:657
 msgid "_Layout mode:"
 msgstr "_Layoutläge:"
 
-#: panel-plugin/ui/properties/general.cpp:672
+#: panel-plugin/ui/properties/general.cpp:662
 msgid "Docked"
 msgstr "Dockad"
 
-#: panel-plugin/ui/properties/general.cpp:673
+#: panel-plugin/ui/properties/general.cpp:663
+msgid "Centered"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:664
 msgid "FullScreen"
 msgstr "Helskärm"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:702
+#: panel-plugin/ui/properties/general.cpp:701
 msgid "_Panel gap:"
 msgstr "_Panelavstånd:"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:726
+#: panel-plugin/ui/properties/general.cpp:725
 msgid "Menu _width:"
 msgstr "Meny _bredd:"
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:748
+#: panel-plugin/ui/properties/general.cpp:747
 msgid "Menu _height:"
 msgstr "Meny _höjd:"
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:770
+#: panel-plugin/ui/properties/general.cpp:769
 msgid "_Corner radius:"
 msgstr "_Hörnradius:"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:794
+#: panel-plugin/ui/properties/general.cpp:793
 msgid "F_ull-screen opacity:"
 msgstr "_Helskärmstransparens:"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:818
+#: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr "Håll _synlig när fokus förloras"
 
@@ -1042,7 +1046,7 @@ msgstr "Visa b_ekräftelsedialog"
 msgid "Session commands"
 msgstr "Sessionskommandon"
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2553
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2593
 msgid "Applications"
 msgstr "Program"
 
@@ -1208,7 +1212,7 @@ msgstr "Misslyckades med att redigera profil."
 msgid "Custom"
 msgstr "● Anpassad"
 
-#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2553
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2593
 msgid "Apps"
 msgstr "Appar"
 

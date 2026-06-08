@@ -14,7 +14,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 15:22+0200\n"
+"POT-Creation-Date: 2026-06-08 22:54+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Warut Bunprasert <warut.b@disroot.org>, 2025\n"
 "Language-Team: MeowMenu th <mbonanomi.dev@proton.me>\n"
@@ -52,12 +52,12 @@ msgstr "เลือกคำสั่ง"
 
 #: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
 #: panel-plugin/settings-dialog.cpp:394
-#: panel-plugin/ui/properties/general.cpp:139
-#: panel-plugin/ui/properties/general.cpp:198
-#: panel-plugin/ui/properties/general.cpp:292
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:362
-#: panel-plugin/ui/properties/general.cpp:376
+#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:293
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:363
+#: panel-plugin/ui/properties/general.cpp:377
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "_ยกเลิก"
@@ -262,25 +262,25 @@ msgstr "เปิดด้วย…"
 msgid "Add Desktop Link"
 msgstr "เพิ่มลิงก์บนเดสก์ท็อป"
 
-#: panel-plugin/core/plugin.cpp:447
+#: panel-plugin/core/plugin.cpp:456
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:453 panel-plugin/core/plugin.cpp:552
+#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
 msgid "What's New"
 msgstr "มีอะไรใหม่"
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/core/plugin.cpp:465
 msgid "Close"
 msgstr "ปิด"
 
-#: panel-plugin/core/plugin.cpp:544
+#: panel-plugin/core/plugin.cpp:553
 msgid "Alternate launcher for XFCE4"
 msgstr "ตัวเปิดโปรแกรมสำรองสำหรับ XFCE4"
 
-#: panel-plugin/core/plugin.cpp:550
+#: panel-plugin/core/plugin.cpp:559
 msgid "Based on Whisker Menu"
 msgstr "อ้างอิงจาก Whisker Menu"
 
@@ -344,7 +344,7 @@ msgid "Sidebar"
 msgstr "แถบด้านข้าง"
 
 #: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
-#: panel-plugin/core/window.cpp:2555
+#: panel-plugin/core/window.cpp:2595
 msgid "Places"
 msgstr "สถานที่"
 
@@ -353,8 +353,8 @@ msgid "Select an Icon"
 msgstr "เลือกไอคอน"
 
 #: panel-plugin/settings-dialog.cpp:315
-#: panel-plugin/ui/properties/general.cpp:236
-#: panel-plugin/ui/properties/general.cpp:251
+#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 msgid "_Delete"
 msgstr "_ลบ"
 
@@ -412,255 +412,259 @@ msgstr "ทันสมัย"
 msgid "Full Screen"
 msgstr "_ล็อคหน้าจอ"
 
-#: panel-plugin/settings-dialog.cpp:884
+#: panel-plugin/settings-dialog.cpp:897
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:886
+#: panel-plugin/settings-dialog.cpp:899
 msgid "This option requires the FullScreen layout."
 msgstr "ตัวเลือกนี้ต้องใช้เค้าโครงเต็มหน้าจอ"
 
-#: panel-plugin/settings-dialog.cpp:888
+#: panel-plugin/settings-dialog.cpp:901
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:68
+#: panel-plugin/ui/properties/general.cpp:69
 msgid "Preset"
 msgstr "ค่าที่ตั้งไว้ล่วงหน้า"
 
-#: panel-plugin/ui/properties/general.cpp:71
+#: panel-plugin/ui/properties/general.cpp:72
 msgid "_Preset:"
 msgstr "ค่าที่ตั้งไว้ล่วงหน้า(_P):"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:109
 #, fuzzy
 msgid "_Reset preset"
 msgstr "เ_ริ่มทำงานใหม่"
 
-#: panel-plugin/ui/properties/general.cpp:119
-#: panel-plugin/ui/properties/general.cpp:446
+#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:447
 #, fuzzy
 msgid "_Reset"
 msgstr "เ_ริ่มทำงานใหม่"
 
-#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:121
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:121
+#: panel-plugin/ui/properties/general.cpp:122
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "รีเซ็ตค่าที่ตั้งไว้ล่วงหน้า \"%s\"?"
 
-#: panel-plugin/ui/properties/general.cpp:130
+#: panel-plugin/ui/properties/general.cpp:131
 msgid "_Save as new…"
 msgstr "บันทึกเป็นใหม่(_S)…"
 
-#: panel-plugin/ui/properties/general.cpp:136
+#: panel-plugin/ui/properties/general.cpp:137
 msgid "Save as new preset"
 msgstr "บันทึกเป็นค่าที่ตั้งไว้ล่วงหน้าใหม่"
 
-#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:141
 msgid "_Save"
 msgstr "บันทึก(_S)"
 
-#: panel-plugin/ui/properties/general.cpp:149
-#: panel-plugin/ui/properties/general.cpp:208
-#: panel-plugin/ui/properties/general.cpp:384
+#: panel-plugin/ui/properties/general.cpp:150
+#: panel-plugin/ui/properties/general.cpp:209
+#: panel-plugin/ui/properties/general.cpp:385
 #, fuzzy
 msgid "_Name:"
 msgstr "ชื่อ"
 
-#: panel-plugin/ui/properties/general.cpp:165
-#: panel-plugin/ui/properties/general.cpp:225
+#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:167
 msgid "Could not save preset"
 msgstr "ไม่สามารถบันทึกค่าที่ตั้งไว้ล่วงหน้าได้"
 
-#: panel-plugin/ui/properties/general.cpp:181
+#: panel-plugin/ui/properties/general.cpp:182
 msgid "Re_name…"
 msgstr "เปลี่ยนชื่อ(_n)…"
 
-#: panel-plugin/ui/properties/general.cpp:195
+#: panel-plugin/ui/properties/general.cpp:196
 msgid "Rename preset"
 msgstr "เปลี่ยนชื่อค่าที่ตั้งไว้ล่วงหน้า"
 
-#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:200
 msgid "_Rename"
 msgstr "เปลี่ยนชื่อ(_R)"
 
-#: panel-plugin/ui/properties/general.cpp:226
+#: panel-plugin/ui/properties/general.cpp:227
 msgid "Could not rename preset"
 msgstr "ไม่สามารถเปลี่ยนชื่อค่าที่ตั้งไว้ล่วงหน้าได้"
 
-#: panel-plugin/ui/properties/general.cpp:252
+#: panel-plugin/ui/properties/general.cpp:253
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "สิ่งนี้จะทำการลบอย่างถาวร"
 
-#: panel-plugin/ui/properties/general.cpp:253
+#: panel-plugin/ui/properties/general.cpp:254
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:274
+#: panel-plugin/ui/properties/general.cpp:275
 msgid "E_xport…"
 msgstr "ส่งออก(_x)…"
 
-#: panel-plugin/ui/properties/general.cpp:289
+#: panel-plugin/ui/properties/general.cpp:290
 msgid "Export preset"
 msgstr "ส่งออกค่าที่ตั้งไว้ล่วงหน้า"
 
-#: panel-plugin/ui/properties/general.cpp:292
+#: panel-plugin/ui/properties/general.cpp:293
 msgid "_Export"
 msgstr "ส่งออก(_E)"
 
-#: panel-plugin/ui/properties/general.cpp:298
-#: panel-plugin/ui/properties/general.cpp:331
+#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:332
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "ค่าที่ตั้งไว้ล่วงหน้า MeowMenu (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:310
+#: panel-plugin/ui/properties/general.cpp:311
 msgid "Could not export preset."
 msgstr "ไม่สามารถส่งออกค่าที่ตั้งไว้ล่วงหน้าได้"
 
-#: panel-plugin/ui/properties/general.cpp:318
+#: panel-plugin/ui/properties/general.cpp:319
 msgid "_Import…"
 msgstr "นำเข้า(_I)…"
 
-#: panel-plugin/ui/properties/general.cpp:325
+#: panel-plugin/ui/properties/general.cpp:326
 msgid "Import preset"
 msgstr "นำเข้าค่าที่ตั้งไว้ล่วงหน้า"
 
-#: panel-plugin/ui/properties/general.cpp:328
-#: panel-plugin/ui/properties/general.cpp:377
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:378
 msgid "_Import"
 msgstr "นำเข้า(_I)"
 
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/properties/general.cpp:358
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "มีค่าที่ตั้งไว้ล่วงหน้าชื่อ \"%s\" อยู่แล้ว คุณต้องการทำอะไร?"
 
-#: panel-plugin/ui/properties/general.cpp:360
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "_Overwrite"
 msgstr "เขียนทับ(_O)"
 
-#: panel-plugin/ui/properties/general.cpp:361
+#: panel-plugin/ui/properties/general.cpp:362
 msgid "Re_name"
 msgstr "เปลี่ยนชื่อ(_n)"
 
-#: panel-plugin/ui/properties/general.cpp:373
+#: panel-plugin/ui/properties/general.cpp:374
 msgid "Rename imported preset"
 msgstr "เปลี่ยนชื่อค่าที่ตั้งไว้ล่วงหน้าที่นำเข้า"
 
-#: panel-plugin/ui/properties/general.cpp:430
+#: panel-plugin/ui/properties/general.cpp:431
 msgid "Could not import preset"
 msgstr "ไม่สามารถนำเข้าค่าที่ตั้งไว้ล่วงหน้าได้"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:437
+#: panel-plugin/ui/properties/general.cpp:438
 msgid "Reset to _defaults"
 msgstr "รีเซ็ตเป็นค่าเริ่มต้น(_d)"
 
-#: panel-plugin/ui/properties/general.cpp:447
+#: panel-plugin/ui/properties/general.cpp:448
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:448
+#: panel-plugin/ui/properties/general.cpp:449
 msgid "Reset all settings to defaults?"
 msgstr "รีเซ็ตการตั้งค่าทั้งหมดเป็นค่าเริ่มต้น?"
 
-#: panel-plugin/ui/properties/general.cpp:521
+#: panel-plugin/ui/properties/general.cpp:511
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:543
+#: panel-plugin/ui/properties/general.cpp:533
 #, fuzzy
 msgid "Panel plugin"
 msgstr "ปุ่มพาเนล"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:549
+#: panel-plugin/ui/properties/general.cpp:539
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:556
+#: panel-plugin/ui/properties/general.cpp:546
 #, fuzzy
 msgid "T_itle:"
 msgstr "_หัวข้อ:"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:593
+#: panel-plugin/ui/properties/general.cpp:583
 #, fuzzy
 msgid "Show panel button _icon"
 msgstr "แสดงเป็นไอคอน"
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:600
+#: panel-plugin/ui/properties/general.cpp:590
 msgid "Ic_on:"
 msgstr ""
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:637
+#: panel-plugin/ui/properties/general.cpp:627
 #, fuzzy
 msgid "Use a single panel _row"
 msgstr "ใช้_พาเนลแถวเดียว"
 
-#: panel-plugin/ui/properties/general.cpp:661
+#: panel-plugin/ui/properties/general.cpp:651
 msgid "General menu settings"
 msgstr ""
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:667
+#: panel-plugin/ui/properties/general.cpp:657
 msgid "_Layout mode:"
 msgstr "โหมดเค้าโครง(_L):"
 
-#: panel-plugin/ui/properties/general.cpp:672
+#: panel-plugin/ui/properties/general.cpp:662
 msgid "Docked"
 msgstr "เทียบท่า"
 
-#: panel-plugin/ui/properties/general.cpp:673
+#: panel-plugin/ui/properties/general.cpp:663
+msgid "Centered"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:664
 msgid "FullScreen"
 msgstr "เต็มหน้าจอ"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:702
+#: panel-plugin/ui/properties/general.cpp:701
 msgid "_Panel gap:"
 msgstr "ช่องว่างแผง(_P):"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:726
+#: panel-plugin/ui/properties/general.cpp:725
 msgid "Menu _width:"
 msgstr "เมนู ความ_กว้าง:"
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:748
+#: panel-plugin/ui/properties/general.cpp:747
 msgid "Menu _height:"
 msgstr "เมนู ความ_สูง:"
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:770
+#: panel-plugin/ui/properties/general.cpp:769
 msgid "_Corner radius:"
 msgstr "รัศมีมุม(_C):"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:794
+#: panel-plugin/ui/properties/general.cpp:793
 msgid "F_ull-screen opacity:"
 msgstr "ความทึบแสงเต็มหน้าจอ(_u):"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:818
+#: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr "คงแสดงอยู่แม้ไม่ได้โฟกัส"
 
@@ -1028,7 +1032,7 @@ msgstr "แสดงข้อความ_ยืนยัน"
 msgid "Session commands"
 msgstr "คำสั่งวาระ"
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2553
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2593
 msgid "Applications"
 msgstr "โปรแกรม"
 
@@ -1194,7 +1198,7 @@ msgstr "แก้ไขโปรไฟล์ไม่สำเร็จ"
 msgid "Custom"
 msgstr "● กำหนดเอง"
 
-#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2553
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2593
 msgid "Apps"
 msgstr "แอป"
 

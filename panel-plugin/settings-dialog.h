@@ -18,8 +18,11 @@
 #ifndef WHISKERMENU_SETTINGS_DIALOG_H
 #define WHISKERMENU_SETTINGS_DIALOG_H
 
+#include "core/user-session-layout.h"
+
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtk/gtk.h>
@@ -77,12 +80,18 @@ private:
 	void build_search_bar_aliases_section(GtkBox* page);
 	void build_search_bar_actions_section(GtkBox* page);
 
-	// Layout-mode-driven live sensitivity (FR-003 / data-model E-6).
-	// Each tab builder pushes widgets onto exactly one of these vectors. The
-	// shared handler in install_layout_mode_handler() toggles
-	// gtk_widget_set_sensitive() across them on every layout-mode change.
+	// Layout-mode-driven live sensitivity (FR-006 / data-model E-4).
+	// The five matrix controls (width/height/gap/corner-radius/full-screen
+	// opacity) register a (widget, LayoutControl) pair in m_layout_controls;
+	// apply_layout_mode_sensitivity() drives them through the pure
+	// control_enabled() matrix. The two legacy vectors carry the remaining
+	// out-of-matrix per-region opacity controls (sidebar / results-view tabs),
+	// which are enabled in both windowed modes and greyed in full-screen. The
+	// shared handler in install_layout_mode_handler() refreshes all of them on
+	// every layout-mode change.
 	void install_layout_mode_handler();
 	void apply_layout_mode_sensitivity();
+	std::vector<std::pair<GtkWidget*, WhiskerMenu::LayoutControl>> m_layout_controls;
 	std::vector<GtkWidget*> m_layout_enable_when_docked;
 	std::vector<GtkWidget*> m_layout_enable_when_fullscreen;
 	gulong m_layout_mode_slot = 0;
