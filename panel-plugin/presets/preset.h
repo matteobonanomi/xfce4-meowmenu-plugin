@@ -113,6 +113,21 @@ bool rename_user_preset(const std::string& uuid, const std::string& new_name, Se
 // Delete a user preset. Clears current_preset_id if it matches uuid.
 void delete_user_preset(const std::string& uuid, Settings& settings);
 
+// Reset every plugin property on channel to its compiled default, EXCEPT saved
+// user presets under /presets/<uuid>/, which are preserved.
+//
+// @channel: the plugin's Xfconf channel; may be anchored on a property base.
+// @property_base: that channel's property base (e.g. "/plugins/meowmenu-N"),
+//   or "" for a base-less channel.
+//
+// xfconf_channel_get_properties() returns FULL paths that include the channel
+// base, but xfconf_channel_reset_property() on a based channel expects a
+// base-relative path; this helper strips the base so the reset is not
+// double-prefixed (which silently no-ops). Settings-free so it is unit-testable.
+//
+// Returns: the number of properties reset.
+int reset_settings_to_defaults(XfconfChannel* channel, const std::string& property_base);
+
 } // namespace WhiskerMenu
 
 #endif // WHISKERMENU_PRESET_H

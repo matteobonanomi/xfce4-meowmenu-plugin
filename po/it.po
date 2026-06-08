@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-04 17:15+0200\n"
+"POT-Creation-Date: 2026-06-08 15:22+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Italang, 2020,2022-2023\n"
 "Language-Team: MeowMenu Italian <mbonanomi.dev@proton.me>\n"
@@ -26,7 +26,7 @@ msgstr ""
 
 #: panel-plugin/launcher/applications-page.cpp:35
 #: panel-plugin/launcher/category.cpp:52
-#: panel-plugin/ui/properties/sidebar.cpp:285
+#: panel-plugin/ui/properties/sidebar.cpp:289
 msgid "All Applications"
 msgstr "Tutte le Applicazioni"
 
@@ -50,20 +50,20 @@ msgstr "Sfoglia il file system per scegliere un comando personalizzato."
 msgid "Select Command"
 msgstr "Seleziona comando"
 
-#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:215
-#: panel-plugin/settings-dialog.cpp:388
-#: panel-plugin/ui/properties/general.cpp:127
-#: panel-plugin/ui/properties/general.cpp:183
-#: panel-plugin/ui/properties/general.cpp:273
-#: panel-plugin/ui/properties/general.cpp:309
-#: panel-plugin/ui/properties/general.cpp:343
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
+#: panel-plugin/settings-dialog.cpp:394
+#: panel-plugin/ui/properties/general.cpp:139
+#: panel-plugin/ui/properties/general.cpp:198
+#: panel-plugin/ui/properties/general.cpp:292
+#: panel-plugin/ui/properties/general.cpp:328
+#: panel-plugin/ui/properties/general.cpp:362
+#: panel-plugin/ui/properties/general.cpp:376
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "_Annulla"
 
-#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:216
-#: panel-plugin/settings-dialog.cpp:389
+#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:222
+#: panel-plugin/settings-dialog.cpp:395
 msgid "_OK"
 msgstr "_OK"
 
@@ -73,7 +73,7 @@ msgid "Failed to execute command \"%s\"."
 msgstr "Impossibile eseguire il comando \"%s\"."
 
 #: panel-plugin/launcher/favorites-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:276
+#: panel-plugin/ui/properties/sidebar.cpp:280
 msgid "Favorites"
 msgstr "Preferiti"
 
@@ -203,31 +203,40 @@ msgstr "Impossibile modificare il lanciatore."
 msgid "%s (missing)"
 msgstr ""
 
-#: panel-plugin/places/places-item.cpp:177
-#, c-format
-msgid "Unable to open \"%s\"."
-msgstr "Impossibile aprire \"%s\"."
-
-#: panel-plugin/places/places-item.cpp:301
+#: panel-plugin/places/places-item.cpp:360
 msgid "Unable to add desktop link."
 msgstr "Impossibile aggiungere il collegamento al desktop."
+
+#: panel-plugin/places/places-item.cpp:400
+#, fuzzy
+msgid "the selected item"
+msgstr "Rimuovi azione selezionata"
+
+#: panel-plugin/places/places-item.cpp:405
+msgid "the location could not be opened"
+msgstr ""
+
+#: panel-plugin/places/places-item.cpp:407
+#, fuzzy, c-format
+msgid "Unable to open \"%s\": %s"
+msgstr "Impossibile aprire \"%s\"."
 
 #: panel-plugin/places/places-page.cpp:64
 msgid "No items to show."
 msgstr "Nessun elemento da mostrare."
 
-#: panel-plugin/places/places-page.cpp:436
+#: panel-plugin/places/places-page.cpp:441
 msgid "_Open"
 msgstr "_Apri"
 
 #. Left enabled for missing favourites (not gated on exists()) so a
 #. stale favourite can always be removed even though "Open" above is
 #. greyed — this is the greyed-out-favourite behaviour from 005.
-#: panel-plugin/places/places-page.cpp:459
+#: panel-plugin/places/places-page.cpp:466
 msgid "Remove from Favourites"
 msgstr "Rimuovi dai Preferiti"
 
-#: panel-plugin/places/places-page.cpp:470
+#: panel-plugin/places/places-page.cpp:477
 msgid "Add to Favourites"
 msgstr "Aggiungi ai Preferiti"
 
@@ -235,23 +244,23 @@ msgstr "Aggiungi ai Preferiti"
 #. enabled even when the target is missing so a renamed file can be located
 #. from its parent folder. PlacesItem::open_containing() fails silently (no
 #. dialog) when the parent is also gone.
-#: panel-plugin/places/places-page.cpp:485
+#: panel-plugin/places/places-page.cpp:492
 msgid "Open Containing Folder"
 msgstr "Apri cartella contenitore"
 
-#: panel-plugin/places/places-page.cpp:495
+#: panel-plugin/places/places-page.cpp:503
 msgid "Copy Path"
 msgstr "Copia percorso"
 
-#: panel-plugin/places/places-page.cpp:502
+#: panel-plugin/places/places-page.cpp:510
 msgid "Open in Terminal"
 msgstr "Apri nel terminale"
 
-#: panel-plugin/places/places-page.cpp:514
+#: panel-plugin/places/places-page.cpp:523
 msgid "Open With…"
 msgstr "Apri con…"
 
-#: panel-plugin/places/places-page.cpp:519
+#: panel-plugin/places/places-page.cpp:528
 msgid "Add Desktop Link"
 msgstr "Aggiungi collegamento al desktop"
 
@@ -280,7 +289,7 @@ msgid "Based on Whisker Menu"
 msgstr "Basato su Whisker Menu"
 
 #: panel-plugin/launcher/recent-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:280
+#: panel-plugin/ui/properties/sidebar.cpp:284
 msgid "Recently Used"
 msgstr "Usati di recente"
 
@@ -335,77 +344,81 @@ msgstr "Vista risultati"
 msgid "Sidebar"
 msgstr "Barra laterale"
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:558
-#: panel-plugin/core/window.cpp:2197
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
+#: panel-plugin/core/window.cpp:2555
 msgid "Places"
 msgstr "Luoghi"
 
-#: panel-plugin/settings-dialog.cpp:210 panel-plugin/settings-dialog.cpp:212
+#: panel-plugin/settings-dialog.cpp:216 panel-plugin/settings-dialog.cpp:218
 msgid "Select an Icon"
 msgstr "Seleziona un'icona"
 
-#: panel-plugin/settings-dialog.cpp:309
-#: panel-plugin/ui/properties/general.cpp:221
+#: panel-plugin/settings-dialog.cpp:315
 #: panel-plugin/ui/properties/general.cpp:236
+#: panel-plugin/ui/properties/general.cpp:251
 msgid "_Delete"
 msgstr "_Cancella"
 
-#: panel-plugin/settings-dialog.cpp:310
+#: panel-plugin/settings-dialog.cpp:316
 msgid "The action will be deleted permanently."
 msgstr "L'azione verrà eliminata in modo permanente."
 
-#: panel-plugin/settings-dialog.cpp:311
+#: panel-plugin/settings-dialog.cpp:317
 #, c-format
 msgid "Remove action \"%s\"?"
 msgstr "Rimuovi azione \"%s\"?"
 
-#: panel-plugin/settings-dialog.cpp:385
+#: panel-plugin/settings-dialog.cpp:391
 msgid "Edit search action"
 msgstr "Modifica azione di ricerca"
 
-#: panel-plugin/settings-dialog.cpp:400
+#: panel-plugin/settings-dialog.cpp:406
 msgid "Nam_e:"
 msgstr "Nom_e:"
 
-#: panel-plugin/settings-dialog.cpp:410
+#: panel-plugin/settings-dialog.cpp:416
 msgid "_Pattern:"
 msgstr "_Motivo:"
 
-#: panel-plugin/settings-dialog.cpp:420
+#: panel-plugin/settings-dialog.cpp:426
 msgid "C_ommand:"
 msgstr "C_omando:"
 
-#: panel-plugin/settings-dialog.cpp:430
+#: panel-plugin/settings-dialog.cpp:436
 msgid "Is _regular expression"
 msgstr "È un'_espressione regolare"
 
-#: panel-plugin/settings-dialog.cpp:474
+#: panel-plugin/settings-dialog.cpp:480
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr "Impossibile aprire il collegamento %s"
 
+#: panel-plugin/settings-dialog.cpp:566
+msgid "Unsaved custom"
+msgstr ""
+
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:687
+#: panel-plugin/settings-dialog.cpp:800
 msgid "Classic"
 msgstr "Classico"
 
-#: panel-plugin/settings-dialog.cpp:688
+#: panel-plugin/settings-dialog.cpp:801
 msgid "Modern"
 msgstr "Moderno"
 
-#: panel-plugin/settings-dialog.cpp:689
+#: panel-plugin/settings-dialog.cpp:802
 msgid "Full Screen"
 msgstr "Schermo intero"
 
-#: panel-plugin/settings-dialog.cpp:791
+#: panel-plugin/settings-dialog.cpp:884
 msgid "Render profile, search and session on a single horizontal row."
 msgstr "Mostra profilo, ricerca e sessione su una singola riga orizzontale."
 
-#: panel-plugin/settings-dialog.cpp:793
+#: panel-plugin/settings-dialog.cpp:886
 msgid "This option requires the FullScreen layout."
 msgstr "Questa opzione richiede il layout Schermo intero."
 
-#: panel-plugin/settings-dialog.cpp:795
+#: panel-plugin/settings-dialog.cpp:888
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
@@ -421,155 +434,151 @@ msgstr "Preset"
 msgid "_Preset:"
 msgstr "_Preset:"
 
-#: panel-plugin/ui/properties/general.cpp:86
-msgid "● Customized"
-msgstr "● Personalizzato"
-
-#: panel-plugin/ui/properties/general.cpp:96
+#: panel-plugin/ui/properties/general.cpp:108
 msgid "_Reset preset"
 msgstr "_Ripristina preset"
 
-#: panel-plugin/ui/properties/general.cpp:107
-#: panel-plugin/ui/properties/general.cpp:416
+#: panel-plugin/ui/properties/general.cpp:119
+#: panel-plugin/ui/properties/general.cpp:446
 msgid "_Reset"
 msgstr "_Ripristina"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:120
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 "Tutte le personalizzazioni verranno scartate e i valori del preset saranno "
 "ripristinati."
 
-#: panel-plugin/ui/properties/general.cpp:109
+#: panel-plugin/ui/properties/general.cpp:121
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "Ripristinare il preset \"%s\"?"
 
-#: panel-plugin/ui/properties/general.cpp:118
+#: panel-plugin/ui/properties/general.cpp:130
 msgid "_Save as new…"
 msgstr "_Salva come nuovo…"
 
-#: panel-plugin/ui/properties/general.cpp:124
+#: panel-plugin/ui/properties/general.cpp:136
 msgid "Save as new preset"
 msgstr "Salva come nuovo preset"
 
-#: panel-plugin/ui/properties/general.cpp:128
+#: panel-plugin/ui/properties/general.cpp:140
 msgid "_Save"
 msgstr "_Salva"
 
-#: panel-plugin/ui/properties/general.cpp:137
-#: panel-plugin/ui/properties/general.cpp:193
-#: panel-plugin/ui/properties/general.cpp:365
+#: panel-plugin/ui/properties/general.cpp:149
+#: panel-plugin/ui/properties/general.cpp:208
+#: panel-plugin/ui/properties/general.cpp:384
 msgid "_Name:"
 msgstr "_Nome:"
 
-#: panel-plugin/ui/properties/general.cpp:153
-#: panel-plugin/ui/properties/general.cpp:210
+#: panel-plugin/ui/properties/general.cpp:165
+#: panel-plugin/ui/properties/general.cpp:225
 msgid "A preset with that name already exists or the name is empty."
 msgstr "Esiste già un preset con questo nome oppure il nome è vuoto."
 
-#: panel-plugin/ui/properties/general.cpp:154
+#: panel-plugin/ui/properties/general.cpp:166
 msgid "Could not save preset"
 msgstr "Impossibile salvare il preset"
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:181
 msgid "Re_name…"
 msgstr "Rin_omina…"
 
-#: panel-plugin/ui/properties/general.cpp:180
+#: panel-plugin/ui/properties/general.cpp:195
 msgid "Rename preset"
 msgstr "Rinomina preset"
 
-#: panel-plugin/ui/properties/general.cpp:184
+#: panel-plugin/ui/properties/general.cpp:199
 msgid "_Rename"
 msgstr "_Rinomina"
 
-#: panel-plugin/ui/properties/general.cpp:211
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "Could not rename preset"
 msgstr "Impossibile rinominare il preset"
 
-#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 msgid "This preset will be permanently removed."
 msgstr "Questo preset verrà rimosso definitivamente."
 
-#: panel-plugin/ui/properties/general.cpp:238
+#: panel-plugin/ui/properties/general.cpp:253
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr "Eliminare il preset \"%s\"?"
 
-#: panel-plugin/ui/properties/general.cpp:255
+#: panel-plugin/ui/properties/general.cpp:274
 msgid "E_xport…"
 msgstr "E_sporta…"
 
-#: panel-plugin/ui/properties/general.cpp:270
+#: panel-plugin/ui/properties/general.cpp:289
 msgid "Export preset"
 msgstr "Esporta preset"
 
-#: panel-plugin/ui/properties/general.cpp:273
+#: panel-plugin/ui/properties/general.cpp:292
 msgid "_Export"
 msgstr "_Esporta"
 
-#: panel-plugin/ui/properties/general.cpp:279
-#: panel-plugin/ui/properties/general.cpp:312
+#: panel-plugin/ui/properties/general.cpp:298
+#: panel-plugin/ui/properties/general.cpp:331
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "Preset MeowMenu (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:291
+#: panel-plugin/ui/properties/general.cpp:310
 msgid "Could not export preset."
 msgstr "Impossibile esportare il preset."
 
-#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:318
 msgid "_Import…"
 msgstr "_Importa…"
 
-#: panel-plugin/ui/properties/general.cpp:306
+#: panel-plugin/ui/properties/general.cpp:325
 msgid "Import preset"
 msgstr "Importa preset"
 
-#: panel-plugin/ui/properties/general.cpp:309
-#: panel-plugin/ui/properties/general.cpp:358
+#: panel-plugin/ui/properties/general.cpp:328
+#: panel-plugin/ui/properties/general.cpp:377
 msgid "_Import"
 msgstr "_Importa"
 
-#: panel-plugin/ui/properties/general.cpp:338
+#: panel-plugin/ui/properties/general.cpp:357
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "Esiste già un preset chiamato \"%s\". Come si desidera procedere?"
 
-#: panel-plugin/ui/properties/general.cpp:341
+#: panel-plugin/ui/properties/general.cpp:360
 msgid "_Overwrite"
 msgstr "S_ovrascrivi"
 
-#: panel-plugin/ui/properties/general.cpp:342
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "Re_name"
 msgstr "Rin_omina"
 
-#: panel-plugin/ui/properties/general.cpp:354
+#: panel-plugin/ui/properties/general.cpp:373
 msgid "Rename imported preset"
 msgstr "Rinomina preset importato"
 
-#: panel-plugin/ui/properties/general.cpp:400
+#: panel-plugin/ui/properties/general.cpp:430
 msgid "Could not import preset"
 msgstr "Impossibile importare il preset"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:407
+#: panel-plugin/ui/properties/general.cpp:437
 msgid "Reset to _defaults"
 msgstr "Ripristina i _predefiniti"
 
-#: panel-plugin/ui/properties/general.cpp:417
+#: panel-plugin/ui/properties/general.cpp:447
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 "Tutte le impostazioni verranno ripristinate ai valori predefiniti e verrà "
 "applicato il preset Moderno."
 
-#: panel-plugin/ui/properties/general.cpp:418
+#: panel-plugin/ui/properties/general.cpp:448
 msgid "Reset all settings to defaults?"
 msgstr "Ripristinare tutte le impostazioni ai valori predefiniti?"
 
-#: panel-plugin/ui/properties/general.cpp:498
+#: panel-plugin/ui/properties/general.cpp:521
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
@@ -577,79 +586,79 @@ msgstr ""
 "La modalità Schermo intero richiede gtk-layer-shell su Wayland. Il menu si "
 "aprirà come finestra normale."
 
-#: panel-plugin/ui/properties/general.cpp:520
+#: panel-plugin/ui/properties/general.cpp:543
 msgid "Panel plugin"
 msgstr "Plugin del pannello"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:526
+#: panel-plugin/ui/properties/general.cpp:549
 msgid "Show panel button _title"
 msgstr "Mostra il _titolo del pulsante del pannello"
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:533
+#: panel-plugin/ui/properties/general.cpp:556
 msgid "T_itle:"
 msgstr "T_itolo:"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:570
+#: panel-plugin/ui/properties/general.cpp:593
 msgid "Show panel button _icon"
 msgstr "Mostra l'_icona del pulsante del pannello"
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:577
+#: panel-plugin/ui/properties/general.cpp:600
 msgid "Ic_on:"
 msgstr "Ic_ona:"
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:614
+#: panel-plugin/ui/properties/general.cpp:637
 msgid "Use a single panel _row"
 msgstr "Utilizza una singola riga del _pannello"
 
-#: panel-plugin/ui/properties/general.cpp:638
+#: panel-plugin/ui/properties/general.cpp:661
 msgid "General menu settings"
 msgstr "Impostazioni generali del menu"
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:644
+#: panel-plugin/ui/properties/general.cpp:667
 msgid "_Layout mode:"
 msgstr "_Modalità layout:"
 
-#: panel-plugin/ui/properties/general.cpp:649
+#: panel-plugin/ui/properties/general.cpp:672
 msgid "Docked"
 msgstr "Agganciato"
 
-#: panel-plugin/ui/properties/general.cpp:650
+#: panel-plugin/ui/properties/general.cpp:673
 msgid "FullScreen"
 msgstr "Schermo intero"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:679
+#: panel-plugin/ui/properties/general.cpp:702
 msgid "_Panel gap:"
 msgstr "_Spazio menu-pannello:"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:703
+#: panel-plugin/ui/properties/general.cpp:726
 msgid "Menu _width:"
 msgstr "Larghezza _menu:"
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:725
+#: panel-plugin/ui/properties/general.cpp:748
 msgid "Menu _height:"
 msgstr "Altezza _menu:"
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:747
+#: panel-plugin/ui/properties/general.cpp:770
 msgid "_Corner radius:"
 msgstr "_Curvatura finestre:"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:771
+#: panel-plugin/ui/properties/general.cpp:794
 msgid "F_ull-screen opacity:"
 msgstr "Opacità schermo _intero:"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:795
+#: panel-plugin/ui/properties/general.cpp:818
 msgid "Stay _visible when focus is lost"
 msgstr "_Menu visibile anche senza focus"
 
@@ -694,17 +703,13 @@ msgid "Maximum places _items:"
 msgstr "Numero massimo _elementi luoghi:"
 
 #: panel-plugin/ui/properties/places.cpp:133
-#: panel-plugin/ui/properties/sidebar.cpp:243
+#: panel-plugin/ui/properties/sidebar.cpp:247
 msgid "Behaviour"
 msgstr "Comportamento"
 
 #: panel-plugin/ui/properties/places.cpp:137
 msgid "_Remember last selected mode"
 msgstr "_Ricorda l'ultima modalità selezionata"
-
-#: panel-plugin/ui/properties/places.cpp:142
-msgid "Show item _metadata"
-msgstr "Mostra _metadati elementi"
 
 #: panel-plugin/ui/properties/results-view.cpp:62
 msgid "View"
@@ -775,7 +780,7 @@ msgid "App _box opacity:"
 msgstr "Opacità _riquadro app:"
 
 #: panel-plugin/ui/properties/search-bar.cpp:58
-#: panel-plugin/ui/properties/sidebar.cpp:173
+#: panel-plugin/ui/properties/sidebar.cpp:177
 msgid "Position"
 msgstr "Posizione"
 
@@ -783,15 +788,19 @@ msgstr "Posizione"
 msgid "_Search bar position:"
 msgstr "Posizione _barra di ricerca:"
 
+#. NOTE: no "bottom-right" entry — for the profile it renders identically to
+#. "bottom" (there is no horizontal end distinction), so it would be a
+#. duplicate option. A stored "bottom-right" is normalised to "bottom" on
+#. upgrade; "bottom-right" remains a distinct Commands Position value.
 #: panel-plugin/ui/properties/search-bar.cpp:66
-#: panel-plugin/ui/properties/sidebar.cpp:184
-#: panel-plugin/ui/properties/user-session.cpp:68
+#: panel-plugin/ui/properties/sidebar.cpp:188
+#: panel-plugin/ui/properties/user-session.cpp:73
 msgid "Top"
 msgstr "Alto"
 
 #: panel-plugin/ui/properties/search-bar.cpp:67
-#: panel-plugin/ui/properties/sidebar.cpp:185
-#: panel-plugin/ui/properties/user-session.cpp:69
+#: panel-plugin/ui/properties/sidebar.cpp:189
+#: panel-plugin/ui/properties/user-session.cpp:74
 msgid "Bottom"
 msgstr "Basso"
 
@@ -911,256 +920,255 @@ msgid "Categ_ory icon size:"
 msgstr "Dimensione icona Categ_oria:"
 
 #. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
-#: panel-plugin/ui/properties/sidebar.cpp:140
+#: panel-plugin/ui/properties/sidebar.cpp:144
 msgid "_Sidebar opacity:"
 msgstr "Opacità _barra laterale:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:177
+#: panel-plugin/ui/properties/sidebar.cpp:181
 msgid "Sidebar _position:"
 msgstr "_Posizione barra laterale:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:182
+#: panel-plugin/ui/properties/sidebar.cpp:186
 msgid "Left"
 msgstr "Sinistra"
 
-#: panel-plugin/ui/properties/sidebar.cpp:183
+#: panel-plugin/ui/properties/sidebar.cpp:187
 msgid "Right"
 msgstr "Destra"
 
-#: panel-plugin/ui/properties/sidebar.cpp:247
+#: panel-plugin/ui/properties/sidebar.cpp:251
 msgid "Switch categories by _hovering"
 msgstr "Cambia categorie al _passaggio del mouse"
 
-#: panel-plugin/ui/properties/sidebar.cpp:260
+#: panel-plugin/ui/properties/sidebar.cpp:264
 msgid "Sort ca_tegories"
 msgstr "Ordina ca_tegorie"
 
-#: panel-plugin/ui/properties/sidebar.cpp:273
+#: panel-plugin/ui/properties/sidebar.cpp:277
 msgid "Default category"
 msgstr "Categoria predefinita"
 
-#: panel-plugin/ui/properties/sidebar.cpp:335
+#: panel-plugin/ui/properties/sidebar.cpp:339
 msgid "Recently used"
 msgstr "Usati di recente"
 
-#: panel-plugin/ui/properties/sidebar.cpp:339
+#: panel-plugin/ui/properties/sidebar.cpp:343
 msgid "Maximum _items:"
 msgstr "Numero massimo _elementi:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:360
+#: panel-plugin/ui/properties/sidebar.cpp:364
 msgid "Include _favorites in \"Recent\""
 msgstr "Includi i _preferiti in \"Recenti\""
 
-#: panel-plugin/ui/properties/user-session.cpp:59
+#: panel-plugin/ui/properties/user-session.cpp:60
 msgid "Profile"
 msgstr "Profilo"
 
 #. Profile position
-#: panel-plugin/ui/properties/user-session.cpp:63
+#: panel-plugin/ui/properties/user-session.cpp:64
 msgid "_Position:"
 msgstr "_Posizione:"
 
-#: panel-plugin/ui/properties/user-session.cpp:70
-#: panel-plugin/ui/properties/user-session.cpp:142
-msgid "Bottom Right"
-msgstr "In basso a destra"
-
-#: panel-plugin/ui/properties/user-session.cpp:71
-#: panel-plugin/ui/properties/user-session.cpp:143
+#: panel-plugin/ui/properties/user-session.cpp:75
+#: panel-plugin/ui/properties/user-session.cpp:147
 msgid "Hidden"
 msgstr "Nascosta"
 
 #. Avatar shape (sub-enabled when profile-position != hidden).
-#: panel-plugin/ui/properties/user-session.cpp:81
+#: panel-plugin/ui/properties/user-session.cpp:85
 msgid "Avatar _shape:"
 msgstr "_Forma avatar:"
 
-#: panel-plugin/ui/properties/user-session.cpp:86
+#: panel-plugin/ui/properties/user-session.cpp:90
 msgid "Round Picture"
 msgstr "Immagine rotonda"
 
-#: panel-plugin/ui/properties/user-session.cpp:87
+#: panel-plugin/ui/properties/user-session.cpp:91
 msgid "Square Picture"
 msgstr "Immagine quadrata"
 
-#: panel-plugin/ui/properties/user-session.cpp:133
+#: panel-plugin/ui/properties/user-session.cpp:137
 msgid "Commands"
 msgstr "Comandi"
 
-#: panel-plugin/ui/properties/user-session.cpp:136
+#: panel-plugin/ui/properties/user-session.cpp:140
 msgid "_Commands position:"
 msgstr "Posizione _comandi:"
 
-#: panel-plugin/ui/properties/user-session.cpp:141
+#: panel-plugin/ui/properties/user-session.cpp:145
 msgid "Top Right"
 msgstr "In alto a destra"
 
-#: panel-plugin/ui/properties/user-session.cpp:170
+#: panel-plugin/ui/properties/user-session.cpp:146
+msgid "Bottom Right"
+msgstr "In basso a destra"
+
+#: panel-plugin/ui/properties/user-session.cpp:211
 msgid "Place profile, search and session on a single _line"
 msgstr "Posiziona profilo, ricerca e sessione su una singola _riga"
 
-#: panel-plugin/ui/properties/user-session.cpp:201
+#: panel-plugin/ui/properties/user-session.cpp:242
 msgid "Show c_onfirmation dialog"
 msgstr "Mostra una finestra di c_onferma"
 
-#: panel-plugin/ui/properties/user-session.cpp:216
+#: panel-plugin/ui/properties/user-session.cpp:257
 msgid "Session commands"
 msgstr "Comandi di sessione"
 
-#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2195
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2553
 msgid "Applications"
 msgstr "Applicazioni"
 
-#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
 msgid "Man Pages"
 msgstr "Man Pages"
 
-#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
 msgid "Search the Web"
 msgstr "Ricerca web"
 
-#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
+#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
 msgid "Search for Files"
 msgstr "Ricerca file"
 
-#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
 msgid "Wikipedia"
 msgstr "Wikipedia"
 
-#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
 msgid "Run in Terminal"
 msgstr "Esegui nel Terminale"
 
-#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
+#: panel-plugin/settings.cpp:95 panel-plugin/settings.cpp:102
 msgid "Open URI"
 msgstr "Apri URI"
 
-#: panel-plugin/settings.cpp:153
+#: panel-plugin/settings.cpp:151
 msgid "_Settings Manager"
 msgstr "Ge_store Impostazioni"
 
-#: panel-plugin/settings.cpp:155
+#: panel-plugin/settings.cpp:153
 msgid "Failed to open settings manager."
 msgstr "Impossibile aprire il Gestore delle impostazioni."
 
-#: panel-plugin/settings.cpp:158
+#: panel-plugin/settings.cpp:156
 msgid "_Lock Screen"
 msgstr "_Blocca schermo"
 
-#: panel-plugin/settings.cpp:160
+#: panel-plugin/settings.cpp:158
 msgid "Failed to lock screen."
 msgstr "Impossibile bloccare lo schermo."
 
-#: panel-plugin/settings.cpp:163
+#: panel-plugin/settings.cpp:161
 msgid "Switch _User"
 msgstr "Cambia _Utente"
 
-#: panel-plugin/settings.cpp:165
+#: panel-plugin/settings.cpp:163
 msgid "Failed to switch user."
 msgstr "Impossibile cambiare utente."
 
-#: panel-plugin/settings.cpp:168
+#: panel-plugin/settings.cpp:166
 msgid "Log _Out"
 msgstr "Disc_onnetti"
 
-#: panel-plugin/settings.cpp:170 panel-plugin/settings.cpp:205
+#: panel-plugin/settings.cpp:168 panel-plugin/settings.cpp:203
 msgid "Failed to log out."
 msgstr "Disconnessione non riuscita."
 
-#: panel-plugin/settings.cpp:171
+#: panel-plugin/settings.cpp:169
 msgid "Are you sure you want to log out?"
 msgstr "Sei sicuro di volerti disconnettere?"
 
-#: panel-plugin/settings.cpp:172
+#: panel-plugin/settings.cpp:170
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr "Disconnessione fra %d secondi."
 
-#: panel-plugin/settings.cpp:175
+#: panel-plugin/settings.cpp:173
 msgid "_Restart"
 msgstr "_Riavvia"
 
-#: panel-plugin/settings.cpp:177
+#: panel-plugin/settings.cpp:175
 msgid "Failed to restart."
 msgstr "Impossibile riavviare."
 
-#: panel-plugin/settings.cpp:178
+#: panel-plugin/settings.cpp:176
 msgid "Are you sure you want to restart?"
 msgstr "Sei sicuro di voler riavviare?"
 
-#: panel-plugin/settings.cpp:179
+#: panel-plugin/settings.cpp:177
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr "Riavvio del computer fra %d secondi."
 
-#: panel-plugin/settings.cpp:182
+#: panel-plugin/settings.cpp:180
 msgid "Shut _Down"
 msgstr "Spe_gni"
 
-#: panel-plugin/settings.cpp:184
+#: panel-plugin/settings.cpp:182
 msgid "Failed to shut down."
 msgstr "Impossibile arrestare il sistema."
 
-#: panel-plugin/settings.cpp:185
+#: panel-plugin/settings.cpp:183
 msgid "Are you sure you want to shut down?"
 msgstr "Sei sicuro di voler spegnere?"
 
-#: panel-plugin/settings.cpp:186
+#: panel-plugin/settings.cpp:184
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr "Spegnimento del computer fra %d secondi."
 
-#: panel-plugin/settings.cpp:189
+#: panel-plugin/settings.cpp:187
 msgid "Suspe_nd"
 msgstr "Sospe_ndi"
 
-#: panel-plugin/settings.cpp:191
+#: panel-plugin/settings.cpp:189
 msgid "Failed to suspend."
 msgstr "Impossibile sospendere."
 
-#: panel-plugin/settings.cpp:192
+#: panel-plugin/settings.cpp:190
 msgid "Do you want to suspend to RAM?"
 msgstr "Vuoi sospendere in RAM?"
 
-#: panel-plugin/settings.cpp:193
+#: panel-plugin/settings.cpp:191
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr "Sospensione del computer fra %d secondi."
 
-#: panel-plugin/settings.cpp:196
+#: panel-plugin/settings.cpp:194
 msgid "_Hibernate"
 msgstr "_Iberna"
 
-#: panel-plugin/settings.cpp:198
+#: panel-plugin/settings.cpp:196
 msgid "Failed to hibernate."
 msgstr "Impossibile ibernare."
 
-#: panel-plugin/settings.cpp:199
+#: panel-plugin/settings.cpp:197
 msgid "Do you want to suspend to disk?"
 msgstr "Vuoi sospendere su disco (ibernare)?"
 
-#: panel-plugin/settings.cpp:200
+#: panel-plugin/settings.cpp:198
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr "Il computer sarà ibernato fra %d secondi."
 
-#: panel-plugin/settings.cpp:203
+#: panel-plugin/settings.cpp:201
 msgid "Log Ou_t..."
 msgstr "_Esci..."
 
-#: panel-plugin/settings.cpp:208
+#: panel-plugin/settings.cpp:206
 msgid "_Edit Applications"
 msgstr "_Edita applicazioni"
 
-#: panel-plugin/settings.cpp:210
+#: panel-plugin/settings.cpp:208
 msgid "Failed to launch menu editor."
 msgstr "Impossibile avviare l'editor di menu."
 
-#: panel-plugin/settings.cpp:213
+#: panel-plugin/settings.cpp:211
 msgid "Edit _Profile"
 msgstr "Modifica _Profilo"
 
-#: panel-plugin/settings.cpp:215
+#: panel-plugin/settings.cpp:213
 msgid "Failed to edit profile."
 msgstr "Impossibile modificare il profilo."
 
@@ -1168,11 +1176,11 @@ msgstr "Impossibile modificare il profilo."
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings-defaults.cpp:272
+#: panel-plugin/settings.cpp:412 panel-plugin/settings-defaults.cpp:297
 msgid "Custom"
 msgstr "Personalizzato"
 
-#: panel-plugin/core/window.cpp:557 panel-plugin/core/window.cpp:2195
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2553
 msgid "Apps"
 msgstr "App"
 
@@ -1207,6 +1215,12 @@ msgstr "Stampa informazioni versione ed esci"
 #: panel-plugin/meowmenu.desktop.in:5
 msgid "Show a menu to easily access installed applications"
 msgstr "Mostra un menu per accedere facilmente alle applicazioni installate"
+
+#~ msgid "● Customized"
+#~ msgstr "● Personalizzato"
+
+#~ msgid "Show item _metadata"
+#~ msgstr "Mostra _metadati elementi"
 
 #~ msgid "translator-credits"
 #~ msgstr "attribuzione traduzioni"
