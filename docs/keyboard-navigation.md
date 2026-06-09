@@ -48,14 +48,24 @@ simply stays put.
 
 ## Moving within an area
 
-- **Results / Sidebar** — `↑` / `↓` move the selection; `Home` / `End`
-  jump to the ends. The sidebar wraps and also takes `←` / `→` when it is
-  laid out horizontally. Exactly one item is highlighted at a time, whether
-  you move by keyboard or by mouse — the highlight follows you and never
-  leaves a trail.
+- **Results** — `↑` / `↓` move the selection; `Home` / `End` jump to the
+  ends. Exactly one item is highlighted at a time, whether you move by
+  keyboard or by mouse — the highlight follows you and never leaves a trail.
+- **Sidebar** — the arrow keys along the sidebar move through the categories
+  one per press and **keep focus in the sidebar** the whole time, wrapping
+  around at the ends; `Home` / `End` jump to the first / last category. The
+  along-axis keys are `↑` / `↓` for a vertical sidebar and `←` / `→` for a
+  horizontal one. Selecting a category with the **mouse** instead hands focus
+  to the search box so you can start typing right away.
 - **Sidebar ↔ Results** — the arrow pointing toward the results leaves the
   sidebar, and the opposite arrow returns (only while not searching).
 - **Session buttons** — `←` / `→` move between buttons; `Enter` activates.
+
+How arrowing through categories affects the results depends on the
+**“Switch categories by hovering”** sidebar setting. With it **on**, the highlighted
+category opens live as you arrow, so the results preview each one. With it
+**off**, arrowing only moves the highlight and the results stay put until you
+press `Enter` (or `Space`) to confirm the highlighted category.
 
 ## The `Esc` ladder
 

@@ -58,6 +58,17 @@ public:
 
 	void reload_icon_size();
 
+	/* suppress_hover_until_motion:
+	 *
+	 * Inhibit pointer-hover auto-activation for every category button until the
+	 * next genuine pointer motion. Called by the window keyboard handler when a
+	 * keyboard-driven category navigation occurs so a stationary pointer resting
+	 * over the sidebar cannot re-activate a hovered button and steal focus back.
+	 * Process-wide (one shared latch across all buttons); re-armed on the first
+	 * motion-notify over any category button.
+	 */
+	static void suppress_hover_until_motion();
+
 private:
 	Settings* const m_settings;
 	GtkRadioButton* m_button;
