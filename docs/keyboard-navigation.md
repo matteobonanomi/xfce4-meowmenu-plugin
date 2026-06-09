@@ -37,8 +37,11 @@ results, ready to arrow. When Places is disabled, `Tab` does nothing.
 ## Moving between areas
 
 `Ctrl+Tab` moves focus through the areas in order — Search → Results →
-Sidebar → Session buttons — and `Ctrl+Shift+Tab` goes back. Hidden areas
-are skipped, and the sidebar is skipped while you are searching.
+Sidebar → Session buttons — wrapping around at the end, and `Ctrl+Shift+Tab`
+goes back. Any area that is currently hidden, empty, or otherwise cannot take
+focus is skipped, so a press always lands on a usable area; the sidebar is
+skipped while you are searching. When only one area can take focus, `Ctrl+Tab`
+simply stays put.
 
 > Some desktops bind `Ctrl+Tab` globally; where they do, the menu never
 > receives it and area cycling is unavailable.
@@ -47,7 +50,9 @@ are skipped, and the sidebar is skipped while you are searching.
 
 - **Results / Sidebar** — `↑` / `↓` move the selection; `Home` / `End`
   jump to the ends. The sidebar wraps and also takes `←` / `→` when it is
-  laid out horizontally.
+  laid out horizontally. Exactly one item is highlighted at a time, whether
+  you move by keyboard or by mouse — the highlight follows you and never
+  leaves a trail.
 - **Sidebar ↔ Results** — the arrow pointing toward the results leaves the
   sidebar, and the opposite arrow returns (only while not searching).
 - **Session buttons** — `←` / `→` move between buttons; `Enter` activates.

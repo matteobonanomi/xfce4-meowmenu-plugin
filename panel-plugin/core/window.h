@@ -128,10 +128,14 @@ private:
 	 * Maps a logical Zone to the concrete widget that should receive
 	 * focus on entry per data-model §"Entry widget mapping" and calls
 	 * gtk_widget_grab_focus on it. If the natural entry widget is not
-	 * realized/visible the call is a no-op and the previously focused
-	 * widget keeps focus.
+	 * realized/visible/sensitive/focusable the call is a no-op and the
+	 * previously focused widget keeps focus.
+	 *
+	 * Returns: true iff the grab actually landed (the target was
+	 * focusable and took focus). The forward Ctrl+Tab loop uses this to
+	 * advance past a zone whose grab silently fails (FR-010).
 	 */
-	void grab_focus_in_zone(Keyboard::Zone zone);
+	bool grab_focus_in_zone(Keyboard::Zone zone);
 
 	/* current_zone:
 	 *
