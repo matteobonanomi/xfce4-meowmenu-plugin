@@ -89,6 +89,11 @@ protected:
 		connect(view, "leave-notify-event",
 			[this](GtkWidget*, GdkEvent*) -> gboolean
 			{
+				// NOTE: clears the hover-owned highlight so no row stays
+				// highlighted once the pointer leaves the list (FR-004). The
+				// selection is the only painted highlight (pointer prelight is
+				// neutralised in the plugin CSS), so unselecting here leaves
+				// zero highlights from hover.
 				clear_selection();
 				return GDK_EVENT_PROPAGATE;
 			});
@@ -113,6 +118,19 @@ protected:
 	GtkTreeModel* m_model = nullptr;
 
 private:
+	/* select_path_at_pos:
+	 * @x: pointer x in widget coordinates.
+	 * @y: pointer y in widget coordinates.
+	 *
+	 * Makes the row under a *moving* pointer the single selection (the sole
+	 * painted highlight). When the pointer is over no row the selection is
+	 * cleared. When it is already over the selected row this early-returns,
+	 * which is safe because the hover path always calls set_cursor() AND
+	 * select_path() together: cursor and selection therefore stay coincident,
+	 * so a subsequent arrow press moves relative to the hovered row rather than
+	 * jumping back to a stale keyboard position (FR-003, FR-005). Called only
+	 * from motion/scroll, so a motionless pointer never re-selects (FR-005).
+	 */
 	void select_path_at_pos(int x, int y)
 	{
 		GtkTreePath* path = get_path_at_pos(x, y);
@@ -122,6 +140,9 @@ private:
 		}
 		else if (!is_path_selected(path))
 		{
+			// Keep cursor == selection: set_cursor moves the GTK cursor
+			// without selecting, select_path then makes that same row the
+			// single selection.
 			set_cursor(path);
 			select_path(path);
 		}

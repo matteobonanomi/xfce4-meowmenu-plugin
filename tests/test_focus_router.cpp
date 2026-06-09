@@ -185,6 +185,54 @@ void all_optional_zones_hidden()
 	    Zone::Results);
 }
 
+void profile_unfocusable_skipped()
+{
+	// US3 / contracts/focus-cycle.md: when the Profile zone's only command
+	// button is visible but NOT focusable, current_visibility_mask() now
+	// reports profile=false (the focusability-aware availability gate). At
+	// this pure layer that is simply mask.profile == false, and the cycle must
+	// skip Profile instead of treating it as a dead-end stop.
+	//
+	// NOTE: the focusability *decision* lives in current_visibility_mask()
+	// (GTK-widget-coupled, verified manually per quickstart). next_zone is
+	// authoritative over the resulting mask and already skips an unavailable
+	// zone, so this case documents and locks that contract.
+	VisibilityMask mask;
+	mask.profile = false;
+
+	// Browsing, from Results: Profile unavailable but Sidebar is active, so
+	// the next focusable zone is Sidebar.
+	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
+	    Zone::Sidebar);
+
+	// Searching (Sidebar inert) + Profile unavailable: Forward from Results
+	// finds no later active zone and wraps to Search.
+	EQZ(next_zone(mask, MenuState::Searching, Zone::Results, Direction::Forward),
+	    Zone::Search);
+
+	// From Sidebar with Profile unavailable, Forward wraps past the absent
+	// Profile back to Search.
+	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Forward),
+	    Zone::Search);
+}
+
+void single_available_zone_noop()
+{
+	// FR-011 / C3: when exactly one zone can receive focus, Ctrl+Tab is a
+	// harmless no-op — next_zone returns `current`. Fabricate a single-zone
+	// mask (only Search active) to exercise the no-op path directly. In the
+	// live menu Search and Results are never both hidden (FR-030); this is the
+	// pure-layer guarantee the runtime grab-retry loop relies on.
+	VisibilityMask mask;
+	mask.results = false;
+	mask.sidebar = false;
+	mask.profile = false;
+	EQZ(next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Forward),
+	    Zone::Search);
+	EQZ(next_zone(mask, MenuState::Searching, Zone::Search, Direction::Forward),
+	    Zone::Search);
+}
+
 void tab_action_rule()
 {
 	// FR-006: Tab toggles the mode when Places is available and is inert
@@ -220,6 +268,8 @@ int main()
 	ltr_and_rtl_equivalence();
 	three_tabs_visit_every_visible();
 	all_optional_zones_hidden();
+	profile_unfocusable_skipped();
+	single_available_zone_noop();
 	tab_action_rule();
 	zone_active_basic();
 

@@ -1539,19 +1539,29 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 	// contributes nothing focusable. The zone is therefore gated on
 	// commands_position != "hidden" with at least one visible command, which
 	// already keeps focus off both hidden commands and a hidden profile (FR-005).
-	bool any_command_visible = false;
+	//
+	// NOTE: availability must also require gtk_widget_get_can_focus, matching
+	// grab_focus_in_zone()'s own target predicate. A command button can be
+	// visible yet non-focusable; reporting such a Profile zone "available"
+	// would let next_zone() route Ctrl+Tab to it, the grab would silently fail,
+	// and forward cycling would stall in Results (the US3 defect). Tying
+	// availability to focusability keeps the abstract mask consistent with what
+	// the grab can actually land (FR-010).
+	bool any_command_focusable = false;
 	if (g_strcmp0(commands_pos, "hidden") != 0)
 	{
 		for (int i = 0; i < 9; ++i)
 		{
-			if (m_commands_button[i] && gtk_widget_get_visible(m_commands_button[i]))
+			if (m_commands_button[i]
+					&& gtk_widget_get_visible(m_commands_button[i])
+					&& gtk_widget_get_can_focus(m_commands_button[i]))
 			{
-				any_command_visible = true;
+				any_command_focusable = true;
 				break;
 			}
 		}
 	}
-	mask.profile = any_command_visible;
+	mask.profile = any_command_focusable;
 
 	return mask;
 }
@@ -1568,7 +1578,7 @@ Keyboard::MenuState WhiskerMenu::Window::current_menu_state() const
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
+bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 {
 	GtkWidget* target = nullptr;
 	Page* results_page = nullptr;
@@ -1621,7 +1631,15 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 		break;
 	}
 
-	if (target && gtk_widget_get_visible(target) && gtk_widget_get_sensitive(target))
+	// A grab can only land on a target that is visible, sensitive and
+	// focusable; mirror that predicate and report the outcome so the forward
+	// Ctrl+Tab loop can advance past a zone whose grab would silently fail
+	// (FR-010). gtk_widget_is_focus() confirms the target became the toplevel's
+	// focus widget rather than assuming the grab took effect.
+	if (target
+			&& gtk_widget_get_visible(target)
+			&& gtk_widget_get_sensitive(target)
+			&& gtk_widget_get_can_focus(target))
 	{
 		gtk_widget_grab_focus(target);
 		if (results_page)
@@ -1636,7 +1654,9 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 				gtk_tree_path_free(sel);
 			}
 		}
+		return gtk_widget_is_focus(target);
 	}
+	return false;
 }
 
 //-----------------------------------------------------------------------------
@@ -1729,14 +1749,46 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 						? Keyboard::Direction::Backward
 						: Keyboard::Direction::Forward;
 			const Keyboard::Zone here = current_zone();
-			const Keyboard::Zone next = Keyboard::next_zone(
-					current_visibility_mask(),
-					current_menu_state(),
-					here,
-					dir);
-			if (next != here)
+			const Keyboard::VisibilityMask mask = current_visibility_mask();
+			const Keyboard::MenuState state = current_menu_state();
+
+			if (dir == Keyboard::Direction::Forward)
 			{
-				grab_focus_in_zone(next);
+				// Forward cycling is self-correcting. Advance to the next
+				// candidate zone; if its grab does not actually land (a region
+				// the mask reported available is currently unfocusable), keep
+				// advancing. Walk at most once around CANONICAL_CYCLE: if the
+				// search wraps back to `here` (or stops making progress) no
+				// other zone can take focus, so the press is a harmless no-op
+				// and focus stays put (FR-010, FR-011). With the focusability-
+				// aware mask the first grab normally lands; this loop is the
+				// defensive guarantee against any residual widget-state drift.
+				Keyboard::Zone candidate = here;
+				for (std::size_t step = 0; step < Keyboard::CANONICAL_CYCLE.size(); ++step)
+				{
+					const Keyboard::Zone next =
+							Keyboard::next_zone(mask, state, candidate, dir);
+					if (next == here || next == candidate)
+					{
+						break; // wrapped around / no progress → no-op
+					}
+					if (grab_focus_in_zone(next))
+					{
+						break; // grab landed on a focusable zone
+					}
+					candidate = next; // dead zone; try the one after it
+				}
+			}
+			else
+			{
+				// Reverse cycling (Ctrl+Shift+Tab) is out of scope and left
+				// behaviorally unchanged: a single step with no grab-retry.
+				const Keyboard::Zone next =
+						Keyboard::next_zone(mask, state, here, dir);
+				if (next != here)
+				{
+					grab_focus_in_zone(next);
+				}
 			}
 			return GDK_EVENT_STOP;
 		}
@@ -1904,6 +1956,12 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		break;
 
 	// Make up and down keys scroll current list of applications from search
+	//
+	// NOTE: arrow navigation drives only the GTK cursor and single selection;
+	// there is no separate "highlight" state. GTK moves the cursor on Up/Down
+	// and the single-selection follows it, so the selection is the sole
+	// highlight driver for keyboard navigation (FR-002). With pointer prelight
+	// neutralised in the plugin CSS, exactly one row is ever painted.
 	case GDK_KEY_Up:
 	case GDK_KEY_KP_Up:
 	case GDK_KEY_Down:
@@ -1927,7 +1985,11 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		{
 			gtk_widget_grab_focus(view);
 		}
-		// Only select first item if there is no selected item
+		// Only select first item if there is no selected item. This anchors a
+		// single valid selection on first arrow entry; combined with the model
+		// rebuild + select_first() on every query change (SearchPage::set_filter)
+		// it guarantees the highlight resets to one valid row or none, with no
+		// stale carry-over from the prior result set (FR-006).
 		if ((gtk_window_get_focus(m_window) == view) && reset)
 		{
 			m_places_active ? m_places->select_first() : page->select_first();
@@ -2145,6 +2207,21 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu flowboxchild,"
 		".meowmenu list,"
 		".meowmenu row"
+		"{ background-color: transparent; background-image: none; }"
+		// HACK: enforce the single-highlight invariant. The result lists carry
+		// two independent visual highlights — the plugin's GTK single selection
+		// AND GTK's own pointer-driven row prelight (:hover /
+		// GTK_CELL_RENDERER_PRELIT). A theme that paints both leaves a trail of
+		// highlighted rows under keyboard and mouse navigation. Neutralise
+		// prelight on the .launchers tree/icon views so the GTK selection stays
+		// the ONLY painted highlight. :selected styling is preserved via
+		// :not(:selected), and the .meow-focus-ring focus outline below is
+		// untouched. These rules are plugin-scoped (class .launchers), not
+		// theme-scoped, so the invariant holds identically across every preset
+		// and theme (FR-008).
+		".meowmenu .launchers:hover:not(:selected),"
+		".meowmenu .launchers cell:hover:not(:selected),"
+		".meowmenu .launchers row:hover:not(:selected)"
 		"{ background-color: transparent; background-image: none; }"
 		// Sidebar/categories region plus the chrome strips (search, title,
 		// commands bars) share one absolute alpha so the menu frame stays
