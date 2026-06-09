@@ -18,6 +18,8 @@
 #ifndef MEOWMENU_CORE_WINDOW_SIZE_CLAMP_H
 #define MEOWMENU_CORE_WINDOW_SIZE_CLAMP_H
 
+#include <gdk/gdk.h>
+
 namespace meow
 {
 
@@ -38,6 +40,24 @@ namespace meow
 void clamp_default_size(int desired_w, int desired_h,
                         int workarea_w, int workarea_h,
                         int* out_w, int* out_h);
+
+/* centered_origin:
+ * @monitor: the target monitor in absolute root-window coordinates (full
+ *   monitor geometry, struts included — NOT the work area). Its x/y origin
+ *   may be non-zero on a multi-monitor layout.
+ * @win_w / @win_h: the intended window size in logical pixels.
+ * @out_x / @out_y: receive the top-left at which the window must be placed so
+ *   its geometric centre coincides with the monitor centre; never NULL.
+ *
+ * Pure geometry. @win_w/@win_h are first clamped to the monitor so a window
+ * larger than the screen can never overflow it, then the top-left is computed
+ * as monitor.origin + (monitor.size - clamped_size)/2. The result is therefore
+ * always fully on-monitor and centred, and depends only on the size and the
+ * monitor — never on any previous position — so repeated calls across a resize
+ * keep the centre fixed (no drift).
+ */
+void centered_origin(const GdkRectangle& monitor, int win_w, int win_h,
+                     int* out_x, int* out_y);
 
 } // namespace meow
 

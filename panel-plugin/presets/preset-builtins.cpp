@@ -100,8 +100,8 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)            },
 			{ "panel-gap",            PresetValue::from_int(8)             },
-			{ "categories-opacity",   PresetValue::from_int(80)            },
-			{ "apps-opacity",         PresetValue::from_int(70)            },
+			{ "categories-opacity",   PresetValue::from_int(100)           },
+			{ "apps-opacity",         PresetValue::from_int(100)           },
 			{ "sidebar-position",     PresetValue::from_str("left")        },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)         },
 			{ "category-show-name",   PresetValue::from_bool(true)         },
@@ -139,6 +139,12 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "panel-gap",            PresetValue::from_int(0)              },
 			{ "categories-opacity",   PresetValue::from_int(100)            },
 			{ "apps-opacity",         PresetValue::from_int(100)            },
+			// NOTE: full-screen-opacity is non-governed (omitted from
+			// governed_keys()), so it is carried only on presets that mean to
+			// set the full-screen backdrop. It lives here on the C++ fallback
+			// path so a missing/malformed seed file still yields the 80%
+			// translucent backdrop; the seed file carries the same value.
+			{ "full-screen-opacity",  PresetValue::from_int(80)             },
 			{ "sidebar-position",     PresetValue::from_str("left")         },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
@@ -157,6 +163,47 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
 			{ "places-enabled",       PresetValue::from_bool(true)          },
 			{ "places-show-icons",    PresetValue::from_bool(false)         },
+		})
+	},
+	// PRESET_MINIMAL
+	{
+		"minimal",
+		N_("Minimal"),
+		N_("Minimal"),
+		N_("Compact, distraction-free launcher: a search bar over an app list, with no sidebar, profile, or command buttons."),
+		true,
+		make_values({
+			{ "corner-radius",        PresetValue::from_int(12)             },
+			{ "panel-gap",            PresetValue::from_int(8)              },
+			{ "categories-opacity",   PresetValue::from_int(60)             },
+			{ "apps-opacity",         PresetValue::from_int(60)             },
+			// full-screen-opacity is non-governed and inert outside full-screen
+			// mode; carried so the Minimal entry stays value-complete with the
+			// seed file on this key.
+			{ "full-screen-opacity",  PresetValue::from_int(100)            },
+			{ "sidebar-position",     PresetValue::from_str("left")         },
+			{ "sidebar-enabled",      PresetValue::from_bool(false)         },
+			{ "category-show-name",   PresetValue::from_bool(true)          },
+			{ "position-categories-horizontal", PresetValue::from_bool(false) },
+			{ "search-bar-position",  PresetValue::from_str("top")          },
+			{ "profile-position",     PresetValue::from_str("hidden")       },
+			{ "commands-position",    PresetValue::from_str("hidden")       },
+			{ "grid-density",         PresetValue::from_str("medium")       },
+			{ "layout-mode",          PresetValue::from_str("centered")     },
+			{ "launcher-icon-size",   PresetValue::from_int(3)              }, // Normal
+			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
+			{ "view-mode-default",    PresetValue::from_str("list")         },
+			{ "hover-switch-category",PresetValue::from_bool(true)          },
+			{ "unified-bar",          PresetValue::from_bool(false)         },
+			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
+			// menu-height is non-governed: a switch to a sidebar-ful preset that
+			// omits it leaves the user's size intact. Minimal carries a compact
+			// 306-px window explicitly so the search-first layout is short.
+			{ "menu-width",           PresetValue::from_int(450)            },
+			{ "menu-height",          PresetValue::from_int(306)            },
+			{ "default-category",     PresetValue::from_str("recent")       },
+			{ "places-enabled",       PresetValue::from_bool(true)          },
+			{ "places-show-icons",    PresetValue::from_bool(true)          },
 		})
 	},
 };
