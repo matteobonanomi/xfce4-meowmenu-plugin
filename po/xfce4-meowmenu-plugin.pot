@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 22:54+0200\n"
+"POT-Creation-Date: 2026-06-09 10:45+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -398,15 +398,19 @@ msgstr ""
 msgid "Full Screen"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:897
+#: panel-plugin/settings-dialog.cpp:803
+msgid "Minimal"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:898
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:899
+#: panel-plugin/settings-dialog.cpp:900
 msgid "This option requires the FullScreen layout."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:901
+#: panel-plugin/settings-dialog.cpp:902
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."

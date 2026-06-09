@@ -7,6 +7,12 @@ MEOW MENU DEVELOPMENT
 - Preset: "Reset to defaults" now reliably clears all settings (favourites, recent, custom search actions) while preserving saved custom presets
 - Preset: import accepts files with unknown keys or a newer schema version instead of rejecting them
 - Preset: rename updates the dropdown label immediately without a dialog reopen
+- Layout: add "Centered" mode — menu opens anchored to the geometric centre of the panel-button's monitor; re-centres continuously during interactive resize
+- Layout: in Full-Screen mode, panel gap and corner radius are now greyed out, consistent with width and height (previously only width/height were disabled)
+- Layout: in Centered mode, panel gap is greyed out (not applicable to a floating window); width, height and corner radius remain configurable
+- Preset: new "Minimal" built-in — a compact, distraction-free launcher: a centred window with a search bar over an app list and lightly translucent surfaces (60%), and no sidebar, profile, or command buttons
+- Preset: Modern now ships with fully opaque surfaces (categories and app list both at 100%)
+- Preset: Full Screen now uses an 80% translucent backdrop instead of a fully opaque one
 
 0.6.2 (2026-06-08)
 =====

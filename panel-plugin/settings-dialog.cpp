@@ -800,6 +800,7 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 		append_preset_row(m_preset_model, "classic",    _("Classic"),     true);
 		append_preset_row(m_preset_model, "modern",     _("Modern"),      true);
 		append_preset_row(m_preset_model, "fullscreen", _("Full Screen"), true);
+		append_preset_row(m_preset_model, "minimal",    _("Minimal"),     true);
 	}
 
 	// Then saved customs (uuid order), standard weight.
