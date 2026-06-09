@@ -184,6 +184,31 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
  */
 bool meow_category_label_visible(bool category_show_name, bool horizontal);
 
+// Where the embedded Apps/Places switch is anchored relative to the command
+// buttons in the standard (non-unified) search-bar row. Direction-relative:
+// "before" is the leading side (left in LTR, right in RTL), so RTL is handled
+// by GTK packing without a value here.
+enum class EmbeddedSwitchSlot
+{
+	BeforeCommands,   // switch sits before (leading of) a present command box
+	Trailing          // no command box shares the row → switch is trailing-most
+};
+
+/* meow_embedded_switch_slot:
+ * @commands_in_row: true when the command box currently shares the embedded
+ *   search-bar row; false when no commands are present in that row.
+ *
+ * Decides where the embedded Apps/Places switch is anchored in the standard
+ * (non-unified) search-bar row. The switch is always to the left of (before)
+ * the command buttons in LTR, so the commands stay the trailing-most element;
+ * when no commands share the row the switch itself becomes the trailing
+ * element. Pure: no GTK, no globals, no I/O. Does not apply to the unified
+ * centring cluster (the switch trails the entry there — a separate code path).
+ *
+ * Returns: BeforeCommands when commands share the row, Trailing otherwise.
+ */
+EmbeddedSwitchSlot meow_embedded_switch_slot(bool commands_in_row);
+
 } // namespace WhiskerMenu
 
 #endif // MEOWMENU_CORE_SIDEBAR_LAYOUT_H
