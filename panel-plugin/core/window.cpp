@@ -2180,7 +2180,31 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu entry:focus-visible,"
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
-		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }",
+		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }"
+		// NOTE: the Apps/Places switch is rendered as one rounded segmented
+		// control. The outer corners use a large constant radius (9999px) that
+		// CSS clamps to half the control height in any theme, so the group reads
+		// as a full pill matching the search field's rounded ends. The radius is
+		// a fixed styling rule on purpose: it is NOT read from the active theme at
+		// runtime and is NOT bound to the /corner-radius menu setting, so the
+		// switch keeps its pill shape regardless of the window corner radius. The
+		// two buttons abut (m_mode_selector_box is built with zero spacing) and
+		// share a single 1px seam line carried by the first button's inner edge —
+		// never two abutting borders, never a gap. :dir(ltr)/:dir(rtl) mirror the
+		// rounded ends and the seam for RTL with no C++ special-casing. No rule
+		// here changes padding, margin, min-size, hit area, the theme-owned
+		// hover/pressed/active fills, or the .meow-focus-ring focus outline.
+		".meowmenu .places-mode-selector button { border-radius: 0; }"
+		".meowmenu .places-mode-selector button:dir(ltr):first-child"
+		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px;"
+		"  border-right: 1px solid alpha(@theme_fg_color, 0.2); }"
+		".meowmenu .places-mode-selector button:dir(ltr):last-child"
+		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px; }"
+		".meowmenu .places-mode-selector button:dir(rtl):first-child"
+		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px;"
+		"  border-left: 1px solid alpha(@theme_fg_color, 0.2); }"
+		".meowmenu .places-mode-selector button:dir(rtl):last-child"
+		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px; }",
 		red, green, blue, alphas.window,
 		red, green, blue, alphas.categories,
 		red, green, blue, alphas.apps);
@@ -2864,14 +2888,19 @@ void WhiskerMenu::Window::update_layout()
 			}
 			else if (pres.switch_location == SwitchLocation::InSearchBar)
 			{
-				// Plain (non-unified) search row: insert the switch directly before
-				// the command buttons, not at the very trailing edge, so the
-				// commands stay rightmost and the search entry shrinks to make room
-				// (FR-019). When no commands share the row, the switch becomes the
-				// trailing element.
+				// Plain (non-unified) search row: the embedded switch is anchored
+				// before the command buttons (the leading side), not at the very
+				// trailing edge, so the commands stay rightmost and the search entry
+				// shrinks to make room (FR-019). When no commands share the row the
+				// switch becomes the trailing element. The leading placement is the
+				// single source of truth in meow_embedded_switch_slot() and is pinned
+				// by a regression test; do not inline the ordering decision here.
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				GtkWidget* cmd = GTK_WIDGET(m_commands_box);
-				if (gtk_widget_get_parent(cmd) == target)
+				const bool commands_box_is_in_search_box =
+						(gtk_widget_get_parent(cmd) == target);
+				if (meow_embedded_switch_slot(commands_box_is_in_search_box)
+						== EmbeddedSwitchSlot::BeforeCommands)
 				{
 					GList* kids = gtk_container_get_children(GTK_CONTAINER(target));
 					gtk_box_reorder_child(GTK_BOX(target), sw,
