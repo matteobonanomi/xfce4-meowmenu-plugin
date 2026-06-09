@@ -141,6 +141,33 @@ static TestPresetDef make_fullscreen()
 	};
 }
 
+static TestPresetDef make_minimal()
+{
+	return {
+		"minimal",
+		{
+			{ "corner-radius",         PV::from_int(12)       },
+			{ "panel-gap",             PV::from_int(8)        },
+			{ "categories-opacity",    PV::from_int(60)       },
+			{ "apps-opacity",          PV::from_int(60)       },
+			{ "sidebar-position",      PV::from_str("left")   },
+			{ "position-categories-horizontal", PV::from_bool(false) },
+			{ "search-bar-position",   PV::from_str("top")    },
+			{ "profile-position",      PV::from_str("hidden") },
+			{ "commands-position",     PV::from_str("hidden") },
+			{ "grid-density",          PV::from_str("medium") },
+			{ "layout-mode",           PV::from_str("centered") },
+			{ "launcher-icon-size",    PV::from_int(3)        },
+			{ "hover-switch-category", PV::from_bool(true)    },
+			{ "view-mode-default",     PV::from_str("list")   },
+			{ "default-category",      PV::from_str("recent") },
+			{ "stay-on-focus-out",     PV::from_bool(false)   },
+			{ "menu-width",            PV::from_int(450)      },
+			{ "menu-height",           PV::from_int(306)      },
+		}
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Minimal settings shadow — mirrors the fields that apply_preset touches.
 // ---------------------------------------------------------------------------
@@ -450,7 +477,7 @@ struct UserPresetShadow
 // Built-in preset display names, mirroring BUILTIN_PRESETS[]. Name conflicts in
 // the real save_current_as_user_preset()/rename_user_preset() are tested against
 // these too, case-insensitively (g_ascii_strcasecmp).
-static const char* SHADOW_BUILTIN_NAMES[] = { "Classic", "Modern", "Full Screen", nullptr };
+static const char* SHADOW_BUILTIN_NAMES[] = { "Classic", "Modern", "Full Screen", "Minimal", nullptr };
 
 // Case-insensitive name match, mirroring g_ascii_strcasecmp() in the real impl.
 // NOTE: the real conflict check is case-INSENSITIVE; do not assume exact-case.
@@ -887,6 +914,56 @@ static void test_parity_fullscreen_cpp_vs_file()
 	assert(s_cpp.default_category        == s_file.default_category);
 }
 
+static TestPresetDef make_minimal_from_file_equivalent()
+{
+	// Mirrors data/presets/minimal.meowpreset exactly.
+	return {
+		"minimal",
+		{
+			{ "layout-mode",          PV::from_str("centered")  },
+			{ "corner-radius",        PV::from_int(12)          },
+			{ "panel-gap",            PV::from_int(8)           },
+			{ "menu-width",           PV::from_int(450)         },
+			{ "menu-height",          PV::from_int(306)         },
+			{ "launcher-icon-size",   PV::from_int(3)           },
+			{ "view-mode-default",    PV::from_str("list")      },
+			{ "grid-density",         PV::from_str("medium")    },
+			{ "sidebar-position",     PV::from_str("left")      },
+			{ "search-bar-position",  PV::from_str("top")       },
+			{ "profile-position",     PV::from_str("hidden")    },
+			{ "commands-position",    PV::from_str("hidden")    },
+			{ "categories-opacity",   PV::from_int(60)          },
+			{ "apps-opacity",         PV::from_int(60)          },
+			{ "hover-switch-category",PV::from_bool(true)       },
+			{ "stay-on-focus-out",    PV::from_bool(false)      },
+			{ "default-category",     PV::from_str("recent")    },
+		}
+	};
+}
+
+static void test_parity_minimal_cpp_vs_file()
+{
+	auto cpp  = make_minimal();
+	auto file = make_minimal_from_file_equivalent();
+	SettingsShadow s_cpp, s_file;
+	apply_preset_shadow(cpp,  s_cpp);
+	apply_preset_shadow(file, s_file);
+
+	assert(s_cpp.corner_radius           == s_file.corner_radius);
+	assert(s_cpp.panel_gap               == s_file.panel_gap);
+	assert(s_cpp.apps_opacity            == s_file.apps_opacity);
+	assert(s_cpp.categories_opacity      == s_file.categories_opacity);
+	assert(s_cpp.sidebar_position        == s_file.sidebar_position);
+	assert(s_cpp.profile_position        == s_file.profile_position);
+	assert(s_cpp.commands_position       == s_file.commands_position);
+	assert(s_cpp.layout_mode             == s_file.layout_mode);
+	assert(s_cpp.view_mode               == s_file.view_mode);
+	assert(s_cpp.menu_width              == s_file.menu_width);
+	assert(s_cpp.menu_height             == s_file.menu_height);
+	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
+	assert(s_cpp.default_category        == s_file.default_category);
+}
+
 // ---------------------------------------------------------------------------
 // T008: GOVERNED_KEYS completeness + file↔table agreement for all built-ins.
 //
@@ -914,15 +991,16 @@ static GKeyFile* load_meowpreset(const char* fname)
 	return kf;
 }
 
-// FR-014 / SC-005: Centered is opt-in only. No built-in preset may emit
-// layout-mode == "centered" — applying any built-in must never silently move a
-// user into Centered. classic→docked, modern→docked, fullscreen→fullscreen.
-static void test_no_builtin_emits_centered()
+// Built-in layout-mode is fixed per preset: classic→docked, modern→docked,
+// fullscreen→fullscreen, minimal→centered. Selecting a built-in deterministically
+// sets its documented mode (Minimal is the search-first centered launcher).
+static void test_builtin_layout_modes()
 {
 	struct { const char* id; const char* mode; } expected[] = {
 		{ "classic",    "docked"     },
 		{ "modern",     "docked"     },
 		{ "fullscreen", "fullscreen" },
+		{ "minimal",    "centered"   },
 	};
 	for (const auto& e : expected)
 	{
@@ -931,7 +1009,6 @@ static void test_no_builtin_emits_centered()
 		auto it = p->values.find("layout-mode");
 		assert(it != p->values.end());
 		assert(it->second.kind == WhiskerMenu::PresetValue::Str);
-		assert(it->second.s != "centered");
 		assert(it->second.s == e.mode);
 	}
 }
@@ -952,7 +1029,7 @@ static void test_governed_keys_completeness_table()
 static void test_governed_keys_completeness_files()
 {
 	const auto& keys = WhiskerMenu::governed_keys();
-	const char* files[] = { "classic.meowpreset", "modern.meowpreset", "fullscreen.meowpreset" };
+	const char* files[] = { "classic.meowpreset", "modern.meowpreset", "fullscreen.meowpreset", "minimal.meowpreset" };
 	for (const char* f : files)
 	{
 		GKeyFile* kf = load_meowpreset(f);
@@ -970,6 +1047,7 @@ static void test_file_table_agreement()
 		{ "classic",    "classic.meowpreset"    },
 		{ "modern",     "modern.meowpreset"     },
 		{ "fullscreen", "fullscreen.meowpreset" },
+		{ "minimal",    "minimal.meowpreset"    },
 	};
 	const auto& keys = WhiskerMenu::governed_keys();
 	for (const auto& pr : pairs)
@@ -1041,8 +1119,9 @@ int main()
 	test_parity_classic_cpp_vs_file();
 	test_parity_modern_cpp_vs_file();
 	test_parity_fullscreen_cpp_vs_file();
+	test_parity_minimal_cpp_vs_file();
 	// T008: real-table governed-key completeness + file↔table agreement
-	test_no_builtin_emits_centered();
+	test_builtin_layout_modes();
 	test_governed_keys_completeness_table();
 	test_governed_keys_completeness_files();
 	test_file_table_agreement();

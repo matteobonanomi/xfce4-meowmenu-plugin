@@ -241,13 +241,14 @@ A preset is a snapshot of all visual and layout settings saved as a plain
 corner radius, icon style, sidebar position, and more — without touching
 individual options.
 
-Three built-in presets ship with MeowMenu:
+Four built-in presets ship with MeowMenu:
 
 | Preset          | Description                                                                                                     |
 | -----------------| -----------------------------------------------------------------------------------------------------------------|
 | **Classic**     | Traditional Whisker Menu look. Compact docked window, apps as a list, sidebar on the right, no rounded corners. |
-| **Modern**      | Contemporary layout (rounded corners, opacity, change category by hovering, etc). Places search enabled.        |
-| **Full Screen** | Launcher fills the entire screen. Ideal for touch or keyboard-first workflows. Places search enabled.           |
+| **Modern**      | Contemporary layout (rounded corners, fully opaque surfaces, change category by hovering, etc). Places search enabled. |
+| **Full Screen** | Launcher fills the entire screen over an 80% translucent backdrop. Ideal for touch or keyboard-first workflows. Places search enabled. |
+| **Minimal**     | Compact, distraction-free launcher: a centred window with a search bar over an app list and lightly translucent surfaces; no sidebar, profile, or command buttons. |
 
 Drop any `.meowpreset` file into `~/.local/share/meowmenu/presets/` to make
 it appear in **Properties → General → Preset** after a panel restart. A file
