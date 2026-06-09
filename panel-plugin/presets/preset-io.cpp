@@ -200,12 +200,14 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 		return result;
 	}
 
-	// Step 3: required keys
-	if (!g_key_file_has_key(kf, "Preset", "Name", nullptr) ||
-		!g_key_file_has_key(kf, "Preset", "SchemaVersion", nullptr))
+	// Step 3: required keys. FR-018: only the preset identity (Name) is required.
+	// SchemaVersion is advisory — a missing version is assumed current and a newer
+	// version is accepted best-effort; neither is grounds for rejection. Per-key
+	// validation in Step 5 still drops any value that does not fit the schema.
+	if (!g_key_file_has_key(kf, "Preset", "Name", nullptr))
 	{
 		result.status = ImportStatus::MissingKey;
-		result.error_message = "Missing required key in [Preset] (Name or SchemaVersion)";
+		result.error_message = "Missing required key [Preset].Name";
 		g_key_file_free(kf);
 		return result;
 	}
@@ -391,29 +393,34 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 		return false;
 	}
 
-	if (!g_key_file_has_key(kf, "Preset", "Name", nullptr) ||
-		!g_key_file_has_key(kf, "Preset", "SchemaVersion", nullptr))
+	if (!g_key_file_has_key(kf, "Preset", "Name", nullptr))
 	{
-		g_debug("meowmenu: preset file '%s': missing Name or SchemaVersion", path.c_str());
+		g_debug("meowmenu: preset file '%s': missing Name", path.c_str());
 		g_key_file_free(kf);
 		return false;
 	}
 
-	GError* verr = nullptr;
-	int schema_ver = g_key_file_get_integer(kf, "Preset", "SchemaVersion", &verr);
-	if (verr || schema_ver < 1)
+	// FR-018: SchemaVersion is advisory for seeded files. A missing version is
+	// assumed current and a newer version is accepted best-effort, so a future
+	// package shipping a newer built-in preset file is not silently dropped. The
+	// per-key validation below still discards any value that does not fit the
+	// known schema, so leniency tolerates shape differences without admitting
+	// corrupt values.
+	if (g_key_file_has_key(kf, "Preset", "SchemaVersion", nullptr))
 	{
-		g_debug("meowmenu: preset file '%s': invalid SchemaVersion", path.c_str());
-		if (verr) g_error_free(verr);
-		g_key_file_free(kf);
-		return false;
-	}
-	if (schema_ver > 1)
-	{
-		g_message("meowmenu: preset file '%s' requires schema version %d (we know 1); skipping — upgrade meowmenu",
-			path.c_str(), schema_ver);
-		g_key_file_free(kf);
-		return false;
+		GError* verr = nullptr;
+		int schema_ver = g_key_file_get_integer(kf, "Preset", "SchemaVersion", &verr);
+		if (verr)
+		{
+			g_debug("meowmenu: preset file '%s': non-integer SchemaVersion, assuming current",
+				path.c_str());
+			g_error_free(verr);
+		}
+		else if (schema_ver > 1)
+		{
+			g_debug("meowmenu: preset file '%s': newer SchemaVersion %d accepted best-effort",
+				path.c_str(), schema_ver);
+		}
 	}
 
 	gchar* name_raw = g_key_file_get_string(kf, "Preset", "Name", nullptr);

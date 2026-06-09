@@ -182,6 +182,10 @@ private:
 	void category_toggled();
 	void center_window();
 	void move_window();
+	// True when /layout-mode resolves to Centered. Drives the centred
+	// placement, panel-gap suppression and continuous re-centre-on-resize
+	// paths; classified defensively so an unknown value behaves as Docked.
+	bool centered_layout() const;
 	bool set_size(int width, int height);
 	void reset_default_button();
 	void show_favorites();
