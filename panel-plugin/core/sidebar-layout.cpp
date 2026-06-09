@@ -120,6 +120,15 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
 	}
 }
 
+EmbeddedSwitchSlot meow_embedded_switch_slot(bool commands_in_row)
+{
+	// When commands share the row the switch is anchored before them so the
+	// commands stay trailing-most; alone, the switch itself is the trailing
+	// element. There is deliberately no slot that follows a present command box.
+	return commands_in_row ? EmbeddedSwitchSlot::BeforeCommands
+	                       : EmbeddedSwitchSlot::Trailing;
+}
+
 bool meow_category_label_visible(bool category_show_name, bool horizontal)
 {
 	// A Top/Bottom strip is icon-only; otherwise the stored intent stands. This
