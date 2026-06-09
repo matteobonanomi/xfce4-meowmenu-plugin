@@ -100,6 +100,35 @@ static void scroller_add_child(GtkScrolledWindow* scroller, GtkWidget* child)
 		gtk_container_add(GTK_CONTAINER(scroller), child);
 }
 
+/* focusable_category_siblings:
+ * @parent: the GtkBox holding a category GtkRadioButton group.
+ *
+ * Collects the visible, sensitive radio-button children in physical box
+ * order. Non-radio children (the mode selector box, separators, the leading
+ * spacer) are skipped, and the mode toggle keeps along-axis navigation inside
+ * the category group. In each mode only the active group's buttons are visible,
+ * so the result already excludes the hidden sibling group (Apps vs Places).
+ *
+ * Returns: heap-allocated GList* of GtkWidget*; the caller frees it with
+ * g_list_free (the nodes point at borrowed widgets — do not free those).
+ */
+static GList* focusable_category_siblings(GtkContainer* parent)
+{
+	GList* out = nullptr;
+	GList* children = gtk_container_get_children(parent);
+	for (GList* li = children; li; li = li->next)
+	{
+		GtkWidget* w = GTK_WIDGET(li->data);
+		if (!GTK_IS_RADIO_BUTTON(w))
+			continue;
+		if (!gtk_widget_get_visible(w) || !gtk_widget_get_sensitive(w))
+			continue;
+		out = g_list_append(out, w);
+	}
+	g_list_free(children);
+	return out;
+}
+
 } // namespace
 
 namespace WhiskerMenu
@@ -178,6 +207,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_places_fav_btn(nullptr),
 	m_places_active(false),
 	m_mode_switch_in_progress(false),
+	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
@@ -530,6 +560,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		m_places_fav_btn->join_group(m_places_history_btn);
 	}
 
+	// The three Places section toggles mirror the Applications handlers: pointer
+	// selection hands focus to the search entry so the user can type, but a
+	// keyboard-driven activation (m_keyboard_category_nav set) keeps focus on the
+	// active section button so arrow navigation can continue (FR-003; C1/C2).
 	connect(m_places_home_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
 		{
@@ -537,7 +571,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				return;
 			m_places->set_active_section(m_places->get_home_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			if (!m_keyboard_category_nav)
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
 	connect(m_places_history_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
@@ -546,7 +581,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				return;
 			m_places->set_active_section(m_places->get_history_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			if (!m_keyboard_category_nav)
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
 	connect(m_places_fav_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
@@ -555,7 +591,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				return;
 			m_places->set_active_section(m_places->get_favourites_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			if (!m_keyboard_category_nav)
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
 
 	// Mode selector: two toggle buttons forming a manual radio group.
@@ -1701,6 +1738,31 @@ Keyboard::Zone WhiskerMenu::Window::current_zone() const
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
+{
+	// Keyboard origin: raise the guard so the category `toggled` handlers keep
+	// focus on the sidebar button instead of handing off to the search entry,
+	// and suppress pointer-hover auto-activation until the next real motion so a
+	// stationary pointer resting over the sidebar cannot steal focus back.
+	m_keyboard_category_nav = true;
+	CategoryButton::suppress_hover_until_motion();
+
+	gtk_widget_grab_focus(target);
+
+	// Activation model derived solely from the existing hover-activation setting
+	// (no new preference): hover ON → activate now so results follow the
+	// highlight live; hover OFF → move highlight only and leave the committed
+	// category untouched until the user presses Enter/Space.
+	if (m_settings->category_hover_activate)
+	{
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(target), true);
+	}
+
+	m_keyboard_category_nav = false;
+}
+
+//-----------------------------------------------------------------------------
+
 gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey* key_event)
 {
 	// Type-to-search catch-all (FR-010, FR-012, FR-013, FR-015). This
@@ -1919,8 +1981,88 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 				|| (outward == GDK_KEY_Right && kv == GDK_KEY_KP_Right);
 		if (match_outward)
 		{
+			// FR-007 / C4.1: the outward arrow enters the results of the
+			// COMMITTED category. Along-axis navigation never auto-commits in
+			// hover-OFF mode, so `view` (resolved from get_active_page above)
+			// already points at the committed category's view — no implicit
+			// commit of a highlighted-but-uncommitted category happens here.
 			gtk_widget_grab_focus(view);
 			return GDK_EVENT_STOP;
+		}
+
+		// Along-axis category navigation (FR-001/002/009). Centralized here so
+		// the event is consumed BEFORE GTK's default radio-group key navigation,
+		// which would otherwise both move focus AND auto-activate the next radio
+		// — the activation that previously ejected focus to the search entry.
+		// The along-axis arrows are perpendicular to the outward arrow computed
+		// above: vertical sidebar → Up/Down, horizontal sidebar → Left/Right.
+		GtkWidget* sidebar_focused = gtk_window_get_focus(m_window);
+		GtkWidget* parent = sidebar_focused ? gtk_widget_get_parent(sidebar_focused) : nullptr;
+		if (parent && GTK_IS_RADIO_BUTTON(sidebar_focused))
+		{
+			const bool vertical = !GTK_IS_ORIENTABLE(parent)
+					|| gtk_orientable_get_orientation(GTK_ORIENTABLE(parent))
+							== GTK_ORIENTATION_VERTICAL;
+			const bool is_prev = vertical
+					? (kv == GDK_KEY_Up || kv == GDK_KEY_KP_Up)
+					: (kv == GDK_KEY_Left || kv == GDK_KEY_KP_Left);
+			const bool is_next = vertical
+					? (kv == GDK_KEY_Down || kv == GDK_KEY_KP_Down)
+					: (kv == GDK_KEY_Right || kv == GDK_KEY_KP_Right);
+			const bool is_home = (kv == GDK_KEY_Home || kv == GDK_KEY_KP_Home);
+			const bool is_end  = (kv == GDK_KEY_End  || kv == GDK_KEY_KP_End);
+
+			if (is_prev || is_next || is_home || is_end)
+			{
+				GList* siblings = focusable_category_siblings(GTK_CONTAINER(parent));
+				if (siblings)
+				{
+					GList* self = g_list_find(siblings, sidebar_focused);
+					GtkWidget* target = nullptr;
+					if (is_home)
+					{
+						target = GTK_WIDGET(siblings->data);
+					}
+					else if (is_end)
+					{
+						target = GTK_WIDGET(g_list_last(siblings)->data);
+					}
+					else if (self && is_next)
+					{
+						// Wrap past the last sibling back to the first.
+						target = GTK_WIDGET(self->next ? self->next->data : siblings->data);
+					}
+					else if (self && is_prev)
+					{
+						// Wrap before the first sibling round to the last.
+						target = GTK_WIDGET(self->prev ? self->prev->data
+								: g_list_last(siblings)->data);
+					}
+					g_list_free(siblings);
+
+					if (target && target != sidebar_focused)
+					{
+						keyboard_navigate_category(target);
+					}
+					// Single navigable category (or already at the Home/End
+					// target): a harmless no-op that keeps focus in the sidebar
+					// rather than falling through to the default chain (SC-002).
+					return GDK_EVENT_STOP;
+				}
+			}
+
+			// Enter/Space commits the highlighted category while keeping focus in
+			// the sidebar (FR-008b). In hover-ON the target is already active, so
+			// this is a no-op activation; in hover-OFF it is the explicit commit
+			// that updates the results. Consumed under the guard either way.
+			if (kv == GDK_KEY_Return || kv == GDK_KEY_KP_Enter
+					|| kv == GDK_KEY_space || kv == GDK_KEY_KP_Space)
+			{
+				m_keyboard_category_nav = true;
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(sidebar_focused), true);
+				m_keyboard_category_nav = false;
+				return GDK_EVENT_STOP;
+			}
 		}
 	}
 

@@ -105,6 +105,21 @@ private:
 	gboolean on_key_press_event(GtkWidget* widget, GdkEventKey* key_event);
 	gboolean on_key_press_event_after(GtkWidget* widget, GdkEventKey* key_event);
 
+	/* keyboard_navigate_category:
+	 * @target: the category radio button to move keyboard focus to (already
+	 *          confirmed visible/sensitive/focusable; must not be NULL).
+	 *
+	 * Performs a keyboard-origin category focus move under the
+	 * m_keyboard_category_nav guard so the `toggled` handlers keep focus in the
+	 * sidebar instead of handing off to the search entry. When the
+	 * hover-activation setting is on the target is also activated so results
+	 * update live; when it is off only focus/highlight moves and the committed
+	 * category is left untouched until Enter/Space. Hover auto-activation is
+	 * suppressed until the next genuine pointer motion so a stationary pointer
+	 * cannot eject keyboard focus.
+	 */
+	void keyboard_navigate_category(GtkWidget* target);
+
 	/* current_visibility_mask:
 	 *
 	 * Folds the live layout flags and per-zone "hidden" positions into a
@@ -287,6 +302,13 @@ private:
 	CategoryButton* m_places_fav_btn;
 	bool m_places_active;
 	bool m_mode_switch_in_progress;
+	// Transient keyboard-origin guard for sidebar category activation. Set true
+	// only for the span of a keyboard-driven category focus move / activation so
+	// the category `toggled` handlers can tell keyboard navigation (keep focus in
+	// the sidebar) from pointer selection (hand off to the search entry). Never
+	// persisted and never observable across events; cleared immediately after the
+	// activation completes. Mirrors the m_mode_switch_in_progress idiom above.
+	bool m_keyboard_category_nav;
 	gulong m_places_property_slot;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
