@@ -31,7 +31,7 @@ same for the currently selected preset.
 
 Changes you make after selecting a preset are not saved back into a built-in
 preset. To keep a customised layout, save it as a custom preset (see below); the
-three built-ins are never modified.
+built-in presets are never modified.
 
 ## Built-in presets
 
@@ -47,19 +47,31 @@ labels.
 
 ![Modern preset](assets/images/preset-modern.png)
 
-Contemporary layout with rounded corners, opacity, hover-to-switch-category,
-and Places search enabled. The Apps/Places switch uses icon buttons.
+Contemporary layout with rounded corners, fully opaque surfaces (both the
+categories and the app list at 100%), hover-to-switch-category, and Places
+search enabled. The Apps/Places switch uses icon buttons.
 
 ### Full Screen
 
 <!-- preset-fullscreen.png not yet available -->
 
-Launcher fills the entire screen. Ideal for touch or keyboard-first
-workflows. Places search enabled. The Apps/Places switch uses text labels.
+Launcher fills the entire screen over an 80% translucent backdrop. Ideal for
+touch or keyboard-first workflows. Places search enabled. The Apps/Places switch
+uses text labels.
+
+### Minimal
+
+<!-- preset-minimal.png not yet available -->
+
+A compact, distraction-free launcher: a search bar over an app list, with no
+sidebar, no profile area, and no command buttons. Opens centred on screen in a
+short window with lightly translucent surfaces (60%), Places enabled with icons,
+opening on the Recent category. Switch to any other built-in to bring the
+sidebar, profile, and commands back.
 
 Each preset sets its own default for the Apps/Places **Show icons** option
-(Modern on; Classic and Full Screen off). Switching presets updates the
-default, but your own later changes to the option always win.
+(Modern and Minimal on; Classic and Full Screen off). Switching presets updates
+the default, but your own later changes to the option always win.
 
 ## The Unsaved custom state
 
@@ -75,7 +87,7 @@ preset. The field is never blank — it always reads either a preset name or
 
 The preset dropdown distinguishes the three kinds of entry by their styling:
 
-- **Built-in** presets (Classic, Modern, Full Screen) are shown in **bold**.
+- **Built-in** presets (Classic, Modern, Full Screen, Minimal) are shown in **bold**.
 - **Saved custom** presets are shown in regular weight.
 - The transient **Unsaved custom** entry is shown in *italic*.
 
