@@ -30,7 +30,19 @@ void WhiskerMenu::Window::resize(int delta_x, int delta_y, int delta_width, int 
 		check_scrollbar_needed();
 	}
 
-	if (delta_x || delta_y)
+	if (centered_layout())
+	{
+		// Centered re-centres continuously: the position is recomputed from the
+		// new size on each motion event instead of being translated by the
+		// drag delta, so the geometric centre stays fixed (no drift, SC-003).
+		// The delta_x/delta_y edge translation is intentionally ignored.
+		// NOTE: if a given compositor shows jitter here, recentring only in
+		// resize_end() (on drag release) is an acceptable fallback — the final
+		// resting position is still centred.
+		center_window();
+		move_window();
+	}
+	else if (delta_x || delta_y)
 	{
 		m_geometry.x += delta_x;
 		m_geometry.y += delta_y;
@@ -50,15 +62,22 @@ void WhiskerMenu::Window::resize_start()
 
 void WhiskerMenu::Window::resize_end()
 {
-	// Store new size (never persist fullscreen dimensions as the normal menu size)
+	// Store new size (never persist fullscreen dimensions as the normal menu
+	// size). Centered is windowed, so it reuses the exact Docked persistence
+	// path — the resized width/height are saved to /menu-width and /menu-height.
 	if (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
 	{
 		m_settings->menu_width = m_geometry.width;
 		m_settings->menu_height = m_geometry.height;
 	}
 
-	// Move window back to panel button or center of screen
-	if (m_position == PositionAtButton)
+	// Move window back to panel button or center of screen. Centered always
+	// settles at the monitor centre regardless of the launch trigger.
+	if (centered_layout())
+	{
+		center_window();
+	}
+	else if (m_position == PositionAtButton)
 	{
 		m_plugin->get_menu_position(&m_geometry.x, &m_geometry.y);
 	}

@@ -1,4 +1,19 @@
 MEOW MENU DEVELOPMENT
+0.6.3 (2026-06-09)
+=====
+- Preset: "Save as new…" now adds the new preset to the dropdown immediately without a dialog reopen
+- Preset: active-preset field shows "Unsaved custom" while settings diverge from the applied preset; snaps back when they match again
+- Preset: built-in presets appear bold in the dropdown, saved customs normal, "Unsaved custom" italic
+- Preset: "Reset to defaults" now reliably clears all settings (favourites, recent, custom search actions) while preserving saved custom presets
+- Preset: import accepts files with unknown keys or a newer schema version instead of rejecting them
+- Preset: rename updates the dropdown label immediately without a dialog reopen
+- Layout: add "Centered" mode — menu opens anchored to the geometric centre of the panel-button's monitor; re-centres continuously during interactive resize
+- Layout: in Full-Screen mode, panel gap and corner radius are now greyed out, consistent with width and height (previously only width/height were disabled)
+- Layout: in Centered mode, panel gap is greyed out (not applicable to a floating window); width, height and corner radius remain configurable
+- Preset: new "Minimal" built-in — a compact, distraction-free launcher
+- Preset: Modern now ships with fully opaque surfaces
+- Preset: Full Screen now uses an 80% translucent backdrop
+
 0.6.2 (2026-06-08)
 =====
 - Fixed: setting Profile Position or Commands Position to "Hidden" now actually hides the avatar/username or session buttons in the menu (was stored but never applied).

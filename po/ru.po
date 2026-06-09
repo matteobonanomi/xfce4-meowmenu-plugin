@@ -22,7 +22,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-04 17:15+0200\n"
+"POT-Creation-Date: 2026-06-08 22:54+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Владимир <vladi105@yandex.ru>, 2018\n"
 "Language-Team: MeowMenu ru <mbonanomi.dev@proton.me>\n"
@@ -36,7 +36,7 @@ msgstr ""
 
 #: panel-plugin/launcher/applications-page.cpp:35
 #: panel-plugin/launcher/category.cpp:52
-#: panel-plugin/ui/properties/sidebar.cpp:285
+#: panel-plugin/ui/properties/sidebar.cpp:289
 msgid "All Applications"
 msgstr "Все приложения"
 
@@ -60,20 +60,20 @@ msgstr "Обзор файловой системы для выбора спец�
 msgid "Select Command"
 msgstr "Выбор команды"
 
-#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:215
-#: panel-plugin/settings-dialog.cpp:388
-#: panel-plugin/ui/properties/general.cpp:127
-#: panel-plugin/ui/properties/general.cpp:183
-#: panel-plugin/ui/properties/general.cpp:273
-#: panel-plugin/ui/properties/general.cpp:309
-#: panel-plugin/ui/properties/general.cpp:343
-#: panel-plugin/ui/properties/general.cpp:357
+#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
+#: panel-plugin/settings-dialog.cpp:394
+#: panel-plugin/ui/properties/general.cpp:140
+#: panel-plugin/ui/properties/general.cpp:199
+#: panel-plugin/ui/properties/general.cpp:293
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:363
+#: panel-plugin/ui/properties/general.cpp:377
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "О_тмена"
 
-#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:216
-#: panel-plugin/settings-dialog.cpp:389
+#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:222
+#: panel-plugin/settings-dialog.cpp:395
 msgid "_OK"
 msgstr "_ОК"
 
@@ -83,7 +83,7 @@ msgid "Failed to execute command \"%s\"."
 msgstr "Ошибка выполнения команды «%s»."
 
 #: panel-plugin/launcher/favorites-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:276
+#: panel-plugin/ui/properties/sidebar.cpp:280
 msgid "Favorites"
 msgstr "Избранное"
 
@@ -215,31 +215,40 @@ msgstr "Невозможно изменить значок запуска."
 msgid "%s (missing)"
 msgstr ""
 
-#: panel-plugin/places/places-item.cpp:177
-#, c-format
-msgid "Unable to open \"%s\"."
-msgstr "Не удаётся открыть «%s»."
-
-#: panel-plugin/places/places-item.cpp:301
+#: panel-plugin/places/places-item.cpp:360
 msgid "Unable to add desktop link."
 msgstr "Не удаётся добавить ярлык на рабочий стол."
+
+#: panel-plugin/places/places-item.cpp:400
+#, fuzzy
+msgid "the selected item"
+msgstr "Удалить выбранное действие"
+
+#: panel-plugin/places/places-item.cpp:405
+msgid "the location could not be opened"
+msgstr ""
+
+#: panel-plugin/places/places-item.cpp:407
+#, fuzzy, c-format
+msgid "Unable to open \"%s\": %s"
+msgstr "Не удаётся открыть «%s»."
 
 #: panel-plugin/places/places-page.cpp:64
 msgid "No items to show."
 msgstr "Нет элементов для отображения."
 
-#: panel-plugin/places/places-page.cpp:436
+#: panel-plugin/places/places-page.cpp:441
 msgid "_Open"
 msgstr "_Открыть"
 
 #. Left enabled for missing favourites (not gated on exists()) so a
 #. stale favourite can always be removed even though "Open" above is
 #. greyed — this is the greyed-out-favourite behaviour from 005.
-#: panel-plugin/places/places-page.cpp:459
+#: panel-plugin/places/places-page.cpp:466
 msgid "Remove from Favourites"
 msgstr "Удалить из избранного"
 
-#: panel-plugin/places/places-page.cpp:470
+#: panel-plugin/places/places-page.cpp:477
 msgid "Add to Favourites"
 msgstr "Добавить в избранное"
 
@@ -247,50 +256,50 @@ msgstr "Добавить в избранное"
 #. enabled even when the target is missing so a renamed file can be located
 #. from its parent folder. PlacesItem::open_containing() fails silently (no
 #. dialog) when the parent is also gone.
-#: panel-plugin/places/places-page.cpp:485
+#: panel-plugin/places/places-page.cpp:492
 msgid "Open Containing Folder"
 msgstr "Открыть содержащую папку"
 
-#: panel-plugin/places/places-page.cpp:495
+#: panel-plugin/places/places-page.cpp:503
 msgid "Copy Path"
 msgstr "Копировать путь"
 
-#: panel-plugin/places/places-page.cpp:502
+#: panel-plugin/places/places-page.cpp:510
 msgid "Open in Terminal"
 msgstr "Открыть в терминале"
 
-#: panel-plugin/places/places-page.cpp:514
+#: panel-plugin/places/places-page.cpp:523
 msgid "Open With…"
 msgstr "Открыть с помощью…"
 
-#: panel-plugin/places/places-page.cpp:519
+#: panel-plugin/places/places-page.cpp:528
 msgid "Add Desktop Link"
 msgstr "Добавить ярлык на рабочий стол"
 
-#: panel-plugin/core/plugin.cpp:447
+#: panel-plugin/core/plugin.cpp:456
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:453 panel-plugin/core/plugin.cpp:552
+#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
 msgid "What's New"
 msgstr "Что нового"
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/core/plugin.cpp:465
 msgid "Close"
 msgstr "Закрыть"
 
-#: panel-plugin/core/plugin.cpp:544
+#: panel-plugin/core/plugin.cpp:553
 msgid "Alternate launcher for XFCE4"
 msgstr "Альтернативный запускатель для XFCE4"
 
-#: panel-plugin/core/plugin.cpp:550
+#: panel-plugin/core/plugin.cpp:559
 msgid "Based on Whisker Menu"
 msgstr "Основан на Whisker Menu"
 
 #: panel-plugin/launcher/recent-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:280
+#: panel-plugin/ui/properties/sidebar.cpp:284
 msgid "Recently Used"
 msgstr "Недавние"
 
@@ -349,324 +358,328 @@ msgstr ""
 msgid "Sidebar"
 msgstr "Боковая панель"
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:558
-#: panel-plugin/core/window.cpp:2197
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
+#: panel-plugin/core/window.cpp:2595
 msgid "Places"
 msgstr "Места"
 
-#: panel-plugin/settings-dialog.cpp:210 panel-plugin/settings-dialog.cpp:212
+#: panel-plugin/settings-dialog.cpp:216 panel-plugin/settings-dialog.cpp:218
 msgid "Select an Icon"
 msgstr "Выбрать значок"
 
-#: panel-plugin/settings-dialog.cpp:309
-#: panel-plugin/ui/properties/general.cpp:221
-#: panel-plugin/ui/properties/general.cpp:236
+#: panel-plugin/settings-dialog.cpp:315
+#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:252
 msgid "_Delete"
 msgstr "_Удалить"
 
-#: panel-plugin/settings-dialog.cpp:310
+#: panel-plugin/settings-dialog.cpp:316
 msgid "The action will be deleted permanently."
 msgstr "Действие буден навсегда удалено."
 
-#: panel-plugin/settings-dialog.cpp:311
+#: panel-plugin/settings-dialog.cpp:317
 #, c-format
 msgid "Remove action \"%s\"?"
 msgstr "Удалить действие «%s»?"
 
-#: panel-plugin/settings-dialog.cpp:385
+#: panel-plugin/settings-dialog.cpp:391
 #, fuzzy
 msgid "Edit search action"
 msgstr "Поисковое действие"
 
-#: panel-plugin/settings-dialog.cpp:400
+#: panel-plugin/settings-dialog.cpp:406
 msgid "Nam_e:"
 msgstr "_Название:"
 
-#: panel-plugin/settings-dialog.cpp:410
+#: panel-plugin/settings-dialog.cpp:416
 msgid "_Pattern:"
 msgstr "_Шаблон:"
 
-#: panel-plugin/settings-dialog.cpp:420
+#: panel-plugin/settings-dialog.cpp:426
 msgid "C_ommand:"
 msgstr "_Команда:"
 
-#: panel-plugin/settings-dialog.cpp:430
+#: panel-plugin/settings-dialog.cpp:436
 #, fuzzy
 msgid "Is _regular expression"
 msgstr "_Регулярное выражение"
 
-#: panel-plugin/settings-dialog.cpp:474
+#: panel-plugin/settings-dialog.cpp:480
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr "Невозможно открыть ссылку: %s"
 
+#: panel-plugin/settings-dialog.cpp:566
+msgid "Unsaved custom"
+msgstr ""
+
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:687
+#: panel-plugin/settings-dialog.cpp:800
 msgid "Classic"
 msgstr "Классический"
 
-#: panel-plugin/settings-dialog.cpp:688
+#: panel-plugin/settings-dialog.cpp:801
 msgid "Modern"
 msgstr "Современный"
 
-#: panel-plugin/settings-dialog.cpp:689
+#: panel-plugin/settings-dialog.cpp:802
 #, fuzzy
 msgid "Full Screen"
 msgstr "Заб_локировать экран"
 
-#: panel-plugin/settings-dialog.cpp:791
+#: panel-plugin/settings-dialog.cpp:897
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:793
+#: panel-plugin/settings-dialog.cpp:899
 msgid "This option requires the FullScreen layout."
 msgstr "Этот параметр требует полноэкранного макета."
 
-#: panel-plugin/settings-dialog.cpp:795
+#: panel-plugin/settings-dialog.cpp:901
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:68
+#: panel-plugin/ui/properties/general.cpp:69
 msgid "Preset"
 msgstr "Предустановка"
 
-#: panel-plugin/ui/properties/general.cpp:71
+#: panel-plugin/ui/properties/general.cpp:72
 msgid "_Preset:"
 msgstr "_Предустановка:"
 
-#: panel-plugin/ui/properties/general.cpp:86
-msgid "● Customized"
-msgstr "● Настроено"
-
-#: panel-plugin/ui/properties/general.cpp:96
+#: panel-plugin/ui/properties/general.cpp:109
 #, fuzzy
 msgid "_Reset preset"
 msgstr "_Перезагрузить"
 
-#: panel-plugin/ui/properties/general.cpp:107
-#: panel-plugin/ui/properties/general.cpp:416
+#: panel-plugin/ui/properties/general.cpp:120
+#: panel-plugin/ui/properties/general.cpp:447
 #, fuzzy
 msgid "_Reset"
 msgstr "_Перезагрузить"
 
-#: panel-plugin/ui/properties/general.cpp:108
+#: panel-plugin/ui/properties/general.cpp:121
 msgid "All customizations will be discarded and the preset values restored."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:109
+#: panel-plugin/ui/properties/general.cpp:122
 #, c-format
 msgid "Reset preset \"%s\"?"
 msgstr "Сбросить предустановку «%s»?"
 
-#: panel-plugin/ui/properties/general.cpp:118
+#: panel-plugin/ui/properties/general.cpp:131
 msgid "_Save as new…"
 msgstr "_Сохранить как новую…"
 
-#: panel-plugin/ui/properties/general.cpp:124
+#: panel-plugin/ui/properties/general.cpp:137
 msgid "Save as new preset"
 msgstr "Сохранить как новую предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:128
+#: panel-plugin/ui/properties/general.cpp:141
 msgid "_Save"
 msgstr "_Сохранить"
 
-#: panel-plugin/ui/properties/general.cpp:137
-#: panel-plugin/ui/properties/general.cpp:193
-#: panel-plugin/ui/properties/general.cpp:365
+#: panel-plugin/ui/properties/general.cpp:150
+#: panel-plugin/ui/properties/general.cpp:209
+#: panel-plugin/ui/properties/general.cpp:385
 #, fuzzy
 msgid "_Name:"
 msgstr "Название"
 
-#: panel-plugin/ui/properties/general.cpp:153
-#: panel-plugin/ui/properties/general.cpp:210
+#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:226
 msgid "A preset with that name already exists or the name is empty."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:154
+#: panel-plugin/ui/properties/general.cpp:167
 msgid "Could not save preset"
 msgstr "Не удалось сохранить предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:166
+#: panel-plugin/ui/properties/general.cpp:182
 msgid "Re_name…"
 msgstr "Пере_именовать…"
 
-#: panel-plugin/ui/properties/general.cpp:180
+#: panel-plugin/ui/properties/general.cpp:196
 msgid "Rename preset"
 msgstr "Переименовать предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:184
+#: panel-plugin/ui/properties/general.cpp:200
 msgid "_Rename"
 msgstr "Пере_именовать"
 
-#: panel-plugin/ui/properties/general.cpp:211
+#: panel-plugin/ui/properties/general.cpp:227
 msgid "Could not rename preset"
 msgstr "Не удалось переименовать предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:237
+#: panel-plugin/ui/properties/general.cpp:253
 #, fuzzy
 msgid "This preset will be permanently removed."
 msgstr "Действие буден навсегда удалено."
 
-#: panel-plugin/ui/properties/general.cpp:238
+#: panel-plugin/ui/properties/general.cpp:254
 #, c-format
 msgid "Delete preset \"%s\"?"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:255
+#: panel-plugin/ui/properties/general.cpp:275
 msgid "E_xport…"
 msgstr "Э_кспортировать…"
 
-#: panel-plugin/ui/properties/general.cpp:270
+#: panel-plugin/ui/properties/general.cpp:290
 msgid "Export preset"
 msgstr "Экспортировать предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:273
+#: panel-plugin/ui/properties/general.cpp:293
 msgid "_Export"
 msgstr "Э_кспортировать"
 
-#: panel-plugin/ui/properties/general.cpp:279
-#: panel-plugin/ui/properties/general.cpp:312
+#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:332
 msgid "MeowMenu preset (*.meowpreset)"
 msgstr "Предустановка MeowMenu (*.meowpreset)"
 
-#: panel-plugin/ui/properties/general.cpp:291
+#: panel-plugin/ui/properties/general.cpp:311
 msgid "Could not export preset."
 msgstr "Не удалось экспортировать предустановку."
 
-#: panel-plugin/ui/properties/general.cpp:299
+#: panel-plugin/ui/properties/general.cpp:319
 msgid "_Import…"
 msgstr "_Импортировать…"
 
-#: panel-plugin/ui/properties/general.cpp:306
+#: panel-plugin/ui/properties/general.cpp:326
 msgid "Import preset"
 msgstr "Импортировать предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:309
-#: panel-plugin/ui/properties/general.cpp:358
+#: panel-plugin/ui/properties/general.cpp:329
+#: panel-plugin/ui/properties/general.cpp:378
 msgid "_Import"
 msgstr "_Импортировать"
 
-#: panel-plugin/ui/properties/general.cpp:338
+#: panel-plugin/ui/properties/general.cpp:358
 #, c-format
 msgid "A preset named \"%s\" already exists. What would you like to do?"
 msgstr "Предустановка с именем «%s» уже существует. Что вы хотите сделать?"
 
-#: panel-plugin/ui/properties/general.cpp:341
+#: panel-plugin/ui/properties/general.cpp:361
 msgid "_Overwrite"
 msgstr "_Перезаписать"
 
-#: panel-plugin/ui/properties/general.cpp:342
+#: panel-plugin/ui/properties/general.cpp:362
 msgid "Re_name"
 msgstr "Пере_именовать"
 
-#: panel-plugin/ui/properties/general.cpp:354
+#: panel-plugin/ui/properties/general.cpp:374
 msgid "Rename imported preset"
 msgstr "Переименовать импортированную предустановку"
 
-#: panel-plugin/ui/properties/general.cpp:400
+#: panel-plugin/ui/properties/general.cpp:431
 msgid "Could not import preset"
 msgstr "Не удалось импортировать предустановку"
 
 #. Reset to defaults — full channel reset, kept here as the most logical
 #. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:407
+#: panel-plugin/ui/properties/general.cpp:438
 msgid "Reset to _defaults"
 msgstr "Сбросить до _умолчаний"
 
-#: panel-plugin/ui/properties/general.cpp:417
+#: panel-plugin/ui/properties/general.cpp:448
 msgid ""
 "All settings will be reset to defaults and the Modern preset will be applied."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:418
+#: panel-plugin/ui/properties/general.cpp:449
 msgid "Reset all settings to defaults?"
 msgstr "Сбросить все настройки до значений по умолчанию?"
 
-#: panel-plugin/ui/properties/general.cpp:498
+#: panel-plugin/ui/properties/general.cpp:511
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:520
+#: panel-plugin/ui/properties/general.cpp:533
 #, fuzzy
 msgid "Panel plugin"
 msgstr "Кнопка на панели"
 
 #. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:526
+#: panel-plugin/ui/properties/general.cpp:539
 msgid "Show panel button _title"
 msgstr ""
 
 #. Title entry
-#: panel-plugin/ui/properties/general.cpp:533
+#: panel-plugin/ui/properties/general.cpp:546
 #, fuzzy
 msgid "T_itle:"
 msgstr "За_головок:"
 
 #. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:570
+#: panel-plugin/ui/properties/general.cpp:583
 #, fuzzy
 msgid "Show panel button _icon"
 msgstr "Зна_чками"
 
 #. Icon picker
-#: panel-plugin/ui/properties/general.cpp:577
+#: panel-plugin/ui/properties/general.cpp:590
 msgid "Ic_on:"
 msgstr ""
 
 #. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:614
+#: panel-plugin/ui/properties/general.cpp:627
 #, fuzzy
 msgid "Use a single panel _row"
 msgstr "Использовать _одну строку панели"
 
-#: panel-plugin/ui/properties/general.cpp:638
+#: panel-plugin/ui/properties/general.cpp:651
 msgid "General menu settings"
 msgstr ""
 
 #. Layout mode
-#: panel-plugin/ui/properties/general.cpp:644
+#: panel-plugin/ui/properties/general.cpp:657
 msgid "_Layout mode:"
 msgstr "Режим _макета:"
 
-#: panel-plugin/ui/properties/general.cpp:649
+#: panel-plugin/ui/properties/general.cpp:662
 msgid "Docked"
 msgstr "Прикреплённый"
 
-#: panel-plugin/ui/properties/general.cpp:650
+#: panel-plugin/ui/properties/general.cpp:663
+msgid "Centered"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:664
 msgid "FullScreen"
 msgstr "Полный экран"
 
 #. Panel gap
-#: panel-plugin/ui/properties/general.cpp:679
+#: panel-plugin/ui/properties/general.cpp:701
 msgid "_Panel gap:"
 msgstr "_Отступ панели:"
 
 #. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:703
+#: panel-plugin/ui/properties/general.cpp:725
 msgid "Menu _width:"
 msgstr "Ширина _меню:"
 
 #. Menu height (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:725
+#: panel-plugin/ui/properties/general.cpp:747
 msgid "Menu _height:"
 msgstr "Высота _меню:"
 
 #. Corner radius
-#: panel-plugin/ui/properties/general.cpp:747
+#: panel-plugin/ui/properties/general.cpp:769
 msgid "_Corner radius:"
 msgstr "_Радиус углов:"
 
 #. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:771
+#: panel-plugin/ui/properties/general.cpp:793
 msgid "F_ull-screen opacity:"
 msgstr "_Прозрачность полного экрана:"
 
 #. Stay visible when focus is lost (FR-013: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:795
+#: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr "Оставлять _видимым при потере фокуса"
 
@@ -712,7 +725,7 @@ msgid "Maximum places _items:"
 msgstr "Максимальное количество _элементов мест:"
 
 #: panel-plugin/ui/properties/places.cpp:133
-#: panel-plugin/ui/properties/sidebar.cpp:243
+#: panel-plugin/ui/properties/sidebar.cpp:247
 #, fuzzy
 msgid "Behaviour"
 msgstr "_Поведение"
@@ -720,10 +733,6 @@ msgstr "_Поведение"
 #: panel-plugin/ui/properties/places.cpp:137
 msgid "_Remember last selected mode"
 msgstr "_Запомнить последний выбранный режим"
-
-#: panel-plugin/ui/properties/places.cpp:142
-msgid "Show item _metadata"
-msgstr "Показать _метаданные элемента"
 
 #: panel-plugin/ui/properties/results-view.cpp:62
 msgid "View"
@@ -794,7 +803,7 @@ msgid "App _box opacity:"
 msgstr "Прозрачность _блока приложений:"
 
 #: panel-plugin/ui/properties/search-bar.cpp:58
-#: panel-plugin/ui/properties/sidebar.cpp:173
+#: panel-plugin/ui/properties/sidebar.cpp:177
 msgid "Position"
 msgstr ""
 
@@ -803,15 +812,19 @@ msgstr ""
 msgid "_Search bar position:"
 msgstr "Поисковое действие"
 
+#. NOTE: no "bottom-right" entry — for the profile it renders identically to
+#. "bottom" (there is no horizontal end distinction), so it would be a
+#. duplicate option. A stored "bottom-right" is normalised to "bottom" on
+#. upgrade; "bottom-right" remains a distinct Commands Position value.
 #: panel-plugin/ui/properties/search-bar.cpp:66
-#: panel-plugin/ui/properties/sidebar.cpp:184
-#: panel-plugin/ui/properties/user-session.cpp:68
+#: panel-plugin/ui/properties/sidebar.cpp:188
+#: panel-plugin/ui/properties/user-session.cpp:73
 msgid "Top"
 msgstr "Сверху"
 
 #: panel-plugin/ui/properties/search-bar.cpp:67
-#: panel-plugin/ui/properties/sidebar.cpp:185
-#: panel-plugin/ui/properties/user-session.cpp:69
+#: panel-plugin/ui/properties/sidebar.cpp:189
+#: panel-plugin/ui/properties/user-session.cpp:74
 msgid "Bottom"
 msgstr "Снизу"
 
@@ -931,264 +944,263 @@ msgid "Categ_ory icon size:"
 msgstr "Размер значка _категории:"
 
 #. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
-#: panel-plugin/ui/properties/sidebar.cpp:140
+#: panel-plugin/ui/properties/sidebar.cpp:144
 msgid "_Sidebar opacity:"
 msgstr "Прозрачность _боковой панели:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:177
+#: panel-plugin/ui/properties/sidebar.cpp:181
 msgid "Sidebar _position:"
 msgstr "_Положение боковой панели:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:182
+#: panel-plugin/ui/properties/sidebar.cpp:186
 msgid "Left"
 msgstr "Слева"
 
-#: panel-plugin/ui/properties/sidebar.cpp:183
+#: panel-plugin/ui/properties/sidebar.cpp:187
 msgid "Right"
 msgstr "Справа"
 
-#: panel-plugin/ui/properties/sidebar.cpp:247
+#: panel-plugin/ui/properties/sidebar.cpp:251
 msgid "Switch categories by _hovering"
 msgstr "Переключать категории по наведению _мыши"
 
-#: panel-plugin/ui/properties/sidebar.cpp:260
+#: panel-plugin/ui/properties/sidebar.cpp:264
 msgid "Sort ca_tegories"
 msgstr "Сортировать категории"
 
-#: panel-plugin/ui/properties/sidebar.cpp:273
+#: panel-plugin/ui/properties/sidebar.cpp:277
 #, fuzzy
 msgid "Default category"
 msgstr "Категория по умолчанию"
 
-#: panel-plugin/ui/properties/sidebar.cpp:335
+#: panel-plugin/ui/properties/sidebar.cpp:339
 #, fuzzy
 msgid "Recently used"
 msgstr "Недавние"
 
-#: panel-plugin/ui/properties/sidebar.cpp:339
+#: panel-plugin/ui/properties/sidebar.cpp:343
 #, fuzzy
 msgid "Maximum _items:"
 msgstr "_Количество элементов:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:360
+#: panel-plugin/ui/properties/sidebar.cpp:364
 #, fuzzy
 msgid "Include _favorites in \"Recent\""
 msgstr "Включая _избранное"
 
-#: panel-plugin/ui/properties/user-session.cpp:59
+#: panel-plugin/ui/properties/user-session.cpp:60
 #, fuzzy
 msgid "Profile"
 msgstr "П_рофиль:"
 
 #. Profile position
-#: panel-plugin/ui/properties/user-session.cpp:63
+#: panel-plugin/ui/properties/user-session.cpp:64
 msgid "_Position:"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:70
-#: panel-plugin/ui/properties/user-session.cpp:142
-msgid "Bottom Right"
-msgstr "Справа снизу"
-
-#: panel-plugin/ui/properties/user-session.cpp:71
-#: panel-plugin/ui/properties/user-session.cpp:143
+#: panel-plugin/ui/properties/user-session.cpp:75
+#: panel-plugin/ui/properties/user-session.cpp:147
 msgid "Hidden"
 msgstr "Скрытый"
 
 #. Avatar shape (sub-enabled when profile-position != hidden).
-#: panel-plugin/ui/properties/user-session.cpp:81
+#: panel-plugin/ui/properties/user-session.cpp:85
 msgid "Avatar _shape:"
 msgstr "_Форма аватара:"
 
-#: panel-plugin/ui/properties/user-session.cpp:86
+#: panel-plugin/ui/properties/user-session.cpp:90
 msgid "Round Picture"
 msgstr "Круглое изображение"
 
-#: panel-plugin/ui/properties/user-session.cpp:87
+#: panel-plugin/ui/properties/user-session.cpp:91
 msgid "Square Picture"
 msgstr "Прямоугольное изображение"
 
-#: panel-plugin/ui/properties/user-session.cpp:133
+#: panel-plugin/ui/properties/user-session.cpp:137
 #, fuzzy
 msgid "Commands"
 msgstr "_Команды"
 
-#: panel-plugin/ui/properties/user-session.cpp:136
+#: panel-plugin/ui/properties/user-session.cpp:140
 #, fuzzy
 msgid "_Commands position:"
 msgstr "_Команды"
 
-#: panel-plugin/ui/properties/user-session.cpp:141
+#: panel-plugin/ui/properties/user-session.cpp:145
 msgid "Top Right"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:170
+#: panel-plugin/ui/properties/user-session.cpp:146
+msgid "Bottom Right"
+msgstr "Справа снизу"
+
+#: panel-plugin/ui/properties/user-session.cpp:211
 msgid "Place profile, search and session on a single _line"
 msgstr "Разместить профиль, поиск и сеанс на одной _строке"
 
-#: panel-plugin/ui/properties/user-session.cpp:201
+#: panel-plugin/ui/properties/user-session.cpp:242
 msgid "Show c_onfirmation dialog"
 msgstr "Показывать диалог _подтверждения"
 
-#: panel-plugin/ui/properties/user-session.cpp:216
+#: panel-plugin/ui/properties/user-session.cpp:257
 #, fuzzy
 msgid "Session commands"
 msgstr "Команды выхода"
 
-#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2195
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2593
 msgid "Applications"
 msgstr "Приложения"
 
-#: panel-plugin/settings.cpp:89 panel-plugin/settings.cpp:96
+#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
 msgid "Man Pages"
 msgstr "Man-страницы"
 
-#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
 msgid "Search the Web"
 msgstr "Поиск в Интернете"
 
-#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
+#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
 msgid "Search for Files"
 msgstr "Поиск файлов"
 
-#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
 msgid "Wikipedia"
 msgstr "Википедия"
 
-#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
 msgid "Run in Terminal"
 msgstr "Выполнить в терминале"
 
-#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
+#: panel-plugin/settings.cpp:95 panel-plugin/settings.cpp:102
 msgid "Open URI"
 msgstr "Открыть URI"
 
-#: panel-plugin/settings.cpp:153
+#: panel-plugin/settings.cpp:151
 msgid "_Settings Manager"
 msgstr "Диспетчер _настроек"
 
-#: panel-plugin/settings.cpp:155
+#: panel-plugin/settings.cpp:153
 msgid "Failed to open settings manager."
 msgstr "Не удалось открыть диспетчер настроек."
 
-#: panel-plugin/settings.cpp:158
+#: panel-plugin/settings.cpp:156
 msgid "_Lock Screen"
 msgstr "Заб_локировать экран"
 
-#: panel-plugin/settings.cpp:160
+#: panel-plugin/settings.cpp:158
 msgid "Failed to lock screen."
 msgstr "Не удалось заблокировать экран."
 
-#: panel-plugin/settings.cpp:163
+#: panel-plugin/settings.cpp:161
 msgid "Switch _User"
 msgstr "Сменить _пользователя"
 
-#: panel-plugin/settings.cpp:165
+#: panel-plugin/settings.cpp:163
 msgid "Failed to switch user."
 msgstr "Не удалось сменить пользователя."
 
-#: panel-plugin/settings.cpp:168
+#: panel-plugin/settings.cpp:166
 msgid "Log _Out"
 msgstr "_Выйти"
 
-#: panel-plugin/settings.cpp:170 panel-plugin/settings.cpp:205
+#: panel-plugin/settings.cpp:168 panel-plugin/settings.cpp:203
 msgid "Failed to log out."
 msgstr "Не удалось выйти."
 
-#: panel-plugin/settings.cpp:171
+#: panel-plugin/settings.cpp:169
 msgid "Are you sure you want to log out?"
 msgstr "Действительно выйти?"
 
-#: panel-plugin/settings.cpp:172
+#: panel-plugin/settings.cpp:170
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr "Выход через %d с."
 
-#: panel-plugin/settings.cpp:175
+#: panel-plugin/settings.cpp:173
 msgid "_Restart"
 msgstr "_Перезагрузить"
 
-#: panel-plugin/settings.cpp:177
+#: panel-plugin/settings.cpp:175
 msgid "Failed to restart."
 msgstr "Ошибка при перезагрузке."
 
-#: panel-plugin/settings.cpp:178
+#: panel-plugin/settings.cpp:176
 msgid "Are you sure you want to restart?"
 msgstr "Действительно перезагрузить?"
 
-#: panel-plugin/settings.cpp:179
+#: panel-plugin/settings.cpp:177
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr "Перезагрузка компьютера через %d с"
 
-#: panel-plugin/settings.cpp:182
+#: panel-plugin/settings.cpp:180
 msgid "Shut _Down"
 msgstr "Вы_ключить"
 
-#: panel-plugin/settings.cpp:184
+#: panel-plugin/settings.cpp:182
 msgid "Failed to shut down."
 msgstr "Ошибка при выключении."
 
-#: panel-plugin/settings.cpp:185
+#: panel-plugin/settings.cpp:183
 msgid "Are you sure you want to shut down?"
 msgstr "Действительно выключить?"
 
-#: panel-plugin/settings.cpp:186
+#: panel-plugin/settings.cpp:184
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr "Выключение компьютера через %d с"
 
-#: panel-plugin/settings.cpp:189
+#: panel-plugin/settings.cpp:187
 msgid "Suspe_nd"
 msgstr "О_жидание"
 
-#: panel-plugin/settings.cpp:191
+#: panel-plugin/settings.cpp:189
 msgid "Failed to suspend."
 msgstr "Ошибка при переходе в режим ожидания."
 
-#: panel-plugin/settings.cpp:192
+#: panel-plugin/settings.cpp:190
 msgid "Do you want to suspend to RAM?"
 msgstr "Перейти в режим ожидания используя RAM?"
 
-#: panel-plugin/settings.cpp:193
+#: panel-plugin/settings.cpp:191
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr "Переход в режим ожидания через %d с."
 
-#: panel-plugin/settings.cpp:196
+#: panel-plugin/settings.cpp:194
 msgid "_Hibernate"
 msgstr "Со_н"
 
-#: panel-plugin/settings.cpp:198
+#: panel-plugin/settings.cpp:196
 msgid "Failed to hibernate."
 msgstr "Ошибка перехода в режим сна."
 
-#: panel-plugin/settings.cpp:199
+#: panel-plugin/settings.cpp:197
 msgid "Do you want to suspend to disk?"
 msgstr "Перейти в режим ожидания используя диск?"
 
-#: panel-plugin/settings.cpp:200
+#: panel-plugin/settings.cpp:198
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr "Переход в режим сна через %d с."
 
-#: panel-plugin/settings.cpp:203
+#: panel-plugin/settings.cpp:201
 msgid "Log Ou_t..."
 msgstr "_Выйти"
 
-#: panel-plugin/settings.cpp:208
+#: panel-plugin/settings.cpp:206
 msgid "_Edit Applications"
 msgstr "Изменить п_риложения"
 
-#: panel-plugin/settings.cpp:210
+#: panel-plugin/settings.cpp:208
 msgid "Failed to launch menu editor."
 msgstr "Не удалось запустить редактор меню."
 
-#: panel-plugin/settings.cpp:213
+#: panel-plugin/settings.cpp:211
 msgid "Edit _Profile"
 msgstr "Изменить _профиль"
 
-#: panel-plugin/settings.cpp:215
+#: panel-plugin/settings.cpp:213
 msgid "Failed to edit profile."
 msgstr "Не удалось изменить профиль."
 
@@ -1196,12 +1208,12 @@ msgstr "Не удалось изменить профиль."
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings-defaults.cpp:272
+#: panel-plugin/settings.cpp:412 panel-plugin/settings-defaults.cpp:297
 #, fuzzy
 msgid "Custom"
 msgstr "● Настроено"
 
-#: panel-plugin/core/window.cpp:557 panel-plugin/core/window.cpp:2195
+#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2593
 msgid "Apps"
 msgstr "Приложения"
 
@@ -1236,6 +1248,12 @@ msgstr "Показать сведения о версии и выйти"
 #: panel-plugin/meowmenu.desktop.in:5
 msgid "Show a menu to easily access installed applications"
 msgstr "Показывает меню для простого доступа к установленным приложениям"
+
+#~ msgid "● Customized"
+#~ msgstr "● Настроено"
+
+#~ msgid "Show item _metadata"
+#~ msgstr "Показать _метаданные элемента"
 
 #~ msgid "Alternate application launcher for Xfce"
 #~ msgstr "Альтернативное меню запуска приложений для Xfce"

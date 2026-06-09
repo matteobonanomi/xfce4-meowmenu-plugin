@@ -389,12 +389,20 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		const gchar* path = static_cast<const gchar*>(key_ptr);
 		const GValue* gval = static_cast<const GValue*>(value_ptr);
 
-		// path is like "/presets/<uuid>/<prop>" — need at least 3 segments
-		if (strncmp(path, "/presets/", 9) != 0)
+		// Keys are "<base>/presets/<uuid>/<prop>". A property-base channel
+		// (the live plugin uses one, e.g. base "/plugins/meowmenu-N") makes
+		// xfconf_channel_get_properties() return FULL paths that include the
+		// channel base, not base-relative ones — so anchor on the "/presets/"
+		// segment wherever it occurs rather than assuming it is at the start.
+		// NOTE: this is what made saved user presets never appear in the dropdown
+		// (enumeration silently dropped every key whose path did not begin with
+		// "/presets/"); base-less channels still match at offset 0.
+		const gchar* marker = strstr(path, "/presets/");
+		if (!marker)
 		{
 			continue;
 		}
-		const gchar* uuid_start = path + 9;
+		const gchar* uuid_start = marker + 9; // strlen("/presets/")
 		const gchar* slash = strchr(uuid_start, '/');
 		if (!slash || slash == uuid_start || !*(slash + 1))
 		{
@@ -589,8 +597,13 @@ bool WhiskerMenu::rename_user_preset(const std::string& uuid, const std::string&
 		}
 	}
 
-	std::string path = "/presets/" + uuid + "/display-name";
-	xfconf_channel_set_string(settings.channel, path.c_str(), new_name.c_str());
+	// Update both the legacy display-name label and the stored identity name.
+	// The dropdown and active-preset field surface "name" (falling back to
+	// display-name only for pre-v5 presets), so a rename that touched only
+	// display-name would leave the visible label stale (FR-007).
+	const std::string prefix = "/presets/" + uuid + "/";
+	xfconf_channel_set_string(settings.channel, (prefix + "display-name").c_str(), new_name.c_str());
+	xfconf_channel_set_string(settings.channel, (prefix + "name").c_str(), new_name.c_str());
 	enumerate_user_presets(settings.channel);
 	return true;
 }
@@ -611,4 +624,53 @@ void WhiskerMenu::delete_user_preset(const std::string& uuid, Settings& settings
 	std::string path = "/presets/" + uuid;
 	xfconf_channel_reset_property(settings.channel, path.c_str(), TRUE);
 	enumerate_user_presets(settings.channel);
+}
+
+// ---------------------------------------------------------------------------
+// reset_settings_to_defaults: clear all plugin properties except saved presets.
+// ---------------------------------------------------------------------------
+
+int WhiskerMenu::reset_settings_to_defaults(XfconfChannel* channel,
+	const std::string& property_base)
+{
+	GHashTable* props = xfconf_channel_get_properties(channel, nullptr);
+	if (!props)
+	{
+		return 0;
+	}
+
+	int reset_count = 0;
+	GHashTableIter iter;
+	gpointer key_ptr, value_ptr;
+	g_hash_table_iter_init(&iter, props);
+	while (g_hash_table_iter_next(&iter, &key_ptr, &value_ptr))
+	{
+		(void)value_ptr;
+		const gchar* full_path = static_cast<const gchar*>(key_ptr);
+
+		// get_properties() returns FULL paths that embed the channel's property
+		// base (the live plugin uses one, e.g. "/plugins/meowmenu-N/..."). Strip
+		// it so the path is base-relative, because reset_property() on a based
+		// channel re-prepends the base — passing a full path double-prefixes and
+		// silently no-ops. A base-less channel leaves the path unchanged.
+		std::string rel(full_path);
+		if (!property_base.empty()
+			&& rel.compare(0, property_base.size(), property_base) == 0)
+		{
+			rel.erase(0, property_base.size());
+		}
+
+		// Preserve saved user presets under /presets/<uuid>/; reset everything
+		// else (favourites, recent, custom search actions/aliases, layout keys).
+		if (g_str_has_prefix(rel.c_str(), "/presets"))
+		{
+			continue;
+		}
+
+		xfconf_channel_reset_property(channel, rel.c_str(), FALSE);
+		++reset_count;
+	}
+
+	g_hash_table_unref(props);
+	return reset_count;
 }

@@ -252,6 +252,15 @@ std::string Plugin::get_button_title_default() const
 
 //-----------------------------------------------------------------------------
 
+std::string Plugin::get_property_base() const
+{
+	// Owned by the plugin; not freed here. May be NULL very early in setup.
+	const gchar* base = xfce_panel_plugin_get_property_base(m_plugin);
+	return base ? base : "";
+}
+
+//-----------------------------------------------------------------------------
+
 void Plugin::get_menu_position(int* x, int* y) const
 {
 	xfce_panel_plugin_position_widget(m_plugin, m_window->get_widget(), m_button, x, y);

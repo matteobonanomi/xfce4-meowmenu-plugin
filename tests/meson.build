@@ -50,6 +50,32 @@ test_preset_io = executable(
 
 test('preset_io', test_preset_io)
 
+# test_preset_xfconf: real integration coverage of the Settings-free preset data
+# layer against a live xfconfd (save-refresh read side + schema-lenient seeded
+# import). It links the real preset.cpp / preset-io.cpp / preset-builtins.cpp;
+# the Settings-coupled functions in those units (save/rename/delete/import/export,
+# apply_preset) reach the full Plugin graph, so they are pruned at link time with
+# --gc-sections — only enumerate_user_presets(), find_preset_by_id() and
+# enumerate_preset_files() and their Settings-free dependencies survive. The test
+# skips cleanly (TAP SKIP, exit 0) when xfconfd / dbus-daemon are unavailable.
+test_preset_xfconf_sources = [
+  'test_preset_xfconf.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-io.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+]
+
+test_preset_xfconf = executable(
+  'test_preset_xfconf',
+  test_preset_xfconf_sources,
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gio, xfconf, libxfce4ui],
+)
+
+test('preset_xfconf', test_preset_xfconf, timeout: 60)
+
 # test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
 # coverage gate (T013). preset-builtins.cpp is Settings-free, so it links
 # directly to expose governed_keys()/synced_keys() without a GTK display.
@@ -292,10 +318,46 @@ test_window_size_clamp = executable(
   'test_window_size_clamp',
   test_window_size_clamp_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
+  dependencies: [gtk],
 )
 
 test('window_size_clamp', test_window_size_clamp)
+
+# test_centered_geometry: headless coverage of the pure Centered-mode decision
+# logic — the /layout-mode classifier in core/user-session-layout.cpp and the
+# centred-origin geometry helper in core/window-size-clamp.cpp. GdkRectangle is
+# a plain integer struct, so gtk is linked for the type only; no display.
+test_centered_geometry_sources = [
+  'test_centered_geometry.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+]
+
+test_centered_geometry = executable(
+  'test_centered_geometry',
+  test_centered_geometry_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('centered_geometry', test_centered_geometry)
+
+# test_layout_sensitivity: headless coverage of the pure FR-006 control-
+# sensitivity matrix (control_enabled) in core/user-session-layout.cpp. No
+# display; the helper is GTK-free.
+test_layout_sensitivity_sources = [
+  'test_layout_sensitivity.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+]
+
+test_layout_sensitivity = executable(
+  'test_layout_sensitivity',
+  test_layout_sensitivity_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('layout_sensitivity', test_layout_sensitivity)
 
 # test_window_frame: headless coverage of the pure window-frame helpers in
 # panel-plugin/core/window-frame.cpp (radius clamp [0,24] + the composited

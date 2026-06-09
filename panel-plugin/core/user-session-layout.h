@@ -21,13 +21,56 @@
 namespace WhiskerMenu
 {
 
-// Which window layout governs the Profile/Commands edge coupling. Derived from
-// the /layout-mode key: "docked" → Docked, "fullscreen" → FullScreen.
+// The window layout selected by the /layout-mode key: "docked" → Docked,
+// "centered" → Centered, "fullscreen" → FullScreen. Centered is a windowed
+// layout (like Docked) that floats at the monitor centre; for the Profile/
+// Commands edge coupling it behaves exactly like Docked.
 enum class LayoutMode
 {
 	Docked,
+	Centered,
 	FullScreen
 };
+
+/* layout_mode_from_key:
+ * @value: the raw /layout-mode string. "docked", "centered", "fullscreen" map
+ *         to the matching enum; any other value — including empty or NULL —
+ *         maps to Docked.
+ *
+ * Pure, total classifier over the /layout-mode value domain. This is a
+ * read-time mapping only: an unknown or stale stored value is reported as
+ * Docked but never written back, so a normal read never mutates the user's
+ * configuration.
+ *
+ * Returns: the resolved LayoutMode; never throws, reads no Xfconf.
+ */
+LayoutMode layout_mode_from_key(const char* value);
+
+// The Properties "Layout" controls whose enabled/greyed state depends on the
+// selected layout mode (FR-006 matrix). Width/height/corner-radius are windowed
+// controls; the panel gap only means something flush against a panel edge; the
+// full-screen opacity only applies in full-screen.
+enum class LayoutControl
+{
+	MenuWidth,
+	MenuHeight,
+	PanelGap,
+	CornerRadius,
+	FullScreenOpacity
+};
+
+/* control_enabled:
+ * @control: which Layout-section control is being queried.
+ * @mode:    the active layout mode.
+ *
+ * Pure decision table encoding the FR-006 control-sensitivity matrix. The
+ * single source of truth for which Layout controls are sensitive in each mode;
+ * the Properties dialog calls this per registered widget so the matrix lives in
+ * exactly one place.
+ *
+ * Returns: true if @control should be sensitive (enabled) under @mode.
+ */
+bool control_enabled(LayoutControl control, LayoutMode mode);
 
 // Outcome of resolving a (profile_position, commands_position) pair against the
 // active layout's coupling rule. Holds both the coherent values to render and
