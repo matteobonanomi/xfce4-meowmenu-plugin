@@ -77,11 +77,19 @@ GtkWidget* WhiskerMenu::Window::get_active_category_button()
 
 //-----------------------------------------------------------------------------
 
+// NOTE: the three category toggles below switch the visible panel and then hand
+// keyboard focus to the search entry so a pointer selection lets the user type
+// immediately. A keyboard-driven activation sets m_keyboard_category_nav, in
+// which case the handoff is skipped and focus stays on the active category
+// button so arrow navigation can continue (FR-002/005/006; C1/C2). The guard,
+// and only the guard, distinguishes the keyboard origin from the pointer origin.
+
 void WhiskerMenu::Window::favorites_toggled()
 {
 	m_favorites->reset_selection();
 	gtk_stack_set_visible_child_name(m_panels_stack, "favorites");
-	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	if (!m_keyboard_category_nav)
+		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 }
 
 //-----------------------------------------------------------------------------
@@ -90,7 +98,8 @@ void WhiskerMenu::Window::recent_toggled()
 {
 	m_recent->reset_selection();
 	gtk_stack_set_visible_child_name(m_panels_stack, "recent");
-	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	if (!m_keyboard_category_nav)
+		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 }
 
 //-----------------------------------------------------------------------------
@@ -99,7 +108,8 @@ void WhiskerMenu::Window::category_toggled()
 {
 	m_applications->reset_selection();
 	gtk_stack_set_visible_child_name(m_panels_stack, "applications");
-	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	if (!m_keyboard_category_nav)
+		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 }
 
 //-----------------------------------------------------------------------------
