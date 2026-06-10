@@ -18,7 +18,15 @@
 #   whisker-overlap-check (fedora-44)           [feature 010, FR-021 / FR-025]
 #   whisker-overlap-check (opensuse-leap-15.6)  [feature 010, FR-021]
 #   relationship-declaration-check              [feature 010, FR-022]
+#   arch-pkgbuild-test                          [feature 035, advisory]
 #   attach-artifacts
+#
+# arch-pkgbuild-test (feature 035) is an ADVISORY Arch/AUR-readiness gate: it
+# builds, tests, lints, installs and coexistence-checks the Arch package, but
+# releases NO Arch binary and is NOT a `needs:` of attach-artifacts, so a
+# failure stays a visible red ❌ without blocking .deb/.rpm publication. It must
+# never be added to branch-protection required checks and never uses
+# continue-on-error. The .deb/.rpm artifact contract below is unchanged.
 #
 # Job IDs (used by `needs:`) differ from display names by design — see
 # workflow-jobs.md §2 NOTE on IDs vs names.
@@ -1041,6 +1049,108 @@ jobs:
             artifacts/xfce4-meowmenu-plugin-*.fc44.x86_64.rpm
             artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
           fail_on_unmatched_files: true
+
+  # ===========================================================================
+  # Feature 035 — Arch Linux PKGBUILD validation (ADVISORY).
+  #
+  # Proves the project is AUR-ready before any AUR submission: in a clean Arch
+  # container it validates the committed recipe, builds with makepkg (non-root),
+  # runs the project test suite via the package check() phase, lints with
+  # namcap, smoke-installs with pacman, and proves coexistence with the official
+  # xfce4-whiskermenu-plugin. It publishes NO Arch binary and is intentionally a
+  # leaf job (nothing `needs:` it), so a failure is visible but does not block
+  # .deb/.rpm publication (advisory). The build uses official Arch repositories
+  # only — no AUR helper, no AUR credential, no AUR publishing step.
+  #
+  # packaging.yml is orchestration only: all Arch logic lives in the
+  # shellcheck-clean build-aux/arch/*.sh helpers invoked below.
+  # ===========================================================================
+  arch-pkgbuild-test:
+    name: arch-pkgbuild-test
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      # HACK: the archlinux base image ships without git; actions/checkout needs
+      # it to perform a full-history clone (and prepare-source.sh later runs
+      # `git archive`). Install it before checkout.
+      - name: Install git (required by actions/checkout)
+        run: pacman -Sy --noconfirm --needed git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Arch packaging tooling and create non-root builder
+        run: |
+          # base-devel is present in the image; --needed makes the rest
+          # idempotent. namcap lints; pacman-contrib provides updpkgsums.
+          pacman -Syu --noconfirm --needed \
+              base-devel git namcap pacman-contrib sudo
+          # makepkg refuses to run as root — create an unprivileged builder.
+          useradd -m -G wheel builder
+          echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel
+          chmod 0440 /etc/sudoers.d/wheel
+          # The tag-run build path runs makepkg (as builder) directly in
+          # dist/arch, so only that directory needs builder ownership. The rest
+          # of the workspace stays root-owned so root-run git operations (e.g.
+          # prepare-source.sh's `git archive`) are not rejected for "dubious
+          # ownership"; the manual path builds in a builder-owned scratch dir.
+          chown -R builder:builder dist/arch
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # State sequence (fail-fast): version → srcinfo → source → build →
+      # namcap → install → coexistence. See data-model.md.
+      - name: Check pkgver matches NEWS (FR-004)
+        run: build-aux/arch/check-version.sh
+
+      - name: Check .SRCINFO freshness against committed PKGBUILD (FR-002/FR-012)
+        run: build-aux/arch/check-srcinfo.sh
+
+      - name: Resolve source (tag → committed checksum; manual → local tarball)
+        id: source
+        run: |
+          # Tag pushes validate the committed checksum against the published
+          # tarball; any other trigger builds the current tree from a local
+          # tarball with a working-copy recipe patch (committed file untouched).
+          if [ "${{ github.event_name }}" = "push" ]; then
+            build_dir="$(build-aux/arch/check-source-checksum.sh)"
+          else
+            build_dir="$(build-aux/arch/prepare-source.sh)"
+          fi
+          echo "build_dir=${build_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Build, run test suite via check(), and package (FR-014)
+        id: build
+        run: |
+          pkg="$(build-aux/arch/build-package.sh '${{ steps.source.outputs.build_dir }}')"
+          echo "pkg=${pkg}" >> "$GITHUB_OUTPUT"
+
+      - name: Lint recipe and package with namcap (FR-015)
+        run: |
+          build-aux/arch/run-namcap.sh \
+            "${{ steps.source.outputs.build_dir }}/PKGBUILD" \
+            "${{ steps.build.outputs.pkg }}" \
+            "${{ runner.temp }}/arch-logs"
+
+      - name: Smoke-install with pacman (FR-016)
+        run: build-aux/arch/smoke-install.sh "${{ steps.build.outputs.pkg }}"
+
+      - name: Verify Whisker coexistence (FR-017/FR-018)
+        run: build-aux/arch/check-whisker-overlap.sh "${{ steps.build.outputs.pkg }}"
+
+      # NOTE: CI-only logs (short retention). MUST NOT be added to the
+      # attach-artifacts Release files: list (FR-019).
+      - name: Upload Arch validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-pkgbuild-logs
+          path: ${{ runner.temp }}/arch-logs
+          retention-days: 7
+          if-no-files-found: ignore
 
 # Action-pinning audit (FR-022, T047):
 #   - actions/checkout@v4
