@@ -271,6 +271,12 @@ jobs:
           allowed="${allowed}|^(\./)?README\.md:.*originated as a fork of"
           allowed="${allowed}|^(\./)?README\.md:.*Whisker Menu source"
           allowed="${allowed}|^(\./)?docs/index\.md:.*\[Whisker Menu\]"
+          # dist/arch/README.md names the upstream package once, in the
+          # coexistence sentence, to document that MeowMenu installs alongside
+          # it and declares no substitution metadata (FR-017/FR-018). The token
+          # sits on the line that continues '...and never declares any
+          # substitution metadata'; anchor on that tail so future drift trips.
+          allowed="${allowed}|^(\./)?dist/arch/README\.md:.*never declares any substitution metadata"
           allowed="${allowed}|^(\./)?po/.*\.po:.*Last-Translator"
           allowed="${allowed}|^(\./)?po/.*\.po:.*Language-Team"
           allowed="${allowed}|^(\./)?po/.*\.po:.*msgstr"

@@ -100,6 +100,35 @@ static void scroller_add_child(GtkScrolledWindow* scroller, GtkWidget* child)
 		gtk_container_add(GTK_CONTAINER(scroller), child);
 }
 
+/* focusable_category_siblings:
+ * @parent: the GtkBox holding a category GtkRadioButton group.
+ *
+ * Collects the visible, sensitive radio-button children in physical box
+ * order. Non-radio children (the mode selector box, separators, the leading
+ * spacer) are skipped, and the mode toggle keeps along-axis navigation inside
+ * the category group. In each mode only the active group's buttons are visible,
+ * so the result already excludes the hidden sibling group (Apps vs Places).
+ *
+ * Returns: heap-allocated GList* of GtkWidget*; the caller frees it with
+ * g_list_free (the nodes point at borrowed widgets — do not free those).
+ */
+static GList* focusable_category_siblings(GtkContainer* parent)
+{
+	GList* out = nullptr;
+	GList* children = gtk_container_get_children(parent);
+	for (GList* li = children; li; li = li->next)
+	{
+		GtkWidget* w = GTK_WIDGET(li->data);
+		if (!GTK_IS_RADIO_BUTTON(w))
+			continue;
+		if (!gtk_widget_get_visible(w) || !gtk_widget_get_sensitive(w))
+			continue;
+		out = g_list_append(out, w);
+	}
+	g_list_free(children);
+	return out;
+}
+
 } // namespace
 
 namespace WhiskerMenu
@@ -178,6 +207,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_places_fav_btn(nullptr),
 	m_places_active(false),
 	m_mode_switch_in_progress(false),
+	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
@@ -530,6 +560,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		m_places_fav_btn->join_group(m_places_history_btn);
 	}
 
+	// The three Places section toggles mirror the Applications handlers: pointer
+	// selection hands focus to the search entry so the user can type, but a
+	// keyboard-driven activation (m_keyboard_category_nav set) keeps focus on the
+	// active section button so arrow navigation can continue (FR-003; C1/C2).
 	connect(m_places_home_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
 		{
@@ -537,7 +571,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				return;
 			m_places->set_active_section(m_places->get_home_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			if (!m_keyboard_category_nav)
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
 	connect(m_places_history_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
@@ -546,7 +581,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				return;
 			m_places->set_active_section(m_places->get_history_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			if (!m_keyboard_category_nav)
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
 	connect(m_places_fav_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
@@ -555,7 +591,8 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				return;
 			m_places->set_active_section(m_places->get_favourites_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			if (!m_keyboard_category_nav)
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
 
 	// Mode selector: two toggle buttons forming a manual radio group.
@@ -1539,19 +1576,29 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 	// contributes nothing focusable. The zone is therefore gated on
 	// commands_position != "hidden" with at least one visible command, which
 	// already keeps focus off both hidden commands and a hidden profile (FR-005).
-	bool any_command_visible = false;
+	//
+	// NOTE: availability must also require gtk_widget_get_can_focus, matching
+	// grab_focus_in_zone()'s own target predicate. A command button can be
+	// visible yet non-focusable; reporting such a Profile zone "available"
+	// would let next_zone() route Ctrl+Tab to it, the grab would silently fail,
+	// and forward cycling would stall in Results (the US3 defect). Tying
+	// availability to focusability keeps the abstract mask consistent with what
+	// the grab can actually land (FR-010).
+	bool any_command_focusable = false;
 	if (g_strcmp0(commands_pos, "hidden") != 0)
 	{
 		for (int i = 0; i < 9; ++i)
 		{
-			if (m_commands_button[i] && gtk_widget_get_visible(m_commands_button[i]))
+			if (m_commands_button[i]
+					&& gtk_widget_get_visible(m_commands_button[i])
+					&& gtk_widget_get_can_focus(m_commands_button[i]))
 			{
-				any_command_visible = true;
+				any_command_focusable = true;
 				break;
 			}
 		}
 	}
-	mask.profile = any_command_visible;
+	mask.profile = any_command_focusable;
 
 	return mask;
 }
@@ -1568,7 +1615,7 @@ Keyboard::MenuState WhiskerMenu::Window::current_menu_state() const
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
+bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 {
 	GtkWidget* target = nullptr;
 	Page* results_page = nullptr;
@@ -1621,7 +1668,15 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 		break;
 	}
 
-	if (target && gtk_widget_get_visible(target) && gtk_widget_get_sensitive(target))
+	// A grab can only land on a target that is visible, sensitive and
+	// focusable; mirror that predicate and report the outcome so the forward
+	// Ctrl+Tab loop can advance past a zone whose grab would silently fail
+	// (FR-010). gtk_widget_is_focus() confirms the target became the toplevel's
+	// focus widget rather than assuming the grab took effect.
+	if (target
+			&& gtk_widget_get_visible(target)
+			&& gtk_widget_get_sensitive(target)
+			&& gtk_widget_get_can_focus(target))
 	{
 		gtk_widget_grab_focus(target);
 		if (results_page)
@@ -1636,7 +1691,9 @@ void WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 				gtk_tree_path_free(sel);
 			}
 		}
+		return gtk_widget_is_focus(target);
 	}
+	return false;
 }
 
 //-----------------------------------------------------------------------------
@@ -1677,6 +1734,31 @@ Keyboard::Zone WhiskerMenu::Window::current_zone() const
 	}
 
 	return Keyboard::Zone::Search;
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
+{
+	// Keyboard origin: raise the guard so the category `toggled` handlers keep
+	// focus on the sidebar button instead of handing off to the search entry,
+	// and suppress pointer-hover auto-activation until the next real motion so a
+	// stationary pointer resting over the sidebar cannot steal focus back.
+	m_keyboard_category_nav = true;
+	CategoryButton::suppress_hover_until_motion();
+
+	gtk_widget_grab_focus(target);
+
+	// Activation model derived solely from the existing hover-activation setting
+	// (no new preference): hover ON → activate now so results follow the
+	// highlight live; hover OFF → move highlight only and leave the committed
+	// category untouched until the user presses Enter/Space.
+	if (m_settings->category_hover_activate)
+	{
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(target), true);
+	}
+
+	m_keyboard_category_nav = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -1729,14 +1811,46 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 						? Keyboard::Direction::Backward
 						: Keyboard::Direction::Forward;
 			const Keyboard::Zone here = current_zone();
-			const Keyboard::Zone next = Keyboard::next_zone(
-					current_visibility_mask(),
-					current_menu_state(),
-					here,
-					dir);
-			if (next != here)
+			const Keyboard::VisibilityMask mask = current_visibility_mask();
+			const Keyboard::MenuState state = current_menu_state();
+
+			if (dir == Keyboard::Direction::Forward)
 			{
-				grab_focus_in_zone(next);
+				// Forward cycling is self-correcting. Advance to the next
+				// candidate zone; if its grab does not actually land (a region
+				// the mask reported available is currently unfocusable), keep
+				// advancing. Walk at most once around CANONICAL_CYCLE: if the
+				// search wraps back to `here` (or stops making progress) no
+				// other zone can take focus, so the press is a harmless no-op
+				// and focus stays put (FR-010, FR-011). With the focusability-
+				// aware mask the first grab normally lands; this loop is the
+				// defensive guarantee against any residual widget-state drift.
+				Keyboard::Zone candidate = here;
+				for (std::size_t step = 0; step < Keyboard::CANONICAL_CYCLE.size(); ++step)
+				{
+					const Keyboard::Zone next =
+							Keyboard::next_zone(mask, state, candidate, dir);
+					if (next == here || next == candidate)
+					{
+						break; // wrapped around / no progress → no-op
+					}
+					if (grab_focus_in_zone(next))
+					{
+						break; // grab landed on a focusable zone
+					}
+					candidate = next; // dead zone; try the one after it
+				}
+			}
+			else
+			{
+				// Reverse cycling (Ctrl+Shift+Tab) is out of scope and left
+				// behaviorally unchanged: a single step with no grab-retry.
+				const Keyboard::Zone next =
+						Keyboard::next_zone(mask, state, here, dir);
+				if (next != here)
+				{
+					grab_focus_in_zone(next);
+				}
 			}
 			return GDK_EVENT_STOP;
 		}
@@ -1867,8 +1981,88 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 				|| (outward == GDK_KEY_Right && kv == GDK_KEY_KP_Right);
 		if (match_outward)
 		{
+			// FR-007 / C4.1: the outward arrow enters the results of the
+			// COMMITTED category. Along-axis navigation never auto-commits in
+			// hover-OFF mode, so `view` (resolved from get_active_page above)
+			// already points at the committed category's view — no implicit
+			// commit of a highlighted-but-uncommitted category happens here.
 			gtk_widget_grab_focus(view);
 			return GDK_EVENT_STOP;
+		}
+
+		// Along-axis category navigation (FR-001/002/009). Centralized here so
+		// the event is consumed BEFORE GTK's default radio-group key navigation,
+		// which would otherwise both move focus AND auto-activate the next radio
+		// — the activation that previously ejected focus to the search entry.
+		// The along-axis arrows are perpendicular to the outward arrow computed
+		// above: vertical sidebar → Up/Down, horizontal sidebar → Left/Right.
+		GtkWidget* sidebar_focused = gtk_window_get_focus(m_window);
+		GtkWidget* parent = sidebar_focused ? gtk_widget_get_parent(sidebar_focused) : nullptr;
+		if (parent && GTK_IS_RADIO_BUTTON(sidebar_focused))
+		{
+			const bool vertical = !GTK_IS_ORIENTABLE(parent)
+					|| gtk_orientable_get_orientation(GTK_ORIENTABLE(parent))
+							== GTK_ORIENTATION_VERTICAL;
+			const bool is_prev = vertical
+					? (kv == GDK_KEY_Up || kv == GDK_KEY_KP_Up)
+					: (kv == GDK_KEY_Left || kv == GDK_KEY_KP_Left);
+			const bool is_next = vertical
+					? (kv == GDK_KEY_Down || kv == GDK_KEY_KP_Down)
+					: (kv == GDK_KEY_Right || kv == GDK_KEY_KP_Right);
+			const bool is_home = (kv == GDK_KEY_Home || kv == GDK_KEY_KP_Home);
+			const bool is_end  = (kv == GDK_KEY_End  || kv == GDK_KEY_KP_End);
+
+			if (is_prev || is_next || is_home || is_end)
+			{
+				GList* siblings = focusable_category_siblings(GTK_CONTAINER(parent));
+				if (siblings)
+				{
+					GList* self = g_list_find(siblings, sidebar_focused);
+					GtkWidget* target = nullptr;
+					if (is_home)
+					{
+						target = GTK_WIDGET(siblings->data);
+					}
+					else if (is_end)
+					{
+						target = GTK_WIDGET(g_list_last(siblings)->data);
+					}
+					else if (self && is_next)
+					{
+						// Wrap past the last sibling back to the first.
+						target = GTK_WIDGET(self->next ? self->next->data : siblings->data);
+					}
+					else if (self && is_prev)
+					{
+						// Wrap before the first sibling round to the last.
+						target = GTK_WIDGET(self->prev ? self->prev->data
+								: g_list_last(siblings)->data);
+					}
+					g_list_free(siblings);
+
+					if (target && target != sidebar_focused)
+					{
+						keyboard_navigate_category(target);
+					}
+					// Single navigable category (or already at the Home/End
+					// target): a harmless no-op that keeps focus in the sidebar
+					// rather than falling through to the default chain (SC-002).
+					return GDK_EVENT_STOP;
+				}
+			}
+
+			// Enter/Space commits the highlighted category while keeping focus in
+			// the sidebar (FR-008b). In hover-ON the target is already active, so
+			// this is a no-op activation; in hover-OFF it is the explicit commit
+			// that updates the results. Consumed under the guard either way.
+			if (kv == GDK_KEY_Return || kv == GDK_KEY_KP_Enter
+					|| kv == GDK_KEY_space || kv == GDK_KEY_KP_Space)
+			{
+				m_keyboard_category_nav = true;
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(sidebar_focused), true);
+				m_keyboard_category_nav = false;
+				return GDK_EVENT_STOP;
+			}
 		}
 	}
 
@@ -1904,6 +2098,12 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		break;
 
 	// Make up and down keys scroll current list of applications from search
+	//
+	// NOTE: arrow navigation drives only the GTK cursor and single selection;
+	// there is no separate "highlight" state. GTK moves the cursor on Up/Down
+	// and the single-selection follows it, so the selection is the sole
+	// highlight driver for keyboard navigation (FR-002). With pointer prelight
+	// neutralised in the plugin CSS, exactly one row is ever painted.
 	case GDK_KEY_Up:
 	case GDK_KEY_KP_Up:
 	case GDK_KEY_Down:
@@ -1927,7 +2127,11 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		{
 			gtk_widget_grab_focus(view);
 		}
-		// Only select first item if there is no selected item
+		// Only select first item if there is no selected item. This anchors a
+		// single valid selection on first arrow entry; combined with the model
+		// rebuild + select_first() on every query change (SearchPage::set_filter)
+		// it guarantees the highlight resets to one valid row or none, with no
+		// stale carry-over from the prior result set (FR-006).
 		if ((gtk_window_get_focus(m_window) == view) && reset)
 		{
 			m_places_active ? m_places->select_first() : page->select_first();
@@ -2146,6 +2350,21 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu list,"
 		".meowmenu row"
 		"{ background-color: transparent; background-image: none; }"
+		// HACK: enforce the single-highlight invariant. The result lists carry
+		// two independent visual highlights — the plugin's GTK single selection
+		// AND GTK's own pointer-driven row prelight (:hover /
+		// GTK_CELL_RENDERER_PRELIT). A theme that paints both leaves a trail of
+		// highlighted rows under keyboard and mouse navigation. Neutralise
+		// prelight on the .launchers tree/icon views so the GTK selection stays
+		// the ONLY painted highlight. :selected styling is preserved via
+		// :not(:selected), and the .meow-focus-ring focus outline below is
+		// untouched. These rules are plugin-scoped (class .launchers), not
+		// theme-scoped, so the invariant holds identically across every preset
+		// and theme (FR-008).
+		".meowmenu .launchers:hover:not(:selected),"
+		".meowmenu .launchers cell:hover:not(:selected),"
+		".meowmenu .launchers row:hover:not(:selected)"
+		"{ background-color: transparent; background-image: none; }"
 		// Sidebar/categories region plus the chrome strips (search, title,
 		// commands bars) share one absolute alpha so the menu frame stays
 		// cohesive. In full-screen this alpha is 0 (transparent) so only the
@@ -2180,7 +2399,31 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu entry:focus-visible,"
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
-		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }",
+		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }"
+		// NOTE: the Apps/Places switch is rendered as one rounded segmented
+		// control. The outer corners use a large constant radius (9999px) that
+		// CSS clamps to half the control height in any theme, so the group reads
+		// as a full pill matching the search field's rounded ends. The radius is
+		// a fixed styling rule on purpose: it is NOT read from the active theme at
+		// runtime and is NOT bound to the /corner-radius menu setting, so the
+		// switch keeps its pill shape regardless of the window corner radius. The
+		// two buttons abut (m_mode_selector_box is built with zero spacing) and
+		// share a single 1px seam line carried by the first button's inner edge —
+		// never two abutting borders, never a gap. :dir(ltr)/:dir(rtl) mirror the
+		// rounded ends and the seam for RTL with no C++ special-casing. No rule
+		// here changes padding, margin, min-size, hit area, the theme-owned
+		// hover/pressed/active fills, or the .meow-focus-ring focus outline.
+		".meowmenu .places-mode-selector button { border-radius: 0; }"
+		".meowmenu .places-mode-selector button:dir(ltr):first-child"
+		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px;"
+		"  border-right: 1px solid alpha(@theme_fg_color, 0.2); }"
+		".meowmenu .places-mode-selector button:dir(ltr):last-child"
+		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px; }"
+		".meowmenu .places-mode-selector button:dir(rtl):first-child"
+		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px;"
+		"  border-left: 1px solid alpha(@theme_fg_color, 0.2); }"
+		".meowmenu .places-mode-selector button:dir(rtl):last-child"
+		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px; }",
 		red, green, blue, alphas.window,
 		red, green, blue, alphas.categories,
 		red, green, blue, alphas.apps);
@@ -2864,14 +3107,19 @@ void WhiskerMenu::Window::update_layout()
 			}
 			else if (pres.switch_location == SwitchLocation::InSearchBar)
 			{
-				// Plain (non-unified) search row: insert the switch directly before
-				// the command buttons, not at the very trailing edge, so the
-				// commands stay rightmost and the search entry shrinks to make room
-				// (FR-019). When no commands share the row, the switch becomes the
-				// trailing element.
+				// Plain (non-unified) search row: the embedded switch is anchored
+				// before the command buttons (the leading side), not at the very
+				// trailing edge, so the commands stay rightmost and the search entry
+				// shrinks to make room (FR-019). When no commands share the row the
+				// switch becomes the trailing element. The leading placement is the
+				// single source of truth in meow_embedded_switch_slot() and is pinned
+				// by a regression test; do not inline the ordering decision here.
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				GtkWidget* cmd = GTK_WIDGET(m_commands_box);
-				if (gtk_widget_get_parent(cmd) == target)
+				const bool commands_box_is_in_search_box =
+						(gtk_widget_get_parent(cmd) == target);
+				if (meow_embedded_switch_slot(commands_box_is_in_search_box)
+						== EmbeddedSwitchSlot::BeforeCommands)
 				{
 					GList* kids = gtk_container_get_children(GTK_CONTAINER(target));
 					gtk_box_reorder_child(GTK_BOX(target), sw,

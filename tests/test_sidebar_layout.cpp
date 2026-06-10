@@ -206,6 +206,17 @@ void toggle_icon_size_source()
 			== 0);   // hidden — no size applied
 }
 
+// Embedded Apps/Places switch ordering in the standard (non-unified) search-bar
+// row. FR-004 regression intent: no slot ever places the switch after a present
+// command box. When commands share the row the switch is anchored before them
+// (commands stay trailing-most); when the switch is alone it is the trailing
+// element. The unified centring cluster is a separate, untested-here path.
+void embedded_switch_slot_decision()
+{
+	CHECK(meow_embedded_switch_slot(true)  == EmbeddedSwitchSlot::BeforeCommands);
+	CHECK(meow_embedded_switch_slot(false) == EmbeddedSwitchSlot::Trailing);
+}
+
 // T038: the single label-visibility decision is identical for Apps and Places
 // buttons (both call meow_category_label_visible). Names show only when
 // "show names" is on AND the sidebar is not a horizontal strip (FR-015/016).
@@ -232,6 +243,7 @@ int main()
 	strip_geometry_ordering();
 	toggle_icon_size_source();
 	label_visibility_decision();
+	embedded_switch_slot_decision();
 
 	if (g_failures != 0)
 	{
