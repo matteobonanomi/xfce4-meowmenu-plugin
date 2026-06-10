@@ -1101,30 +1101,23 @@ jobs:
           chown -R builder:builder dist/arch
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # State sequence (fail-fast): version (tag runs only) → srcinfo → source →
-      # build → namcap → install → coexistence. See data-model.md.
-      - name: Check pkgver matches release tag (FR-004)
-        env:
-          # Tag-driven check: the helper compares the committed pkgver to the
-          # pushed tag on tag runs and skips on manual dispatch / pre-tag runs.
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-        run: build-aux/arch/check-version.sh
-
+      # State sequence (fail-fast): srcinfo → source → build → namcap →
+      # install → coexistence. See data-model.md. The package version is
+      # tag-driven and resolved at build time (like the .deb/.rpm jobs), so
+      # there is no version-equality gate against a hand-maintained recipe value.
       - name: Check .SRCINFO freshness against committed PKGBUILD (FR-002/FR-012)
         run: build-aux/arch/check-srcinfo.sh
 
-      - name: Resolve source (tag → committed checksum; manual → local tarball)
+      - name: Resolve source from the tagged checkout (version from tag)
         id: source
+        env:
+          # Tag-driven: prepare-source.sh derives pkgver from the pushed tag
+          # (vX.Y.Z) and builds that exact checkout; on untagged runs it falls
+          # back to the committed pkgver. The committed recipe is never mutated.
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
-          # Tag pushes validate the committed checksum against the published
-          # tarball; any other trigger builds the current tree from a local
-          # tarball with a working-copy recipe patch (committed file untouched).
-          if [ "${{ github.event_name }}" = "push" ]; then
-            build_dir="$(build-aux/arch/check-source-checksum.sh)"
-          else
-            build_dir="$(build-aux/arch/prepare-source.sh)"
-          fi
+          build_dir="$(build-aux/arch/prepare-source.sh)"
           echo "build_dir=${build_dir}" >> "$GITHUB_OUTPUT"
 
       - name: Build, run test suite via check(), and package (FR-014)
