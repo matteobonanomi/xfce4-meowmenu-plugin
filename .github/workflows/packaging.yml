@@ -1101,9 +1101,14 @@ jobs:
           chown -R builder:builder dist/arch
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # State sequence (fail-fast): version → srcinfo → source → build →
-      # namcap → install → coexistence. See data-model.md.
-      - name: Check pkgver matches NEWS (FR-004)
+      # State sequence (fail-fast): version (tag runs only) → srcinfo → source →
+      # build → namcap → install → coexistence. See data-model.md.
+      - name: Check pkgver matches release tag (FR-004)
+        env:
+          # Tag-driven check: the helper compares the committed pkgver to the
+          # pushed tag on tag runs and skips on manual dispatch / pre-tag runs.
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: build-aux/arch/check-version.sh
 
       - name: Check .SRCINFO freshness against committed PKGBUILD (FR-002/FR-012)
