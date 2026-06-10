@@ -7,6 +7,7 @@ MEOW MENU DEVELOPMENT
 - Results box: fix highligted item when moving cursor or arrows across many search results
 - Sidebar: keep keyboard focus in the category list while arrowing
 - Add advisory Arch Linux packaging validation to the release pipeline
+- Tests: set scratch $HOME before gtk_init in home-search lifecycle test
 
 0.6.3 (2026-06-09)
 =====
