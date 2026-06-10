@@ -1,10 +1,12 @@
 MEOW MENU DEVELOPMENT
-0.6.4 (2026-06-XX)
+0.6.4 (2026-06-10)
 =====
 - Places: switch button UI more robust and consistent
 - Keyboard: fix Ctrl+Tab cycling among various areas of the menu
 - Keyboard and Mouse: fix possible conflicts and priorities when using both
 - Results box: fix highligted item when moving cursor or arrows across many search results
+- Sidebar: keep keyboard focus in the category list while arrowing
+- Add advisory Arch Linux packaging validation to the release pipeline
 
 0.6.3 (2026-06-09)
 =====
