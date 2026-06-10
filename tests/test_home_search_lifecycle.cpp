@@ -46,11 +46,12 @@ namespace
 // Temporary $HOME fixture
 //
 // Each test creates its own scratch directory and points HOME at it.
-// g_get_home_dir() in GLib caches the home dir on first call, so we set
-// the environment BEFORE any GLib call that would resolve it; the worker
-// itself calls g_get_home_dir() inside thread_main, after spawn. To force
-// re-resolution between tests we cannot rely on glib refresh, so we point
-// HOME at the same scratch parent and rebuild the child layout per test.
+// g_get_home_dir() in GLib caches the home dir on its first call and never
+// re-reads HOME afterwards, so fixture_init() must run before any GLib/GTK
+// call that would resolve it (see main()). The worker calls g_get_home_dir()
+// inside thread_main; because the cache was seeded with the scratch root, it
+// resolves there. We cannot re-point HOME between tests, so HOME stays at the
+// same scratch parent and the child layout is rebuilt per test.
 // ---------------------------------------------------------------------------
 
 std::string g_scratch_root;
@@ -111,9 +112,9 @@ bool fixture_init()
 	g_free(tmpl);
 
 	// Point $HOME at the scratch root BEFORE any GLib home-dir resolution.
-	// home-search-worker.cpp::thread_main() calls g_get_home_dir() at run
-	// time; setting HOME before the worker starts is sufficient because
-	// GLib resolves it on demand (after env changes).
+	// g_get_home_dir() caches on first call and ignores later HOME changes,
+	// so this must run before gtk_init_check() and before the worker starts;
+	// main() calls fixture_init() first to guarantee that ordering.
 	g_setenv("HOME", g_scratch_root.c_str(), TRUE);
 	return true;
 }
@@ -376,6 +377,19 @@ int main(int argc, char** argv)
 	(void) argc;
 	(void) argv;
 
+	// Establish the scratch $HOME before ANY GLib/GTK home-dir resolution.
+	// g_get_home_dir() caches on its first call and permanently ignores
+	// later HOME changes. gtk_init_check() (below) may resolve the home dir
+	// while loading settings/modules in a live desktop session; if that
+	// happens before fixture_init(), g_get_home_dir() is pinned to the
+	// builder's real home and the worker scans it instead of the fixture
+	// tree — the assertions then fail and the test aborts.
+	if (!fixture_init())
+	{
+		std::printf("# SKIP: cannot create scratch HOME\n");
+		return 0;
+	}
+
 	// gtk_init_check is required because element.cpp pulls in GTK
 	// headers; the worker itself never touches GTK widgets, but the
 	// translation unit links GTK symbols that need an initialised
@@ -384,12 +398,7 @@ int main(int argc, char** argv)
 	if (!gtk_init_check(&argc, &argv))
 	{
 		std::printf("# SKIP: GTK could not initialise (no display)\n");
-		return 0;
-	}
-
-	if (!fixture_init())
-	{
-		std::printf("# SKIP: cannot create scratch HOME\n");
+		fixture_cleanup();
 		return 0;
 	}
 
