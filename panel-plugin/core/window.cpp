@@ -775,9 +775,12 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_box_pack_start(m_category_buttons, m_places_fav_btn->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 4);
 
-	// Prevent the sidebar from narrowing when Apps<->Places hides some
-	// buttons: group all category-button widgets so every button requests
-	// the same width as the widest one, even while hidden.
+	// Equalise the width of all category buttons within a mode so the icons and
+	// labels line up. NOTE: this size group does NOT by itself keep the sidebar
+	// width stable across an Apps<->Places switch — its hidden-widget
+	// contribution is unreliable across re-layouts. The cross-mode width floor
+	// is held instead by sync_category_label_width(), which pins every button's
+	// minimum label width to the widest label in either mode.
 	// HACK: gtk_size_group_set_ignore_hidden() is deprecated since GTK 3.22
 	// (the behaviour it controls became the default in GTK 4), but GTK 3 still
 	// requires the explicit call.  Suppress the deprecation warning locally.
@@ -795,6 +798,20 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	gtk_size_group_add_widget(m_category_width_group, m_places_home_btn->get_widget());
 	gtk_size_group_add_widget(m_category_width_group, m_places_history_btn->get_widget());
 	gtk_size_group_add_widget(m_category_width_group, m_places_fav_btn->get_widget());
+
+	// Establish the shared minimum label width from the built-in buttons; it is
+	// recomputed once the application categories load (see set_categories).
+	sync_category_label_width();
+
+	// Re-measure the floor when the font or theme changes. NOTE: the box's own
+	// style-updated fires on theme/scale changes only — not on child-button
+	// hover — so this stays off the hot path. Pinning the label size requests
+	// queues a resize, never another style-updated, so there is no feedback loop.
+	connect(GTK_WIDGET(m_category_buttons), "style-updated",
+		[this](GtkWidget*)
+		{
+			sync_category_label_width();
+		});
 
 	m_sidebar = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
 	gtk_grid_attach(m_contents_box, GTK_WIDGET(m_sidebar), 1, 1, 1, 1);
@@ -1451,6 +1468,7 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 {
 	CategoryButton* last_button = m_applications->get_button();
 	m_app_category_widgets.clear();
+	m_app_categories = categories;
 	for (auto button : categories)
 	{
 		button->join_group(last_button);
@@ -1468,6 +1486,10 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 			});
 	}
 
+	// Now that the application categories are known, recompute the shared
+	// minimum label width so the sidebar floor accounts for them too.
+	sync_category_label_width();
+
 	// NOTE: if Places mode is already active when categories arrive, keep
 	// the application categories hidden so the sidebar matches the mode.
 	if (m_places_active)
@@ -1479,6 +1501,45 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 	}
 
 	show_default_page();
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::sync_category_label_width()
+{
+	// Every sidebar button, in both modes. The Places sections and the three
+	// built-in Apps buttons always exist; the application categories are added
+	// once garcon has loaded them.
+	std::vector<CategoryButton*> buttons = {
+		m_favorites->get_button(),
+		m_recent->get_button(),
+		m_applications->get_button(),
+		m_places_home_btn,
+		m_places_history_btn,
+		m_places_fav_btn,
+	};
+	buttons.insert(buttons.end(), m_app_categories.begin(), m_app_categories.end());
+
+	std::vector<int> widths;
+	widths.reserve(buttons.size());
+	for (CategoryButton* button : buttons)
+	{
+		if (button)
+		{
+			widths.push_back(button->measure_label_width());
+		}
+	}
+
+	const int floor = meow_sidebar_max_label_width(
+			widths.data(), static_cast<int>(widths.size()));
+
+	for (CategoryButton* button : buttons)
+	{
+		if (button)
+		{
+			button->set_min_label_width(floor);
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------
