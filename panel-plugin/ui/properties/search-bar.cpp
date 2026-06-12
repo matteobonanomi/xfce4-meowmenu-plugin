@@ -97,9 +97,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 		gtk_widget_set_valign(lbl_fuzzy, GTK_ALIGN_CENTER);
 		gtk_box_pack_start(row, lbl_fuzzy, false, false, 0);
 
-		m_fuzzy_enabled = gtk_switch_new();
-		gtk_widget_set_halign(m_fuzzy_enabled, GTK_ALIGN_START);
-		gtk_widget_set_valign(m_fuzzy_enabled, GTK_ALIGN_CENTER);
+		m_fuzzy_enabled = make_form_switch();
 		gtk_switch_set_active(GTK_SWITCH(m_fuzzy_enabled),
 			static_cast<bool>(m_settings->fuzzy_enabled));
 		gtk_box_pack_start(row, m_fuzzy_enabled, false, false, 0);
@@ -155,9 +153,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 		gtk_widget_set_valign(lbl_boost, GTK_ALIGN_CENTER);
 		gtk_box_pack_start(boost_row, lbl_boost, false, false, 0);
 
-		m_favorites_boost_enabled = gtk_switch_new();
-		gtk_widget_set_halign(m_favorites_boost_enabled, GTK_ALIGN_START);
-		gtk_widget_set_valign(m_favorites_boost_enabled, GTK_ALIGN_CENTER);
+		m_favorites_boost_enabled = make_form_switch();
 		gtk_switch_set_active(GTK_SWITCH(m_favorites_boost_enabled),
 			static_cast<bool>(m_settings->favorites_boost_enabled));
 		gtk_box_pack_start(boost_row, m_favorites_boost_enabled, false, false, 0);

@@ -54,6 +54,19 @@ GtkWidget* make_info_frame(const gchar* title, GtkWidget* content, const gchar* 
  */
 GtkWidget* wrap_in_scrolled(GtkWidget* content);
 
+/* make_form_switch:
+ *
+ * Returns: a floating, inactive GtkSwitch requesting
+ * halign = GTK_ALIGN_START and valign = GTK_ALIGN_CENTER, so that when it
+ * is grid-attached into a column shared with a wider control (combo box,
+ * spin button) it renders at its natural compact width instead of stretching
+ * to fill the column. The caller owns the floating ref, sets the active state
+ * via gtk_switch_set_active(), and wires every signal. The factory touches no
+ * Xfconf key and no Settings field — toggle behaviour and dependent-control
+ * greying stay entirely the caller's responsibility.
+ */
+GtkWidget* make_form_switch();
+
 }
 
 #endif // WHISKERMENU_UI_PROPERTIES_COMMON_H

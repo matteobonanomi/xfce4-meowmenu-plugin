@@ -469,6 +469,26 @@ test_switch_icons = executable(
 
 test('switch_icons', test_switch_icons, timeout: 30)
 
+# test_properties_switch: coverage of the shared Properties-dialog switch
+# factory make_form_switch() in panel-plugin/ui/properties/common.cpp. Asserts
+# the halign=START / valign=CENTER / inactive invariant that makes grid-attached
+# switches render compact instead of stretching to a wider sibling's column.
+# common.cpp uses only GLib + GTK, so it links directly; no display is needed to
+# read a widget's requested alignment.
+test_properties_switch_sources = [
+  'test_properties_switch.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'properties' / 'common.cpp',
+]
+
+test_properties_switch = executable(
+  'test_properties_switch',
+  test_properties_switch_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('properties_switch', test_properties_switch, timeout: 30)
+
 # test_user_session_row: headless coverage of the pure user/session-row
 # visibility decision mirrored from panel-plugin/core/window.cpp (both-hidden
 # collapse in docked layouts; shared row preserved in unified-bar/full-screen)
