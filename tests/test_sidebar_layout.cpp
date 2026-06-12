@@ -262,6 +262,32 @@ void label_cap_decision()
 			== meow_category_label_cap(30, cap).ellipsize);
 }
 
+// The shared sidebar width floor: the widest measured label across both modes.
+// Pinning every button to it holds the sidebar width on the visible buttons so
+// an Apps<->Places switch cannot collapse it (INV-1). Per-label capping happens
+// at measurement time, so this is a plain maximum over pixel widths.
+void sidebar_max_label_width_decision()
+{
+	// No buttons → no floor.
+	CHECK(meow_sidebar_max_label_width(nullptr, 0) == 0);
+
+	// The widest label wins (here an Apps category at 142 px, above the short
+	// Places labels), so Places mode reserves the Apps width too.
+	const int mixed[] = { 38 /*Home*/, 61 /*History*/, 74 /*Favorites*/,
+			142 /*All Applications*/, 110 /*Accessories*/ };
+	CHECK(meow_sidebar_max_label_width(mixed, 5) == 142);
+
+	// Single entry → itself.
+	const int one[] = { 90 };
+	CHECK(meow_sidebar_max_label_width(one, 1) == 90);
+
+	// Order-independent: the floor is a max, so permuting the inputs is identical
+	// (the same set of buttons in either mode yields the same width).
+	const int a[] = { 38, 142, 61 };
+	const int b[] = { 61, 38, 142 };
+	CHECK(meow_sidebar_max_label_width(a, 3) == meow_sidebar_max_label_width(b, 3));
+}
+
 } // namespace
 
 int main()
@@ -278,6 +304,7 @@ int main()
 	toggle_icon_size_source();
 	label_visibility_decision();
 	label_cap_decision();
+	sidebar_max_label_width_decision();
 	embedded_switch_slot_decision();
 
 	if (g_failures != 0)
