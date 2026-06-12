@@ -142,10 +142,12 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	// keeps minimum == natural, so the sidebar stays as wide as its widest
 	// item; a single pathological name still ellipsises instead of widening
 	// the sidebar without bound.
-	if (g_utf8_strlen(text, -1) > 22)
+	const CategoryLabelCap cap =
+			meow_category_label_cap(g_utf8_strlen(text, -1), MEOW_SIDEBAR_LABEL_MAX_CHARS);
+	if (cap.ellipsize)
 	{
 		gtk_label_set_ellipsize(GTK_LABEL(m_label), PANGO_ELLIPSIZE_END);
-		gtk_label_set_max_width_chars(GTK_LABEL(m_label), 22);
+		gtk_label_set_max_width_chars(GTK_LABEL(m_label), cap.max_width_chars);
 	}
 	gtk_box_pack_start(m_box, m_label, false, true, 0);
 

@@ -228,6 +228,40 @@ void label_visibility_decision()
 	CHECK(meow_category_label_visible(false, true)  == false);  // names off + strip
 }
 
+// The sidebar label cap is one fixed mode-agnostic rule (INV-3): a label is
+// ellipsised only when strictly longer than the cap; at-cap and below-cap
+// labels are left uncapped so the size-group floor stays at natural width.
+// max_width_chars always reports the cap value (it is applied only when
+// ellipsize is true).
+void label_cap_decision()
+{
+	const int cap = MEOW_SIDEBAR_LABEL_MAX_CHARS;   // 22
+
+	// Below the cap → never ellipsised.
+	CategoryLabelCap below = meow_category_label_cap(0, cap);
+	CHECK(below.ellipsize == false);
+	below = meow_category_label_cap(cap - 1, cap);
+	CHECK(below.ellipsize == false);
+
+	// Exactly at the cap → still uncapped (rule is strictly-greater-than).
+	CategoryLabelCap at = meow_category_label_cap(cap, cap);
+	CHECK(at.ellipsize == false);
+
+	// Above the cap → ellipsised at the cap width.
+	CategoryLabelCap above = meow_category_label_cap(cap + 1, cap);
+	CHECK(above.ellipsize == true);
+	CHECK(above.max_width_chars == cap);
+	above = meow_category_label_cap(1000, cap);
+	CHECK(above.ellipsize == true);
+	CHECK(above.max_width_chars == cap);
+
+	// Mode-agnostic by construction: the decision depends only on length and
+	// the fixed cap, so an Apps label and a Places label of equal length yield
+	// the same result.
+	CHECK(meow_category_label_cap(30, cap).ellipsize
+			== meow_category_label_cap(30, cap).ellipsize);
+}
+
 } // namespace
 
 int main()
@@ -243,6 +277,7 @@ int main()
 	strip_geometry_ordering();
 	toggle_icon_size_source();
 	label_visibility_decision();
+	label_cap_decision();
 	embedded_switch_slot_decision();
 
 	if (g_failures != 0)

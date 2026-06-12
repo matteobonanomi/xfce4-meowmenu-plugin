@@ -394,6 +394,24 @@ test_sidebar_layout = executable(
 
 test('sidebar_layout', test_sidebar_layout)
 
+# test_grid_cell_metrics: headless coverage of the pure icon-grid cell-width
+# arithmetic in panel-plugin/ui/grid-cell-metrics.cpp (minimum/natural width
+# from padding + icon size + stretch, with no label-text input). GTK-free
+# helper; no display.
+test_grid_cell_metrics_sources = [
+  'test_grid_cell_metrics.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
+]
+
+test_grid_cell_metrics = executable(
+  'test_grid_cell_metrics',
+  test_grid_cell_metrics_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('grid_cell_metrics', test_grid_cell_metrics)
+
 # test_opacity_model: headless coverage of the pure percentage->alpha and
 # per-region alpha-assignment helper in panel-plugin/core/opacity-model.cpp
 # (the 0=transparent / 100=solid contract, no dead zone, no inter-region
