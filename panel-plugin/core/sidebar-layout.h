@@ -184,6 +184,44 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
  */
 bool meow_category_label_visible(bool category_show_name, bool horizontal);
 
+// The fixed maximum sidebar category-label width, in characters. A single
+// mode-agnostic cap (INV-3): every CategoryButton — Apps category and Places
+// section alike — ellipsises only when its label is longer than this, so the
+// shared horizontal GtkSizeGroup settles on the widest *uncapped* entry across
+// both modes. Capping every label would drop each minimum width to ~one glyph
+// and, because the group aggregates minimums as a max-of-minimums, collapse the
+// non-expanding sidebar to the switch width; leaving sub-cap labels uncapped
+// keeps minimum == natural and holds the sidebar at its widest item.
+constexpr int MEOW_SIDEBAR_LABEL_MAX_CHARS = 22;
+
+/* CategoryLabelCap:
+ *
+ * The decision of whether a single sidebar label is capped, plus the
+ * max-width-chars value to apply when it is. Pure data — the caller wires the
+ * GTK label properties (PANGO_ELLIPSIZE_END, gtk_label_set_max_width_chars).
+ */
+struct CategoryLabelCap
+{
+	bool ellipsize;        // apply PANGO_ELLIPSIZE_END to the label
+	int  max_width_chars;  // gtk_label_set_max_width_chars() value; only
+	                       // meaningful when ellipsize is true
+};
+
+/* meow_category_label_cap:
+ * @label_chars: the label length in characters (e.g. g_utf8_strlen(text, -1)).
+ * @cap_chars: the fixed maximum label width in characters
+ *   (MEOW_SIDEBAR_LABEL_MAX_CHARS).
+ *
+ * The one cap rule shared by every sidebar button in both modes (INV-3): a
+ * label is ellipsised only when it is strictly longer than @cap_chars; shorter
+ * labels are left at their natural width. The rule depends solely on the label
+ * length and the fixed cap — never on the active mode.
+ *
+ * Returns: a CategoryLabelCap; max_width_chars is @cap_chars and is only to be
+ * applied when ellipsize is true.
+ */
+CategoryLabelCap meow_category_label_cap(long label_chars, int cap_chars);
+
 // Where the embedded Apps/Places switch is anchored relative to the command
 // buttons in the standard (non-unified) search-bar row. Direction-relative:
 // "before" is the leading side (left in LTR, right in RTL), so RTL is handled
