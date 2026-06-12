@@ -79,6 +79,17 @@ GtkWidget* make_info_frame(const gchar* title, GtkWidget* content, const gchar* 
 	return frame;
 }
 
+GtkWidget* make_form_switch()
+{
+	GtkWidget* sw = gtk_switch_new();
+	// START/CENTER keeps the switch at its natural compact size when attached
+	// to a grid column sized by a wider sibling control, instead of letting it
+	// stretch to fill the column on themes that draw the full trough.
+	gtk_widget_set_halign(sw, GTK_ALIGN_START);
+	gtk_widget_set_valign(sw, GTK_ALIGN_CENTER);
+	return sw;
+}
+
 GtkWidget* wrap_in_scrolled(GtkWidget* content)
 {
 	GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
