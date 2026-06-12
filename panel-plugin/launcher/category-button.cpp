@@ -134,20 +134,29 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	m_label = gtk_label_new(text);
 	gtk_label_set_xalign(GTK_LABEL(m_label), 0.0);
 	// Content-fit sidebar width (FR-023/025): only labels that exceed the cap
-	// ellipsise. Capping a label with ellipsization also drops its *minimum*
-	// width to ~one glyph, and a GtkSizeGroup aggregates minimums as the
-	// max-of-minimums — so if every label could ellipsise, the group floor
-	// collapses and the non-expanding sidebar gets squeezed to the switch's
-	// width under the fixed menu width. Leaving short labels non-ellipsising
-	// keeps minimum == natural, so the sidebar stays as wide as its widest
-	// item; a single pathological name still ellipsises instead of widening
-	// the sidebar without bound.
+	// ellipsise. Leaving short labels non-ellipsising keeps minimum == natural,
+	// so the sidebar stays as wide as its widest item; a label beyond the cap
+	// ellipsises instead of widening the sidebar without bound.
 	const CategoryLabelCap cap =
 			meow_category_label_cap(g_utf8_strlen(text, -1), MEOW_SIDEBAR_LABEL_MAX_CHARS);
 	if (cap.ellipsize)
 	{
 		gtk_label_set_ellipsize(GTK_LABEL(m_label), PANGO_ELLIPSIZE_END);
 		gtk_label_set_max_width_chars(GTK_LABEL(m_label), cap.max_width_chars);
+		// Pin the *minimum* width to the cap, not just the natural width. An
+		// ellipsising label otherwise reports a ~one-glyph minimum, and the
+		// shared horizontal GtkSizeGroup aggregates minimums as a
+		// max-of-minimums: when the widest entry is itself a capped label and
+		// the others are shorter, the group floor sits well below the
+		// combined-longest width. Under the fixed menu width the non-expanding
+		// sidebar is then squeezed down to that low floor the moment the
+		// results view claims more room (e.g. the pointer/focus entering it),
+		// and stays collapsed across an Apps<->Places switch — truncating
+		// labels that previously fit. Making width-chars == the cap raises the
+		// capped label's minimum to its natural width, so the floor holds at
+		// the cap and the sidebar cannot collapse below its widest entry
+		// (INV-1/INV-2).
+		gtk_label_set_width_chars(GTK_LABEL(m_label), cap.max_width_chars);
 	}
 	gtk_box_pack_start(m_box, m_label, false, true, 0);
 
