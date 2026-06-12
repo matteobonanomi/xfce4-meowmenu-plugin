@@ -17,6 +17,8 @@
 
 #include "opacity-model.h"
 
+#include <glib.h>
+
 /* meowmenu_opacity_alpha:
  * Linear, clamped percentage->alpha map. Kept separate so the renderer and the
  * unit test share one definition of the endpoint contract.
@@ -60,4 +62,17 @@ OpacityRegionAlphas meowmenu_region_alphas(bool fullscreen,
 		result.apps = meowmenu_opacity_alpha(apps_opacity);
 	}
 	return result;
+}
+
+/* meowmenu_format_css_alpha:
+ * g_ascii_formatd formats the double exactly as printf would under the "C"
+ * locale, so the separator is always '.' regardless of the active LC_NUMERIC,
+ * and it touches no global locale state — both required because this CSS feeds
+ * GTK's parser (a comma would make rgba(...) invalid) and the panel process is
+ * shared with other plugins. Kept GTK-free so it stays headlessly testable.
+ */
+const char* meowmenu_format_css_alpha(double alpha, char* out)
+{
+	g_ascii_formatd(out, MEOWMENU_CSS_ALPHA_BUFSZ, "%.3f", alpha);
+	return out;
 }
