@@ -13,6 +13,7 @@ plugin_sources = [
   'places/history-section.cpp',
   'places/home-search-worker.cpp',
   'places/home-section.cpp',
+  'ui/grid-cell-metrics.cpp',
   'ui/icon-renderer.cpp',
   'ui/icon-size.cpp',
   'ui/image-menu-item.h',

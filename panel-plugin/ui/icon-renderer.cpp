@@ -17,7 +17,11 @@
 
 #include "icon-renderer.h"
 
+#include "grid-cell-metrics.h"
+
 #include <gio/gio.h>
+
+using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
@@ -53,24 +57,18 @@ static void whiskermenu_icon_renderer_get_preferred_width(GtkCellRenderer* rende
 
 	gint pad;
 	gtk_cell_renderer_get_padding(renderer, &pad, nullptr);
-	gint width = (pad * 2) + icon_renderer->size;
 
-	if (icon_renderer->stretch)
-	{
-		width += 76 - (icon_renderer->size / 4);
-		if (natural)
-		{
-			*natural = (width * 2) - 1;
-		}
-	}
-	else if (natural)
-	{
-		*natural = width;
-	}
+	// Cell width is label-independent (icon size + padding only), so it is
+	// identical for an Applications item and a Places item at the same settings.
+	const GridCellWidth cell = meow_grid_cell_width(pad, icon_renderer->size, icon_renderer->stretch);
 
 	if (minimum)
 	{
-		*minimum = width;
+		*minimum = cell.minimum;
+	}
+	if (natural)
+	{
+		*natural = cell.natural;
 	}
 }
 
