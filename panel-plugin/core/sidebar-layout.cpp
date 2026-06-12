@@ -146,4 +146,17 @@ CategoryLabelCap meow_category_label_cap(long label_chars, int cap_chars)
 	return out;
 }
 
+int meow_sidebar_max_label_width(const int* widths, int count)
+{
+	int max_width = 0;
+	for (int i = 0; i < count; ++i)
+	{
+		if (widths[i] > max_width)
+		{
+			max_width = widths[i];
+		}
+	}
+	return max_width;
+}
+
 } // namespace WhiskerMenu

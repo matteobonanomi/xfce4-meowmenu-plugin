@@ -58,6 +58,27 @@ public:
 
 	void reload_icon_size();
 
+	/* measure_label_width:
+	 *
+	 * Measure the label's natural width in pixels in its current font, capped to
+	 * MEOW_SIDEBAR_LABEL_MAX_CHARS characters so an over-long label contributes
+	 * only the cap (it ellipsises on screen). The window takes the maximum across
+	 * every sidebar button to size the shared width floor. Independent of widget
+	 * visibility, so a hidden off-mode button still reports its true width.
+	 *
+	 * Returns: the (capped) natural label width in pixels.
+	 */
+	int measure_label_width() const;
+
+	/* set_min_label_width:
+	 * @width: the shared minimum label width in pixels.
+	 *
+	 * Pin the label's minimum width so this button never requests less than the
+	 * widest sidebar label across both modes. See the implementation for why the
+	 * floor lives on the buttons rather than on the width size group.
+	 */
+	void set_min_label_width(int width);
+
 	/* suppress_hover_until_motion:
 	 *
 	 * Inhibit pointer-hover auto-activation for every category button until the
@@ -75,6 +96,7 @@ private:
 	GtkBox* m_box;
 	GtkWidget* m_icon;
 	GtkWidget* m_label;
+	long m_label_chars;
 };
 
 }

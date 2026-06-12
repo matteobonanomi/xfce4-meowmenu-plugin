@@ -101,6 +101,16 @@ public:
 	void unset_items();
 
 private:
+	/* sync_category_label_width:
+	 *
+	 * Pin every sidebar category button (Apps and Places) to the same minimum
+	 * label width — the widest label across both modes, clamped to the cap — so
+	 * the sidebar width is carried by the visible buttons and survives an
+	 * Apps<->Places switch. Call after the built-in buttons exist and again
+	 * whenever the application categories change.
+	 */
+	void sync_category_label_width();
+
 	GtkWidget* get_active_category_button();
 	gboolean on_key_press_event(GtkWidget* widget, GdkEventKey* key_event);
 	gboolean on_key_press_event_after(GtkWidget* widget, GdkEventKey* key_event);
@@ -312,6 +322,10 @@ private:
 	gulong m_places_property_slot;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
+	// The dynamically-loaded application-category buttons, kept alongside their
+	// widgets so the shared sidebar width floor can be recomputed when they
+	// arrive (see sync_category_label_width). Reset on every set_categories().
+	std::vector<CategoryButton*> m_app_categories;
 
 	GtkScrolledWindow* m_sidebar;
 	// Horizontally-scrolling container for the Top/Bottom category strip
