@@ -71,4 +71,25 @@ OpacityRegionAlphas meowmenu_region_alphas(bool fullscreen,
                                            int apps_opacity,
                                            int full_screen_opacity);
 
+/* Buffer size that is always sufficient to hold the textual form produced by
+ * meowmenu_format_css_alpha (a fixed-3-decimal rendering such as "0.600",
+ * plus its NUL terminator). */
+#define MEOWMENU_CSS_ALPHA_BUFSZ 16
+
+/* meowmenu_format_css_alpha:
+ * @alpha: a CSS alpha in [0.0, 1.0] (callers pass values from
+ *         meowmenu_region_alphas; out-of-range input is formatted as given).
+ * @out:   caller-owned buffer receiving a NUL-terminated, locale-independent
+ *         fixed-3-decimal rendering (e.g. "0.600"); MEOWMENU_CSS_ALPHA_BUFSZ
+ *         bytes is always sufficient.
+ *
+ * Formats @alpha exactly as printf "%.3f" would under the "C" locale — the
+ * decimal separator is always '.', never a locale-dependent ','. Reads and
+ * mutates no global locale state, so it is safe to call from a process whose
+ * LC_NUMERIC uses a comma and that hosts other plugins.
+ *
+ * Returns: @out, for call-site convenience.
+ */
+const char* meowmenu_format_css_alpha(double alpha, char* out /* [MEOWMENU_CSS_ALPHA_BUFSZ] */);
+
 #endif // MEOWMENU_CORE_OPACITY_MODEL_H

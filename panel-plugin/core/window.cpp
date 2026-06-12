@@ -2306,8 +2306,24 @@ void WhiskerMenu::Window::update_background_css()
 	// clip path (docked only); a per-region CSS border here would double that
 	// line and ignore the corner radius. Full-screen continues to show no
 	// outline at all (one seamless surface).
+
+	// NOTE: the alpha values MUST be serialised locale-independently. A plain
+	// "%.3f" honours the process LC_NUMERIC, so under a comma-decimal locale
+	// (it_IT, de_DE, …) it would emit "0,600", producing the invalid
+	// declaration rgba(31, 31, 31, 0,600) that GTK's CSS parser rejects — the
+	// menu's opacity controls would then silently do nothing. Format each alpha
+	// with meowmenu_format_css_alpha (always a '.' separator, no global state)
+	// and substitute %s tokens so the generated CSS is byte-for-byte identical
+	// in every language.
+	char alpha_window[MEOWMENU_CSS_ALPHA_BUFSZ];
+	char alpha_categories[MEOWMENU_CSS_ALPHA_BUFSZ];
+	char alpha_apps[MEOWMENU_CSS_ALPHA_BUFSZ];
+	meowmenu_format_css_alpha(alphas.window, alpha_window);
+	meowmenu_format_css_alpha(alphas.categories, alpha_categories);
+	meowmenu_format_css_alpha(alphas.apps, alpha_apps);
+
 	gchar* css = g_strdup_printf(
-		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %s); }"
 		// NOTE: GTK wraps an undecorated, client-side-decorated toplevel in a
 		// `decoration` subnode that the active theme styles with a drop shadow
 		// (and often its own border-radius/border/margin). That node is painted
@@ -2373,10 +2389,10 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .search-area,"
 		".meowmenu .title-area,"
 		".meowmenu .commands-area"
-		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		"{ background-image: none; background-color: rgba(%d, %d, %d, %s); }"
 		".meowmenu .applications-area,"
 		".meowmenu .applications-area > *"
-		"{ background-image: none; background-color: rgba(%d, %d, %d, %.3f); }"
+		"{ background-image: none; background-color: rgba(%d, %d, %d, %s); }"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2424,11 +2440,24 @@ void WhiskerMenu::Window::update_background_css()
 		"  border-left: 1px solid alpha(@theme_fg_color, 0.2); }"
 		".meowmenu .places-mode-selector button:dir(rtl):last-child"
 		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px; }",
-		red, green, blue, alphas.window,
-		red, green, blue, alphas.categories,
-		red, green, blue, alphas.apps);
+		red, green, blue, alpha_window,
+		red, green, blue, alpha_categories,
+		red, green, blue, alpha_apps);
 
-	gtk_css_provider_load_from_data(m_css_provider, css, -1, nullptr);
+	// Capture the parse error from our own generated stylesheet. Passing nullptr
+	// here discards all diagnostics, which is why a malformed declaration (such
+	// as the comma-decimal alpha bug) previously failed silently. The warning is
+	// emitted unconditionally — not gated behind any debug flag — so a future
+	// "opacity looks broken, no error" report becomes a one-line diagnosis. The
+	// success path stays silent, so normal operation adds no log noise.
+	GError* error = nullptr;
+	gtk_css_provider_load_from_data(m_css_provider, css, -1, &error);
+	if (error != nullptr)
+	{
+		g_warning("meowmenu: failed to apply menu background styling: %s",
+		          error->message);
+		g_clear_error(&error);
+	}
 	g_free(css);
 }
 
