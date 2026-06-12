@@ -66,7 +66,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	gtk_grid_set_row_spacing(enable_grid, 6);
 	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), GTK_WIDGET(enable_grid)), false, false, 0);
 
-	m_enable_sidebar_switch = gtk_switch_new();
+	m_enable_sidebar_switch = make_form_switch();
 	GtkWidget* enable_sidebar_switch = m_enable_sidebar_switch;
 	GtkWidget* enable_sidebar_label = gtk_label_new_with_mnemonic(_("_Enable sidebar"));
 	gtk_widget_set_halign(enable_sidebar_label, GTK_ALIGN_START);

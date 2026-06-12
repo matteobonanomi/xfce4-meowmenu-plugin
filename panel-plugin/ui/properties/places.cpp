@@ -52,7 +52,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_grid_set_row_spacing(enable_grid, 6);
 	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), GTK_WIDGET(enable_grid)), false, false, 0);
 
-	GtkWidget* enable_switch = gtk_switch_new();
+	GtkWidget* enable_switch = make_form_switch();
 	m_places_enabled_switch = enable_switch;
 	GtkWidget* enable_label = gtk_label_new_with_mnemonic(_("Enable _Places"));
 	gtk_widget_set_halign(enable_label, GTK_ALIGN_START);
@@ -66,7 +66,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	// instead of text (FR-001). Bound to /places/switch-show-icons with the
 	// binding's reset-to-default; greyed (forced ON, value unchanged) when the
 	// sidebar is on Top/Bottom or disabled (FR-015/018).
-	GtkWidget* show_icons_switch = gtk_switch_new();
+	GtkWidget* show_icons_switch = make_form_switch();
 	GtkWidget* show_icons_label = gtk_label_new_with_mnemonic(_("Show _icons"));
 	gtk_widget_set_halign(show_icons_label, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(show_icons_label, true);
@@ -85,7 +85,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	places_dependents.push_back(sections_frame);
 
 	int row = 0;
-	GtkWidget* history_switch = gtk_switch_new();
+	GtkWidget* history_switch = make_form_switch();
 	GtkWidget* history_label = gtk_label_new_with_mnemonic(_("Enable _History section"));
 	gtk_widget_set_halign(history_label, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(history_label, true);
@@ -95,7 +95,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(history_label), history_switch);
 	++row;
 
-	GtkWidget* fav_switch = gtk_switch_new();
+	GtkWidget* fav_switch = make_form_switch();
 	GtkWidget* fav_label = gtk_label_new_with_mnemonic(_("Enable _Favourites section"));
 	gtk_widget_set_halign(fav_label, GTK_ALIGN_START);
 	gtk_widget_set_hexpand(fav_label, true);
