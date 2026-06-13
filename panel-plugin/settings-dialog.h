@@ -158,7 +158,11 @@ public:
 private:
 	GtkWidget* m_preset_combo = nullptr;
 	GtkListStore* m_preset_model = nullptr;
-	GtkWidget* m_preset_description = nullptr;
+	// "?" help control beside the preset selector. Its hover/focus tooltip
+	// reveals the active preset's description (set by the preset-sync path); it
+	// replaces the former always-visible inline description label. Null-guarded
+	// by cross-tab helpers per the note at lines 127-128.
+	GtkWidget* m_preset_help = nullptr;
 	GtkWidget* m_preset_rename_btn = nullptr;
 	GtkWidget* m_preset_delete_btn = nullptr;
 	GtkWidget* m_preset_export_btn = nullptr;
