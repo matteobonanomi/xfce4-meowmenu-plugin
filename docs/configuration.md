@@ -15,7 +15,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 
 | Option | Description |
 |--------|-------------|
-| Preset | Select, save, rename, delete, export, or import a layout preset. |
+| Preset | Select, save, rename, delete, export, or import a layout preset. The **?** control beside the selector reveals the active preset's description on hover or keyboard focus. |
 | Layout mode | **Docked** (panel-attached window), **Centered** (a floating window pinned to the centre of the screen), or **FullScreen** (full-screen launcher). |
 | Panel gap | Distance between the panel and the menu window, in pixels (Docked only). |
 | Menu width | Width of the menu window in pixels. |
