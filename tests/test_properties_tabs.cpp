@@ -64,31 +64,42 @@ enum class EnableWhen
 	PlacesFavouritesEnabled,
 };
 
+// Column placement within a section's two equal-width halves. Full = spans both
+// halves (no midpoint applies). Default (Full) suits non-General rows whose
+// column is not modelled here; every General row pins an explicit C1/C2.
+enum class Column
+{
+	Full,
+	C1,
+	C2,
+};
+
 struct Row
 {
 	const char* setting_id;   // matches Xfconf key for keyed settings
 	Tab         tab;
 	EnableWhen  enable_when;
 	bool        layout_mode_driven; // true iff enable_when uses /layout-mode
+	Column      column;             // C1/C2 within the section; General rows only
 };
 
 // The placement grid. Order is informational; the invariant checks are
 // order-independent.
 const Row kPlacementGrid[] = {
-	// General
-	{ "current-preset-id",         Tab::General,     EnableWhen::Always,     false },
-	{ "button-title-visible",      Tab::General,     EnableWhen::Always,     false },
-	{ "button-title",              Tab::General,     EnableWhen::Always,     false },
-	{ "button-icon-visible",       Tab::General,     EnableWhen::Always,     false },
-	{ "button-icon-name",          Tab::General,     EnableWhen::Always,     false },
-	{ "button-single-row",         Tab::General,     EnableWhen::Always,     false },
-	{ "layout-mode",               Tab::General,     EnableWhen::Always,     false },
-	{ "panel-gap",                 Tab::General,     EnableWhen::Always,     false },
-	{ "menu-width",                Tab::General,     EnableWhen::Docked,     true  },
-	{ "menu-height",               Tab::General,     EnableWhen::Docked,     true  },
-	{ "corner-radius",             Tab::General,     EnableWhen::Always,     false },
-	{ "full-screen-opacity",       Tab::General,     EnableWhen::Fullscreen, true  },
-	{ "stay-on-focus-out",         Tab::General,     EnableWhen::Always,     false },
+	// General — column per contracts/general-tab-placement.md.
+	{ "current-preset-id",         Tab::General,     EnableWhen::Always,     false, Column::C1 },
+	{ "button-title-visible",      Tab::General,     EnableWhen::Always,     false, Column::C1 },
+	{ "button-title",              Tab::General,     EnableWhen::Always,     false, Column::C1 },
+	{ "button-icon-visible",       Tab::General,     EnableWhen::Always,     false, Column::C2 },
+	{ "button-icon-name",          Tab::General,     EnableWhen::Always,     false, Column::C2 },
+	{ "button-single-row",         Tab::General,     EnableWhen::Always,     false, Column::C1 },
+	{ "layout-mode",               Tab::General,     EnableWhen::Always,     false, Column::C1 },
+	{ "panel-gap",                 Tab::General,     EnableWhen::Always,     false, Column::C1 },
+	{ "menu-width",                Tab::General,     EnableWhen::Docked,     true,  Column::C1 },
+	{ "menu-height",               Tab::General,     EnableWhen::Docked,     true,  Column::C2 },
+	{ "corner-radius",             Tab::General,     EnableWhen::Always,     false, Column::C2 },
+	{ "full-screen-opacity",       Tab::General,     EnableWhen::Fullscreen, true,  Column::C1 },
+	{ "stay-on-focus-out",         Tab::General,     EnableWhen::Always,     false, Column::C2 },
 
 	// User / Session
 	{ "profile-position",          Tab::UserSession, EnableWhen::Always,         false },
@@ -267,6 +278,72 @@ static void test_placement_grid_complete_and_no_extras()
 		assert(required.count(k) == 1 && "placement grid has orphan key not in required list");
 }
 
+// Independent reference for the General-tab C1/C2 placement map, transcribed
+// from contracts/general-tab-placement.md. Kept separate from kPlacementGrid so
+// the assertion below is a genuine cross-check, not a tautology: a wrong column
+// in the grid (or here) fails the test.
+struct ColumnExpectation
+{
+	const char* setting_id;
+	Column      column;
+};
+
+const ColumnExpectation kGeneralColumns[] = {
+	{ "current-preset-id",   Column::C1 },
+	{ "button-title-visible", Column::C1 },
+	{ "button-title",        Column::C1 },
+	{ "button-icon-visible", Column::C2 },
+	{ "button-icon-name",    Column::C2 },
+	{ "button-single-row",   Column::C1 },
+	{ "layout-mode",         Column::C1 },
+	{ "panel-gap",           Column::C1 },
+	{ "menu-width",          Column::C1 },
+	{ "menu-height",         Column::C2 },
+	{ "corner-radius",       Column::C2 },
+	{ "full-screen-opacity", Column::C1 },
+	{ "stay-on-focus-out",   Column::C2 },
+};
+
+constexpr size_t kGeneralColumnCount =
+	sizeof(kGeneralColumns) / sizeof(kGeneralColumns[0]);
+
+// Invariant 6 (US-2): every keyed General-tab control has a defined C1/C2 column
+// (never Full — only the keyless info-bar spans both halves), and the column of
+// each matches the placement contract (SC-001 / FR-005…FR-012).
+static void test_general_columns_match_contract()
+{
+	for (const auto& row : kPlacementGrid)
+	{
+		if (row.tab != Tab::General)
+			continue;
+		assert(row.column != Column::Full
+				&& "General control has no C1/C2 column assigned");
+
+		bool found = false;
+		for (size_t i = 0; i < kGeneralColumnCount; ++i)
+		{
+			if (std::string(row.setting_id) == kGeneralColumns[i].setting_id)
+			{
+				assert(row.column == kGeneralColumns[i].column
+						&& "General control column does not match the placement contract");
+				found = true;
+				break;
+			}
+		}
+		assert(found && "General control missing from the column contract reference");
+	}
+
+	// And the reverse: every contracted General key is actually on the grid, so
+	// the reference table cannot silently drift ahead of the placement grid.
+	std::set<std::string> general_keys;
+	for (const auto& row : kPlacementGrid)
+		if (row.tab == Tab::General)
+			general_keys.insert(row.setting_id);
+	for (size_t i = 0; i < kGeneralColumnCount; ++i)
+		assert(general_keys.count(kGeneralColumns[i].setting_id) == 1
+				&& "column contract names a key absent from the General tab");
+}
+
 // T013: synced_keys() must cover exactly governed_keys() — order-independent.
 void test_synced_keys_cover_governed_keys()
 {
@@ -287,6 +364,7 @@ int main()
 	test_exactly_six_tabs();
 	test_sane_enable_when();
 	test_placement_grid_complete_and_no_extras();
+	test_general_columns_match_contract();
 	test_synced_keys_cover_governed_keys();
 	return 0;
 }
