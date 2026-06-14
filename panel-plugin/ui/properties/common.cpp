@@ -88,6 +88,11 @@ GtkWidget* make_help_button(const gchar* accessible_name)
 	GtkWidget* btn = gtk_button_new_with_label("?");
 	gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
 	gtk_widget_set_valign(btn, GTK_ALIGN_CENTER);
+	// START keeps the "?" at its natural compact size when add_form_row() gives
+	// the control-only cell hexpand, instead of letting it stretch across the
+	// half — the same compact-render guard make_form_switch() applies to grid-
+	// attached switches.
+	gtk_widget_set_halign(btn, GTK_ALIGN_START);
 
 	AtkObject* a11y = gtk_widget_get_accessible(btn);
 	if (a11y != nullptr)

@@ -51,29 +51,22 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	GtkBox* page = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 18));
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
-	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-	GtkSizeGroup* control_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-
 	// =========================================================================
-	// 0. Enable sidebar (FR-022/032/033)
+	// 0. Enable sidebar (FR-020/022/032/033)
 	// =========================================================================
 	// "Enable sidebar" OFF removes the category sidebar entirely; the
 	// Apps/Places switch relocates into the search-bar row. Bound to
 	// /sidebar-enabled with the binding's reset-to-default. When OFF, every
-	// other Sidebar section is greyed except the Default category section.
-	GtkGrid* enable_grid = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(enable_grid, 12);
-	gtk_grid_set_row_spacing(enable_grid, 6);
-	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), GTK_WIDGET(enable_grid)), false, false, 0);
+	// other Sidebar section is greyed except the Default category section. The
+	// switch sits in C1 with C2 left empty.
+	GtkWidget* enable_grid = make_two_column_section();
+	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), enable_grid), false, false, 0);
 
 	m_enable_sidebar_switch = make_form_switch();
 	GtkWidget* enable_sidebar_switch = m_enable_sidebar_switch;
 	GtkWidget* enable_sidebar_label = gtk_label_new_with_mnemonic(_("_Enable sidebar"));
-	gtk_widget_set_halign(enable_sidebar_label, GTK_ALIGN_START);
-	gtk_widget_set_hexpand(enable_sidebar_label, true);
 	gtk_switch_set_active(GTK_SWITCH(enable_sidebar_switch), m_settings->sidebar_enabled);
-	gtk_grid_attach(enable_grid, enable_sidebar_label, 0, 0, 1, 1);
-	gtk_grid_attach(enable_grid, enable_sidebar_switch, 1, 0, 1, 1);
+	add_form_row(enable_grid, COLUMN_C1, 0, enable_sidebar_label, enable_sidebar_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_sidebar_label), enable_sidebar_switch);
 
 	// Section frames greyed when the sidebar is disabled (FR-022). Populated
@@ -84,23 +77,23 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	auto sidebar_section_frames = std::make_shared<std::vector<GtkWidget*>>();
 
 	// =========================================================================
-	// 1. Visuals section
+	// 1. Visuals section (FR-021/022)
 	// =========================================================================
-	GtkGrid* visuals_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(visuals_table, 12);
-	gtk_grid_set_row_spacing(visuals_table, 6);
+	// Show category names C1 / icon size C2 share a row; the opacity slider
+	// spans the full section width below the grid (Full), packed into the
+	// section vbox so it has no phantom empty C2.
+	GtkWidget* visuals_content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	GtkWidget* visuals_grid = make_two_column_section();
+	gtk_box_pack_start(GTK_BOX(visuals_content), visuals_grid, false, false, 0);
 
-	GtkWidget* visuals_frame = make_aligned_frame(_("Visuals"), GTK_WIDGET(visuals_table));
+	GtkWidget* visuals_frame = make_aligned_frame(_("Visuals"), visuals_content);
 	gtk_box_pack_start(page, visuals_frame, false, false, 0);
 	sidebar_section_frames->push_back(visuals_frame);
 
-	int v_row = 0;
-
 	m_show_category_names = gtk_check_button_new_with_mnemonic(_("Show cate_gory names"));
-	gtk_grid_attach(visuals_table, m_show_category_names, 0, v_row, 2, 1);
+	add_form_row(visuals_grid, COLUMN_C1, 0, nullptr, m_show_category_names, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_category_names),
 		m_settings->category_show_name);
-	++v_row;
 
 	connect(m_show_category_names, "toggled",
 		[this](GtkToggleButton* button)
@@ -114,21 +107,14 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 
 	// Category icon size
 	GtkWidget* cat_size_label = gtk_label_new_with_mnemonic(_("Categ_ory icon size:"));
-	gtk_widget_set_halign(cat_size_label, GTK_ALIGN_START);
-	gtk_grid_attach(visuals_table, cat_size_label, 0, v_row, 1, 1);
-
 	m_category_icon_size = gtk_combo_box_text_new();
-	gtk_widget_set_halign(m_category_icon_size, GTK_ALIGN_START);
 	const auto cat_icon_sizes = IconSize::get_strings();
 	for (const auto& s : cat_icon_sizes)
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_category_icon_size), s.c_str());
 	gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size),
 		m_settings->category_icon_size + 1);
-	gtk_grid_attach(visuals_table, m_category_icon_size, 1, v_row, 1, 1);
+	add_form_row(visuals_grid, COLUMN_C2, 0, cat_size_label, m_category_icon_size, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(cat_size_label), m_category_icon_size);
-	gtk_size_group_add_widget(label_size_group, cat_size_label);
-	gtk_size_group_add_widget(control_size_group, m_category_icon_size);
-	++v_row;
 
 	connect(m_category_icon_size, "changed",
 		[this](GtkComboBox* combo)
@@ -141,18 +127,20 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	// Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
+	// Whole-row [label | scale] box spanning the section so the scale fills the
+	// full width rather than half of it.
+	GtkWidget* side_op_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	GtkWidget* side_op_label = gtk_label_new_with_mnemonic(_("_Sidebar opacity:"));
 	gtk_widget_set_halign(side_op_label, GTK_ALIGN_START);
-	gtk_grid_attach(visuals_table, side_op_label, 0, v_row, 1, 1);
+	gtk_box_pack_start(GTK_BOX(side_op_row), side_op_label, false, false, 0);
 
 	m_categories_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
 	gtk_widget_set_hexpand(m_categories_opacity, true);
 	gtk_scale_set_value_pos(GTK_SCALE(m_categories_opacity), GTK_POS_RIGHT);
 	gtk_range_set_value(GTK_RANGE(m_categories_opacity), m_settings->categories_opacity);
-	gtk_grid_attach(visuals_table, m_categories_opacity, 1, v_row, 1, 1);
+	gtk_box_pack_start(GTK_BOX(side_op_row), m_categories_opacity, true, true, 0);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(side_op_label), m_categories_opacity);
-	gtk_size_group_add_widget(label_size_group, side_op_label);
-	++v_row;
+	gtk_box_pack_start(GTK_BOX(visuals_content), side_op_row, false, false, 0);
 
 	connect(m_categories_opacity, "value-changed",
 		[this](GtkRange* range)
@@ -168,20 +156,14 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	m_layout_enable_when_docked.push_back(side_op_label);
 
 	// =========================================================================
-	// 2. Position section
+	// 2. Position section (FR-023) — combo in C1, C2 left empty.
 	// =========================================================================
-	GtkGrid* pos_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(pos_table, 12);
-	gtk_grid_set_row_spacing(pos_table, 6);
-
-	GtkWidget* pos_frame = make_aligned_frame(_("Position"), GTK_WIDGET(pos_table));
+	GtkWidget* pos_grid = make_two_column_section();
+	GtkWidget* pos_frame = make_aligned_frame(_("Position"), pos_grid);
 	gtk_box_pack_start(page, pos_frame, false, false, 0);
 	sidebar_section_frames->push_back(pos_frame);
 
 	GtkWidget* side_pos_label = gtk_label_new_with_mnemonic(_("Sidebar _position:"));
-	gtk_widget_set_halign(side_pos_label, GTK_ALIGN_START);
-	gtk_grid_attach(pos_table, side_pos_label, 0, 0, 1, 1);
-
 	m_sidebar_position_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "left", _("Left"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "right", _("Right"));
@@ -189,11 +171,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "bottom", _("Bottom"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
 		static_cast<const gchar*>(m_settings->sidebar_position));
-	gtk_widget_set_halign(m_sidebar_position_combo, GTK_ALIGN_START);
-	gtk_grid_attach(pos_table, m_sidebar_position_combo, 1, 0, 1, 1);
+	add_form_row(pos_grid, COLUMN_C1, 0, side_pos_label, m_sidebar_position_combo, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(side_pos_label), m_sidebar_position_combo);
-	gtk_size_group_add_widget(label_size_group, side_pos_label);
-	gtk_size_group_add_widget(control_size_group, m_sidebar_position_combo);
 
 	// Sensitivity: when the sidebar is disabled every section is greyed except
 	// the Default category section (FR-022). When enabled, "Show category
@@ -241,15 +220,15 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	// =========================================================================
-	// 3. Behaviour section
+	// 3. Behaviour section (FR-024) — hover C1 / sort C2.
 	// =========================================================================
-	GtkBox* behavior_vbox = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 6));
-	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), GTK_WIDGET(behavior_vbox));
+	GtkWidget* behavior_grid = make_two_column_section();
+	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), behavior_grid);
 	gtk_box_pack_start(page, behavior_frame, false, false, 0);
 	sidebar_section_frames->push_back(behavior_frame);
 
 	m_hover_switch_category = gtk_check_button_new_with_mnemonic(_("Switch categories by _hovering"));
-	gtk_box_pack_start(behavior_vbox, m_hover_switch_category, false, false, 0);
+	add_form_row(behavior_grid, COLUMN_C1, 0, nullptr, m_hover_switch_category, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
 		m_settings->category_hover_activate);
 
@@ -262,7 +241,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	m_sort_categories = gtk_check_button_new_with_mnemonic(_("Sort ca_tegories"));
-	gtk_box_pack_start(behavior_vbox, m_sort_categories, false, false, 0);
+	add_form_row(behavior_grid, COLUMN_C2, 0, nullptr, m_sort_categories, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_sort_categories), m_settings->sort_categories);
 
 	connect(m_sort_categories, "toggled",
@@ -330,26 +309,18 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	// =========================================================================
-	// 4. Recently used section
+	// 4. Recently used section (FR-026) — max items C1 / include favorites C2.
 	// =========================================================================
-	GtkGrid* recent_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(recent_table, 12);
-	gtk_grid_set_row_spacing(recent_table, 6);
-
-	GtkWidget* recent_frame = make_aligned_frame(_("Recently used"), GTK_WIDGET(recent_table));
+	GtkWidget* recent_grid = make_two_column_section();
+	GtkWidget* recent_frame = make_aligned_frame(_("Recently used"), recent_grid);
 	gtk_box_pack_start(page, recent_frame, false, false, 0);
 	sidebar_section_frames->push_back(recent_frame);
 
 	GtkWidget* max_label = gtk_label_new_with_mnemonic(_("Maximum _items:"));
-	gtk_widget_set_halign(max_label, GTK_ALIGN_START);
-	gtk_grid_attach(recent_table, max_label, 0, 0, 1, 1);
-
 	m_recent_items_max = gtk_spin_button_new_with_range(0, 100, 1);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_recent_items_max), m_settings->recent_items_max);
-	gtk_grid_attach(recent_table, m_recent_items_max, 1, 0, 1, 1);
+	add_form_row(recent_grid, COLUMN_C1, 0, max_label, m_recent_items_max, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), m_recent_items_max);
-	gtk_size_group_add_widget(label_size_group, max_label);
-	gtk_size_group_add_widget(control_size_group, m_recent_items_max);
 
 	connect(m_recent_items_max, "value-changed",
 		[this](GtkSpinButton* button)
@@ -362,7 +333,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	m_remember_favorites = gtk_check_button_new_with_mnemonic(_("Include _favorites in \"Recent\""));
-	gtk_grid_attach(recent_table, m_remember_favorites, 0, 1, 2, 1);
+	add_form_row(recent_grid, COLUMN_C2, 0, nullptr, m_remember_favorites, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_remember_favorites),
 		m_settings->favorites_in_recent);
 
