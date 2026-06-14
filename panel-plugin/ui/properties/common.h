@@ -48,9 +48,12 @@ GtkWidget* make_info_frame(const gchar* title, GtkWidget* content, const gchar* 
  *   gtk_widget_set_tooltip_text().
  *
  * Returns: a relief-none, vertically-centered "?" GtkButton matching the help
- * affordance used by make_info_frame(). GTK shows its tooltip on both pointer
- * hover and keyboard focus, so the caller need only keep the tooltip text in
- * sync with the active selection. Caller owns the floating ref.
+ * affordance used by make_info_frame(). It requests halign = GTK_ALIGN_START so
+ * that when attached into a control-only grid cell (which carries hexpand) it
+ * renders at its natural compact size instead of stretching across the column.
+ * GTK shows its tooltip on both pointer hover and keyboard focus, so the caller
+ * need only keep the tooltip text in sync with the active selection. Caller owns
+ * the floating ref.
  */
 GtkWidget* make_help_button(const gchar* accessible_name);
 

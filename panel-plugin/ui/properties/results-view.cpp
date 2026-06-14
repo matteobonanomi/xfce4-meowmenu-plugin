@@ -50,7 +50,6 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
 	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-	GtkSizeGroup* control_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
 	// =========================================================================
 	// 1. View section — three exclusive icon-buttons (FR-040).
@@ -114,34 +113,24 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_list), true);
 
 	// =========================================================================
-	// 2. Layout section — grid density, icon size, show flags.
+	// 2. Layout section — grid density, icon size, show flags (FR-016…FR-018).
 	// =========================================================================
-	GtkGrid* layout_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(layout_table, 12);
-	gtk_grid_set_row_spacing(layout_table, 6);
-
-	GtkWidget* layout_frame = make_aligned_frame(_("Layout"), GTK_WIDGET(layout_table));
+	// density C1 / icon-size C2; generic-names C1 / tooltips C2; descriptions C1
+	// with C2 left empty.
+	GtkWidget* layout_grid = make_two_column_section();
+	GtkWidget* layout_frame = make_aligned_frame(_("Layout"), layout_grid);
 	gtk_box_pack_start(page, layout_frame, false, false, 0);
-
-	int layout_row = 0;
 
 	// Grid density (icons-only sub-enable)
 	GtkWidget* density_label = gtk_label_new_with_mnemonic(_("Grid _density:"));
-	gtk_widget_set_halign(density_label, GTK_ALIGN_START);
-	gtk_grid_attach(layout_table, density_label, 0, layout_row, 1, 1);
-
 	m_grid_density_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "low", _("Low"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "medium", _("Medium"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_grid_density_combo), "high", _("High"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 		static_cast<const gchar*>(m_settings->grid_density));
-	gtk_widget_set_halign(m_grid_density_combo, GTK_ALIGN_START);
-	gtk_grid_attach(layout_table, m_grid_density_combo, 1, layout_row, 1, 1);
+	add_form_row(layout_grid, COLUMN_C1, 0, density_label, m_grid_density_combo, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(density_label), m_grid_density_combo);
-	gtk_size_group_add_widget(label_size_group, density_label);
-	gtk_size_group_add_widget(control_size_group, m_grid_density_combo);
-	++layout_row;
 
 	connect(m_grid_density_combo, "changed",
 		[this](GtkComboBox* combo)
@@ -156,20 +145,13 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 
 	// Application icon size (icons-only sub-enable)
 	GtkWidget* icon_size_label = gtk_label_new_with_mnemonic(_("Application icon si_ze:"));
-	gtk_widget_set_halign(icon_size_label, GTK_ALIGN_START);
-	gtk_grid_attach(layout_table, icon_size_label, 0, layout_row, 1, 1);
-
 	m_item_icon_size = gtk_combo_box_text_new();
-	gtk_widget_set_halign(m_item_icon_size, GTK_ALIGN_START);
 	const auto icon_sizes = IconSize::get_strings();
 	for (const auto& icon_size : icon_sizes)
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_item_icon_size), icon_size.c_str());
 	gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size), m_settings->launcher_icon_size + 1);
-	gtk_grid_attach(layout_table, m_item_icon_size, 1, layout_row, 1, 1);
+	add_form_row(layout_grid, COLUMN_C2, 0, icon_size_label, m_item_icon_size, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(icon_size_label), m_item_icon_size);
-	gtk_size_group_add_widget(label_size_group, icon_size_label);
-	gtk_size_group_add_widget(control_size_group, m_item_icon_size);
-	++layout_row;
 
 	connect(m_item_icon_size, "changed",
 		[this](GtkComboBox* combo)
@@ -182,9 +164,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	// NOTE: launcher_show_name stores "show the real (non-generic) name"; the
 	// checkbox is therefore inverted — checked means "Show generic" (false).
 	m_show_generic_names = gtk_check_button_new_with_mnemonic(_("Show generic application _names"));
-	gtk_grid_attach(layout_table, m_show_generic_names, 0, layout_row, 2, 1);
+	add_form_row(layout_grid, COLUMN_C1, 1, nullptr, m_show_generic_names, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_generic_names), !m_settings->launcher_show_name);
-	++layout_row;
 
 	connect(m_show_generic_names, "toggled",
 		[this](GtkToggleButton* button)
@@ -194,9 +175,8 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		});
 
 	m_show_tooltips = gtk_check_button_new_with_mnemonic(_("Show application too_ltips"));
-	gtk_grid_attach(layout_table, m_show_tooltips, 0, layout_row, 2, 1);
+	add_form_row(layout_grid, COLUMN_C2, 1, nullptr, m_show_tooltips, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_tooltips), m_settings->launcher_show_tooltip);
-	++layout_row;
 
 	connect(m_show_tooltips, "toggled",
 		[this](GtkToggleButton* button)
@@ -204,11 +184,10 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			m_settings->launcher_show_tooltip = gtk_toggle_button_get_active(button);
 		});
 
-	// Show descriptions — list-only sub-enable.
+	// Show descriptions — list-only sub-enable. C1 with C2 left empty (FR-018).
 	m_show_descriptions = gtk_check_button_new_with_mnemonic(_("Show application _descriptions"));
-	gtk_grid_attach(layout_table, m_show_descriptions, 0, layout_row, 2, 1);
+	add_form_row(layout_grid, COLUMN_C1, 2, nullptr, m_show_descriptions, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_descriptions), m_settings->launcher_show_description);
-	++layout_row;
 
 	connect(m_show_descriptions, "toggled",
 		[this](GtkToggleButton* button)
