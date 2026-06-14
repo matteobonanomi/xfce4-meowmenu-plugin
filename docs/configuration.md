@@ -11,6 +11,10 @@ All MeowMenu settings are exposed in the **Properties** dialog
 
 ## Properties dialog
 
+Each tab arranges its settings into two equal-width columns, so related options
+sit side by side. The dialog has no published screenshots, so the option tables
+below remain the authoritative reference.
+
 ### General
 
 | Option | Description |
