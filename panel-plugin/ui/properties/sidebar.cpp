@@ -126,35 +126,6 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			refresh_customized_indicator();
 		});
 
-	// Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
-	// Whole-row [label | scale] box spanning the section so the scale fills the
-	// full width rather than half of it.
-	GtkWidget* side_op_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-	GtkWidget* side_op_label = gtk_label_new_with_mnemonic(_("_Sidebar opacity:"));
-	gtk_widget_set_halign(side_op_label, GTK_ALIGN_START);
-	gtk_box_pack_start(GTK_BOX(side_op_row), side_op_label, false, false, 0);
-
-	m_categories_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
-	gtk_widget_set_hexpand(m_categories_opacity, true);
-	gtk_scale_set_value_pos(GTK_SCALE(m_categories_opacity), GTK_POS_RIGHT);
-	gtk_range_set_value(GTK_RANGE(m_categories_opacity), m_settings->categories_opacity);
-	gtk_box_pack_start(GTK_BOX(side_op_row), m_categories_opacity, true, true, 0);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(side_op_label), m_categories_opacity);
-	gtk_box_pack_start(GTK_BOX(visuals_content), side_op_row, false, false, 0);
-
-	connect(m_categories_opacity, "value-changed",
-		[this](GtkRange* range)
-		{
-			if (m_programmatic_update)
-				return;
-			m_settings->categories_opacity = static_cast<int>(gtk_range_get_value(range));
-			m_plugin->reload_menu();
-			refresh_customized_indicator();
-		});
-
-	m_layout_enable_when_docked.push_back(m_categories_opacity);
-	m_layout_enable_when_docked.push_back(side_op_label);
-
 	// =========================================================================
 	// 2. Position section (FR-023) — combo in C1, C2 left empty.
 	// =========================================================================

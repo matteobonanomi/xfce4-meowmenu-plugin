@@ -60,8 +60,7 @@ WhiskerMenu::layout_mode_from_key(const char* value)
 /* control_enabled:
  * See user-session-layout.h. Direct transcription of the FR-006 matrix:
  * size/shape controls are enabled in both windowed modes (Docked, Centered)
- * and greyed in Full-Screen; the panel gap is enabled only in Docked; the
- * full-screen opacity is enabled only in Full-Screen.
+ * and greyed in Full-Screen; the panel gap is enabled only in Docked.
  */
 bool
 WhiskerMenu::control_enabled(LayoutControl control, LayoutMode mode)
@@ -74,8 +73,6 @@ WhiskerMenu::control_enabled(LayoutControl control, LayoutMode mode)
 		return mode != LayoutMode::FullScreen;
 	case LayoutControl::PanelGap:
 		return mode == LayoutMode::Docked;
-	case LayoutControl::FullScreenOpacity:
-		return mode == LayoutMode::FullScreen;
 	}
 	return false;
 }

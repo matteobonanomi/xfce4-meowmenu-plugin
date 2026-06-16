@@ -45,15 +45,14 @@ static PresetValueMap make_values(std::initializer_list<std::pair<const char*, P
 // Built-in preset definitions.
 //
 // Every built-in MUST define a value for every key in governed_keys(); the
-// completeness unit test fails the build's test stage otherwise. The newly
-// governed keys (sidebar-enabled, category-show-name, places-show-icons) are
-// present in all three so an edit to one of them is fully reset by a preset
-// switch (no leakage). The C++ table is the fallback when the shipped
-// .meowpreset files are absent or malformed; the two MUST agree (a unit test
-// enforces it). Keys not in governed_keys() (menu-width/height, grid-density,
-// full-screen-opacity) are applied when present but are intentionally not
-// required of every preset — notably FullScreen omits menu dimensions so a
-// later switch to a docked preset restores them.
+// completeness unit test fails the build's test stage otherwise. menu-opacity
+// is governed: every built-in carries its single opacity value (Classic 100,
+// Modern 100, Full Screen 80, Minimal 60) so a preset switch fully resets it.
+// The C++ table is the fallback when the shipped .meowpreset files are absent
+// or malformed; the two MUST agree (a unit test enforces it). Keys not in
+// governed_keys() (menu-width/height, grid-density) are applied when present
+// but are intentionally not required of every preset — notably FullScreen omits
+// menu dimensions so a later switch to a docked preset restores them.
 // ---------------------------------------------------------------------------
 
 const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
@@ -67,8 +66,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
 			{ "panel-gap",            PresetValue::from_int(0)              },
-			{ "categories-opacity",   PresetValue::from_int(100)            },
-			{ "apps-opacity",         PresetValue::from_int(100)            },
+			{ "menu-opacity",         PresetValue::from_int(100)            },
 			{ "sidebar-position",     PresetValue::from_str("right")        },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
@@ -100,8 +98,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)            },
 			{ "panel-gap",            PresetValue::from_int(8)             },
-			{ "categories-opacity",   PresetValue::from_int(100)           },
-			{ "apps-opacity",         PresetValue::from_int(100)           },
+			{ "menu-opacity",         PresetValue::from_int(100)           },
 			{ "sidebar-position",     PresetValue::from_str("left")        },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)         },
 			{ "category-show-name",   PresetValue::from_bool(true)         },
@@ -137,14 +134,10 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
 			{ "panel-gap",            PresetValue::from_int(0)              },
-			{ "categories-opacity",   PresetValue::from_int(100)            },
-			{ "apps-opacity",         PresetValue::from_int(100)            },
-			// NOTE: full-screen-opacity is non-governed (omitted from
-			// governed_keys()), so it is carried only on presets that mean to
-			// set the full-screen backdrop. It lives here on the C++ fallback
-			// path so a missing/malformed seed file still yields the 80%
-			// translucent backdrop; the seed file carries the same value.
-			{ "full-screen-opacity",  PresetValue::from_int(80)             },
+			// Full Screen ships an 80% translucent backdrop. menu-opacity is the
+			// single governed opacity now, so it lives here on the C++ fallback
+			// path and the seed file carries the same value.
+			{ "menu-opacity",         PresetValue::from_int(80)             },
 			{ "sidebar-position",     PresetValue::from_str("left")         },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
@@ -175,12 +168,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)             },
 			{ "panel-gap",            PresetValue::from_int(8)              },
-			{ "categories-opacity",   PresetValue::from_int(60)             },
-			{ "apps-opacity",         PresetValue::from_int(60)             },
-			// full-screen-opacity is non-governed and inert outside full-screen
-			// mode; carried so the Minimal entry stays value-complete with the
-			// seed file on this key.
-			{ "full-screen-opacity",  PresetValue::from_int(100)            },
+			{ "menu-opacity",         PresetValue::from_int(60)             },
 			{ "sidebar-position",     PresetValue::from_str("left")         },
 			{ "sidebar-enabled",      PresetValue::from_bool(false)         },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
@@ -216,10 +204,11 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
  *
  * Returns the canonical list of settings a built-in preset fully determines.
  * Used by the .meowpreset reader validation and by the completeness/agreement
- * unit test. menu-width/menu-height, grid-density and full-screen-opacity are
- * intentionally excluded: they are applied when a preset carries them but are
- * not required of every built-in (FullScreen deliberately omits menu
- * dimensions so a switch back to a docked preset restores the user's size).
+ * unit test. menu-width/menu-height and grid-density are intentionally
+ * excluded: they are applied when a preset carries them but are not required of
+ * every built-in (FullScreen deliberately omits menu dimensions so a switch
+ * back to a docked preset restores the user's size). menu-opacity, by contrast,
+ * is governed — every built-in carries its single opacity value.
  *
  * Returns: a reference to a process-lifetime static vector.
  */
@@ -228,8 +217,7 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 	static const std::vector<std::string> keys = {
 		"corner-radius",
 		"panel-gap",
-		"categories-opacity",
-		"apps-opacity",
+		"menu-opacity",
 		"sidebar-position",
 		"sidebar-enabled",
 		"category-show-name",

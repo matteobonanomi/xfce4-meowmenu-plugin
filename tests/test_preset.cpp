@@ -70,8 +70,7 @@ static TestPresetDef make_classic()
 		{
 			{ "corner-radius",         PV::from_int(0)       },
 			{ "panel-gap",             PV::from_int(0)       },
-			{ "categories-opacity",    PV::from_int(100)     },
-			{ "apps-opacity",          PV::from_int(100)     },
+			{ "menu-opacity",          PV::from_int(100)     },
 			{ "sidebar-position",      PV::from_str("right") },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")   },
@@ -96,8 +95,7 @@ static TestPresetDef make_modern()
 		{
 			{ "corner-radius",         PV::from_int(12)       },
 			{ "panel-gap",             PV::from_int(8)        },
-			{ "categories-opacity",    PV::from_int(80)       },
-			{ "apps-opacity",          PV::from_int(70)       },
+			{ "menu-opacity",          PV::from_int(100)      },
 			{ "sidebar-position",      PV::from_str("left")   },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("bottom") },
@@ -123,8 +121,7 @@ static TestPresetDef make_fullscreen()
 		{
 			{ "corner-radius",         PV::from_int(0)              },
 			{ "panel-gap",             PV::from_int(0)              },
-			{ "categories-opacity",    PV::from_int(100)            },
-			{ "apps-opacity",          PV::from_int(100)            },
+			{ "menu-opacity",          PV::from_int(80)             },
 			{ "sidebar-position",      PV::from_str("left")         },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")          },
@@ -148,8 +145,7 @@ static TestPresetDef make_minimal()
 		{
 			{ "corner-radius",         PV::from_int(12)       },
 			{ "panel-gap",             PV::from_int(8)        },
-			{ "categories-opacity",    PV::from_int(60)       },
-			{ "apps-opacity",          PV::from_int(60)       },
+			{ "menu-opacity",          PV::from_int(60)       },
 			{ "sidebar-position",      PV::from_str("left")   },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")    },
@@ -176,8 +172,7 @@ struct SettingsShadow
 {
 	int corner_radius     = 0;
 	int panel_gap         = 0;
-	int categories_opacity = 100;
-	int apps_opacity      = 100;
+	int menu_opacity      = 100;
 	std::string sidebar_position    = "left";
 	bool position_categories_horizontal = false;
 	std::string search_bar_position = "top";
@@ -203,8 +198,7 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		const PV& val = kv.second;
 		if (prop == "corner-radius" && val.kind == PV::I)             s.corner_radius = val.i;
 		else if (prop == "panel-gap" && val.kind == PV::I)            s.panel_gap = val.i;
-		else if (prop == "categories-opacity" && val.kind == PV::I)   s.categories_opacity = val.i;
-		else if (prop == "apps-opacity" && val.kind == PV::I)         s.apps_opacity = val.i;
+		else if (prop == "menu-opacity" && val.kind == PV::I)         s.menu_opacity = val.i;
 		else if (prop == "sidebar-position" && val.kind == PV::S)     s.sidebar_position = val.s;
 		else if (prop == "position-categories-horizontal" && val.kind == PV::B)
 			s.position_categories_horizontal = val.b;
@@ -242,8 +236,7 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 		const PV& val = kv.second;
 		if (prop == "corner-radius" && val.kind == PV::I && s.corner_radius != val.i) return true;
 		if (prop == "panel-gap" && val.kind == PV::I && s.panel_gap != val.i) return true;
-		if (prop == "categories-opacity" && val.kind == PV::I && s.categories_opacity != val.i) return true;
-		if (prop == "apps-opacity" && val.kind == PV::I && s.apps_opacity != val.i) return true;
+		if (prop == "menu-opacity" && val.kind == PV::I && s.menu_opacity != val.i) return true;
 		if (prop == "sidebar-position" && val.kind == PV::S && s.sidebar_position != val.s) return true;
 		if (prop == "position-categories-horizontal" && val.kind == PV::B
 				&& s.position_categories_horizontal != val.b) return true;
@@ -283,19 +276,19 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 static void test_classic_property_count()
 {
 	auto c = make_classic();
-	assert(c.values.size() == 17);
+	assert(c.values.size() == 16);
 }
 
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	assert(m.values.size() == 18);
+	assert(m.values.size() == 17);
 }
 
 static void test_fullscreen_property_count()
 {
 	auto f = make_fullscreen();
-	assert(f.values.size() == 16);
+	assert(f.values.size() == 15);
 }
 
 static void test_apply_then_no_diff()
@@ -331,20 +324,41 @@ static void test_modern_corner_radius()
 	assert(it->second.i == 12);
 }
 
-static void test_modern_apps_opacity()
+// Defined below (operates on the real BUILTIN_PRESETS table).
+static const WhiskerMenu::LayoutPreset* find_builtin(const char* id);
+
+// Each real built-in carries the single governed menu-opacity at its documented
+// value: Classic 100, Modern 100, Full Screen 80, Minimal 60 (FR-011, SC-006).
+static void test_builtin_menu_opacity_values()
 {
-	auto m = make_modern();
-	auto it = m.values.find("apps-opacity");
-	assert(it != m.values.end());
-	assert(it->second.i == 70);
+	struct { const char* id; int opacity; } expected[] = {
+		{ "classic",    100 },
+		{ "modern",     100 },
+		{ "fullscreen",  80 },
+		{ "minimal",     60 },
+	};
+	for (const auto& e : expected)
+	{
+		const WhiskerMenu::LayoutPreset* p = find_builtin(e.id);
+		assert(p);
+		auto it = p->values.find("menu-opacity");
+		assert(it != p->values.end());
+		assert(it->second.kind == WhiskerMenu::PresetValue::Int);
+		assert(it->second.i == e.opacity);
+	}
 }
 
-static void test_modern_categories_opacity()
+// The single menu-opacity is governed; the three retired per-region keys are not.
+static void test_governed_keys_opacity_membership()
 {
-	auto m = make_modern();
-	auto it = m.values.find("categories-opacity");
-	assert(it != m.values.end());
-	assert(it->second.i == 80);
+	const auto& keys = WhiskerMenu::governed_keys();
+	auto has = [&keys](const char* k) {
+		return std::find(keys.begin(), keys.end(), std::string(k)) != keys.end();
+	};
+	assert(has("menu-opacity"));
+	assert(!has("categories-opacity"));
+	assert(!has("apps-opacity"));
+	assert(!has("full-screen-opacity"));
 }
 
 static void test_fullscreen_layout_mode()
@@ -803,8 +817,7 @@ static TestPresetDef make_classic_from_file_equivalent()
 			{ "search-bar-position",  PV::from_str("top")         },
 			{ "profile-position",     PV::from_str("top")         },
 			{ "commands-position",    PV::from_str("top-right")   },
-			{ "categories-opacity",   PV::from_int(100)           },
-			{ "apps-opacity",         PV::from_int(100)           },
+			{ "menu-opacity",         PV::from_int(100)           },
 			{ "hover-switch-category",PV::from_bool(false)        },
 			{ "stay-on-focus-out",    PV::from_bool(false)        },
 			{ "default-category",     PV::from_str("favorites")   },
@@ -830,8 +843,7 @@ static TestPresetDef make_modern_from_file_equivalent()
 			{ "search-bar-position",  PV::from_str("bottom")    },
 			{ "profile-position",     PV::from_str("top")       },
 			{ "commands-position",    PV::from_str("top-right") },
-			{ "categories-opacity",   PV::from_int(80)          },
-			{ "apps-opacity",         PV::from_int(70)          },
+			{ "menu-opacity",         PV::from_int(100)         },
 			{ "hover-switch-category",PV::from_bool(true)       },
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
@@ -855,8 +867,7 @@ static TestPresetDef make_fullscreen_from_file_equivalent()
 			{ "search-bar-position",  PV::from_str("top")        },
 			{ "profile-position",     PV::from_str("top")        },
 			{ "commands-position",    PV::from_str("top-right")  },
-			{ "categories-opacity",   PV::from_int(100)          },
-			{ "apps-opacity",         PV::from_int(100)          },
+			{ "menu-opacity",         PV::from_int(80)           },
 			{ "hover-switch-category",PV::from_bool(true)        },
 			{ "stay-on-focus-out",    PV::from_bool(false)       },
 			{ "default-category",     PV::from_str("all")        },
@@ -892,8 +903,7 @@ static void test_parity_modern_cpp_vs_file()
 
 	assert(s_cpp.corner_radius       == s_file.corner_radius);
 	assert(s_cpp.panel_gap           == s_file.panel_gap);
-	assert(s_cpp.apps_opacity        == s_file.apps_opacity);
-	assert(s_cpp.categories_opacity  == s_file.categories_opacity);
+	assert(s_cpp.menu_opacity        == s_file.menu_opacity);
 	assert(s_cpp.sidebar_position    == s_file.sidebar_position);
 	assert(s_cpp.view_mode           == s_file.view_mode);
 	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
@@ -932,8 +942,7 @@ static TestPresetDef make_minimal_from_file_equivalent()
 			{ "search-bar-position",  PV::from_str("top")       },
 			{ "profile-position",     PV::from_str("hidden")    },
 			{ "commands-position",    PV::from_str("hidden")    },
-			{ "categories-opacity",   PV::from_int(60)          },
-			{ "apps-opacity",         PV::from_int(60)          },
+			{ "menu-opacity",         PV::from_int(60)          },
 			{ "hover-switch-category",PV::from_bool(true)       },
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
@@ -951,8 +960,7 @@ static void test_parity_minimal_cpp_vs_file()
 
 	assert(s_cpp.corner_radius           == s_file.corner_radius);
 	assert(s_cpp.panel_gap               == s_file.panel_gap);
-	assert(s_cpp.apps_opacity            == s_file.apps_opacity);
-	assert(s_cpp.categories_opacity      == s_file.categories_opacity);
+	assert(s_cpp.menu_opacity            == s_file.menu_opacity);
 	assert(s_cpp.sidebar_position        == s_file.sidebar_position);
 	assert(s_cpp.profile_position        == s_file.profile_position);
 	assert(s_cpp.commands_position       == s_file.commands_position);
@@ -1089,8 +1097,8 @@ int main()
 	test_apply_then_no_diff();
 	test_diff_after_modify();
 	test_modern_corner_radius();
-	test_modern_apps_opacity();
-	test_modern_categories_opacity();
+	test_builtin_menu_opacity_values();
+	test_governed_keys_opacity_membership();
 	test_fullscreen_layout_mode();
 	test_fullscreen_sidebar_left();
 	test_fullscreen_to_docked_restores_menu_size();

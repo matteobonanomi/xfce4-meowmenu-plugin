@@ -196,9 +196,7 @@ private:
 
 	// Appearance customization (T070)
 	GtkWidget* m_corner_radius = nullptr;
-	GtkWidget* m_categories_opacity = nullptr;
-	GtkWidget* m_apps_opacity = nullptr;
-	GtkWidget* m_full_screen_opacity = nullptr;
+	GtkWidget* m_menu_opacity = nullptr;
 	GtkWidget* m_sidebar_position_combo = nullptr;
 	GtkWidget* m_search_bar_position_combo = nullptr;
 	GtkWidget* m_profile_position_combo = nullptr;

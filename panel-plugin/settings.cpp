@@ -119,9 +119,6 @@ Settings::Settings(Plugin* plugin) :
 
 	corner_radius(this, "/corner-radius", 0, 0, 24),
 	panel_gap(this, "/panel-gap", 0, 0, 50),
-	categories_opacity(this, "/categories-opacity", 100, 0, 100),
-	apps_opacity(this, "/apps-opacity", 100, 0, 100),
-	full_screen_opacity(this, "/full-screen-opacity", 100, 0, 100),
 
 	// NOTE: GUI/preset write domain is {left,right,top,bottom}; the legacy
 	// "hidden" value is tolerated on read (free-form String, migrated to
@@ -525,9 +522,6 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| initialized.load(property, value)
 			|| corner_radius.load(property, value)
 			|| panel_gap.load(property, value)
-			|| categories_opacity.load(property, value)
-			|| apps_opacity.load(property, value)
-			|| full_screen_opacity.load(property, value)
 			|| sidebar_position.load(property, value)
 			|| sidebar_enabled.load(property, value)
 			|| search_bar_position.load(property, value)

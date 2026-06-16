@@ -936,13 +936,12 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
 				if (g_strcmp0(property, "/corner-radius") != 0
-						&& g_strcmp0(property, "/categories-opacity") != 0
-						&& g_strcmp0(property, "/apps-opacity") != 0
-						&& g_strcmp0(property, "/full-screen-opacity") != 0)
+						&& g_strcmp0(property, "/menu-opacity") != 0)
 					return;
 				// The corner radius is applied entirely by re-clipping and
-				// re-stroking in on_draw_event; the redraw queued below picks up
-				// the new radius live. No frame-shadow toggle remains.
+				// re-stroking in on_draw_event; a menu-opacity change re-runs the
+				// CSS so the single shell alpha updates live. The redraw queued
+				// below picks up either change without reopening the menu.
 				auto* self = static_cast<Window*>(user_data);
 				self->update_background_css();
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
@@ -2316,14 +2315,11 @@ void WhiskerMenu::Window::update_background_css()
 	const int red   = CLAMP(static_cast<int>(bg.red   * 255.0 + 0.5), 0, 255);
 	const int green = CLAMP(static_cast<int>(bg.green * 255.0 + 0.5), 0, 255);
 	const int blue  = CLAMP(static_cast<int>(bg.blue  * 255.0 + 0.5), 0, 255);
-	// Separator colour for the docked results-area outline. The docked window
-	// shell is fully transparent (so apps-opacity 0 reaches true transparency),
-	// which means the inter-region gaps the window background used to fill are
-	// no longer painted. The visible boundaries all sit around the results area,
-	// so a single opaque 1 px outline owned by that region restores them without
-	// putting any paint behind it. Nudge the seed toward or away from black by a
-	// fixed step depending on the theme's lightness so the line reads on both
-	// dark and light themes.
+	// Separator colour for the single menu border. on_draw_event strokes one
+	// 1 px outline along the rounded clip (docked only); this seeds its colour
+	// from the theme background, nudged toward or away from black by a fixed step
+	// depending on the theme's lightness so the line reads on both dark and light
+	// themes.
 	const double sep_luma = 0.299 * red + 0.587 * green + 0.114 * blue;
 	const int sep_step = 45;
 	const int sep_r = (sep_luma < 128.0) ? CLAMP(red   + sep_step, 0, 255) : CLAMP(red   - sep_step, 0, 255);
@@ -2337,30 +2333,12 @@ void WhiskerMenu::Window::update_background_css()
 	m_separator_rgba.green = sep_g / 255.0;
 	m_separator_rgba.blue  = sep_b / 255.0;
 	m_separator_rgba.alpha = 1.0;
-	// Resolve which absolute alpha each region receives for this render pass.
-	// The pure helper enforces the 0=transparent / 100=solid contract and the
-	// dual single-alpha model: docked => transparent window with each region
-	// owning its alpha (so apps-opacity 0 reaches true transparency with no
-	// categories floor showing through); full-screen => the window shell owns
-	// the one full-screen alpha and the regions are transparent (so the whole
-	// surface, results area included, reads at exactly that one value). Neither
-	// mode lets two backgrounds compound.
-	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
-	const OpacityRegionAlphas alphas = meowmenu_region_alphas(
-			is_fullscreen,
-			m_settings->categories_opacity,
-			m_settings->apps_opacity,
-			m_settings->full_screen_opacity);
-
-	// Chrome/frame fill used by on_draw_event for the resizer ring: the theme
-	// background at the categories-region alpha, so the 6 px the resizer grid
-	// reserves around the content reads as part of the menu frame (same alpha as
-	// the search/title/commands strips) instead of showing the desktop through
-	// the transparent docked shell.
-	m_chrome_rgba.red   = red   / 255.0;
-	m_chrome_rgba.green = green / 255.0;
-	m_chrome_rgba.blue  = blue  / 255.0;
-	m_chrome_rgba.alpha = alphas.categories;
+	// The whole menu reads at exactly one alpha: the single /menu-opacity value
+	// maps to a CSS alpha that paints the .meowmenu window shell, and every region
+	// inside it stays transparent. There is no per-region model and nothing
+	// compounds, so the background fades uniformly in docked, centered, and
+	// full-screen modes while all foreground content stays fully opaque.
+	const double menu_alpha = meowmenu_opacity_alpha(m_settings->menu_opacity);
 
 	// NOTE: the results area no longer emits its own 1 px outline. The single
 	// intentional menu border is drawn once in on_draw_event along the rounded
@@ -2368,20 +2346,16 @@ void WhiskerMenu::Window::update_background_css()
 	// line and ignore the corner radius. Full-screen continues to show no
 	// outline at all (one seamless surface).
 
-	// NOTE: the alpha values MUST be serialised locale-independently. A plain
-	// "%.3f" honours the process LC_NUMERIC, so under a comma-decimal locale
-	// (it_IT, de_DE, …) it would emit "0,600", producing the invalid
-	// declaration rgba(31, 31, 31, 0,600) that GTK's CSS parser rejects — the
-	// menu's opacity controls would then silently do nothing. Format each alpha
-	// with meowmenu_format_css_alpha (always a '.' separator, no global state)
-	// and substitute %s tokens so the generated CSS is byte-for-byte identical
-	// in every language.
-	char alpha_window[MEOWMENU_CSS_ALPHA_BUFSZ];
-	char alpha_categories[MEOWMENU_CSS_ALPHA_BUFSZ];
-	char alpha_apps[MEOWMENU_CSS_ALPHA_BUFSZ];
-	meowmenu_format_css_alpha(alphas.window, alpha_window);
-	meowmenu_format_css_alpha(alphas.categories, alpha_categories);
-	meowmenu_format_css_alpha(alphas.apps, alpha_apps);
+	// NOTE: the alpha MUST be serialised locale-independently. A plain "%.3f"
+	// honours the process LC_NUMERIC, so under a comma-decimal locale (it_IT,
+	// de_DE, …) it would emit "0,600", producing the invalid declaration
+	// rgba(31, 31, 31, 0,600) that GTK's CSS parser rejects — the menu's opacity
+	// control would then silently do nothing. Format the single alpha with
+	// meowmenu_format_css_alpha (always a '.' separator, no global state) and
+	// substitute a %s token so the generated CSS is byte-for-byte identical in
+	// every language.
+	char alpha_shell[MEOWMENU_CSS_ALPHA_BUFSZ];
+	meowmenu_format_css_alpha(menu_alpha, alpha_shell);
 
 	gchar* css = g_strdup_printf(
 		".meowmenu { background-image: none; background-color: rgba(%d, %d, %d, %s); }"
@@ -2407,9 +2381,11 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu frame > border"
 		"{ border: none; padding: 0; margin: 0;"
 		"  min-width: 0; min-height: 0; }"
-		// NOTE: .contents stays transparent on purpose — it is an ancestor of
-		// the applications area, so giving it a background would re-introduce a
-		// solid floor under the results region and defeat true-0 apps opacity.
+		// NOTE: every region and descendant stays transparent on purpose. Only the
+		// .meowmenu window shell paints a background (at the single menu alpha
+		// above); the categories sidebar, the search/title/commands chrome strips,
+		// and the applications area never paint their own background, so the whole
+		// menu reads at exactly one alpha and nothing compounds over the shell.
 		".meowmenu > *,"
 		".meowmenu frame,"
 		".meowmenu frame > *,"
@@ -2421,6 +2397,12 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu grid > *,"
 		".meowmenu .contents,"
 		".meowmenu .contents > *,"
+		".meowmenu .categories,"
+		".meowmenu .search-area,"
+		".meowmenu .title-area,"
+		".meowmenu .commands-area,"
+		".meowmenu .applications-area,"
+		".meowmenu .applications-area > *,"
 		".meowmenu treeview,"
 		".meowmenu flowbox,"
 		".meowmenu flowboxchild,"
@@ -2442,18 +2424,6 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .launchers cell:hover:not(:selected),"
 		".meowmenu .launchers row:hover:not(:selected)"
 		"{ background-color: transparent; background-image: none; }"
-		// Sidebar/categories region plus the chrome strips (search, title,
-		// commands bars) share one absolute alpha so the menu frame stays
-		// cohesive. In full-screen this alpha is 0 (transparent) so only the
-		// window shell carries the single full-screen opacity.
-		".meowmenu .categories,"
-		".meowmenu .search-area,"
-		".meowmenu .title-area,"
-		".meowmenu .commands-area"
-		"{ background-image: none; background-color: rgba(%d, %d, %d, %s); }"
-		".meowmenu .applications-area,"
-		".meowmenu .applications-area > *"
-		"{ background-image: none; background-color: rgba(%d, %d, %d, %s); }"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2501,9 +2471,7 @@ void WhiskerMenu::Window::update_background_css()
 		"  border-left: 1px solid alpha(@theme_fg_color, 0.2); }"
 		".meowmenu .places-mode-selector button:dir(rtl):last-child"
 		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px; }",
-		red, green, blue, alpha_window,
-		red, green, blue, alpha_categories,
-		red, green, blue, alpha_apps);
+		red, green, blue, alpha_shell);
 
 	// Capture the parse error from our own generated stylesheet. Passing nullptr
 	// here discards all diagnostics, which is why a malformed declaration (such
@@ -2600,39 +2568,6 @@ void WhiskerMenu::Window::apply_window_shape(int width, int height, int radius, 
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::fill_resizer_ring(cairo_t* cr, double width, double height)
-{
-	// The content vbox sits in the centre cell of the 3x3 resizer grid, inset by
-	// the drag-handle strip on every side. Fill that strip — the window rectangle
-	// minus the vbox rectangle — with the chrome background so the menu frame is
-	// continuous up to the border. The vbox itself is left untouched so the
-	// regions inside it (notably the apps area) keep their own alpha.
-	GtkAllocation va;
-	gtk_widget_get_allocation(GTK_WIDGET(m_vbox), &va);
-	if (va.width <= 0 || va.height <= 0)
-		return;
-
-	const double vx = va.x;
-	const double vy = va.y;
-	const double vw = va.width;
-	const double vh = va.height;
-
-	cairo_save(cr);
-	gdk_cairo_set_source_rgba(cr, &m_chrome_rgba);
-	if (vy > 0.0)                       // top strip
-		cairo_rectangle(cr, 0.0, 0.0, width, vy);
-	if (vy + vh < height)               // bottom strip
-		cairo_rectangle(cr, 0.0, vy + vh, width, height - (vy + vh));
-	if (vx > 0.0)                       // left strip (between top and bottom)
-		cairo_rectangle(cr, 0.0, vy, vx, vh);
-	if (vx + vw < width)                // right strip
-		cairo_rectangle(cr, vx + vw, vy, width - (vx + vw), vh);
-	cairo_fill(cr);
-	cairo_restore(cr);
-}
-
-//-----------------------------------------------------------------------------
-
 gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 {
 	if (!gtk_widget_get_realized(widget))
@@ -2710,23 +2645,18 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		cairo_restore(cr);
 
 		// Clip the ENTIRE window draw — shell background AND the propagated child
-		// regions — to the rounded silhouette. Post-026 the visible fill is painted
-		// by the regions (the docked shell is transparent), so the clip must bound
-		// the children for the radius to round what the user actually sees. At r==0
-		// this is a plain rectangular clip, so corners reduce to clean squares.
+		// regions — to the rounded silhouette, then paint the one shell background
+		// at the single menu alpha across the whole clipped area. The clip must
+		// bound the children too so the radius rounds what the user actually sees.
+		// At r==0 this is a plain rectangular clip, so corners reduce to clean
+		// squares.
 		cairo_save(cr);
 		clip_rounded(cr);
 		cairo_clip(cr);
+		// One fill covers the entire silhouette, the resizer ring included, so no
+		// separate ring fill is needed; a second fill at the same alpha would
+		// composite 1-(1-a)² and show as a forbidden double-opacity band.
 		gtk_render_background(context, cr, 0.0, 0.0, width, height);
-		// Docked only: fill the resizer ring with the chrome background. The 3x3
-		// resizer grid reserves a strip (the drag handles) around the content
-		// vbox; with the transparent docked shell that strip would otherwise show
-		// the desktop as a band between the border and the content. Painting only
-		// the ring — the window minus the content vbox — keeps the apps area's own
-		// alpha intact (no opaque floor under the results). Full-screen needs no
-		// fill: there the shell itself carries the single full-screen alpha.
-		if (!is_fullscreen && m_vbox)
-			fill_resizer_ring(cr, width, height);
 		if (child)
 			gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
 		cairo_restore(cr);
@@ -2755,8 +2685,6 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 	// predicate, which requires supports_alpha), so a non-composited full-screen
 	// menu stays one seamless square surface with no outline.
 	gtk_render_background(context, cr, 0.0, 0.0, width, height);
-	if (!is_fullscreen && m_vbox)
-		fill_resizer_ring(cr, width, height);
 	if (child)
 		gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
 	if (!is_fullscreen)
