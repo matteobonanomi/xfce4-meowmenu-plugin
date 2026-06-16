@@ -421,9 +421,6 @@ public:
 	// Layout Presets — visual properties
 	Integer corner_radius;
 	Integer panel_gap;
-	Integer categories_opacity;
-	Integer apps_opacity;
-	Integer full_screen_opacity;
 
 	// Layout Presets — element positions
 	String sidebar_position;

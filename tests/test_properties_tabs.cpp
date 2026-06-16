@@ -99,7 +99,9 @@ const Row kPlacementGrid[] = {
 	{ "menu-width",                Tab::General,     EnableWhen::Docked,     true,  Column::C1 },
 	{ "menu-height",               Tab::General,     EnableWhen::Docked,     true,  Column::C2 },
 	{ "corner-radius",             Tab::General,     EnableWhen::Always,     false, Column::C2 },
-	{ "full-screen-opacity",       Tab::General,     EnableWhen::Fullscreen, true,  Column::C1 },
+	// Menu opacity is sensitive in every layout mode (gated on compositing, not
+	// /layout-mode), so it is Always / not layout-mode-driven.
+	{ "menu-opacity",              Tab::General,     EnableWhen::Always,     false, Column::C1 },
 	{ "stay-on-focus-out",         Tab::General,     EnableWhen::Always,     false, Column::C2 },
 
 	// User / Session — NOT relaid out into two columns; every keyed row spans
@@ -118,22 +120,20 @@ const Row kPlacementGrid[] = {
 	{ "frecency-alpha",            Tab::SearchBar,   EnableWhen::Always, false, Column::Full },
 
 	// App Grid — column per contracts/tab-placement.md. view-mode (the icons/
-	// list/tree button-box) and apps-opacity keep their unchanged whole-section
-	// layout, so they stay Full.
+	// list/tree button-box) keeps its unchanged whole-section layout, so it stays
+	// Full. The former app-box opacity control was removed (one menu-opacity now).
 	{ "view-mode",                 Tab::AppGrid,     EnableWhen::Always,        false, Column::Full },
 	{ "grid-density",              Tab::AppGrid,     EnableWhen::ViewModeIcons, false, Column::C1 },
 	{ "launcher-icon-size",        Tab::AppGrid,     EnableWhen::ViewModeIcons, false, Column::C2 },
 	{ "launcher-show-name",        Tab::AppGrid,     EnableWhen::Always,        false, Column::C1 },
 	{ "launcher-show-tooltip",     Tab::AppGrid,     EnableWhen::Always,        false, Column::C2 },
 	{ "launcher-show-description", Tab::AppGrid,     EnableWhen::ViewModeList,  false, Column::C1 },
-	{ "apps-opacity",              Tab::AppGrid,     EnableWhen::Docked,        true,  Column::Full },
 
-	// Sidebar — column per contracts/tab-placement.md. The whole-row opacity
-	// slider and the unchanged Default-category radio group span the section
-	// (Full); the rest split across C1/C2.
+	// Sidebar — column per contracts/tab-placement.md. The unchanged
+	// Default-category radio group spans the section (Full); the rest split across
+	// C1/C2. The former sidebar opacity control was removed (one menu-opacity now).
 	{ "category-show-name",        Tab::Sidebar,     EnableWhen::SidebarLeftRight, false, Column::C1 },
 	{ "category-icon-size",        Tab::Sidebar,     EnableWhen::Always,           false, Column::C2 },
-	{ "categories-opacity",        Tab::Sidebar,     EnableWhen::Docked,           true,  Column::Full },
 	{ "sidebar-position",          Tab::Sidebar,     EnableWhen::Always,           false, Column::C1 },
 	{ "category-hover-activate",   Tab::Sidebar,     EnableWhen::Always,           false, Column::C1 },
 	{ "sort-categories",           Tab::Sidebar,     EnableWhen::Always,           false, Column::C2 },
@@ -172,7 +172,7 @@ const char* const kRequiredKeys[] = {
 	"button-single-row",
 	"layout-mode", "panel-gap",
 	"menu-width", "menu-height", "corner-radius",
-	"full-screen-opacity", "stay-on-focus-out",
+	"menu-opacity", "stay-on-focus-out",
 	"profile-position", "profile-shape", "commands-position",
 	"confirm-session-command",
 	"search-bar-position",
@@ -182,9 +182,8 @@ const char* const kRequiredKeys[] = {
 	"view-mode", "grid-density",
 	"launcher-icon-size", "launcher-show-name",
 	"launcher-show-tooltip", "launcher-show-description",
-	"apps-opacity",
 	"category-show-name", "category-icon-size",
-	"categories-opacity", "sidebar-position",
+	"sidebar-position",
 	"category-hover-activate", "sort-categories",
 	"default-category", "recent-items-max", "favorites-in-recent",
 	// Places milestone-005 controls
@@ -314,7 +313,7 @@ const ColumnExpectation kColumnContract[] = {
 	{ "menu-width",                Column::C1 },
 	{ "menu-height",               Column::C2 },
 	{ "corner-radius",             Column::C2 },
-	{ "full-screen-opacity",       Column::C1 },
+	{ "menu-opacity",              Column::C1 },
 	{ "stay-on-focus-out",         Column::C2 },
 
 	// User / Session — single column; every keyed row spans the section.
@@ -332,21 +331,19 @@ const ColumnExpectation kColumnContract[] = {
 	{ "favorites-boost-level",     Column::C2 },
 	{ "frecency-alpha",            Column::Full },
 
-	// Results View (app-grid) — view selector and opacity slider unchanged
-	// (Full); the Layout section splits across C1/C2.
+	// Results View (app-grid) — view selector unchanged (Full); the Layout
+	// section splits across C1/C2. The former opacity slider was removed.
 	{ "view-mode",                 Column::Full },
 	{ "grid-density",              Column::C1 },
 	{ "launcher-icon-size",        Column::C2 },
 	{ "launcher-show-name",        Column::C1 },
 	{ "launcher-show-tooltip",     Column::C2 },
 	{ "launcher-show-description", Column::C1 },
-	{ "apps-opacity",              Column::Full },
 
-	// Sidebar — opacity slider and Default-category radios are whole-row (Full);
-	// the rest split across C1/C2.
+	// Sidebar — Default-category radios are whole-row (Full); the rest split
+	// across C1/C2. The former opacity slider was removed.
 	{ "category-show-name",        Column::C1 },
 	{ "category-icon-size",        Column::C2 },
-	{ "categories-opacity",        Column::Full },
 	{ "sidebar-position",          Column::C1 },
 	{ "category-hover-activate",   Column::C1 },
 	{ "sort-categories",           Column::C2 },

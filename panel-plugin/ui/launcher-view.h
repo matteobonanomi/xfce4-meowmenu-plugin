@@ -70,6 +70,20 @@ public:
 
 	virtual void reload_icon_size()=0;
 
+	/* set_background_translucent:
+	 * @translucent: whether the menu background is currently see-through
+	 *               (alpha < 1, i.e. menu opacity below 100).
+	 *
+	 * Pushed by the view owner from the resolved /menu-opacity value; the base
+	 * never reads Xfconf, so it stays settings-agnostic. While true, navigation
+	 * recomposites the whole view (see queue_translucent_safeguard_redraw); while
+	 * false the safeguard is a no-op, so the fully-opaque path is unchanged.
+	 */
+	void set_background_translucent(bool translucent)
+	{
+		m_background_translucent = translucent;
+	}
+
 	enum Columns
 	{
 		COLUMN_ICON = 0,
@@ -95,6 +109,7 @@ protected:
 				// neutralised in the plugin CSS), so unselecting here leaves
 				// zero highlights from hover.
 				clear_selection();
+				queue_translucent_safeguard_redraw();
 				return GDK_EVENT_PROPAGATE;
 			});
 
@@ -113,11 +128,56 @@ protected:
 				select_path_at_pos(scroll_event->x, scroll_event->y);
 				return GDK_EVENT_PROPAGATE;
 			});
+
+		// Scroll-reveal safeguard. The discrete scroll-event above only fires for
+		// the mouse wheel; a keyboard Page Up/Down, a scrollbar drag, or kinetic
+		// scrolling moves the viewport without it. The view is a GtkScrollable, so
+		// when it is placed in its scrolled window the scrolled window installs its
+		// own vertical adjustment (notify::vadjustment fires once). Connect that
+		// adjustment's value-changed to the translucent redraw so a pure scroll
+		// that reveals rows — with no selection change — still recomposites the
+		// whole surface (FR-007's "newly revealed rows", the 041 symptom). Gated by
+		// the translucent flag, so a no-op at opacity 100.
+		connect(view, "notify::vadjustment",
+			[this](GtkWidget* w, GParamSpec*)
+			{
+				GtkAdjustment* adj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(w));
+				if (adj)
+					connect(adj, "value-changed",
+						[this](GtkAdjustment*)
+						{
+							queue_translucent_safeguard_redraw();
+						});
+			});
+	}
+
+	/* queue_translucent_safeguard_redraw:
+	 *
+	 * Queues a full-widget redraw ONLY while the background is translucent. Hover,
+	 * wheel, and keyboard navigation all resolve to a single selection change and
+	 * pointer prelight is CSS-neutralised, so this one hook — invoked from the
+	 * shared selection chokepoint here and from the scroll/selection signals each
+	 * concrete view wires up — covers every navigation modality. The redraw forces
+	 * the whole translucent surface to recomposite so no stale highlight pixels
+	 * survive on visited or newly revealed rows. At opacity 100 the flag is false
+	 * and this is a no-op, so the fully-opaque path is byte-for-byte unchanged.
+	 * gtk_widget_queue_draw coalesces, so overlapping triggers cost at most one
+	 * redraw per frame.
+	 */
+	void queue_translucent_safeguard_redraw()
+	{
+		if (m_background_translucent)
+			gtk_widget_queue_draw(get_widget());
 	}
 
 	GtkTreeModel* m_model = nullptr;
 
 private:
+	// Whether the menu background is translucent (alpha < 1). Pushed by the view
+	// owner via set_background_translucent(); gates the safeguard redraw so the
+	// fully-opaque path pays nothing. Default false until the owner pushes a value.
+	bool m_background_translucent = false;
+
 	/* select_path_at_pos:
 	 * @x: pointer x in widget coordinates.
 	 * @y: pointer y in widget coordinates.
@@ -147,6 +207,10 @@ private:
 			select_path(path);
 		}
 		gtk_tree_path_free(path);
+		// Recomposite the whole surface on every pointer move/wheel while
+		// translucent, so a sweep or wheel that changes (or clears) the hovered
+		// row leaves no trailing highlight; a no-op when opaque.
+		queue_translucent_safeguard_redraw();
 	}
 };
 

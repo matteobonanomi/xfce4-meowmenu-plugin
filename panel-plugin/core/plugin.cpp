@@ -683,6 +683,14 @@ void Plugin::update_size()
 
 void Plugin::show_menu(int position)
 {
+	// Recreate the menu window only when /menu-opacity crosses the solid<->
+	// translucent boundary (either the old or the new value is 100). A fully
+	// solid menu uses the system visual; a translucent one needs the RGBA visual
+	// acquired at construction, so the window must be rebuilt when crossing that
+	// boundary. Same-band changes (e.g. 80->60) need no rebuild: the in-window
+	// property-changed handler re-runs the background CSS live on the existing
+	// window, so the two paths are complementary and never both fire for one
+	// change.
 	if (m_settings->menu_opacity != m_opacity)
 	{
 		if ((m_opacity == 100) || (m_settings->menu_opacity == 100))

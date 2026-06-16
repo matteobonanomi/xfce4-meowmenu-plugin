@@ -49,8 +49,6 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	GtkBox* page = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 18));
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
-	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-
 	// =========================================================================
 	// 1. View section — three exclusive icon-buttons (FR-040).
 	// =========================================================================
@@ -247,42 +245,6 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
 		});
-
-	// =========================================================================
-	// 3. Opacity section — App box opacity (FR-044, enable-when-docked).
-	// =========================================================================
-	GtkGrid* opacity_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(opacity_table, 12);
-	gtk_grid_set_row_spacing(opacity_table, 6);
-
-	GtkWidget* opacity_frame = make_aligned_frame(_("Opacity"), GTK_WIDGET(opacity_table));
-	gtk_box_pack_start(page, opacity_frame, false, false, 0);
-
-	GtkWidget* apps_op_label = gtk_label_new_with_mnemonic(_("App _box opacity:"));
-	gtk_widget_set_halign(apps_op_label, GTK_ALIGN_START);
-	gtk_grid_attach(opacity_table, apps_op_label, 0, 0, 1, 1);
-
-	m_apps_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
-	gtk_widget_set_hexpand(m_apps_opacity, true);
-	gtk_scale_set_value_pos(GTK_SCALE(m_apps_opacity), GTK_POS_RIGHT);
-	gtk_range_set_value(GTK_RANGE(m_apps_opacity), m_settings->apps_opacity);
-	gtk_grid_attach(opacity_table, m_apps_opacity, 1, 0, 1, 1);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(apps_op_label), m_apps_opacity);
-	gtk_size_group_add_widget(label_size_group, apps_op_label);
-
-	connect(m_apps_opacity, "value-changed",
-		[this](GtkRange* range)
-		{
-			if (m_programmatic_update)
-				return;
-			m_settings->apps_opacity = static_cast<int>(gtk_range_get_value(range));
-			m_plugin->reload_menu();
-			refresh_customized_indicator();
-		});
-
-	// Layout-mode-sensitive: enable only in docked.
-	m_layout_enable_when_docked.push_back(m_apps_opacity);
-	m_layout_enable_when_docked.push_back(apps_op_label);
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

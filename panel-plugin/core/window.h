@@ -192,18 +192,6 @@ private:
 	 */
 	void apply_window_shape(int width, int height, int radius, bool composited);
 
-	/* fill_resizer_ring:
-	 * @cr:     the toplevel draw context.
-	 * @width:  window allocation width in pixels.
-	 * @height: window allocation height in pixels.
-	 *
-	 * Paints the strip the 3x3 resizer grid reserves around the content vbox
-	 * (the window rectangle minus the vbox rectangle) with the chrome background.
-	 * The docked window shell is transparent, so this prevents that strip from
-	 * showing the desktop as a band between the border and the content. The vbox
-	 * area is deliberately left unpainted so the apps region keeps its own alpha.
-	 */
-	void fill_resizer_ring(cairo_t* cr, double width, double height);
 	void update_background_css();
 	void check_scrollbar_needed();
 	void favorites_toggled();
@@ -382,12 +370,6 @@ private:
 	// computed once in update_background_css() and reused by on_draw_event so the
 	// single window border and the CSS region styling cannot diverge in colour.
 	GdkRGBA m_separator_rgba = { 0.0, 0.0, 0.0, 1.0 };
-	// Chrome/frame background (theme bg at the categories-region alpha), computed
-	// in update_background_css() and reused by on_draw_event to fill the resizer
-	// ring around the content. The docked window shell is transparent, so without
-	// this the 6 px the 3x3 resizer grid reserves around the content would show
-	// the desktop as a band between the border and the content.
-	GdkRGBA m_chrome_rgba = { 0.0, 0.0, 0.0, 1.0 };
 	// Cached signature of the last shape mask applied to the toplevel window, so
 	// apply_window_shape() re-masks only when the rounded silhouette changes.
 	// Initialised to -1 so the first draw always applies a shape.
