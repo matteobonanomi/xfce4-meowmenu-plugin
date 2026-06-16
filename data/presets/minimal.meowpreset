@@ -11,9 +11,7 @@ Description=Compact, distraction-free launcher: a search bar over an app list, w
 [Settings]
 corner-radius=12
 panel-gap=8
-categories-opacity=60
-apps-opacity=60
-full-screen-opacity=100
+menu-opacity=60
 sidebar-position=left
 sidebar-enabled=false
 category-show-name=true

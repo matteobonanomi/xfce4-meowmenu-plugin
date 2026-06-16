@@ -1,10 +1,10 @@
 MEOW MENU DEVELOPMENT
-0.6.5 (2026-06-XX)
+0.7.0 (2026-06-15)
 =====
 - Opacity: serialize CSS alpha locale-independently
 - Sidebar: fit category width to measured label width, hold across modes
 - Properties: render on/off switches at natural compact size
-- Properties: layout General tab in two equal columns
+- Properties: refine tabs layout in two-column template
 
 0.6.4 (2026-06-10)
 =====

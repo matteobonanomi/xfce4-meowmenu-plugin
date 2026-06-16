@@ -35,6 +35,31 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+/* set_menu_opacity_compositing_state:
+ * @scale: the Menu-opacity scale.
+ * @label: its mnemonic label.
+ *
+ * Reflects whether the control's screen is composited. Opacity has no visible
+ * effect without a compositor (the renderer paints fully solid in that case), so
+ * the control is made insensitive with a tooltip explaining why; with a
+ * compositor present it is sensitive and carries no tooltip. Called once when the
+ * tab builds and again from the screen's composited-changed signal.
+ */
+static void set_menu_opacity_compositing_state(GtkWidget* scale, GtkWidget* label)
+{
+	GdkScreen* screen = gtk_widget_get_screen(scale);
+	const gboolean composited = screen && gdk_screen_is_composited(screen);
+	gtk_widget_set_sensitive(scale, composited);
+	gtk_widget_set_sensitive(label, composited);
+	const gchar* tip = composited
+		? nullptr
+		: _("Opacity requires a running compositor; without one the menu is always solid.");
+	gtk_widget_set_tooltip_text(scale, tip);
+	gtk_widget_set_tooltip_text(label, tip);
+}
+
+//-----------------------------------------------------------------------------
+
 /* init_general_tab:
  *
  * Builds the General tab. Each of the three section frames lays its controls
@@ -46,12 +71,13 @@ using namespace WhiskerMenu;
  *   2. Panel plugin    — button title/icon visibility, title, icon picker,
  *                        single-row toggle.
  *   3. General menu    — layout-mode, menu-width/height, panel-gap,
- *                        corner-radius, full-screen-opacity, stay-on-focus-out.
+ *                        corner-radius, menu-opacity, stay-on-focus-out.
  *
- * Width, height, panel gap, corner radius and full-screen opacity register a
- * (widget, LayoutControl) pair in m_layout_controls so the live handler
- * installed by install_layout_mode_handler() can flip their state through the
- * control_enabled() matrix on /layout-mode change without a dialog reopen.
+ * Width, height, panel gap and corner radius register a (widget, LayoutControl)
+ * pair in m_layout_controls so the live handler installed by
+ * install_layout_mode_handler() can flip their state through the
+ * control_enabled() matrix on /layout-mode change without a dialog reopen. Menu
+ * opacity is sensitive in every layout mode and so registers no such pair.
  *
  * Returns: a scrolled container ready to be packed into the dialog's stack.
  */
@@ -746,23 +772,39 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// Row 3 C1: Full-screen opacity (wide-fill, enable-when-fullscreen).
-	GtkWidget* fso_label = gtk_label_new_with_mnemonic(_("F_ull-screen opacity:"));
-	m_full_screen_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
-	gtk_scale_set_value_pos(GTK_SCALE(m_full_screen_opacity), GTK_POS_RIGHT);
-	gtk_range_set_value(GTK_RANGE(m_full_screen_opacity), m_settings->full_screen_opacity);
-	add_form_row(menu_grid, COLUMN_C1, 3, fso_label, m_full_screen_opacity, true, menu_c1_labels);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(fso_label), m_full_screen_opacity);
+	// Row 3 C1: Menu opacity (wide-fill). One control fades the whole menu
+	// background uniformly in every layout mode, so it is sensitive in all modes
+	// (no LayoutControl registration); compositing availability gates it instead.
+	GtkWidget* mo_label = gtk_label_new_with_mnemonic(_("_Menu opacity:"));
+	m_menu_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+	gtk_scale_set_value_pos(GTK_SCALE(m_menu_opacity), GTK_POS_RIGHT);
+	gtk_range_set_value(GTK_RANGE(m_menu_opacity), m_settings->menu_opacity);
+	add_form_row(menu_grid, COLUMN_C1, 3, mo_label, m_menu_opacity, true, menu_c1_labels);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(mo_label), m_menu_opacity);
 
-	connect(m_full_screen_opacity, "value-changed",
+	connect(m_menu_opacity, "value-changed",
 		[this](GtkRange* range)
 		{
 			if (m_programmatic_update)
 				return;
-			m_settings->full_screen_opacity = static_cast<int>(gtk_range_get_value(range));
+			m_settings->menu_opacity = static_cast<int>(gtk_range_get_value(range));
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
 		});
+
+	// HACK: opacity is a compositor feature. Without a compositor the menu always
+	// renders solid (the window guards force it), so the control would otherwise
+	// look functional while doing nothing. Gate it on compositing — disabled with
+	// an explanatory tooltip when absent — and track the screen's
+	// composited-changed so it re-enables live if a compositor starts. Best-effort:
+	// X11 is the verified path; the renderer fallback is independent of this.
+	set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
+	if (GdkScreen* mo_screen = gtk_widget_get_screen(m_menu_opacity))
+		connect(mo_screen, "composited-changed",
+			[this, mo_label](GdkScreen*)
+			{
+				set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
+			});
 
 	// Row 3 C2: Stay visible when focus is lost (control-only).
 	m_stay_on_focus_out = gtk_check_button_new_with_mnemonic(_("Stay _visible when focus is lost"));
@@ -790,8 +832,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 	m_layout_controls.push_back({panel_gap_label,      WhiskerMenu::LayoutControl::PanelGap});
 	m_layout_controls.push_back({m_corner_radius,      WhiskerMenu::LayoutControl::CornerRadius});
 	m_layout_controls.push_back({corner_label,         WhiskerMenu::LayoutControl::CornerRadius});
-	m_layout_controls.push_back({m_full_screen_opacity, WhiskerMenu::LayoutControl::FullScreenOpacity});
-	m_layout_controls.push_back({fso_label,            WhiskerMenu::LayoutControl::FullScreenOpacity});
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

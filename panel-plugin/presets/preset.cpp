@@ -57,10 +57,8 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.corner_radius = val.i;
 		else if (prop == "panel-gap" && val.kind == PresetValue::Int)
 			settings.panel_gap = val.i;
-		else if (prop == "categories-opacity" && val.kind == PresetValue::Int)
-			settings.categories_opacity = val.i;
-		else if (prop == "apps-opacity" && val.kind == PresetValue::Int)
-			settings.apps_opacity = val.i;
+		else if (prop == "menu-opacity" && val.kind == PresetValue::Int)
+			settings.menu_opacity = val.i;
 		else if (prop == "sidebar-position" && val.kind == PresetValue::Str)
 			settings.sidebar_position = val.s;
 		else if (prop == "sidebar-enabled" && val.kind == PresetValue::Bool)
@@ -111,8 +109,6 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.menu_width = val.i;
 		else if (prop == "menu-height" && val.kind == PresetValue::Int)
 			settings.menu_height = val.i;
-		else if (prop == "full-screen-opacity" && val.kind == PresetValue::Int)
-			settings.full_screen_opacity = val.i;
 		else if (prop == "places-enabled" && val.kind == PresetValue::Bool)
 			settings.places_enabled = val.b;
 		else if (prop == "places-show-icons" && val.kind == PresetValue::Bool)
@@ -213,14 +209,9 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 			if (val.kind == PresetValue::Int && static_cast<int>(settings.panel_gap) != val.i)
 				return true;
 		}
-		else if (prop == "categories-opacity")
+		else if (prop == "menu-opacity")
 		{
-			if (val.kind == PresetValue::Int && static_cast<int>(settings.categories_opacity) != val.i)
-				return true;
-		}
-		else if (prop == "apps-opacity")
-		{
-			if (val.kind == PresetValue::Int && static_cast<int>(settings.apps_opacity) != val.i)
+			if (val.kind == PresetValue::Int && static_cast<int>(settings.menu_opacity) != val.i)
 				return true;
 		}
 		else if (prop == "sidebar-position")
@@ -332,12 +323,6 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 		{
 			if (val.kind == PresetValue::Int
 					&& static_cast<int>(settings.menu_height) != val.i)
-				return true;
-		}
-		else if (prop == "full-screen-opacity")
-		{
-			if (val.kind == PresetValue::Int
-					&& static_cast<int>(settings.full_screen_opacity) != val.i)
 				return true;
 		}
 		else if (prop == "places-enabled")
@@ -514,8 +499,7 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	// Governed properties
 	xfconf_channel_set_int(ch, (prefix + "corner-radius").c_str(), settings.corner_radius);
 	xfconf_channel_set_int(ch, (prefix + "panel-gap").c_str(), settings.panel_gap);
-	xfconf_channel_set_int(ch, (prefix + "categories-opacity").c_str(), settings.categories_opacity);
-	xfconf_channel_set_int(ch, (prefix + "apps-opacity").c_str(), settings.apps_opacity);
+	xfconf_channel_set_int(ch, (prefix + "menu-opacity").c_str(), settings.menu_opacity);
 	xfconf_channel_set_string(ch, (prefix + "sidebar-position").c_str(), settings.sidebar_position);
 	xfconf_channel_set_bool(ch, (prefix + "sidebar-enabled").c_str(),
 		static_cast<bool>(settings.sidebar_enabled));
@@ -546,7 +530,6 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 		static_cast<bool>(settings.stay_on_focus_out));
 	xfconf_channel_set_int(ch, (prefix + "menu-width").c_str(), settings.menu_width);
 	xfconf_channel_set_int(ch, (prefix + "menu-height").c_str(), settings.menu_height);
-	xfconf_channel_set_int(ch, (prefix + "full-screen-opacity").c_str(), settings.full_screen_opacity);
 	xfconf_channel_set_bool(ch, (prefix + "places-enabled").c_str(),
 		static_cast<bool>(settings.places_enabled));
 	xfconf_channel_set_bool(ch, (prefix + "places-show-icons").c_str(),

@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 6;
+	return 7;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -54,6 +54,11 @@ static bool needs_v5_block(int current_schema_version)
 static bool needs_v6_block(int current_schema_version)
 {
 	return current_schema_version < 6;
+}
+
+static bool needs_v7_block(int current_schema_version)
+{
+	return current_schema_version < 7;
 }
 
 /* fresh_install_preset_id:
@@ -312,29 +317,32 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 6);
+	assert(target_schema_version() == 7);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
 	assert(needs_migration(3) == true);
 	assert(needs_migration(4) == true);
 	assert(needs_migration(5) == true);
-	assert(needs_migration(6) == false);
+	assert(needs_migration(6) == true);
+	assert(needs_migration(7) == false);
 
-	// v0 → v6 walks through every block
+	// v0 → v7 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
 	assert(needs_v4_block(0) == true);
 	assert(needs_v5_block(0) == true);
 	assert(needs_v6_block(0) == true);
+	assert(needs_v7_block(0) == true);
 
-	// v5 → v6 only runs the v6 block
-	assert(needs_v1_block(5) == false);
-	assert(needs_v2_block(5) == false);
-	assert(needs_v4_block(5) == false);
-	assert(needs_v5_block(5) == false);
-	assert(needs_v6_block(5) == true);
+	// v6 → v7 only runs the v7 block
+	assert(needs_v1_block(6) == false);
+	assert(needs_v2_block(6) == false);
+	assert(needs_v4_block(6) == false);
+	assert(needs_v5_block(6) == false);
 	assert(needs_v6_block(6) == false);
+	assert(needs_v7_block(6) == true);
+	assert(needs_v7_block(7) == false);
 }
 
 static void test_fresh_install_lands_on_modern()
@@ -527,6 +535,89 @@ static void test_v6_cleanup()
 	assert(v6_rewrite_profile_position(nullptr) == nullptr);
 }
 
+// ---------------------------------------------------------------------------
+// schema-v7 migration mirror (042-simple-opacity)
+//
+// v7 collapses the three per-region opacities to one /menu-opacity, derived from
+// the active preset's menu-opacity (or 100 when no preset governs it), and resets
+// the three retired keys. Modelled here as pure logic; the live xfconf round-trip
+// is covered by test_migration.cpp.
+// ---------------------------------------------------------------------------
+
+/* derive_menu_opacity_v7:
+ * @has_preset:          whether current-preset-id resolves to a known preset
+ *                       that carries a menu-opacity value.
+ * @preset_menu_opacity: that preset's menu-opacity (ignored when !has_preset).
+ *
+ * Returns: the value written to /menu-opacity — the preset's value, or 100 when
+ * no preset governs opacity (FR-012).
+ */
+static int derive_menu_opacity_v7(bool has_preset, int preset_menu_opacity)
+{
+	return has_preset ? preset_menu_opacity : 100;
+}
+
+/* v7_resets_key:
+ * @key: an xfconf property path.
+ *
+ * Returns: true iff the schema-v7 block resets @key (the three retired
+ * per-region opacity keys).
+ */
+static bool v7_resets_key(const char* key)
+{
+	const char* removed[] = {
+		"/categories-opacity",
+		"/apps-opacity",
+		"/full-screen-opacity",
+	};
+	for (const char* k : removed)
+		if (std::strcmp(key, k) == 0)
+			return true;
+	return false;
+}
+
+static void test_v7_derives_from_active_preset()
+{
+	// Each built-in pins its single opacity; v7 derives exactly that value.
+	struct { int preset_value; } cases[] = { {100}, {100}, {80}, {60} };
+	for (const auto& c : cases)
+		assert(derive_menu_opacity_v7(true, c.preset_value) == c.preset_value);
+}
+
+static void test_v7_no_preset_falls_back_to_100()
+{
+	// No active preset (unset/unknown id, or a preset without menu-opacity) → 100.
+	assert(derive_menu_opacity_v7(false, 0)  == 100);
+	assert(derive_menu_opacity_v7(false, 42) == 100);
+}
+
+static void test_v7_resets_retired_keys()
+{
+	// The three retired per-region keys are reset; unrelated keys are untouched.
+	assert(v7_resets_key("/categories-opacity") == true);
+	assert(v7_resets_key("/apps-opacity") == true);
+	assert(v7_resets_key("/full-screen-opacity") == true);
+	assert(v7_resets_key("/menu-opacity") == false);
+	assert(v7_resets_key("/corner-radius") == false);
+}
+
+static void test_v7_idempotent_one_shot()
+{
+	// Guarded by < 7: a second pass after the first run is a no-op.
+	assert(needs_v7_block(6) == true);
+	assert(needs_v7_block(7) == false);
+}
+
+static void test_v7_fresh_install_lands_on_100_no_old_keys()
+{
+	// Fresh installs apply Modern (menu-opacity 100) up front; v7 then derives
+	// 100 from the active preset and resets the orphaned per-region keys.
+	const int modern_menu_opacity = 100;
+	assert(derive_menu_opacity_v7(true, modern_menu_opacity) == 100);
+	for (const char* k : { "/categories-opacity", "/apps-opacity", "/full-screen-opacity" })
+		assert(v7_resets_key(k) == true);
+}
+
 // TODO-INTEGRATION: test_v0_to_v1_snapshot()
 //   Bring up a real xfconfd on XDG_CONFIG_HOME=/tmp/meow-test-XXXXXX,
 //   write a v0 property set (favorites, view-mode, menu-opacity=60),
@@ -557,5 +648,11 @@ int main()
 	test_fresh_install_lands_on_modern();
 	test_upgrade_label_derivation();
 	test_v6_cleanup();
+	// 042-simple-opacity: schema-v7 single menu-opacity derivation + cleanup
+	test_v7_derives_from_active_preset();
+	test_v7_no_preset_falls_back_to_100();
+	test_v7_resets_retired_keys();
+	test_v7_idempotent_one_shot();
+	test_v7_fresh_install_lands_on_100_no_old_keys();
 	return 0;
 }
