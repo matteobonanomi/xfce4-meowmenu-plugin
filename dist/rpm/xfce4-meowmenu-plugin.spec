@@ -18,11 +18,10 @@ Source0:        %{name}-%{version}.tar.gz
 Packager:       Matteo Bonanomi <mbonanomi.dev@proton.me>
 
 # NOTE: BuildRequires are expressed via pkgconfig(...) / path capabilities
-# so the same spec works on Fedora and openSUSE Leap. Binary package names
-# for Xfce devel libraries diverge between distros (e.g. garcon-devel vs
-# libgarcon-1-devel, xfconf-devel vs libxfconf-devel, ninja-build vs ninja,
-# pkgconf-pkg-config vs pkgconfig); .pc filenames and /usr/bin paths are
-# stable and match meson.build.
+# rather than concrete devel-package names, which keeps the spec portable
+# across RPM distributions where the Xfce devel package names diverge (e.g.
+# garcon-devel vs libgarcon-1-devel, ninja-build vs ninja); the .pc filenames
+# and /usr/bin paths are stable and match meson.build.
 BuildRequires:  meson
 BuildRequires:  gcc-c++
 BuildRequires:  /usr/bin/ninja
