@@ -35,22 +35,49 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+/* set_menu_opacity_compositing_state:
+ * @scale: the Menu-opacity scale.
+ * @label: its mnemonic label.
+ *
+ * Reflects whether the control's screen is composited. Opacity has no visible
+ * effect without a compositor (the renderer paints fully solid in that case), so
+ * the control is made insensitive with a tooltip explaining why; with a
+ * compositor present it is sensitive and carries no tooltip. Called once when the
+ * tab builds and again from the screen's composited-changed signal.
+ */
+static void set_menu_opacity_compositing_state(GtkWidget* scale, GtkWidget* label)
+{
+	GdkScreen* screen = gtk_widget_get_screen(scale);
+	const gboolean composited = screen && gdk_screen_is_composited(screen);
+	gtk_widget_set_sensitive(scale, composited);
+	gtk_widget_set_sensitive(label, composited);
+	const gchar* tip = composited
+		? nullptr
+		: _("Opacity requires a running compositor; without one the menu is always solid.");
+	gtk_widget_set_tooltip_text(scale, tip);
+	gtk_widget_set_tooltip_text(label, tip);
+}
+
+//-----------------------------------------------------------------------------
+
 /* init_general_tab:
  *
- * Builds the General tab in the 003-properties-refactor 5-tab dictionary.
- * Sections (top-to-bottom, FR-010):
- *   1. Preset          — select/save/import/export presets (T014).
+ * Builds the General tab. Each of the three section frames lays its controls
+ * across two equal-width columns (C1 | C2) built with make_two_column_section();
+ * the homogeneous columns share one midpoint across all three sections. Sections
+ * (top-to-bottom):
+ *   1. Preset          — select/save/import/export presets; a "?" help control
+ *                        reveals the active preset's description on hover/focus.
  *   2. Panel plugin    — button title/icon visibility, title, icon picker,
- *                        single-row toggle (T015).
- *   3. General menu    — layout-mode, panel-gap, menu-width, menu-height,
- *                        corner-radius, full-screen-opacity, stay-on-focus-out
- *                        (T016).
+ *                        single-row toggle.
+ *   3. General menu    — layout-mode, menu-width/height, panel-gap,
+ *                        corner-radius, menu-opacity, stay-on-focus-out.
  *
- * Width, height, panel gap, corner radius and full-screen opacity register a
- * (widget, LayoutControl) pair in m_layout_controls so the live handler
- * installed by install_layout_mode_handler() can flip their state through the
- * FR-006 control_enabled() matrix on /layout-mode change without a dialog
- * reopen.
+ * Width, height, panel gap and corner radius register a (widget, LayoutControl)
+ * pair in m_layout_controls so the live handler installed by
+ * install_layout_mode_handler() can flip their state through the
+ * control_enabled() matrix on /layout-mode change without a dialog reopen. Menu
+ * opacity is sensitive in every layout mode and so registers no such pair.
  *
  * Returns: a scrolled container ready to be packed into the dialog's stack.
  */
@@ -62,16 +89,43 @@ GtkWidget* SettingsDialog::init_general_tab()
 	// =========================================================================
 	// 1. Preset section
 	// =========================================================================
-	GtkGrid* preset_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(preset_table, 12);
-	gtk_grid_set_row_spacing(preset_table, 6);
+	// The section content is a vertical box so the full-width Wayland warning
+	// info-bar can sit above the two-column control grid.
+	GtkWidget* preset_content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 
-	GtkWidget* preset_frame = make_aligned_frame(_("Preset"), GTK_WIDGET(preset_table));
+	// FullScreen warning InfoBar — shown when fullscreen is active but
+	// gtk-layer-shell is unavailable. HACK: at build time we don't know whether
+	// the running compositor will honour layer-shell, so we conservatively show
+	// the warning only when the dependency isn't compiled in. It stays full-width
+	// at the top of the Preset section.
+#if defined(HAVE_GTK_LAYER_SHELL)
+	(void)0;
+#else
+	{
+		GtkWidget* infobar = gtk_info_bar_new();
+		gtk_info_bar_set_message_type(GTK_INFO_BAR(infobar), GTK_MESSAGE_WARNING);
+		GtkWidget* infobar_content = gtk_info_bar_get_content_area(GTK_INFO_BAR(infobar));
+		GtkWidget* infobar_label = gtk_label_new(
+			_("FullScreen mode requires gtk-layer-shell on Wayland. "
+			  "The menu will open as a regular window instead."));
+		gtk_label_set_line_wrap(GTK_LABEL(infobar_label), true);
+		gtk_label_set_xalign(GTK_LABEL(infobar_label), 0.0f);
+		gtk_container_add(GTK_CONTAINER(infobar_content), infobar_label);
+
+		const gchar* cur_id = static_cast<const gchar*>(m_settings->current_preset_id);
+		gtk_widget_set_visible(infobar, cur_id && strcmp(cur_id, "fullscreen") == 0);
+		gtk_box_pack_start(GTK_BOX(preset_content), infobar, false, false, 0);
+	}
+#endif
+
+	GtkWidget* preset_grid = make_two_column_section();
+	gtk_box_pack_start(GTK_BOX(preset_content), preset_grid, false, false, 0);
+
+	GtkWidget* preset_frame = make_aligned_frame(_("Preset"), preset_content);
 	gtk_box_pack_start(page, preset_frame, false, false, 0);
 
+	// --- Selector row (row 0): combo in C1; "?" help control in C2. ---
 	GtkWidget* preset_label = gtk_label_new_with_mnemonic(_("_Preset:"));
-	gtk_widget_set_halign(preset_label, GTK_ALIGN_START);
-	gtk_grid_attach(preset_table, preset_label, 0, 0, 1, 1);
 
 	// Model-driven selector: an explicit GtkListStore lets each row carry its own
 	// Pango weight/style so refresh_preset_combo() can render built-ins bold,
@@ -91,23 +145,32 @@ GtkWidget* SettingsDialog::init_general_tab()
 			"style",  PRESET_COL_STYLE,
 			nullptr);
 	}
-	gtk_widget_set_hexpand(m_preset_combo, true);
-	gtk_grid_attach(preset_table, m_preset_combo, 1, 0, 1, 1);
+	add_form_row(preset_grid, COLUMN_C1, 0, preset_label, m_preset_combo, true, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(preset_label), m_preset_combo);
 
-	m_preset_description = gtk_label_new("");
-	gtk_label_set_line_wrap(GTK_LABEL(m_preset_description), true);
-	gtk_label_set_xalign(GTK_LABEL(m_preset_description), 0.0f);
-	gtk_widget_set_hexpand(m_preset_description, true);
-	gtk_grid_attach(preset_table, m_preset_description, 0, 1, 2, 1);
+	// "?" help control: reveals the active preset's description on hover/focus,
+	// replacing the former always-visible inline description paragraph. Its
+	// tooltip is refreshed by the preset-sync path (refresh_customized_indicator
+	// / sync_preset_widgets) and by the combo "changed" handler below.
+	m_preset_help = make_help_button(_("Show the selected preset's description"));
+	add_form_row(preset_grid, COLUMN_C2, 0, nullptr, m_preset_help, false, nullptr);
 
-	// Preset action buttons row.
-	GtkWidget* action_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	gtk_widget_set_margin_top(action_box, 4);
-	gtk_grid_attach(preset_table, action_box, 0, 3, 2, 1);
+	// --- Custom-preset actions (row 1): Save/Rename in C1, Delete in C2. ---
+	GtkWidget* custom_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	add_form_row(preset_grid, COLUMN_C1, 1, nullptr, custom_box, false, nullptr);
+
+	GtkWidget* delete_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	add_form_row(preset_grid, COLUMN_C2, 1, nullptr, delete_box, false, nullptr);
+
+	// --- Reset/IO actions (row 2): Reset preset/defaults in C1, Export/Import in C2. ---
+	GtkWidget* reset_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	add_form_row(preset_grid, COLUMN_C1, 2, nullptr, reset_box, false, nullptr);
+
+	GtkWidget* io_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	add_form_row(preset_grid, COLUMN_C2, 2, nullptr, io_box, false, nullptr);
 
 	GtkWidget* reset_preset_btn = gtk_button_new_with_mnemonic(_("_Reset preset"));
-	gtk_box_pack_start(GTK_BOX(action_box), reset_preset_btn, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(reset_box), reset_preset_btn, false, false, 0);
 
 	connect(reset_preset_btn, "clicked",
 		[this](GtkButton*)
@@ -129,7 +192,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 		});
 
 	GtkWidget* save_btn = gtk_button_new_with_mnemonic(_("_Save as new…"));
-	gtk_box_pack_start(GTK_BOX(action_box), save_btn, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(custom_box), save_btn, false, false, 0);
 
 	connect(save_btn, "clicked",
 		[this](GtkButton*)
@@ -181,7 +244,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 
 	m_preset_rename_btn = gtk_button_new_with_mnemonic(_("Re_name…"));
 	gtk_widget_set_sensitive(m_preset_rename_btn, false);
-	gtk_box_pack_start(GTK_BOX(action_box), m_preset_rename_btn, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(custom_box), m_preset_rename_btn, false, false, 0);
 
 	connect(m_preset_rename_btn, "clicked",
 		[this](GtkButton*)
@@ -236,7 +299,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 
 	m_preset_delete_btn = gtk_button_new_with_mnemonic(_("_Delete"));
 	gtk_widget_set_sensitive(m_preset_delete_btn, false);
-	gtk_box_pack_start(GTK_BOX(action_box), m_preset_delete_btn, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(delete_box), m_preset_delete_btn, false, false, 0);
 
 	connect(m_preset_delete_btn, "clicked",
 		[this](GtkButton*)
@@ -267,11 +330,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			}
 		});
 
-	// Export / Import row.
-	GtkWidget* io_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	gtk_widget_set_margin_top(io_box, 2);
-	gtk_grid_attach(preset_table, io_box, 0, 4, 2, 1);
-
+	// Export / Import actions populate io_box (C2 row 2, declared above).
 	m_preset_export_btn = gtk_button_new_with_mnemonic(_("E_xport…"));
 	gtk_widget_set_sensitive(m_preset_export_btn, false);
 	gtk_box_pack_start(GTK_BOX(io_box), m_preset_export_btn, false, false, 0);
@@ -434,11 +493,9 @@ GtkWidget* SettingsDialog::init_general_tab()
 		});
 
 	// Reset to defaults — full channel reset, kept here as the most logical
-	// action button for the Preset hub.
+	// action button for the Preset hub. Sits beside Reset preset in C1.
 	GtkWidget* defaults_btn = gtk_button_new_with_mnemonic(_("Reset to _defaults"));
-	gtk_widget_set_margin_top(defaults_btn, 8);
-	gtk_widget_set_halign(defaults_btn, GTK_ALIGN_START);
-	gtk_grid_attach(preset_table, defaults_btn, 0, 5, 2, 1);
+	gtk_box_pack_start(GTK_BOX(reset_box), defaults_btn, false, false, 0);
 
 	connect(defaults_btn, "clicked",
 		[this](GtkButton*)
@@ -480,7 +537,9 @@ GtkWidget* SettingsDialog::init_general_tab()
 			const LayoutPreset* preset = find_preset_by_id(std::string(id));
 			if (!preset)
 				return;
-			gtk_label_set_text(GTK_LABEL(m_preset_description), _(preset->description.c_str()));
+			// Reveal the selected preset's description via the "?" help control's
+			// hover/focus tooltip (the always-visible inline paragraph is gone).
+			gtk_widget_set_tooltip_text(m_preset_help, _(preset->description.c_str()));
 			// Applying a built-in preset only writes Settings fields and
 			// current_preset_id; it never touches any /presets/<uuid>/ entry, so
 			// custom presets stay immutable and distinct (FR-007/011b). Re-running
@@ -496,66 +555,32 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// FullScreen warning InfoBar — shown when fullscreen is active but
-	// gtk-layer-shell is unavailable. HACK: at build time we don't know whether
-	// the running compositor will honour layer-shell, so we conservatively show
-	// the warning only when the dependency isn't compiled in.
-#if defined(HAVE_GTK_LAYER_SHELL)
-	(void)0;
-#else
-	{
-		GtkWidget* infobar = gtk_info_bar_new();
-		gtk_info_bar_set_message_type(GTK_INFO_BAR(infobar), GTK_MESSAGE_WARNING);
-		GtkWidget* infobar_content = gtk_info_bar_get_content_area(GTK_INFO_BAR(infobar));
-		GtkWidget* infobar_label = gtk_label_new(
-			_("FullScreen mode requires gtk-layer-shell on Wayland. "
-			  "The menu will open as a regular window instead."));
-		gtk_label_set_line_wrap(GTK_LABEL(infobar_label), true);
-		gtk_label_set_xalign(GTK_LABEL(infobar_label), 0.0f);
-		gtk_container_add(GTK_CONTAINER(infobar_content), infobar_label);
-
-		const gchar* cur_id = static_cast<const gchar*>(m_settings->current_preset_id);
-		gtk_widget_set_visible(infobar, cur_id && strcmp(cur_id, "fullscreen") == 0);
-		gtk_box_pack_start(page, infobar, false, false, 0);
-	}
-#endif
-
 	// =========================================================================
-	// 2. Panel plugin section (T015)
+	// 2. Panel plugin section
 	// =========================================================================
-	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-	GtkSizeGroup* control_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	// Per-column label size group lines the C1 / C2 label colons up within a
+	// half; it must not span the two halves (the homogeneous grid owns the 50/50
+	// split). Only the Title/Icon labels need it here.
+	GtkSizeGroup* panel_c1_labels = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	GtkSizeGroup* panel_c2_labels = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
-	GtkGrid* panel_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(panel_table, 12);
-	gtk_grid_set_row_spacing(panel_table, 6);
-
-	GtkWidget* panel_frame = make_aligned_frame(_("Panel plugin"), GTK_WIDGET(panel_table));
+	GtkWidget* panel_grid = make_two_column_section();
+	GtkWidget* panel_frame = make_aligned_frame(_("Panel plugin"), panel_grid);
 	gtk_box_pack_start(page, panel_frame, false, false, 0);
 
-	int panel_row = 0;
-
-	// Show panel button title
+	// Row 0: visibility toggles — title in C1, icon in C2.
 	m_button_title_visible = gtk_check_button_new_with_mnemonic(_("Show panel button _title"));
-	gtk_grid_attach(panel_table, m_button_title_visible, 0, panel_row, 2, 1);
+	add_form_row(panel_grid, COLUMN_C1, 0, nullptr, m_button_title_visible, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_button_title_visible),
 		static_cast<bool>(m_settings->button_title_visible));
-	++panel_row;
 
-	// Title entry
+	// Row 1 C1: Title entry (wide-fill).
 	GtkWidget* title_label = gtk_label_new_with_mnemonic(_("T_itle:"));
-	gtk_widget_set_halign(title_label, GTK_ALIGN_START);
-	gtk_grid_attach(panel_table, title_label, 0, panel_row, 1, 1);
-
 	m_title = gtk_entry_new();
 	gtk_entry_set_text(GTK_ENTRY(m_title), m_settings->button_title);
-	gtk_widget_set_hexpand(m_title, true);
-	gtk_grid_attach(panel_table, m_title, 1, panel_row, 1, 1);
+	add_form_row(panel_grid, COLUMN_C1, 1, title_label, m_title, true, panel_c1_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(title_label), m_title);
-	gtk_size_group_add_widget(label_size_group, title_label);
-	gtk_size_group_add_widget(control_size_group, m_title);
 	gtk_widget_set_sensitive(m_title, static_cast<bool>(m_settings->button_title_visible));
-	++panel_row;
 
 	connect(m_title, "changed",
 		[this](GtkEditable* editable)
@@ -579,23 +604,17 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// Show panel button icon
+	// Row 0 C2: Show panel button icon toggle.
 	m_button_icon_visible = gtk_check_button_new_with_mnemonic(_("Show panel button _icon"));
-	gtk_grid_attach(panel_table, m_button_icon_visible, 0, panel_row, 2, 1);
+	add_form_row(panel_grid, COLUMN_C2, 0, nullptr, m_button_icon_visible, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_button_icon_visible),
 		static_cast<bool>(m_settings->button_icon_visible));
-	++panel_row;
 
-	// Icon picker
+	// Row 1 C2: Icon picker (narrow).
 	GtkWidget* icon_label = gtk_label_new_with_mnemonic(_("Ic_on:"));
-	gtk_widget_set_halign(icon_label, GTK_ALIGN_START);
-	gtk_grid_attach(panel_table, icon_label, 0, panel_row, 1, 1);
-
 	m_icon_button = gtk_button_new();
-	gtk_widget_set_halign(m_icon_button, GTK_ALIGN_START);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(icon_label), m_icon_button);
-	gtk_grid_attach(panel_table, m_icon_button, 1, panel_row, 1, 1);
-	gtk_size_group_add_widget(label_size_group, icon_label);
+	add_form_row(panel_grid, COLUMN_C2, 1, icon_label, m_icon_button, false, panel_c2_labels);
 
 	connect(m_icon_button, "clicked",
 		[this](GtkButton*)
@@ -606,7 +625,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 	m_icon = gtk_image_new_from_icon_name(m_settings->button_icon_name, GTK_ICON_SIZE_DIALOG);
 	gtk_container_add(GTK_CONTAINER(m_icon_button), m_icon);
 	gtk_widget_set_sensitive(m_icon_button, static_cast<bool>(m_settings->button_icon_visible));
-	++panel_row;
 
 	connect(m_button_icon_visible, "toggled",
 		[this](GtkToggleButton* button)
@@ -623,9 +641,9 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// Single-row panel layout
+	// Row 2 C1: single-row panel layout (C2 stays empty; C1 holds half width).
 	m_button_single_row = gtk_check_button_new_with_mnemonic(_("Use a single panel _row"));
-	gtk_grid_attach(panel_table, m_button_single_row, 0, panel_row, 2, 1);
+	add_form_row(panel_grid, COLUMN_C1, 2, nullptr, m_button_single_row, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_button_single_row),
 		static_cast<bool>(m_settings->button_single_row));
 	// Single-row is meaningful only for icon-only buttons (FR-010 §Panel plugin).
@@ -642,21 +660,18 @@ GtkWidget* SettingsDialog::init_general_tab()
 		});
 
 	// =========================================================================
-	// 3. General menu settings section (T016 / T017)
+	// 3. General menu settings section
 	// =========================================================================
-	GtkGrid* menu_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(menu_table, 12);
-	gtk_grid_set_row_spacing(menu_table, 6);
+	// Per-column label size groups align the colons within each half.
+	GtkSizeGroup* menu_c1_labels = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	GtkSizeGroup* menu_c2_labels = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
-	GtkWidget* menu_frame = make_aligned_frame(_("General menu settings"), GTK_WIDGET(menu_table));
+	GtkWidget* menu_grid = make_two_column_section();
+	GtkWidget* menu_frame = make_aligned_frame(_("General menu settings"), menu_grid);
 	gtk_box_pack_start(page, menu_frame, false, false, 0);
 
-	int menu_row = 0;
-
-	// Layout mode
+	// Row 0 C1: Layout mode (narrow); C2 left empty.
 	GtkWidget* layout_label = gtk_label_new_with_mnemonic(_("_Layout mode:"));
-	gtk_widget_set_halign(layout_label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, layout_label, 0, menu_row, 1, 1);
 
 	m_layout_mode_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_layout_mode_combo), "docked", _("Docked"));
@@ -672,12 +687,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	case WhiskerMenu::LayoutMode::Docked:     active_id = "docked";     break;
 	}
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo), active_id);
-	gtk_widget_set_halign(m_layout_mode_combo, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, m_layout_mode_combo, 1, menu_row, 1, 1);
+	add_form_row(menu_grid, COLUMN_C1, 0, layout_label, m_layout_mode_combo, false, menu_c1_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(layout_label), m_layout_mode_combo);
-	gtk_size_group_add_widget(label_size_group, layout_label);
-	gtk_size_group_add_widget(control_size_group, m_layout_mode_combo);
-	++menu_row;
 
 	connect(m_layout_mode_combo, "changed",
 		[this](GtkComboBox* combo)
@@ -697,19 +708,12 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// Panel gap
+	// Row 2 C1: Panel gap (narrow).
 	GtkWidget* panel_gap_label = gtk_label_new_with_mnemonic(_("_Panel gap:"));
-	gtk_widget_set_halign(panel_gap_label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, panel_gap_label, 0, menu_row, 1, 1);
-
 	m_panel_gap = gtk_spin_button_new_with_range(0, 50, 1);
-	gtk_widget_set_halign(m_panel_gap, GTK_ALIGN_START);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_panel_gap), m_settings->panel_gap);
-	gtk_grid_attach(menu_table, m_panel_gap, 1, menu_row, 1, 1);
+	add_form_row(menu_grid, COLUMN_C1, 2, panel_gap_label, m_panel_gap, false, menu_c1_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(panel_gap_label), m_panel_gap);
-	gtk_size_group_add_widget(label_size_group, panel_gap_label);
-	gtk_size_group_add_widget(control_size_group, m_panel_gap);
-	++menu_row;
 
 	connect(m_panel_gap, "value-changed",
 		[this](GtkSpinButton* button)
@@ -721,19 +725,12 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// Menu width (enable-when-docked)
+	// Row 1 C1: Menu width (narrow, enable-when-docked).
 	GtkWidget* width_label = gtk_label_new_with_mnemonic(_("Menu _width:"));
-	gtk_widget_set_halign(width_label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, width_label, 0, menu_row, 1, 1);
-
 	m_menu_width = gtk_spin_button_new_with_range(10, SHRT_MAX, 1);
-	gtk_widget_set_halign(m_menu_width, GTK_ALIGN_START);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_width), m_settings->menu_width);
-	gtk_grid_attach(menu_table, m_menu_width, 1, menu_row, 1, 1);
+	add_form_row(menu_grid, COLUMN_C1, 1, width_label, m_menu_width, false, menu_c1_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(width_label), m_menu_width);
-	gtk_size_group_add_widget(label_size_group, width_label);
-	gtk_size_group_add_widget(control_size_group, m_menu_width);
-	++menu_row;
 
 	connect(m_menu_width, "value-changed",
 		[this](GtkSpinButton* button)
@@ -743,19 +740,12 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_settings->menu_width = gtk_spin_button_get_value_as_int(button);
 		});
 
-	// Menu height (enable-when-docked)
+	// Row 1 C2: Menu height (narrow, enable-when-docked).
 	GtkWidget* height_label = gtk_label_new_with_mnemonic(_("Menu _height:"));
-	gtk_widget_set_halign(height_label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, height_label, 0, menu_row, 1, 1);
-
 	m_menu_height = gtk_spin_button_new_with_range(10, SHRT_MAX, 1);
-	gtk_widget_set_halign(m_menu_height, GTK_ALIGN_START);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_height), m_settings->menu_height);
-	gtk_grid_attach(menu_table, m_menu_height, 1, menu_row, 1, 1);
+	add_form_row(menu_grid, COLUMN_C2, 1, height_label, m_menu_height, false, menu_c2_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(height_label), m_menu_height);
-	gtk_size_group_add_widget(label_size_group, height_label);
-	gtk_size_group_add_widget(control_size_group, m_menu_height);
-	++menu_row;
 
 	connect(m_menu_height, "value-changed",
 		[this](GtkSpinButton* button)
@@ -765,19 +755,12 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_settings->menu_height = gtk_spin_button_get_value_as_int(button);
 		});
 
-	// Corner radius
+	// Row 2 C2: Corner radius (narrow).
 	GtkWidget* corner_label = gtk_label_new_with_mnemonic(_("_Corner radius:"));
-	gtk_widget_set_halign(corner_label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, corner_label, 0, menu_row, 1, 1);
-
 	m_corner_radius = gtk_spin_button_new_with_range(0, 24, 1);
-	gtk_widget_set_halign(m_corner_radius, GTK_ALIGN_START);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_corner_radius), m_settings->corner_radius);
-	gtk_grid_attach(menu_table, m_corner_radius, 1, menu_row, 1, 1);
+	add_form_row(menu_grid, COLUMN_C2, 2, corner_label, m_corner_radius, false, menu_c2_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(corner_label), m_corner_radius);
-	gtk_size_group_add_widget(label_size_group, corner_label);
-	gtk_size_group_add_widget(control_size_group, m_corner_radius);
-	++menu_row;
 
 	connect(m_corner_radius, "value-changed",
 		[this](GtkSpinButton* button)
@@ -789,35 +772,44 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-	GtkWidget* fso_label = gtk_label_new_with_mnemonic(_("F_ull-screen opacity:"));
-	gtk_widget_set_halign(fso_label, GTK_ALIGN_START);
-	gtk_grid_attach(menu_table, fso_label, 0, menu_row, 1, 1);
+	// Row 3 C1: Menu opacity (wide-fill). One control fades the whole menu
+	// background uniformly in every layout mode, so it is sensitive in all modes
+	// (no LayoutControl registration); compositing availability gates it instead.
+	GtkWidget* mo_label = gtk_label_new_with_mnemonic(_("_Menu opacity:"));
+	m_menu_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
+	gtk_scale_set_value_pos(GTK_SCALE(m_menu_opacity), GTK_POS_RIGHT);
+	gtk_range_set_value(GTK_RANGE(m_menu_opacity), m_settings->menu_opacity);
+	add_form_row(menu_grid, COLUMN_C1, 3, mo_label, m_menu_opacity, true, menu_c1_labels);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(mo_label), m_menu_opacity);
 
-	m_full_screen_opacity = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
-	gtk_widget_set_hexpand(m_full_screen_opacity, true);
-	gtk_scale_set_value_pos(GTK_SCALE(m_full_screen_opacity), GTK_POS_RIGHT);
-	gtk_range_set_value(GTK_RANGE(m_full_screen_opacity), m_settings->full_screen_opacity);
-	gtk_grid_attach(menu_table, m_full_screen_opacity, 1, menu_row, 1, 1);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(fso_label), m_full_screen_opacity);
-	gtk_size_group_add_widget(label_size_group, fso_label);
-	++menu_row;
-
-	connect(m_full_screen_opacity, "value-changed",
+	connect(m_menu_opacity, "value-changed",
 		[this](GtkRange* range)
 		{
 			if (m_programmatic_update)
 				return;
-			m_settings->full_screen_opacity = static_cast<int>(gtk_range_get_value(range));
+			m_settings->menu_opacity = static_cast<int>(gtk_range_get_value(range));
 			m_plugin->reload_menu();
 			refresh_customized_indicator();
 		});
 
-	// Stay visible when focus is lost (FR-013: lives only in General).
+	// HACK: opacity is a compositor feature. Without a compositor the menu always
+	// renders solid (the window guards force it), so the control would otherwise
+	// look functional while doing nothing. Gate it on compositing — disabled with
+	// an explanatory tooltip when absent — and track the screen's
+	// composited-changed so it re-enables live if a compositor starts. Best-effort:
+	// X11 is the verified path; the renderer fallback is independent of this.
+	set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
+	if (GdkScreen* mo_screen = gtk_widget_get_screen(m_menu_opacity))
+		connect(mo_screen, "composited-changed",
+			[this, mo_label](GdkScreen*)
+			{
+				set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
+			});
+
+	// Row 3 C2: Stay visible when focus is lost (control-only).
 	m_stay_on_focus_out = gtk_check_button_new_with_mnemonic(_("Stay _visible when focus is lost"));
-	gtk_grid_attach(menu_table, m_stay_on_focus_out, 0, menu_row, 2, 1);
+	add_form_row(menu_grid, COLUMN_C2, 3, nullptr, m_stay_on_focus_out, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_stay_on_focus_out), m_settings->stay_on_focus_out);
-	++menu_row;
 
 	connect(m_stay_on_focus_out, "toggled",
 		[this](GtkToggleButton* button)
@@ -840,8 +832,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 	m_layout_controls.push_back({panel_gap_label,      WhiskerMenu::LayoutControl::PanelGap});
 	m_layout_controls.push_back({m_corner_radius,      WhiskerMenu::LayoutControl::CornerRadius});
 	m_layout_controls.push_back({corner_label,         WhiskerMenu::LayoutControl::CornerRadius});
-	m_layout_controls.push_back({m_full_screen_opacity, WhiskerMenu::LayoutControl::FullScreenOpacity});
-	m_layout_controls.push_back({fso_label,            WhiskerMenu::LayoutControl::FullScreenOpacity});
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

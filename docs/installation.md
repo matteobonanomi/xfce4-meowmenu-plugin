@@ -34,6 +34,22 @@ sudo dnf install ./xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
 sudo zypper install --allow-unsigned-rpm ./xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
 ```
 
+## Arch Linux (AUR)
+
+Arch and Arch-based distributions — including CachyOS, EndeavourOS, and
+Manjaro — can install the AUR package with an AUR helper:
+
+```bash
+yay -S xfce4-meowmenu-plugin
+```
+
+The package
+([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
+is maintainer-published and distributed through the AUR. Unlike the four
+prebuilt packages above, it is **not** built or smoke-tested in CI.
+
+Uninstall with `yay -R xfce4-meowmenu-plugin`.
+
 ## After install
 
 1. Run `xfce4-panel -r` to restart the panel.

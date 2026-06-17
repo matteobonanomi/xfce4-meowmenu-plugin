@@ -38,9 +38,7 @@ struct ShadowPropDef
 static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "corner-radius",         PropKind::Int,  0,   24,   {} },
 	{ "panel-gap",             PropKind::Int,  0,   50,   {} },
-	{ "categories-opacity",    PropKind::Int,  0,   100,  {} },
-	{ "apps-opacity",          PropKind::Int,  0,   100,  {} },
-	{ "full-screen-opacity",   PropKind::Int,  0,   100,  {} },
+	{ "menu-opacity",          PropKind::Int,  0,   100,  {} },
 	{ "sidebar-position",      PropKind::Str,  0,   0,    {"left","right","hidden"} },
 	{ "position-categories-horizontal", PropKind::Bool, 0, 0, {} },
 	{ "search-bar-position",   PropKind::Str,  0,   0,    {"top","bottom"} },
@@ -176,8 +174,7 @@ static RawSettings make_valid_modern_raw()
 	RawSettings r;
 	r.put("corner-radius",      "12");
 	r.put("panel-gap",          "8");
-	r.put("categories-opacity", "80");
-	r.put("apps-opacity",       "70");
+	r.put("menu-opacity",       "100");
 	r.put("sidebar-position",   "left");
 	r.put("position-categories-horizontal", "false");
 	r.put("search-bar-position","bottom");
@@ -413,10 +410,10 @@ static void test_enumerate_unknown_key_dropped()
 
 static void test_new_schema_keys_accepted()
 {
-	// Verify the five keys added to GOVERNED_PROPS by 003-properties-refactor
-	// are now accepted by the shadow validator.
+	// The single governed menu-opacity plus the other current keys are accepted
+	// by the shadow validator.
 	RawSettings raw;
-	raw.put("full-screen-opacity", "85");
+	raw.put("menu-opacity",        "85");
 	raw.put("stay-on-focus-out",   "true");
 	raw.put("menu-width",          "480");
 	raw.put("menu-height",         "520");
@@ -426,7 +423,7 @@ static void test_new_schema_keys_accepted()
 	ShadowValueMap result = validate_settings(raw, skipped);
 
 	assert(skipped.empty());
-	assert(result.count("full-screen-opacity") == 1 && result.at("full-screen-opacity").i == 85);
+	assert(result.count("menu-opacity")        == 1 && result.at("menu-opacity").i        == 85);
 	assert(result.count("stay-on-focus-out")   == 1 && result.at("stay-on-focus-out").b   == true);
 	assert(result.count("menu-width")          == 1 && result.at("menu-width").i          == 480);
 	assert(result.count("menu-height")         == 1 && result.at("menu-height").i         == 520);
@@ -582,6 +579,44 @@ static void test_export_import_round_trip_equality()
 	}
 }
 
+// FR-014: a preset still carrying only the three retired per-region opacity keys
+// imports without error — each is now unknown and skipped, leaving opacity
+// unpinned (it resolves to the current/default single value).
+static void test_import_old_opacity_keys_skipped_no_error()
+{
+	RawSettings raw;
+	raw.put("categories-opacity", "40");
+	raw.put("apps-opacity",       "50");
+	raw.put("full-screen-opacity","60");
+
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+
+	// All three retired keys are skipped as unknown; no error, nothing pinned.
+	assert(skipped.size() == 3);
+	assert(result.empty());
+	assert(result.find("menu-opacity") == result.end());
+}
+
+// FR-014 precedence: when a file carries both the retired keys and menu-opacity,
+// the retired keys are ignored and the single menu-opacity value is what applies.
+static void test_import_new_opacity_wins_over_old()
+{
+	RawSettings raw;
+	raw.put("categories-opacity", "10");
+	raw.put("apps-opacity",       "20");
+	raw.put("full-screen-opacity","30");
+	raw.put("menu-opacity",       "75");
+
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+
+	// The three old keys are skipped; only menu-opacity survives, at its value.
+	assert(skipped.size() == 3);
+	assert(result.count("menu-opacity") == 1);
+	assert(result.at("menu-opacity").i == 75);
+}
+
 int main()
 {
 	test_round_trip_all_valid();
@@ -609,5 +644,8 @@ int main()
 	test_conflict_builtin_withholds_overwrite();
 	test_conflict_user_offers_overwrite();
 	test_export_import_round_trip_equality();
+	// 042-simple-opacity: forward-compat for the retired per-region opacity keys
+	test_import_old_opacity_keys_skipped_no_error();
+	test_import_new_opacity_wins_over_old();
 	return 0;
 }

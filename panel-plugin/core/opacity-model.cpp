@@ -17,6 +17,8 @@
 
 #include "opacity-model.h"
 
+#include <glib.h>
+
 /* meowmenu_opacity_alpha:
  * Linear, clamped percentage->alpha map. Kept separate so the renderer and the
  * unit test share one definition of the endpoint contract.
@@ -30,34 +32,26 @@ double meowmenu_opacity_alpha(int value)
 	return value / 100.0;
 }
 
-/* meowmenu_region_alphas:
- * Implements the two complementary single-alpha models so no region ever
- * carries two backgrounds that compound:
- *   - Full-screen: the window shell owns the one full-screen alpha; the
- *     categories and applications regions paint nothing (transparent), so the
- *     whole surface — results area included — reads at exactly alpha(full).
- *   - Docked: the window shell paints nothing; the categories region and the
- *     applications region each own their absolute alpha over the transparent
- *     window, so apps_opacity can reach a true 0 with no categories floor
- *     showing through underneath.
+/* meowmenu_background_translucent:
+ * Keyed on the single resolved alpha so the launcher-view safeguard shares one
+ * GTK-free definition of "is the background see-through" with the renderer and
+ * the unit test. alpha < 1.0 is exactly menu_opacity < 100 after clamping, so a
+ * fully-opaque (100) or out-of-range-high value is reported as solid.
  */
-OpacityRegionAlphas meowmenu_region_alphas(bool fullscreen,
-                                           int categories_opacity,
-                                           int apps_opacity,
-                                           int full_screen_opacity)
+bool meowmenu_background_translucent(int menu_opacity)
 {
-	OpacityRegionAlphas result;
-	if (fullscreen)
-	{
-		result.window = meowmenu_opacity_alpha(full_screen_opacity);
-		result.categories = 0.0;
-		result.apps = 0.0;
-	}
-	else
-	{
-		result.window = 0.0;
-		result.categories = meowmenu_opacity_alpha(categories_opacity);
-		result.apps = meowmenu_opacity_alpha(apps_opacity);
-	}
-	return result;
+	return meowmenu_opacity_alpha(menu_opacity) < 1.0;
+}
+
+/* meowmenu_format_css_alpha:
+ * g_ascii_formatd formats the double exactly as printf would under the "C"
+ * locale, so the separator is always '.' regardless of the active LC_NUMERIC,
+ * and it touches no global locale state — both required because this CSS feeds
+ * GTK's parser (a comma would make rgba(...) invalid) and the panel process is
+ * shared with other plugins. Kept GTK-free so it stays headlessly testable.
+ */
+const char* meowmenu_format_css_alpha(double alpha, char* out)
+{
+	g_ascii_formatd(out, MEOWMENU_CSS_ALPHA_BUFSZ, "%.3f", alpha);
+	return out;
 }

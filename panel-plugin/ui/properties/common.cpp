@@ -79,6 +79,91 @@ GtkWidget* make_info_frame(const gchar* title, GtkWidget* content, const gchar* 
 	return frame;
 }
 
+GtkWidget* make_help_button(const gchar* accessible_name)
+{
+	// Same "?" affordance as make_info_frame()'s header button. The description
+	// is exposed as a tooltip (set by the caller), which GTK reveals on hover and
+	// on keyboard focus; the ATK name keeps the control announceable when the
+	// tooltip is empty.
+	GtkWidget* btn = gtk_button_new_with_label("?");
+	gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
+	gtk_widget_set_valign(btn, GTK_ALIGN_CENTER);
+	// START keeps the "?" at its natural compact size when add_form_row() gives
+	// the control-only cell hexpand, instead of letting it stretch across the
+	// half — the same compact-render guard make_form_switch() applies to grid-
+	// attached switches.
+	gtk_widget_set_halign(btn, GTK_ALIGN_START);
+
+	AtkObject* a11y = gtk_widget_get_accessible(btn);
+	if (a11y != nullptr)
+		atk_object_set_name(a11y, accessible_name);
+
+	return btn;
+}
+
+GtkWidget* make_two_column_section()
+{
+	// column_homogeneous forces the two columns to identical width regardless of
+	// their children's natural sizes, so the split is a strict 50/50 that cannot
+	// drift the way two hexpanding box children can when one child's minimum
+	// exceeds half (R1, FR-001). One shared grid (rather than two independent
+	// sub-grids) keeps paired C1/C2 cells on the same row even when one side is
+	// empty, since both columns share the grid's row heights.
+	GtkWidget* grid = gtk_grid_new();
+	gtk_grid_set_column_homogeneous(GTK_GRID(grid), true);
+	gtk_grid_set_column_spacing(GTK_GRID(grid), 18);
+	gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
+	return grid;
+}
+
+void add_form_row(GtkWidget* grid, int column, int row, GtkWidget* label,
+	GtkWidget* control, bool wide, GtkSizeGroup* label_group)
+{
+	if (label == nullptr)
+	{
+		// Control-only cell (e.g. a check button carrying its own text). hexpand
+		// so it claims its full homogeneous half; its own content stays left.
+		gtk_widget_set_hexpand(control, true);
+		gtk_grid_attach(GTK_GRID(grid), control, column, row, 1, 1);
+		return;
+	}
+
+	// Inline [label | control] cell. The cell box hexpands to fill its half; the
+	// label sits left, the control either fills the remaining width (wide) or
+	// stays at natural width with empty trailing space (narrow).
+	GtkWidget* cell = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	gtk_widget_set_hexpand(cell, true);
+
+	gtk_widget_set_halign(label, GTK_ALIGN_START);
+	gtk_box_pack_start(GTK_BOX(cell), label, false, false, 0);
+	if (label_group != nullptr)
+		gtk_size_group_add_widget(label_group, label);
+
+	if (wide)
+	{
+		gtk_widget_set_hexpand(control, true);
+		gtk_box_pack_start(GTK_BOX(cell), control, true, true, 0);
+	}
+	else
+	{
+		gtk_widget_set_halign(control, GTK_ALIGN_START);
+		gtk_box_pack_start(GTK_BOX(cell), control, false, false, 0);
+	}
+
+	gtk_grid_attach(GTK_GRID(grid), cell, column, row, 1, 1);
+}
+
+GtkWidget* make_form_switch()
+{
+	GtkWidget* sw = gtk_switch_new();
+	// START/CENTER keeps the switch at its natural compact size when attached
+	// to a grid column sized by a wider sibling control, instead of letting it
+	// stretch to fill the column on themes that draw the full trough.
+	gtk_widget_set_halign(sw, GTK_ALIGN_START);
+	gtk_widget_set_valign(sw, GTK_ALIGN_CENTER);
+	return sw;
+}
+
 GtkWidget* wrap_in_scrolled(GtkWidget* content)
 {
 	GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);

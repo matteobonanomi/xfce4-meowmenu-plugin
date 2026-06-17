@@ -23,6 +23,7 @@
 #include "launcher.h"
 #include "ui/launcher-icon-view.h"
 #include "ui/launcher-tree-view.h"
+#include "core/opacity-model.h"
 #include "recent-page.h"
 #include "settings.h"
 #include "ui/slot.h"
@@ -225,6 +226,16 @@ void Page::create_view()
 		});
 
 	set_reorderable(m_reorderable);
+
+	// Push the resolved translucency into the freshly-built view so its
+	// single-highlight safeguard knows whether to recomposite on navigation. The
+	// base view never reads Xfconf; the owner feeds it the flag here. This covers
+	// the view's whole lifetime: the translucent<->opaque transition only happens
+	// when /menu-opacity crosses 100, and crossing 100 always rebuilds the menu
+	// window (and therefore every Page and its view), so no separate live push is
+	// needed for same-band opacity changes.
+	m_view->set_background_translucent(
+			meowmenu_background_translucent(m_settings->menu_opacity));
 }
 
 //-----------------------------------------------------------------------------

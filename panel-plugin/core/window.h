@@ -101,6 +101,16 @@ public:
 	void unset_items();
 
 private:
+	/* sync_category_label_width:
+	 *
+	 * Pin every sidebar category button (Apps and Places) to the same minimum
+	 * label width — the widest label across both modes, clamped to the cap — so
+	 * the sidebar width is carried by the visible buttons and survives an
+	 * Apps<->Places switch. Call after the built-in buttons exist and again
+	 * whenever the application categories change.
+	 */
+	void sync_category_label_width();
+
 	GtkWidget* get_active_category_button();
 	gboolean on_key_press_event(GtkWidget* widget, GdkEventKey* key_event);
 	gboolean on_key_press_event_after(GtkWidget* widget, GdkEventKey* key_event);
@@ -182,18 +192,6 @@ private:
 	 */
 	void apply_window_shape(int width, int height, int radius, bool composited);
 
-	/* fill_resizer_ring:
-	 * @cr:     the toplevel draw context.
-	 * @width:  window allocation width in pixels.
-	 * @height: window allocation height in pixels.
-	 *
-	 * Paints the strip the 3x3 resizer grid reserves around the content vbox
-	 * (the window rectangle minus the vbox rectangle) with the chrome background.
-	 * The docked window shell is transparent, so this prevents that strip from
-	 * showing the desktop as a band between the border and the content. The vbox
-	 * area is deliberately left unpainted so the apps region keeps its own alpha.
-	 */
-	void fill_resizer_ring(cairo_t* cr, double width, double height);
 	void update_background_css();
 	void check_scrollbar_needed();
 	void favorites_toggled();
@@ -312,6 +310,10 @@ private:
 	gulong m_places_property_slot;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
+	// The dynamically-loaded application-category buttons, kept alongside their
+	// widgets so the shared sidebar width floor can be recomputed when they
+	// arrive (see sync_category_label_width). Reset on every set_categories().
+	std::vector<CategoryButton*> m_app_categories;
 
 	GtkScrolledWindow* m_sidebar;
 	// Horizontally-scrolling container for the Top/Bottom category strip
@@ -368,12 +370,6 @@ private:
 	// computed once in update_background_css() and reused by on_draw_event so the
 	// single window border and the CSS region styling cannot diverge in colour.
 	GdkRGBA m_separator_rgba = { 0.0, 0.0, 0.0, 1.0 };
-	// Chrome/frame background (theme bg at the categories-region alpha), computed
-	// in update_background_css() and reused by on_draw_event to fill the resizer
-	// ring around the content. The docked window shell is transparent, so without
-	// this the 6 px the 3x3 resizer grid reserves around the content would show
-	// the desktop as a band between the border and the content.
-	GdkRGBA m_chrome_rgba = { 0.0, 0.0, 0.0, 1.0 };
 	// Cached signature of the last shape mask applied to the toplevel window, so
 	// apply_window_shape() re-masks only when the rounded silhouette changes.
 	// Initialised to -1 so the first draw always applies a shape.

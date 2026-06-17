@@ -37,37 +37,37 @@ built-in presets are never modified.
 
 ### Classic
 
-<!-- preset-classic.png not yet available -->
+![Classic preset](assets/images/preset-classic.png)
 
 Traditional Whisker Menu look. Compact docked window, apps as a list,
-sidebar on the right, no rounded corners. The Apps/Places switch uses text
-labels.
+sidebar on the right, no rounded corners, fully solid (menu opacity 100%). The
+Apps/Places switch uses text labels.
 
 ### Modern
 
 ![Modern preset](assets/images/preset-modern.png)
 
-Contemporary layout with rounded corners, fully opaque surfaces (both the
-categories and the app list at 100%), hover-to-switch-category, and Places
-search enabled. The Apps/Places switch uses icon buttons.
+Contemporary layout with rounded corners, a fully solid background (menu
+opacity 100%), hover-to-switch-category, and Places search enabled. The
+Apps/Places switch uses icon buttons.
 
 ### Full Screen
 
-<!-- preset-fullscreen.png not yet available -->
+![Full Screen preset](assets/images/preset-fullscreen.png)
 
-Launcher fills the entire screen over an 80% translucent backdrop. Ideal for
-touch or keyboard-first workflows. Places search enabled. The Apps/Places switch
-uses text labels.
+Launcher fills the entire screen over a translucent backdrop (menu opacity
+80%). Ideal for touch or keyboard-first workflows. Places search enabled. The
+Apps/Places switch uses text labels.
 
 ### Minimal
 
-<!-- preset-minimal.png not yet available -->
+![Minimal preset](assets/images/preset-minimal.png)
 
 A compact, distraction-free launcher: a search bar over an app list, with no
 sidebar, no profile area, and no command buttons. Opens centred on screen in a
-short window with lightly translucent surfaces (60%), Places enabled with icons,
-opening on the Recent category. Switch to any other built-in to bring the
-sidebar, profile, and commands back.
+short window with a lightly translucent background (menu opacity 60%), Places
+enabled with icons, opening on the Recent category. Switch to any other built-in
+to bring the sidebar, profile, and commands back.
 
 Each preset sets its own default for the Apps/Places **Show icons** option
 (Modern and Minimal on; Classic and Full Screen off). Switching presets updates

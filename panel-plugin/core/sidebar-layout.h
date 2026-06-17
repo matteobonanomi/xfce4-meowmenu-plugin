@@ -184,6 +184,60 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
  */
 bool meow_category_label_visible(bool category_show_name, bool horizontal);
 
+// The fixed maximum sidebar category-label width, in characters. A single
+// mode-agnostic cap (INV-3): every CategoryButton — Apps category and Places
+// section alike — ellipsises only when its label is longer than this. The
+// sidebar width floor itself is carried by pinning every button's minimum
+// label width (in pixels) to the widest measured label across both modes; the
+// cap only bounds how much of an over-long label is measured, so one very long
+// entry cannot push the floor without bound.
+constexpr int MEOW_SIDEBAR_LABEL_MAX_CHARS = 22;
+
+/* CategoryLabelCap:
+ *
+ * The decision of whether a single sidebar label is capped, plus the
+ * max-width-chars value to apply when it is. Pure data — the caller wires the
+ * GTK label properties (PANGO_ELLIPSIZE_END, gtk_label_set_max_width_chars).
+ */
+struct CategoryLabelCap
+{
+	bool ellipsize;        // apply PANGO_ELLIPSIZE_END to the label
+	int  max_width_chars;  // gtk_label_set_max_width_chars() value; only
+	                       // meaningful when ellipsize is true
+};
+
+/* meow_category_label_cap:
+ * @label_chars: the label length in characters (e.g. g_utf8_strlen(text, -1)).
+ * @cap_chars: the fixed maximum label width in characters
+ *   (MEOW_SIDEBAR_LABEL_MAX_CHARS).
+ *
+ * The one cap rule shared by every sidebar button in both modes (INV-3): a
+ * label is ellipsised only when it is strictly longer than @cap_chars; shorter
+ * labels are left at their natural width. The rule depends solely on the label
+ * length and the fixed cap — never on the active mode.
+ *
+ * Returns: a CategoryLabelCap; max_width_chars is @cap_chars and is only to be
+ * applied when ellipsize is true.
+ */
+CategoryLabelCap meow_category_label_cap(long label_chars, int cap_chars);
+
+/* meow_sidebar_max_label_width:
+ * @widths: array of every sidebar button's measured natural label width in
+ *   pixels (Apps category buttons and Places section buttons together), each
+ *   already capped at measurement time.
+ * @count: number of entries in @widths; may be 0.
+ *
+ * The single minimum label width that every sidebar button is pinned to: the
+ * widest measured label across both modes. Pinning all buttons to this value
+ * keeps the sidebar width on the *visible* buttons, so an Apps<->Places switch
+ * (which only toggles visibility) cannot collapse it. This is deliberately
+ * independent of the size group's hidden-widget accounting, which GTK does not
+ * negotiate reliably across re-layouts.
+ *
+ * Returns: the per-button minimum label width in pixels; 0 when @count is 0.
+ */
+int meow_sidebar_max_label_width(const int* widths, int count);
+
 // Where the embedded Apps/Places switch is anchored relative to the command
 // buttons in the standard (non-unified) search-bar row. Direction-relative:
 // "before" is the leading side (left in LTR, right in RTL), so RTL is handled
