@@ -509,3 +509,21 @@ test_user_session_row = executable(
 )
 
 test('user_session_row', test_user_session_row)
+
+# test_launcher_safeguard_lifecycle: headless freeze for the FR-008a safeguard
+# lifetime (render-invariants I13). The fix lives entirely in the header-only
+# shared base LauncherView, so the binary needs only that header (plus slot.h)
+# and gtk — no production .cpp and no display. It constructs a minimal concrete
+# view, binds the scroll-reveal safeguard to an externally-owned adjustment,
+# destroys the view, and asserts the handler is gone so a later value-changed
+# never fires on a freed view (the SC-005a crash; also caught by the sanitizer CI).
+test_launcher_safeguard_lifecycle_sources = ['test_launcher_safeguard_lifecycle.cpp']
+
+test_launcher_safeguard_lifecycle = executable(
+  'test_launcher_safeguard_lifecycle',
+  test_launcher_safeguard_lifecycle_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('launcher_safeguard_lifecycle', test_launcher_safeguard_lifecycle, timeout: 30)
