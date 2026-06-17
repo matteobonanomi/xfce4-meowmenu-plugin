@@ -473,8 +473,9 @@ test('switch_icons', test_switch_icons, timeout: 30)
 # factory make_form_switch() in panel-plugin/ui/properties/common.cpp. Asserts
 # the halign=START / valign=CENTER / inactive invariant that makes grid-attached
 # switches render compact instead of stretching to a wider sibling's column.
-# common.cpp uses only GLib + GTK, so it links directly; no display is needed to
-# read a widget's requested alignment.
+# common.cpp uses only GLib + GTK, so it links directly. Building a GtkSwitch
+# creates its style context, which GTK 3 needs a display for: the test skips
+# cleanly when none is present and CI runs it under a virtual display.
 test_properties_switch_sources = [
   'test_properties_switch.cpp',
   '..' / 'panel-plugin' / 'ui' / 'properties' / 'common.cpp',
@@ -513,10 +514,12 @@ test('user_session_row', test_user_session_row)
 # test_launcher_safeguard_lifecycle: headless freeze for the FR-008a safeguard
 # lifetime (render-invariants I13). The fix lives entirely in the header-only
 # shared base LauncherView, so the binary needs only that header (plus slot.h)
-# and gtk — no production .cpp and no display. It constructs a minimal concrete
-# view, binds the scroll-reveal safeguard to an externally-owned adjustment,
-# destroys the view, and asserts the handler is gone so a later value-changed
-# never fires on a freed view (the SC-005a crash; also caught by the sanitizer CI).
+# and gtk — no production .cpp. It constructs a minimal concrete view, binds the
+# scroll-reveal safeguard to an externally-owned adjustment, destroys the view,
+# and asserts the handler is gone so a later value-changed never fires on a freed
+# view (the SC-005a crash; also caught by the sanitizer CI). Constructing the
+# widgets needs a display, so it skips cleanly when none is present and CI runs
+# it under a virtual display so the sanitizers still exercise the freed-view path.
 test_launcher_safeguard_lifecycle_sources = ['test_launcher_safeguard_lifecycle.cpp']
 
 test_launcher_safeguard_lifecycle = executable(
