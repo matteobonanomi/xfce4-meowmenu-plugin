@@ -325,7 +325,7 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates
 
       - name: Download Ubuntu .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-ubuntu
           path: artifacts
@@ -351,7 +351,7 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates
 
       - name: Download Debian .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-debian
           path: artifacts
@@ -371,7 +371,7 @@ jobs:
       image: fedora:44
     steps:
       - name: Download .rpm artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: rpm-package
           path: artifacts
@@ -412,7 +412,7 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates
 
       - name: Download Ubuntu .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-ubuntu
           path: artifacts
@@ -504,7 +504,7 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates
 
       - name: Download Debian .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-debian
           path: artifacts
@@ -587,7 +587,7 @@ jobs:
         run: dnf -y install ca-certificates coreutils
 
       - name: Download Fedora .rpm artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: rpm-package
           path: artifacts
@@ -676,19 +676,19 @@ jobs:
           sudo apt-get install -y --no-install-recommends dpkg-dev rpm
 
       - name: Download Ubuntu .deb
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-ubuntu
           path: artifacts/deb-ubuntu
 
       - name: Download Debian .deb
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-debian
           path: artifacts/deb-debian
 
       - name: Download Fedora .rpm
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: rpm-package
           path: artifacts/rpm-fedora
@@ -760,32 +760,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Ubuntu .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-ubuntu
           path: artifacts
 
       - name: Download Debian .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deb-package-debian
           path: artifacts
 
       - name: Download .rpm artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: rpm-package
           path: artifacts
 
       - name: Download per-distro overlap reports (canonical three)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: overlap-reports
           pattern: whisker-overlap-report-*
           merge-multiple: true
 
       - name: Download relationship-declaration report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: relationship-declaration-report
           path: relationship-report
@@ -944,6 +944,6 @@ jobs:
 # Action-pinning audit (FR-022, T047):
 #   - actions/checkout@v4
 #   - actions/upload-artifact@v4
-#   - actions/download-artifact@v4
+#   - actions/download-artifact@v8
 #   - softprops/action-gh-release@v2
 #   No `@main` / `@master` references.
