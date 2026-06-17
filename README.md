@@ -20,19 +20,21 @@ look and more customization options.
 **Ctrl+Tab** moves between areas, and the arrows move within them. See
 [Keyboard navigation](docs/keyboard-navigation.md) for the full reference.
 
-
+📖 **[Full documentation](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/)** &nbsp;·&nbsp;
+📦 **[Changelog & downloads](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases)**
 
 ---
 
 ## Table of contents
 
 1. [Installation / uninstallation](#installation--uninstallation)
-2. [Build from source](#build-from-source)
-3. [Presets](#presets)
-4. [Properties window](#properties-window)
-5. [Configuration file (for power users)](#configuration-file-for-power-users)
-6. [Localization](#localization)
-7. [License and credits](#license-and-credits)
+2. [Tested distributions](#tested-distributions)
+3. [Build from source](#build-from-source)
+4. [Presets](#presets)
+5. [Properties window](#properties-window)
+6. [Configuration file (for power users)](#configuration-file-for-power-users)
+7. [Localization](#localization)
+8. [License and credits](#license-and-credits)
 
 ---
 
@@ -42,8 +44,11 @@ Prebuilt `.deb` / `.rpm` packages for the four officially supported
 distributions — Ubuntu 26.04, Debian 13, Fedora 44, and openSUSE Leap 15.6 —
 are built and smoke-tested in CI and attached to every
 [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
-On any other distribution build from source (see next section); those builds
-are best-effort and not exercised by CI.
+Arch and Arch-based distributions (CachyOS, EndeavourOS, Manjaro) can install
+the maintainer-published [AUR package](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin)
+with `yay -S xfce4-meowmenu-plugin` — see the Arch entry below. On any other
+distribution build from source (see next section); the AUR package and
+source builds are best-effort and not exercised by CI.
 
 After install or uninstall, restart the panel with `xfce4-panel -r`, then
 right-click the panel → **Add New Items** → **MeowMenu**. Replace `<version>`
@@ -94,7 +99,26 @@ Uninstall: `sudo zypper remove xfce4-meowmenu-plugin`
 </details>
 
 <details>
-<summary><strong>Arch / other distros</strong></summary>
+<summary><strong>Arch Linux (AUR) — CachyOS, EndeavourOS, Manjaro</strong></summary>
+
+Install the AUR package with an AUR helper:
+
+```bash
+yay -S xfce4-meowmenu-plugin
+```
+
+This covers Arch and Arch-based distributions including CachyOS,
+EndeavourOS, and Manjaro. The package
+([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
+is maintainer-published and distributed through the AUR; unlike the four
+packages above it is not built or smoke-tested in CI.
+
+Uninstall: `yay -R xfce4-meowmenu-plugin`
+
+</details>
+
+<details>
+<summary><strong>Other distros</strong></summary>
 
 No prebuilt package — see [Build from source](#build-from-source).
 Uninstall: `sudo ninja -C build uninstall`.
@@ -114,6 +138,24 @@ rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
 
 ---
 
+## Tested distributions
+
+These distributions have been verified by the author. The list grows over
+time — reports for other distributions are very welcome.
+
+| Distribution  | Tested  | Notes           |
+| ------------- | ------- | --------------- |
+| Xubuntu 26.04 | 2026-06 | author-verified |
+| Debian 13     | 2026-06 | author-verified |
+| Arch Linux    | 2026-06 | author-verified |
+
+Running MeowMenu on something not listed here? Please open an issue or a Pull
+Request with your distribution and version so it can be added.
+
+[↑ Back to top](#table-of-contents)
+
+---
+
 ## Build from source
 
 ```bash
@@ -126,109 +168,10 @@ sudo meson install -C build
 
 Uninstall: `sudo ninja -C build uninstall`.
 
-Pick the dependency block for your distribution:
-
-<details>
-<summary><strong>Ubuntu 26.04 / Debian 13</strong></summary>
-
-```bash
-sudo apt update
-sudo apt install \
-    build-essential meson ninja-build pkg-config \
-    libgtk-3-dev libglib2.0-dev \
-    libgarcon-1-dev libgarcon-gtk3-1-dev \
-    libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
-    libexo-2-dev \
-    libxfconf-0-dev \
-    libaccountsservice-dev libgtk-layer-shell-dev \
-    gettext
-```
-
-On Ubuntu 24.04 / Linux Mint 22 / LMDE 6, replace `libgarcon-1-dev` /
-`libgarcon-gtk3-1-dev` with `libgarcon-1-0-dev` / `libgarcon-gtk3-1-0-dev`.
-
-</details>
-
-<details>
-<summary><strong>Fedora 44+</strong></summary>
-
-```bash
-sudo dnf install \
-    gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
-    gtk3-devel glib2-devel \
-    garcon-devel \
-    xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
-    exo-devel \
-    xfconf-devel \
-    accountsservice-devel gtk-layer-shell-devel \
-    gettext
-```
-
-</details>
-
-<details>
-<summary><strong>openSUSE Leap 15.6</strong></summary>
-
-Xfce devel packages live in the `X11:xfce` OBS project and their binary
-names are not stable across reshuffles, so dependencies are resolved by
-their `pkgconfig(...)` capability (the `.pc` filenames are stable):
-
-```bash
-sudo zypper addrepo --no-gpgcheck \
-    https://download.opensuse.org/repositories/X11:/xfce/15.6/ xfce
-sudo zypper refresh
-sudo zypper install \
-    gcc gcc-c++ make meson ninja pkgconfig \
-    'pkgconfig(gtk+-3.0)' \
-    'pkgconfig(glib-2.0)' \
-    'pkgconfig(gio-2.0)' \
-    'pkgconfig(garcon-1)' \
-    'pkgconfig(libxfce4panel-2.0)' \
-    'pkgconfig(libxfce4ui-2)' \
-    'pkgconfig(libxfce4util-1.0)' \
-    'pkgconfig(exo-2)' \
-    'pkgconfig(libxfconf-0)' \
-    'pkgconfig(accountsservice)' \
-    'pkgconfig(gtk-layer-shell-0)' \
-    gettext-tools
-```
-
-</details>
-
-<details>
-<summary><strong>openSUSE Tumbleweed</strong></summary>
-
-```bash
-sudo zypper install -t pattern devel_C_C++
-sudo zypper install \
-    meson ninja pkg-config \
-    gtk3-devel glib2-devel \
-    garcon-devel \
-    xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
-    libexo-devel \
-    xfconf-devel \
-    accountsservice-devel gtk-layer-shell-devel \
-    gettext-tools
-```
-
-</details>
-
-<details>
-<summary><strong>Arch / Manjaro / EndeavourOS</strong></summary>
-
-```bash
-sudo pacman -S --needed \
-    base-devel meson ninja pkgconf \
-    gtk3 glib2 \
-    garcon \
-    xfce4-panel libxfce4ui libxfce4util \
-    exo \
-    xfconf \
-    accountsservice gtk-layer-shell \
-    gettext
-```
-
-</details>
+Install the build dependencies for your distribution first. The complete
+per-distribution dependency lists (Ubuntu/Debian, Fedora, openSUSE Leap,
+openSUSE Tumbleweed, Arch) live on the documentation site:
+**[Installation → Build from source](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/installation#build-from-source)**.
 
 [↑ Back to top](#table-of-contents)
 
@@ -341,3 +284,21 @@ building such a solid foundation.
 - Graeme Gott's site: <https://gottcode.org>
 
 [↑ Back to top](#table-of-contents)
+
+---
+
+> [!CAUTION]
+> **Coding Agents - AI usage disclaimer**
+>
+> MeowMenu was developed with the help of AI coding agents and large language
+> models, used under a spec-driven approach: each change starts from a written
+> specification, so the results stay explainable and auditable rather than
+> opaque.
+>
+> Open-source and open-weights tools were preferred wherever a suitable option
+> was available.
+>
+> AI assistance was applied to three areas in particular: the initial analysis
+> of the original Whisker Menu codebase; the analysis and bug-fixing of
+> critical features (such as Places and code refactoring); and security
+> hardening. The maintainer reviews all changes before they ship.
