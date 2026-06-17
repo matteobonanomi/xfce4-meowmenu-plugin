@@ -11,17 +11,21 @@ All MeowMenu settings are exposed in the **Properties** dialog
 
 ## Properties dialog
 
+Each tab arranges its settings into two equal-width columns, so related options
+sit side by side. The dialog has no published screenshots, so the option tables
+below remain the authoritative reference.
+
 ### General
 
 | Option | Description |
 |--------|-------------|
-| Preset | Select, save, rename, delete, export, or import a layout preset. |
+| Preset | Select, save, rename, delete, export, or import a layout preset. The **?** control beside the selector reveals the active preset's description on hover or keyboard focus. |
 | Layout mode | **Docked** (panel-attached window), **Centered** (a floating window pinned to the centre of the screen), or **FullScreen** (full-screen launcher). |
 | Panel gap | Distance between the panel and the menu window, in pixels (Docked only). |
 | Menu width | Width of the menu window in pixels. |
 | Menu height | Height of the menu window in pixels. |
 | Corner radius | Rounded-corner radius of the menu window, in pixels. |
-| Full-screen opacity | Opacity of the entire full-screen menu, including the results area (0–100, where 0 is fully transparent and 100 fully solid), applied live. |
+| Menu opacity | Opacity of the whole menu background, applied uniformly in every layout mode (0–100, where 0 is fully transparent and 100 fully solid), applied live. Foreground content (labels, icons, the selected row) always stays fully opaque. Requires a compositor; without one the menu is always solid and the control is disabled. |
 | Stay visible when focus is lost | Keep the menu open when another window receives focus. |
 
 **Centered** opens the launcher as a floating window at the exact centre of the
@@ -39,7 +43,6 @@ options are greyed out and switch live as you change the mode:
 | Menu height | ✓ | ✓ | — |
 | Panel gap | ✓ | — | — |
 | Corner radius | ✓ | ✓ | — |
-| Full-screen opacity | — | — | ✓ |
 | Show panel button title | Display a text label next to the panel button icon. |
 | Panel button title | The label text shown on the panel button. |
 | Show panel button icon | Show the icon on the panel button. |
@@ -167,9 +170,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | `panel-gap` | int | 0 | Gap between the panel and the menu window. |
 | `menu-width` | int | 450 | Menu window width in pixels. |
 | `menu-height` | int | 500 | Menu window height in pixels. |
-| `categories-opacity` | int | 100 | Sidebar opacity in docked mode (0 = fully transparent, 100 = fully solid). |
-| `apps-opacity` | int | 100 | Results area opacity in docked mode (0 = fully transparent, 100 = fully solid). |
-| `full-screen-opacity` | int | 100 | Opacity of the whole full-screen menu, results area included (0 = fully transparent, 100 = fully solid), applied live. |
+| `menu-opacity` | int | 100 | Opacity of the whole menu background in every layout mode (0 = fully transparent, 100 = fully solid), applied live. Foreground content always stays fully opaque; has no effect without a compositor. |
 | `stay-on-focus-out` | bool | false | Keep menu open when focus moves away. |
 
 ### Layout

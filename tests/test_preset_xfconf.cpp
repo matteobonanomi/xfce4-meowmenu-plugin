@@ -330,17 +330,23 @@ void test_reset_preserves_presets_clears_rest()
 	// reset (FR-015): the stored value is cleared, so a read falls back to the
 	// "docked" schema default.
 	xfconf_channel_set_string(ch, "/layout-mode", "centered");
+	// A user who reduced the menu opacity must be returned to fully opaque by a
+	// reset (042 FR-013): the stored value is cleared, so a read falls back to
+	// the 100 default. This is the only headless guard against a future
+	// default-value or reset-list regression for /menu-opacity.
+	xfconf_channel_set_int(ch, "/menu-opacity", 60);
 
 	// Sanity: everything is present before the reset.
 	assert(xfconf_channel_has_property(ch, "/menu-width"));
 	assert(xfconf_channel_has_property(ch, "/favorites/0"));
 	assert(xfconf_channel_has_property(ch, "/search-actions/0/name"));
 	assert(xfconf_channel_has_property(ch, "/layout-mode"));
+	assert(xfconf_channel_has_property(ch, "/menu-opacity"));
 	assert(xfconf_channel_has_property(ch,
 		("/presets/" + uuid + "/name").c_str()));
 
 	int reset_count = WhiskerMenu::reset_settings_to_defaults(ch, base);
-	assert(reset_count >= 4); // at least the four non-preset keys above
+	assert(reset_count >= 5); // at least the five non-preset keys above
 
 	// Non-preset keys are gone; the saved preset subtree is untouched.
 	assert(!xfconf_channel_has_property(ch, "/menu-width"));
@@ -353,6 +359,9 @@ void test_reset_preserves_presets_clears_rest()
 		assert(lm && g_strcmp0(lm, "docked") == 0);
 		g_free(lm);
 	}
+	// /menu-opacity is cleared, so a read now yields the fully-opaque 100 default.
+	assert(!xfconf_channel_has_property(ch, "/menu-opacity"));
+	assert(xfconf_channel_get_int(ch, "/menu-opacity", 100) == 100);
 	assert(xfconf_channel_has_property(ch,
 		("/presets/" + uuid + "/name").c_str()));
 	assert(xfconf_channel_has_property(ch,

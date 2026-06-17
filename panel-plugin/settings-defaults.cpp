@@ -72,13 +72,16 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	if (schema_version < 1)
 	{
-		// Map legacy menu-opacity → categories-opacity if present and categories-opacity missing
+		// Map legacy menu-opacity → categories-opacity if present and categories-opacity missing.
+		// NOTE: this historical v1 step is left intact; /categories-opacity is now
+		// a retired key with no Settings member, so only the channel value is
+		// seeded here — the v7 block below resets it and derives the single
+		// /menu-opacity from the active preset.
 		if (xfconf_channel_has_property(channel, "/menu-opacity")
 				&& !xfconf_channel_has_property(channel, "/categories-opacity"))
 		{
 			const int legacy_opacity = xfconf_channel_get_int(channel, "/menu-opacity", 100);
 			xfconf_channel_set_int(channel, "/categories-opacity", legacy_opacity);
-			categories_opacity = legacy_opacity;
 		}
 
 		// Write defaults for V1 properties not yet in the channel
@@ -324,6 +327,37 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		g_free(profile_pos);
 
 		schema_version = 6;
+	}
+
+	if (schema_version < 7)
+	{
+		// Collapse the three per-region opacities to one menu-wide value. Derive
+		// it from the active preset (FR-012): the value the preset pins, else
+		// fully opaque (100) when no preset governs opacity. The retired keys no
+		// longer drive rendering, so reset them — the channel then carries only
+		// /menu-opacity. Resetting an absent key is a no-op, so this block is
+		// idempotent and runs once (guarded by < 7), never clobbering a later
+		// user customisation of /menu-opacity.
+		int derived = 100;
+		const gchar* preset_id = static_cast<const gchar*>(current_preset_id);
+		if (preset_id && *preset_id)
+		{
+			const LayoutPreset* p = find_preset_by_id(preset_id);
+			if (p)
+			{
+				auto it = p->values.find("menu-opacity");
+				if (it != p->values.end() && it->second.kind == PresetValue::Int)
+					derived = it->second.i;
+			}
+		}
+		xfconf_channel_set_int(channel, "/menu-opacity", derived);
+		menu_opacity = derived;
+
+		for (const char* k : { "/categories-opacity", "/apps-opacity",
+		                       "/full-screen-opacity" })
+			xfconf_channel_reset_property(channel, k, FALSE);
+
+		schema_version = 7;
 	}
 
 	// Back-fill the marker on every path (fresh, upgrade, or already-current

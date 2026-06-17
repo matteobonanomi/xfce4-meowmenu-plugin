@@ -46,98 +46,72 @@ GtkWidget* SettingsDialog::init_places_tab()
 
 	std::vector<GtkWidget*> places_dependents;
 
-	// Enable section
-	GtkGrid* enable_grid = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(enable_grid, 12);
-	gtk_grid_set_row_spacing(enable_grid, 6);
-	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), GTK_WIDGET(enable_grid)), false, false, 0);
+	// Places mode section (FR-027) — Enable Places switch C1 / Show icons C2.
+	GtkWidget* enable_grid = make_two_column_section();
+	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), enable_grid), false, false, 0);
 
-	GtkWidget* enable_switch = gtk_switch_new();
+	GtkWidget* enable_switch = make_form_switch();
 	m_places_enabled_switch = enable_switch;
 	GtkWidget* enable_label = gtk_label_new_with_mnemonic(_("Enable _Places"));
-	gtk_widget_set_halign(enable_label, GTK_ALIGN_START);
-	gtk_widget_set_hexpand(enable_label, true);
 	gtk_switch_set_active(GTK_SWITCH(enable_switch), m_settings->places_enabled);
-	gtk_grid_attach(enable_grid, enable_label, 0, 0, 1, 1);
-	gtk_grid_attach(enable_grid, enable_switch, 1, 0, 1, 1);
+	add_form_row(enable_grid, COLUMN_C1, 0, enable_label, enable_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_label), enable_switch);
 
 	// "Show icons" — renders the Apps/Places switch as two themed icon buttons
 	// instead of text (FR-001). Bound to /places/switch-show-icons with the
 	// binding's reset-to-default; greyed (forced ON, value unchanged) when the
 	// sidebar is on Top/Bottom or disabled (FR-015/018).
-	GtkWidget* show_icons_switch = gtk_switch_new();
+	GtkWidget* show_icons_switch = make_form_switch();
 	GtkWidget* show_icons_label = gtk_label_new_with_mnemonic(_("Show _icons"));
-	gtk_widget_set_halign(show_icons_label, GTK_ALIGN_START);
-	gtk_widget_set_hexpand(show_icons_label, true);
 	gtk_switch_set_active(GTK_SWITCH(show_icons_switch), m_settings->places_switch_show_icons);
-	gtk_grid_attach(enable_grid, show_icons_label, 0, 1, 1, 1);
-	gtk_grid_attach(enable_grid, show_icons_switch, 1, 1, 1, 1);
+	add_form_row(enable_grid, COLUMN_C2, 0, show_icons_label, show_icons_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(show_icons_label), show_icons_switch);
 	m_places_switch_show_icons = show_icons_switch;
 
-	// Sections section — history/favourites toggles plus item caps.
-	GtkGrid* sections_grid = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(sections_grid, 12);
-	gtk_grid_set_row_spacing(sections_grid, 6);
-	GtkWidget* sections_frame = make_aligned_frame(_("Sections"), GTK_WIDGET(sections_grid));
+	// Sections section (FR-028/029) — history switch C1 / favourites switch C2;
+	// favourite-sync combo C1 / maximum-items spin C2.
+	GtkWidget* sections_grid = make_two_column_section();
+	GtkWidget* sections_frame = make_aligned_frame(_("Sections"), sections_grid);
 	gtk_box_pack_start(page, sections_frame, false, false, 0);
 	places_dependents.push_back(sections_frame);
 
-	int row = 0;
-	GtkWidget* history_switch = gtk_switch_new();
+	GtkWidget* history_switch = make_form_switch();
 	GtkWidget* history_label = gtk_label_new_with_mnemonic(_("Enable _History section"));
-	gtk_widget_set_halign(history_label, GTK_ALIGN_START);
-	gtk_widget_set_hexpand(history_label, true);
 	gtk_switch_set_active(GTK_SWITCH(history_switch), m_settings->places_history_enabled);
-	gtk_grid_attach(sections_grid, history_label, 0, row, 1, 1);
-	gtk_grid_attach(sections_grid, history_switch, 1, row, 1, 1);
+	add_form_row(sections_grid, COLUMN_C1, 0, history_label, history_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(history_label), history_switch);
-	++row;
 
-	GtkWidget* fav_switch = gtk_switch_new();
+	GtkWidget* fav_switch = make_form_switch();
 	GtkWidget* fav_label = gtk_label_new_with_mnemonic(_("Enable _Favourites section"));
-	gtk_widget_set_halign(fav_label, GTK_ALIGN_START);
-	gtk_widget_set_hexpand(fav_label, true);
 	gtk_switch_set_active(GTK_SWITCH(fav_switch), m_settings->places_favourites_enabled);
-	gtk_grid_attach(sections_grid, fav_label, 0, row, 1, 1);
-	gtk_grid_attach(sections_grid, fav_switch, 1, row, 1, 1);
+	add_form_row(sections_grid, COLUMN_C2, 0, fav_label, fav_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(fav_label), fav_switch);
-	++row;
 
 	GtkWidget* sync_label = gtk_label_new_with_mnemonic(_("Favourite _sync:"));
-	gtk_widget_set_halign(sync_label, GTK_ALIGN_START);
 	GtkWidget* sync_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sync_combo), "meowmenu", _("MeowMenu only"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sync_combo), "thunar",   _("Thunar bookmarks (read-only)"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(sync_combo),
 			static_cast<const gchar*>(m_settings->places_favourite_sync));
-	gtk_grid_attach(sections_grid, sync_label, 0, row, 1, 1);
-	gtk_grid_attach(sections_grid, sync_combo, 1, row, 1, 1);
+	add_form_row(sections_grid, COLUMN_C1, 1, sync_label, sync_combo, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(sync_label), sync_combo);
-	++row;
 
 	GtkWidget* max_label = gtk_label_new_with_mnemonic(_("Maximum places _items:"));
-	gtk_widget_set_halign(max_label, GTK_ALIGN_START);
 	GtkWidget* max_spin = gtk_spin_button_new_with_range(0, 30, 1);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(max_spin), m_settings->places_max_items);
-	gtk_grid_attach(sections_grid, max_label, 0, row, 1, 1);
-	gtk_grid_attach(sections_grid, max_spin, 1, row, 1, 1);
+	add_form_row(sections_grid, COLUMN_C2, 1, max_label, max_spin, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), max_spin);
-	++row;
 
-	// Behaviour section
-	GtkGrid* behaviour_grid = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(behaviour_grid, 12);
-	gtk_grid_set_row_spacing(behaviour_grid, 6);
-	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), GTK_WIDGET(behaviour_grid));
+	// Behaviour section (FR-030) — remember-last-mode check C1, C2 left empty.
+	GtkWidget* behaviour_grid = make_two_column_section();
+	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), behaviour_grid);
 	gtk_box_pack_start(page, behaviour_frame, false, false, 0);
 	places_dependents.push_back(behaviour_frame);
 
 	GtkWidget* remember_check = gtk_check_button_new_with_mnemonic(_("_Remember last selected mode"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remember_check),
 			m_settings->places_remember_last_mode);
-	gtk_grid_attach(behaviour_grid, remember_check, 0, 0, 2, 1);
+	add_form_row(behaviour_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
 
 	// Sensitivity helpers (FR-037, FR-038).
 	auto refresh_sensitivity = [=]()

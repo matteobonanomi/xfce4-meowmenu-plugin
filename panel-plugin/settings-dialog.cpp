@@ -568,12 +568,15 @@ void SettingsDialog::refresh_customized_indicator()
 			PRESET_COL_STYLE,  PANGO_STYLE_ITALIC,
 			-1);
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), UNSAVED_PLACEHOLDER_ID);
-		gtk_label_set_text(GTK_LABEL(m_preset_description), "");
+		// An "Unsaved custom" state has no preset description; clear the tooltip.
+		if (m_preset_help)
+			gtk_widget_set_tooltip_text(m_preset_help, nullptr);
 	}
 	else
 	{
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), applied->id.c_str());
-		gtk_label_set_text(GTK_LABEL(m_preset_description), _(applied->description.c_str()));
+		if (m_preset_help)
+			gtk_widget_set_tooltip_text(m_preset_help, _(applied->description.c_str()));
 	}
 
 	// Rename/Delete/Export apply only to a real, saved user preset — never a
@@ -634,15 +637,9 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_menu_height)
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_height),
 			static_cast<int>(m_settings->menu_height));
-	if (m_full_screen_opacity)
-		gtk_range_set_value(GTK_RANGE(m_full_screen_opacity),
-			static_cast<int>(m_settings->full_screen_opacity));
-	if (m_categories_opacity)
-		gtk_range_set_value(GTK_RANGE(m_categories_opacity),
-			static_cast<int>(m_settings->categories_opacity));
-	if (m_apps_opacity)
-		gtk_range_set_value(GTK_RANGE(m_apps_opacity),
-			static_cast<int>(m_settings->apps_opacity));
+	if (m_menu_opacity)
+		gtk_range_set_value(GTK_RANGE(m_menu_opacity),
+			static_cast<int>(m_settings->menu_opacity));
 
 	if (m_sidebar_position_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),

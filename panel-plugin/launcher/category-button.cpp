@@ -133,19 +133,19 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 
 	m_label = gtk_label_new(text);
 	gtk_label_set_xalign(GTK_LABEL(m_label), 0.0);
-	// Content-fit sidebar width (FR-023/025): only labels that exceed the cap
-	// ellipsise. Capping a label with ellipsization also drops its *minimum*
-	// width to ~one glyph, and a GtkSizeGroup aggregates minimums as the
-	// max-of-minimums — so if every label could ellipsise, the group floor
-	// collapses and the non-expanding sidebar gets squeezed to the switch's
-	// width under the fixed menu width. Leaving short labels non-ellipsising
-	// keeps minimum == natural, so the sidebar stays as wide as its widest
-	// item; a single pathological name still ellipsises instead of widening
-	// the sidebar without bound.
-	if (g_utf8_strlen(text, -1) > 22)
+	m_label_chars = g_utf8_strlen(text, -1);
+	// Content-fit sidebar width (FR-023/025): a label longer than the shared cap
+	// ellipsises instead of widening the sidebar without bound; shorter labels
+	// keep their natural width. The cross-mode width *floor* is applied later by
+	// Window::sync_category_label_width(), which pins every button — visible or
+	// hidden — to the widest label across both modes; the cap here only bounds
+	// how wide a single long label may push that floor.
+	const CategoryLabelCap cap =
+			meow_category_label_cap(m_label_chars, MEOW_SIDEBAR_LABEL_MAX_CHARS);
+	if (cap.ellipsize)
 	{
 		gtk_label_set_ellipsize(GTK_LABEL(m_label), PANGO_ELLIPSIZE_END);
-		gtk_label_set_max_width_chars(GTK_LABEL(m_label), 22);
+		gtk_label_set_max_width_chars(GTK_LABEL(m_label), cap.max_width_chars);
 	}
 	gtk_box_pack_start(m_box, m_label, false, true, 0);
 
@@ -191,6 +191,60 @@ void CategoryButton::reload_icon_size()
 		gtk_widget_hide(m_label);
 		gtk_box_set_child_packing(m_box, m_icon, true, true, 0, GTK_PACK_START);
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* measure_label_width:
+ *
+ * Measure the natural pixel width of the label text in its current font. A
+ * label longer than the cap is measured only up to the cap, matching its
+ * on-screen ellipsised width, so one very long entry cannot push the floor
+ * without bound. Uses a throwaway PangoLayout from the label's own context
+ * rather than gtk_widget_get_preferred_width(): it reflects the real glyph
+ * widths (no average-character padding), is independent of the widget's current
+ * size request (so it never ratchets when re-measured after set_min_label_width)
+ * and is independent of visibility (a hidden off-mode button still reports its
+ * true width).
+ *
+ * Returns: the capped natural label width in pixels.
+ */
+int WhiskerMenu::CategoryButton::measure_label_width() const
+{
+	const char* text = gtk_label_get_text(GTK_LABEL(m_label));
+	// Measure at most cap characters so an over-long label contributes only the
+	// cap; shorter labels are measured in full (their exact natural width).
+	const long chars = MIN(m_label_chars, (long) MEOW_SIDEBAR_LABEL_MAX_CHARS);
+	const char* end = g_utf8_offset_to_pointer(text, chars);
+	char* run = g_strndup(text, end - text);
+
+	PangoLayout* layout = gtk_widget_create_pango_layout(m_label, run);
+	int width = 0;
+	int height = 0;
+	pango_layout_get_pixel_size(layout, &width, &height);
+	g_object_unref(layout);
+	g_free(run);
+	return width;
+}
+
+/* set_min_label_width:
+ * @width: the shared minimum label width in pixels.
+ *
+ * Pin the label's minimum width to @width. The window pins every category
+ * button — Apps and Places, visible or hidden — to the same value (the widest
+ * measured label across both modes), so the sidebar width is held by whichever
+ * buttons are currently visible and cannot collapse when an Apps<->Places switch
+ * hides one set. The floor must live on the buttons rather than on the shared
+ * width GtkSizeGroup, because the group's hidden-widget contribution
+ * (set_ignore_hidden(FALSE)) is not negotiated reliably across re-layouts: a
+ * focus change in the results view drops the hidden buttons and collapses the
+ * sidebar to the narrower visible set. A capped (ellipsising) label keeps its
+ * max-width-chars upper bound from the constructor; this only sets the lower
+ * bound.
+ */
+void WhiskerMenu::CategoryButton::set_min_label_width(int width)
+{
+	gtk_widget_set_size_request(m_label, width, -1);
 }
 
 //-----------------------------------------------------------------------------

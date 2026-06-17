@@ -51,11 +51,6 @@ void matrix_matches_fr006()
 	CHECK_EQ(LayoutControl::CornerRadius, LayoutMode::Docked,     true);
 	CHECK_EQ(LayoutControl::CornerRadius, LayoutMode::Centered,   true);
 	CHECK_EQ(LayoutControl::CornerRadius, LayoutMode::FullScreen, false);
-
-	// FullScreenOpacity: off / off / on
-	CHECK_EQ(LayoutControl::FullScreenOpacity, LayoutMode::Docked,     false);
-	CHECK_EQ(LayoutControl::FullScreenOpacity, LayoutMode::Centered,   false);
-	CHECK_EQ(LayoutControl::FullScreenOpacity, LayoutMode::FullScreen, true);
 }
 
 } // namespace

@@ -62,6 +62,16 @@ LauncherTreeView::LauncherTreeView(Settings* settings) :
 	GtkTreeSelection* selection = gtk_tree_view_get_selection(m_view);
 	gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
 
+	// Keyboard cursor moves change the selection without passing through the
+	// hover chokepoint, so recomposite the whole surface on every selection
+	// change while the background is translucent (no-op when opaque). This is the
+	// keyboard half of the single-highlight safeguard (FR-006/FR-007).
+	connect(selection, "changed",
+		[this](GtkTreeSelection*)
+		{
+			queue_translucent_safeguard_redraw();
+		});
+
 	g_object_ref_sink(m_view);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_view)), "launchers");

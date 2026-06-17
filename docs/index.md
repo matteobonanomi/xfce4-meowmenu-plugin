@@ -39,13 +39,17 @@ Then right-click the panel → **Add New Items** → **MeowMenu**.
 
 ## What's different from Whisker Menu
 
+MeowMenu is a fork of Whisker Menu, so the two share a lot. The table below is
+a feature inventory showing where they differ and where they overlap — not a
+ranking.
+
 | Feature | Whisker Menu | MeowMenu |
 |---|:---:|:---:|
 | Saved layout presets | ✗ | ✓ |
 | Places / file search | ✗ | ✓ |
 | Full-screen launcher mode | ✗ | ✓ |
 | Corner radius / opacity | ✗ | ✓ |
-| Modern layout options | ✗ | ✓ |
+| Icon-grid app view | ✗ | ✓ |
 | 54 languages | ✓ | ✓ |
 | XFCE panel native | ✓ | ✓ |
 | Keyboard navigation | ✓ | ✓ |
