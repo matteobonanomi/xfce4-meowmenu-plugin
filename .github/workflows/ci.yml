@@ -72,7 +72,7 @@ jobs:
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext \
-              xvfb \
+              xvfb xauth \
               git ca-certificates
 
       - name: Install build dependencies (Debian 13)
@@ -89,7 +89,7 @@ jobs:
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext \
-              xvfb \
+              xvfb xauth \
               git ca-certificates
 
       - name: Install build dependencies (Fedora 44)
@@ -145,7 +145,7 @@ jobs:
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext \
-              xvfb \
+              xvfb xauth \
               git ca-certificates
 
       - name: Meson setup (ASan + UBSan, b_lundef=false for shared_module)
@@ -216,7 +216,7 @@ jobs:
               libexo-2-dev \
               libxfconf-0-dev \
               gettext \
-              xvfb \
+              xvfb xauth \
               git ca-certificates
 
       - name: Meson setup (optional deps disabled)

@@ -16,3 +16,17 @@
 # Upstream acknowledgement: https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
 # Added: 2026-05-28
 leak:FcInit
+
+# atspi_get_a11y_bus — at-spi2 caches a single AT-SPI bus connection for the
+# whole process and intentionally never tears it down (a per-process
+# singleton). gtk_init_check() reaches it through the accessibility-bridge
+# init (atk_bridge_adaptor_init -> atspi_get_a11y_bus); libdbus keeps the
+# connection's internal read buffer alive, which LSan reports as a leak once
+# a real display lets the bridge initialise under the virtual-display CI run.
+# No code defect and no test exercises accessibility; suppressed per-symbol to
+# keep the sanitizer signal clean, mirroring the FcInit singleton above.
+# Upstream design (the connection is a cached, never-freed singleton):
+#   https://docs.gtk.org/atspi2/func.get_a11y_bus.html
+#   https://wiki.linuxfoundation.org/accessibility/atk/at-spi/at-spi_on_d-bus
+# Added: 2026-06-17
+leak:atspi_get_a11y_bus
