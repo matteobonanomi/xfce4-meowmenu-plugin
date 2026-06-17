@@ -40,8 +40,8 @@ look and more customization options.
 
 ## Installation / uninstallation
 
-Prebuilt `.deb` / `.rpm` packages for the four officially supported
-distributions — Ubuntu 26.04, Debian 13, Fedora 44, and openSUSE Leap 15.6 —
+Prebuilt `.deb` / `.rpm` packages for the three officially supported
+distributions — Ubuntu 26.04, Debian 13, and Fedora 44 —
 are built and smoke-tested in CI and attached to every
 [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
 Arch and Arch-based distributions (CachyOS, EndeavourOS, Manjaro) can install
@@ -88,17 +88,6 @@ Uninstall: `sudo dnf remove xfce4-meowmenu-plugin`
 </details>
 
 <details>
-<summary><strong>openSUSE Leap 15.6</strong></summary>
-
-```bash
-sudo zypper install --allow-unsigned-rpm ./xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
-```
-
-Uninstall: `sudo zypper remove xfce4-meowmenu-plugin`
-
-</details>
-
-<details>
 <summary><strong>Arch Linux (AUR) — CachyOS, EndeavourOS, Manjaro</strong></summary>
 
 Install the AUR package with an AUR helper:
@@ -110,7 +99,7 @@ yay -S xfce4-meowmenu-plugin
 This covers Arch and Arch-based distributions including CachyOS,
 EndeavourOS, and Manjaro. The package
 ([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
-is maintainer-published and distributed through the AUR; unlike the four
+is maintainer-published and distributed through the AUR; unlike the three
 packages above it is not built or smoke-tested in CI.
 
 Uninstall: `yay -R xfce4-meowmenu-plugin`
@@ -169,8 +158,8 @@ sudo meson install -C build
 Uninstall: `sudo ninja -C build uninstall`.
 
 Install the build dependencies for your distribution first. The complete
-per-distribution dependency lists (Ubuntu/Debian, Fedora, openSUSE Leap,
-openSUSE Tumbleweed, Arch) live on the documentation site:
+per-distribution dependency lists (Ubuntu/Debian, Fedora, Arch) live on the
+documentation site:
 **[Installation → Build from source](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/installation#build-from-source)**.
 
 [↑ Back to top](#table-of-contents)
