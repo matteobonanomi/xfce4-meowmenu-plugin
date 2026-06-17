@@ -121,11 +121,10 @@ body. The README version badge should update shortly after.
 Before announcing the release, edit the release-notes body on the GitHub
 Releases page to include:
 
-- **Shipped distributions.** List all four: `Ubuntu 26.04`, `Debian 13`,
-  `Fedora 44`, `openSUSE Leap 15.6`. The `attach-artifacts` job requires
-  all four distro builds and coexistence checks to pass — if any gate
-  failed, no artifacts were uploaded and the release tag must be
-  investigated before announcing.
+- **Shipped distributions.** List all three: `Ubuntu 26.04`, `Debian 13`,
+  `Fedora 44`. The `attach-artifacts` job requires all three distro builds
+  and coexistence checks to pass — if any gate failed, no artifacts were
+  uploaded and the release tag must be investigated before announcing.
 - **Coexistence evidence.** Link the published `whisker-overlap.md`
   release artifact for each shipped distro (FR-024).
 - **Verification scope.** Add a short note clarifying which success
@@ -142,7 +141,6 @@ A reusable template:
 - Ubuntu 26.04 — `.deb`
 - Debian 13 — `.deb`
 - Fedora 44 — `.rpm`
-- openSUSE Leap 15.6 — `.rpm`
 
 ## Coexistence evidence
 - See attached `whisker-overlap.md` for per-distro `dpkg -L` / `rpm -ql`
