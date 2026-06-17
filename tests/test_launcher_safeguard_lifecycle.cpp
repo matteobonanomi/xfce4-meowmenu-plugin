@@ -31,8 +31,11 @@
  * the pre-fix code this same emission is a use-after-free that segfaults and is
  * caught by the sanitizer CI (constitution VI).
  *
- * No display is required: gtk_init_check() primes type registration, and creating
- * widgets plus emitting adjustment signals needs no realization.
+ * Constructing the GtkScrolledWindow / GtkTreeView builds their style contexts,
+ * which GTK 3 cannot create without a display connection, so the test skips
+ * cleanly when no display is present. CI runs it under a virtual display so the
+ * safeguard lifetime path — and its use-after-free guard — is still exercised
+ * under the sanitizers.
  */
 
 #include "ui/launcher-view.h"
@@ -128,7 +131,15 @@ private:
 
 int main()
 {
-	gtk_init_check(nullptr, nullptr);
+	// Constructing the widgets below builds their style contexts, which GTK 3
+	// cannot do without a display connection. Skip cleanly on a headless host
+	// instead of aborting; CI supplies a virtual display so the safeguard
+	// lifetime path still runs under the sanitizers.
+	if (!gtk_init_check(nullptr, nullptr))
+	{
+		std::printf("# SKIP: GTK could not initialise (no display)\n");
+		return 77; // meson exitcode protocol: 77 marks the test skipped
+	}
 
 	GtkWidget* scrolled = gtk_scrolled_window_new(nullptr, nullptr);
 	g_object_ref_sink(scrolled);

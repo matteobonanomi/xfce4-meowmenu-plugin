@@ -34,10 +34,15 @@ int g_failures = 0;
 
 int main()
 {
-	// No display is required to build a widget and read its requested
-	// alignment; gtk_init_check just primes type registration and stays
-	// headless-safe when no display is present.
-	gtk_init_check(nullptr, nullptr);
+	// Building a GtkSwitch creates its style context, which GTK 3 cannot do
+	// without a display connection. Skip cleanly on a headless host (e.g. a CI
+	// runner with no X server) instead of aborting; CI supplies a virtual
+	// display so the alignment invariant below is still exercised there.
+	if (!gtk_init_check(nullptr, nullptr))
+	{
+		std::printf("# SKIP: GTK could not initialise (no display)\n");
+		return 77; // meson exitcode protocol: 77 marks the test skipped
+	}
 
 	GtkWidget* w = make_form_switch();
 
