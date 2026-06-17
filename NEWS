@@ -7,6 +7,7 @@ MEOW MENU DEVELOPMENT
 - Properties: refine tabs layout in two-column template
 - Opacity: replace three sliders with one menu-background opacity
 - Opacity: disconnect result-list scroll safeguard when its view is destroyed
+- Docs: update README and GitHub Pages with recent UI changes
 
 0.6.4 (2026-06-10)
 =====
