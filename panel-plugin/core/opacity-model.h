@@ -19,28 +19,20 @@
 #define MEOWMENU_CORE_OPACITY_MODEL_H
 
 /*
- * Pure, GTK-free model for the menu's three opacity controls.
+ * Pure, GTK-free model for the single menu-opacity control.
  *
  * Rendering contract (0 = fully transparent, 100 = fully solid):
- *   - Each control is an integer percentage in [0, 100].
+ *   - The control is one integer percentage in [0, 100] (the /menu-opacity key).
  *   - alpha = clamp(value, 0, 100) / 100.0, so 0 -> 0.0 and 100 -> 1.0,
  *     strictly monotonic with no internal floor or ceiling (no dead zone).
- *   - A region's visible alpha is exactly the alpha of its single governing
- *     control. Regions never compound: the renderer must not place one opaque
- *     background behind another so the two combine into 1-(1-a)(1-b).
+ *   - That one alpha paints the single .meowmenu window-shell background; every
+ *     region inside it is transparent, so the whole menu reads at exactly one
+ *     alpha and nothing compounds.
  *
  * This translation unit deliberately includes no GTK headers so the contract
  * can be unit-tested headlessly, mirroring the sidebar-layout / window-size-clamp
  * helpers.
  */
-
-/* The single alpha assigned to each menu surface region for one render pass. */
-struct OpacityRegionAlphas
-{
-	double window;     /* the .meowmenu window shell background */
-	double categories; /* the sidebar/categories region (and its chrome strips) */
-	double apps;       /* the results / applications area */
-};
 
 /* meowmenu_opacity_alpha:
  * @value: an opacity percentage; values outside [0, 100] are clamped.
@@ -52,23 +44,39 @@ struct OpacityRegionAlphas
  */
 double meowmenu_opacity_alpha(int value);
 
-/* meowmenu_region_alphas:
- * @fullscreen: true when the menu is in full-screen layout mode.
- * @categories_opacity: the sidebar/categories control value (docked only).
- * @apps_opacity: the results-area control value (docked only).
- * @full_screen_opacity: the single full-screen control value (full-screen only).
+/* meowmenu_background_translucent:
+ * @menu_opacity: the single menu-opacity percentage; values outside [0, 100]
+ *                are clamped, mirroring meowmenu_opacity_alpha.
  *
- * Resolves which absolute alpha each region receives so that exactly one
- * control governs any given region (no inter-region compounding). In
- * full-screen the window shell owns the single full-screen alpha and the
- * regions are transparent; in docked mode the window shell is transparent and
- * each region owns its own absolute alpha.
+ * Pure predicate deciding whether the menu background is translucent for a
+ * given opacity, i.e. whether its resolved alpha is below 1.0 (equivalently
+ * menu_opacity < 100). The launcher views gate their full-redraw safeguard on
+ * this: the fully-opaque path pays nothing, while a translucent background
+ * recomposites the whole result surface so no stale highlight pixels survive.
  *
- * Returns: the per-region alphas for this render pass.
+ * Returns: true iff the resolved alpha is strictly less than 1.0.
  */
-OpacityRegionAlphas meowmenu_region_alphas(bool fullscreen,
-                                           int categories_opacity,
-                                           int apps_opacity,
-                                           int full_screen_opacity);
+bool meowmenu_background_translucent(int menu_opacity);
+
+/* Buffer size that is always sufficient to hold the textual form produced by
+ * meowmenu_format_css_alpha (a fixed-3-decimal rendering such as "0.600",
+ * plus its NUL terminator). */
+#define MEOWMENU_CSS_ALPHA_BUFSZ 16
+
+/* meowmenu_format_css_alpha:
+ * @alpha: a CSS alpha in [0.0, 1.0] (callers pass the value from
+ *         meowmenu_opacity_alpha; out-of-range input is formatted as given).
+ * @out:   caller-owned buffer receiving a NUL-terminated, locale-independent
+ *         fixed-3-decimal rendering (e.g. "0.600"); MEOWMENU_CSS_ALPHA_BUFSZ
+ *         bytes is always sufficient.
+ *
+ * Formats @alpha exactly as printf "%.3f" would under the "C" locale — the
+ * decimal separator is always '.', never a locale-dependent ','. Reads and
+ * mutates no global locale state, so it is safe to call from a process whose
+ * LC_NUMERIC uses a comma and that hosts other plugins.
+ *
+ * Returns: @out, for call-site convenience.
+ */
+const char* meowmenu_format_css_alpha(double alpha, char* out /* [MEOWMENU_CSS_ALPHA_BUFSZ] */);
 
 #endif // MEOWMENU_CORE_OPACITY_MODEL_H

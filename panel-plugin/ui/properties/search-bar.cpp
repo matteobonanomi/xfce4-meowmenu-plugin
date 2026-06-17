@@ -45,33 +45,21 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	GtkBox* page = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 18));
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
-	GtkSizeGroup* label_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-	GtkSizeGroup* control_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-
 	// =========================================================================
-	// 1. Position section
+	// 1. Position section — combo in C1, C2 left empty (FR-014).
 	// =========================================================================
-	GtkGrid* pos_table = GTK_GRID(gtk_grid_new());
-	gtk_grid_set_column_spacing(pos_table, 12);
-	gtk_grid_set_row_spacing(pos_table, 6);
-
-	GtkWidget* pos_frame = make_aligned_frame(_("Position"), GTK_WIDGET(pos_table));
+	GtkWidget* pos_grid = make_two_column_section();
+	GtkWidget* pos_frame = make_aligned_frame(_("Position"), pos_grid);
 	gtk_box_pack_start(page, pos_frame, false, false, 0);
 
 	GtkWidget* sbp_label = gtk_label_new_with_mnemonic(_("_Search bar position:"));
-	gtk_widget_set_halign(sbp_label, GTK_ALIGN_START);
-	gtk_grid_attach(pos_table, sbp_label, 0, 0, 1, 1);
-
 	m_search_bar_position_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_search_bar_position_combo), "top", _("Top"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_search_bar_position_combo), "bottom", _("Bottom"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_search_bar_position_combo),
 		static_cast<const gchar*>(m_settings->search_bar_position));
-	gtk_widget_set_halign(m_search_bar_position_combo, GTK_ALIGN_START);
-	gtk_grid_attach(pos_table, m_search_bar_position_combo, 1, 0, 1, 1);
+	add_form_row(pos_grid, COLUMN_C1, 0, sbp_label, m_search_bar_position_combo, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(sbp_label), m_search_bar_position_combo);
-	gtk_size_group_add_widget(label_size_group, sbp_label);
-	gtk_size_group_add_widget(control_size_group, m_search_bar_position_combo);
 
 	connect(m_search_bar_position_combo, "changed",
 		[this](GtkComboBox* combo)
@@ -87,22 +75,19 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 		});
 
 	// =========================================================================
-	// 2. Ranking section (lifted from legacy Advanced Search tab)
+	// 2. Fuzzy Search section (lifted from legacy Advanced Search tab)
 	// =========================================================================
+	// The primary switch sits in C1 and its dependent control in C2 of the same
+	// row; the former inline vertical separator is dropped because the column
+	// midpoint now divides the two (FR-012).
 	{
-		GtkBox* row = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8));
+		GtkWidget* grid = make_two_column_section();
 
 		GtkWidget* lbl_fuzzy = gtk_label_new_with_mnemonic(_("_Fuzzy matching:"));
-		gtk_widget_set_halign(lbl_fuzzy, GTK_ALIGN_START);
-		gtk_widget_set_valign(lbl_fuzzy, GTK_ALIGN_CENTER);
-		gtk_box_pack_start(row, lbl_fuzzy, false, false, 0);
-
-		m_fuzzy_enabled = gtk_switch_new();
-		gtk_widget_set_halign(m_fuzzy_enabled, GTK_ALIGN_START);
-		gtk_widget_set_valign(m_fuzzy_enabled, GTK_ALIGN_CENTER);
+		m_fuzzy_enabled = make_form_switch();
 		gtk_switch_set_active(GTK_SWITCH(m_fuzzy_enabled),
 			static_cast<bool>(m_settings->fuzzy_enabled));
-		gtk_box_pack_start(row, m_fuzzy_enabled, false, false, 0);
+		add_form_row(grid, COLUMN_C1, 0, lbl_fuzzy, m_fuzzy_enabled, false, nullptr);
 		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_fuzzy), m_fuzzy_enabled);
 
 		connect(m_fuzzy_enabled, "notify::active",
@@ -113,20 +98,13 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 				gtk_widget_set_sensitive(m_fuzzy_threshold, active);
 			});
 
-		gtk_box_pack_start(row, gtk_separator_new(GTK_ORIENTATION_VERTICAL), false, false, 4);
-
 		GtkWidget* lbl_errors = gtk_label_new_with_mnemonic(_("Max _errors (0=auto):"));
-		gtk_widget_set_halign(lbl_errors, GTK_ALIGN_START);
-		gtk_widget_set_valign(lbl_errors, GTK_ALIGN_CENTER);
-		gtk_box_pack_start(row, lbl_errors, false, false, 0);
-
 		m_fuzzy_threshold = gtk_spin_button_new_with_range(0, 2, 1);
-		gtk_widget_set_halign(m_fuzzy_threshold, GTK_ALIGN_START);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_fuzzy_threshold),
 			static_cast<int>(m_settings->fuzzy_threshold));
 		gtk_widget_set_sensitive(m_fuzzy_threshold,
 			static_cast<bool>(m_settings->fuzzy_enabled));
-		gtk_box_pack_start(row, m_fuzzy_threshold, false, false, 0);
+		add_form_row(grid, COLUMN_C2, 0, lbl_errors, m_fuzzy_threshold, false, nullptr);
 		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_errors), m_fuzzy_threshold);
 
 		connect(m_fuzzy_threshold, "value-changed",
@@ -136,31 +114,29 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			});
 
 		gtk_box_pack_start(page,
-			make_info_frame(_("Fuzzy Search"), GTK_WIDGET(row),
+			make_info_frame(_("Fuzzy Search"), grid,
 				_("Finds apps even when you mistype a word.\n"
 				  "Example: \"firfox\" still finds Firefox.\n"
 				  "Max errors 0 = automatic (1 for short queries, 2 for longer ones).")),
 			false, false, 0);
 	}
 
+	// =========================================================================
+	// 3. Usage Boost section
+	// =========================================================================
+	// Boost switch (C1) / Boost level (C2) share one two-column row; the recency
+	// slider spans the full section width below the grid, packed directly into
+	// the section vbox so it has no phantom empty C2 (FR-013/014).
 	{
-		GtkGrid* grid = GTK_GRID(gtk_grid_new());
-		gtk_grid_set_column_spacing(grid, 12);
-		gtk_grid_set_row_spacing(grid, 6);
-
-		GtkBox* boost_row = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8));
+		GtkWidget* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+		GtkWidget* grid = make_two_column_section();
+		gtk_box_pack_start(GTK_BOX(content), grid, false, false, 0);
 
 		GtkWidget* lbl_boost = gtk_label_new_with_mnemonic(_("_Boost favorites:"));
-		gtk_widget_set_halign(lbl_boost, GTK_ALIGN_START);
-		gtk_widget_set_valign(lbl_boost, GTK_ALIGN_CENTER);
-		gtk_box_pack_start(boost_row, lbl_boost, false, false, 0);
-
-		m_favorites_boost_enabled = gtk_switch_new();
-		gtk_widget_set_halign(m_favorites_boost_enabled, GTK_ALIGN_START);
-		gtk_widget_set_valign(m_favorites_boost_enabled, GTK_ALIGN_CENTER);
+		m_favorites_boost_enabled = make_form_switch();
 		gtk_switch_set_active(GTK_SWITCH(m_favorites_boost_enabled),
 			static_cast<bool>(m_settings->favorites_boost_enabled));
-		gtk_box_pack_start(boost_row, m_favorites_boost_enabled, false, false, 0);
+		add_form_row(grid, COLUMN_C1, 0, lbl_boost, m_favorites_boost_enabled, false, nullptr);
 		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_boost), m_favorites_boost_enabled);
 
 		connect(m_favorites_boost_enabled, "notify::active",
@@ -171,15 +147,8 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 				gtk_widget_set_sensitive(m_favorites_boost_level, active);
 			});
 
-		gtk_box_pack_start(boost_row, gtk_separator_new(GTK_ORIENTATION_VERTICAL), false, false, 4);
-
 		GtkWidget* lbl_level = gtk_label_new_with_mnemonic(_("Boost _level:"));
-		gtk_widget_set_halign(lbl_level, GTK_ALIGN_START);
-		gtk_widget_set_valign(lbl_level, GTK_ALIGN_CENTER);
-		gtk_box_pack_start(boost_row, lbl_level, false, false, 0);
-
 		m_favorites_boost_level = gtk_combo_box_text_new();
-		gtk_widget_set_halign(m_favorites_boost_level, GTK_ALIGN_START);
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("Low"));
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("Medium"));
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_favorites_boost_level), _("High"));
@@ -187,7 +156,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			static_cast<int>(m_settings->favorites_boost_level) - 1);
 		gtk_widget_set_sensitive(m_favorites_boost_level,
 			static_cast<bool>(m_settings->favorites_boost_enabled));
-		gtk_box_pack_start(boost_row, m_favorites_boost_level, false, false, 0);
+		add_form_row(grid, COLUMN_C2, 0, lbl_level, m_favorites_boost_level, false, nullptr);
 		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_level), m_favorites_boost_level);
 
 		connect(m_favorites_boost_level, "changed",
@@ -196,20 +165,21 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 				m_settings->favorites_boost_level = gtk_combo_box_get_active(combo) + 1;
 			});
 
-		gtk_grid_attach(grid, GTK_WIDGET(boost_row), 0, 0, 2, 1);
-
+		// Whole-row recency slider: an inline [label | scale] box spanning the
+		// section, so the scale fills the full width rather than half of it.
+		GtkWidget* recency_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 		GtkWidget* lbl_recency = gtk_label_new_with_mnemonic(_("Recency _weight (%):"));
 		gtk_widget_set_halign(lbl_recency, GTK_ALIGN_START);
-		gtk_widget_set_valign(lbl_recency, GTK_ALIGN_CENTER);
-		gtk_grid_attach(grid, lbl_recency, 0, 1, 1, 1);
+		gtk_box_pack_start(GTK_BOX(recency_row), lbl_recency, false, false, 0);
 
 		m_frecency_alpha = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
 		gtk_widget_set_hexpand(m_frecency_alpha, true);
 		gtk_scale_set_value_pos(GTK_SCALE(m_frecency_alpha), GTK_POS_RIGHT);
 		gtk_range_set_value(GTK_RANGE(m_frecency_alpha),
 			static_cast<int>(m_settings->frecency_alpha));
-		gtk_grid_attach(grid, m_frecency_alpha, 1, 1, 1, 1);
+		gtk_box_pack_start(GTK_BOX(recency_row), m_frecency_alpha, true, true, 0);
 		gtk_label_set_mnemonic_widget(GTK_LABEL(lbl_recency), m_frecency_alpha);
+		gtk_box_pack_start(GTK_BOX(content), recency_row, false, false, 0);
 
 		connect(m_frecency_alpha, "value-changed",
 			[this](GtkRange* range)
@@ -218,14 +188,14 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			});
 
 		gtk_box_pack_start(page,
-			make_info_frame(_("Usage Boost"), GTK_WIDGET(grid),
+			make_info_frame(_("Usage Boost"), content,
 				_("Promotes apps you use frequently or marked as favorites.\n"
 				  "Recency weight controls the balance between how recently vs.\n"
 				  "how often you launched an app.")),
 			false, false, 0);
 	}
 
-	// 3 + 4: aliases and search-actions live in their own translation units
+	// 4 + 5: aliases and search-actions live in their own translation units
 	// so this tab builder stays focused on the position + ranking widgets.
 	build_search_bar_aliases_section(page);
 	build_search_bar_actions_section(page);

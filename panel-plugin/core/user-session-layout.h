@@ -48,15 +48,13 @@ LayoutMode layout_mode_from_key(const char* value);
 
 // The Properties "Layout" controls whose enabled/greyed state depends on the
 // selected layout mode (FR-006 matrix). Width/height/corner-radius are windowed
-// controls; the panel gap only means something flush against a panel edge; the
-// full-screen opacity only applies in full-screen.
+// controls; the panel gap only means something flush against a panel edge.
 enum class LayoutControl
 {
 	MenuWidth,
 	MenuHeight,
 	PanelGap,
-	CornerRadius,
-	FullScreenOpacity
+	CornerRadius
 };
 
 /* control_enabled:

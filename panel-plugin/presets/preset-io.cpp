@@ -56,9 +56,7 @@ static const char* DEFAULT_CATEGORY_DOMAIN[] = { "favorites", "recent", "all" };
 static const PropDef GOVERNED_PROPS[] = {
 	{ "corner-radius",         PresetValue::Int, INT_RANGE(0, 24) },
 	{ "panel-gap",             PresetValue::Int, INT_RANGE(0, 50) },
-	{ "categories-opacity",    PresetValue::Int, INT_RANGE(0, 100) },
-	{ "apps-opacity",          PresetValue::Int, INT_RANGE(0, 100) },
-	{ "full-screen-opacity",   PresetValue::Int, INT_RANGE(0, 100) },
+	{ "menu-opacity",          PresetValue::Int, INT_RANGE(0, 100) },
 	{ "sidebar-position",      PresetValue::Str, 0, 0, STR_DOMAIN(SIDEBAR_DOMAIN) },
 	{ "sidebar-enabled",       PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "category-show-name",    PresetValue::Bool, 0, 0, nullptr, 0 },

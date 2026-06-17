@@ -55,6 +55,16 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	// Only allow up to one selected item
 	gtk_icon_view_set_selection_mode(m_view, GTK_SELECTION_SINGLE);
 
+	// Keyboard cursor moves change the selection without passing through the
+	// hover chokepoint, so recomposite the whole surface on every selection
+	// change while the background is translucent (no-op when opaque). This is the
+	// keyboard half of the single-highlight safeguard (FR-006/FR-007).
+	connect(m_view, "selection-changed",
+		[this](GtkIconView*)
+		{
+			queue_translucent_safeguard_redraw();
+		});
+
 	g_object_ref_sink(m_view);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_view)), "launchers");

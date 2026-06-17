@@ -136,4 +136,27 @@ bool meow_category_label_visible(bool category_show_name, bool horizontal)
 	return category_show_name && !horizontal;
 }
 
+CategoryLabelCap meow_category_label_cap(long label_chars, int cap_chars)
+{
+	CategoryLabelCap out;
+	// Strictly-longer-than-cap ellipsises; an at-cap label is left uncapped so
+	// the size-group floor stays at its natural width (see header rationale).
+	out.ellipsize = label_chars > cap_chars;
+	out.max_width_chars = cap_chars;
+	return out;
+}
+
+int meow_sidebar_max_label_width(const int* widths, int count)
+{
+	int max_width = 0;
+	for (int i = 0; i < count; ++i)
+	{
+		if (widths[i] > max_width)
+		{
+			max_width = widths[i];
+		}
+	}
+	return max_width;
+}
+
 } // namespace WhiskerMenu
