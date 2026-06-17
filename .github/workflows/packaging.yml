@@ -322,10 +322,21 @@ jobs:
     container:
       image: opensuse/leap:15.6
     steps:
-      # HACK: opensuse/leap:15.6 base image ships without tar or git; both are
-      # required by actions/checkout before it can download the repository.
       - name: Install tar and git (required by actions/checkout)
-        run: zypper -n install --no-recommends tar git
+        run: |
+          # HACK: the openSUSE CDN intermittently times out refreshing the
+          # post-release update/backports/SLE repos. zypper then exits 106
+          # (ZYPPER_EXIT_INF_REPOS_SKIPPED) even when the requested packages
+          # installed fine, which fails the step. A pinned container build uses
+          # the image's package snapshot and never needs those updates, so
+          # disable them to drop the flaky network dependency. Best-effort: a
+          # missing alias on a future image rebuild must not abort the step.
+          zypper -n modifyrepo --disable \
+              repo-update repo-update-non-oss repo-backports-update repo-sle-update \
+              || true
+          # HACK: opensuse/leap:15.6 base image ships without tar or git; both
+          # are required by actions/checkout before it can download the repo.
+          zypper -n install --no-recommends tar git
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -775,7 +786,14 @@ jobs:
       image: opensuse/leap:15.6
     steps:
       - name: Install tooling
-        run: zypper -n install --no-recommends ca-certificates coreutils
+        run: |
+          # HACK: same openSUSE CDN update-repo flakiness as the build job —
+          # disable the post-release repos so a refresh timeout cannot make
+          # zypper exit 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) and fail the step.
+          zypper -n modifyrepo --disable \
+              repo-update repo-update-non-oss repo-backports-update repo-sle-update \
+              || true
+          zypper -n install --no-recommends ca-certificates coreutils
 
       - name: Download openSUSE Leap .rpm artifact
         uses: actions/download-artifact@v4
