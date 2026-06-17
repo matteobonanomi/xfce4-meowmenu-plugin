@@ -9,14 +9,12 @@
 #   build-deb (ubuntu-26.04)
 #   build-deb (debian-13)
 #   build-rpm (fedora-44)
-#   build-rpm (opensuse-leap-15.6)
 #   verify-install-deb (ubuntu-26.04)
 #   verify-install-deb (debian-13)
 #   verify-install-rpm
 #   whisker-overlap-check (ubuntu-26.04)        [feature 010, FR-021 / FR-025]
 #   whisker-overlap-check (debian-13)           [feature 010, FR-021 / FR-025]
 #   whisker-overlap-check (fedora-44)           [feature 010, FR-021 / FR-025]
-#   whisker-overlap-check (opensuse-leap-15.6)  [feature 010, FR-021]
 #   relationship-declaration-check              [feature 010, FR-022]
 #   arch-pkgbuild-test                          [feature 035, advisory]
 #   attach-artifacts
@@ -35,7 +33,6 @@
 #   xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
 #   xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
 #   xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
-#   xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
 #
 # Tag-on-`main` invariant (§5): validate-tag refuses to proceed when the tag
 # is not reachable from `origin/main`.
@@ -279,11 +276,10 @@ jobs:
 
       # HACK: stage the source tree under its versioned directory name before
       # tarring, instead of relying on `tar --transform 's,^,prefix/,'` against
-      # `.`. The transform approach produced archive entries like
-      # `prefix/./file`, which Fedora's tar tolerates (it implicitly creates
-      # `prefix/`) but Leap 15.6's older GNU tar does not — extraction fails
-      # with "Cannot open: No such file or directory" on every file. Staging
-      # a real directory makes the tarball valid on any tar version.
+      # `.`. The transform approach produces archive entries like
+      # `prefix/./file`, which some GNU tar versions reject on extraction with
+      # "Cannot open: No such file or directory". Staging a real directory
+      # makes the tarball valid on any tar version.
       - name: Stage source tarball and build RPM
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
@@ -313,124 +309,6 @@ jobs:
         with:
           name: rpm-package
           path: artifacts/xfce4-meowmenu-plugin-*.rpm
-          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
-
-  build-rpm-opensuse:
-    name: build-rpm (opensuse-leap-15.6)
-    needs: validate-tag
-    runs-on: ubuntu-latest
-    container:
-      image: opensuse/leap:15.6
-    steps:
-      - name: Install tar and git (required by actions/checkout)
-        run: |
-          # HACK: the openSUSE CDN intermittently times out refreshing the
-          # post-release update/backports/SLE repos. zypper then exits 106
-          # (ZYPPER_EXIT_INF_REPOS_SKIPPED) even when the requested packages
-          # installed fine, which fails the step. A pinned container build uses
-          # the image's package snapshot and never needs those updates, so
-          # disable them to drop the flaky network dependency. Best-effort: a
-          # missing alias on a future image rebuild must not abort the step.
-          zypper -n modifyrepo --disable \
-              repo-update repo-update-non-oss repo-backports-update repo-sle-update \
-              || true
-          # HACK: opensuse/leap:15.6 base image ships without tar or git; both
-          # are required by actions/checkout before it can download the repo.
-          zypper -n install --no-recommends tar git
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install build dependencies (openSUSE Leap 15.6 + packaging tools)
-        run: |
-          # NOTE: Xfce devel packages live in the X11:xfce OBS project for
-          # Leap 15.6 (not in the base repos). Binary package names there are
-          # not stable across OBS reshuffles (e.g. `garcon-devel` vs
-          # `libgarcon-1-devel`, `libexo-devel` vs `libexo-2-devel`,
-          # `xfconf-devel` vs `libxfconf-devel`). We therefore resolve every
-          # devel dependency by its `pkgconfig(...)` capability — the .pc
-          # filenames are stable and match meson.build, so this is rename-proof.
-          # `pkgconfig` (the package) is the correct pkg-config provider name
-          # for Leap 15.6 (pkgconf-pkg-config does not exist there).
-          zypper -n addrepo --no-gpgcheck \
-              https://download.opensuse.org/repositories/X11:/xfce/15.6/ xfce
-          zypper -n refresh
-          zypper -n install --no-recommends \
-              gcc gcc-c++ make meson ninja pkgconfig \
-              'pkgconfig(gtk+-3.0)' \
-              'pkgconfig(glib-2.0)' \
-              'pkgconfig(gio-2.0)' \
-              'pkgconfig(garcon-1)' \
-              'pkgconfig(libxfce4panel-2.0)' \
-              'pkgconfig(libxfce4ui-2)' \
-              'pkgconfig(libxfce4util-1.0)' \
-              'pkgconfig(exo-2)' \
-              'pkgconfig(libxfconf-0)' \
-              'pkgconfig(accountsservice)' \
-              'pkgconfig(gtk-layer-shell-0)' \
-              gettext-tools \
-              git ca-certificates \
-              rpm-build rpmdevtools python3
-
-      - name: Render spec Version and %changelog from NEWS
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          spec="dist/rpm/xfce4-meowmenu-plugin.spec"
-          sed -i "s/^Version:.*/Version:        ${VERSION}/" "$spec"
-          date_rpm="$(date -u +'%a %b %d %Y')"
-          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
-          awk -v ver="$VERSION" -v dt="$date_rpm" -v body="$news_body" '
-            BEGIN { skip = 0 }
-            /^%changelog/ {
-              print "%changelog"
-              print "* " dt " Matteo Bonanomi <mbonanomi.dev@proton.me> - " ver "-1"
-              n = split(body, lines, "\n")
-              if (n == 0 || (n == 1 && lines[1] == "")) {
-                print "- Release " ver "."
-              } else {
-                for (i = 1; i <= n; i++) print lines[i]
-              }
-              skip = 1
-              next
-            }
-            skip == 0 { print }
-          ' "$spec" > "${spec}.new"
-          mv "${spec}.new" "$spec"
-
-      # HACK: see Fedora job — staging avoids the `prefix/./file` archive
-      # layout that breaks extraction on Leap 15.6's older GNU tar.
-      - name: Stage source tarball and build RPM
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          rpmdev-setuptree
-          stage="$(mktemp -d)"
-          srcdir="$stage/xfce4-meowmenu-plugin-${VERSION}"
-          mkdir -p "$srcdir"
-          tar --exclude='./.git' --exclude='./build' -cf - . \
-            | tar -xf - -C "$srcdir"
-          tar -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
-              -C "$stage" "xfce4-meowmenu-plugin-${VERSION}"
-          cp dist/rpm/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
-          rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
-
-      - name: Stage artifact under contract filename (suse15.6 token)
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          mkdir -p artifacts
-          src="$(ls "$HOME"/rpmbuild/RPMS/x86_64/xfce4-meowmenu-plugin-*.rpm | head -n1)"
-          cp "$src" "artifacts/xfce4-meowmenu-plugin-${VERSION}-1.suse15.6.x86_64.rpm"
-          ls -la artifacts/
-
-      - name: Upload openSUSE Leap .rpm artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rpm-package-opensuse
-          path: artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
           retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
 
   verify-install-deb-ubuntu:
@@ -778,94 +656,6 @@ jobs:
           name: whisker-overlap-report-fedora-44
           path: /tmp/report/fedora-44.md
 
-  whisker-overlap-check-opensuse-leap:
-    name: whisker-overlap-check (opensuse-leap-15.6)
-    needs: build-rpm-opensuse
-    runs-on: ubuntu-latest
-    container:
-      image: opensuse/leap:15.6
-    steps:
-      - name: Install tooling
-        run: |
-          # HACK: same openSUSE CDN update-repo flakiness as the build job —
-          # disable the post-release repos so a refresh timeout cannot make
-          # zypper exit 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) and fail the step.
-          zypper -n modifyrepo --disable \
-              repo-update repo-update-non-oss repo-backports-update repo-sle-update \
-              || true
-          zypper -n install --no-recommends ca-certificates coreutils
-
-      - name: Download openSUSE Leap .rpm artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: rpm-package-opensuse
-          path: artifacts
-
-      - name: Coexistence install (Whisker present)
-        run: |
-          zypper -n refresh
-          zypper -n install xfce4-whiskermenu-plugin
-          zypper -n install --allow-unsigned-rpm ./artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
-          rpm -qi xfce4-meowmenu-plugin
-          rpm -qi xfce4-whiskermenu-plugin
-
-      - name: Compute file-path intersection (FR-021)
-        run: |
-          set -e
-          rpm -ql xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
-          rpm -ql xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
-          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
-          : > /tmp/overlap-violations.txt
-          while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            if [ -d "$path" ] && [ ! -L "$path" ]; then
-              continue
-            fi
-            echo "$path" >> /tmp/overlap-violations.txt
-          done < /tmp/intersection.txt
-          mkdir -p /tmp/report
-          {
-            echo "## opensuse-leap-15.6"
-            echo
-            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
-            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
-            echo
-            echo "### Raw file-listing intersection"
-            echo
-            echo '```'
-            cat /tmp/intersection.txt
-            echo '```'
-            echo
-            echo "### Non-directory overlaps (must be empty)"
-            echo
-            echo '```'
-            cat /tmp/overlap-violations.txt
-            echo '```'
-          } > /tmp/report/opensuse-leap-15.6.md
-          if [ -s /tmp/overlap-violations.txt ]; then
-            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on opensuse-leap-15.6"
-            cat /tmp/overlap-violations.txt
-            exit 1
-          fi
-
-      - name: Whisker-absent install smoke (FR-025)
-        run: |
-          set -e
-          zypper -n remove xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
-          ! rpm -q xfce4-whiskermenu-plugin >/dev/null 2>&1
-          zypper -n install --allow-unsigned-rpm ./artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm 2>&1 | tee /tmp/install-log.txt
-          if grep -Ei 'replacing|obsoletes|conflicts.*xfce4-whiskermenu' /tmp/install-log.txt; then
-            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution warning"
-            exit 1
-          fi
-          rpm -qi xfce4-meowmenu-plugin
-
-      - name: Upload overlap report (opensuse-leap-15.6)
-        uses: actions/upload-artifact@v4
-        with:
-          name: whisker-overlap-report-opensuse-leap-15.6
-          path: /tmp/report/opensuse-leap-15.6.md
-
   # ===========================================================================
   # Feature 010 — relationship declaration check (FR-022).
   # No produced .deb may declare Conflicts/Replaces/Provides against
@@ -878,7 +668,6 @@ jobs:
       - build-deb-ubuntu
       - build-deb-debian
       - build-rpm
-      - build-rpm-opensuse
     runs-on: ubuntu-latest
     steps:
       - name: Install tooling
@@ -903,12 +692,6 @@ jobs:
         with:
           name: rpm-package
           path: artifacts/rpm-fedora
-
-      - name: Download openSUSE Leap .rpm
-        uses: actions/download-artifact@v4
-        with:
-          name: rpm-package-opensuse
-          path: artifacts/rpm-opensuse
 
       - name: Check .deb relationship declarations
         run: |
@@ -940,7 +723,7 @@ jobs:
           report=/tmp/report/relationship-rpm.md
           : > "$report"
           fail=0
-          for rpm in artifacts/rpm-fedora/*.rpm artifacts/rpm-opensuse/*.rpm; do
+          for rpm in artifacts/rpm-fedora/*.rpm; do
             [ -f "$rpm" ] || continue
             echo "### $(basename "$rpm")" >> "$report"
             for kind in conflicts obsoletes provides; do
@@ -973,7 +756,6 @@ jobs:
       - whisker-overlap-check-ubuntu
       - whisker-overlap-check-debian
       - whisker-overlap-check-fedora
-      - whisker-overlap-check-opensuse-leap
       - relationship-declaration-check
     runs-on: ubuntu-latest
     steps:
@@ -993,12 +775,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: rpm-package
-          path: artifacts
-
-      - name: Download openSUSE Leap .rpm artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: rpm-package-opensuse
           path: artifacts
 
       - name: Download per-distro overlap reports (canonical three)
@@ -1038,14 +814,12 @@ jobs:
             echo "| Ubuntu 26.04       | \`xfce4-whiskermenu-plugin\` |"
             echo "| Debian 13          | \`xfce4-whiskermenu-plugin\` |"
             echo "| Fedora 44          | \`xfce4-whiskermenu-plugin\` |"
-            echo "| openSUSE Leap 15.6 | \`xfce4-whiskermenu-plugin\` |"
             echo
             echo "## Per-distro file-listing overlap"
             echo
             for f in overlap-reports/ubuntu-26.04.md \
                      overlap-reports/debian-13.md \
-                     overlap-reports/fedora-44.md \
-                     overlap-reports/opensuse-leap-15.6.md; do
+                     overlap-reports/fedora-44.md; do
               [ -f "$f" ] && { cat "$f"; echo; }
             done
             echo "## Substitution-declaration check (FR-022)"
@@ -1065,7 +839,6 @@ jobs:
             artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
             artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
             artifacts/xfce4-meowmenu-plugin-*.fc44.x86_64.rpm
-            artifacts/xfce4-meowmenu-plugin-*.suse15.6.x86_64.rpm
           fail_on_unmatched_files: true
 
   # ===========================================================================

@@ -6,7 +6,7 @@ has_children: false
 
 # Installation
 
-Prebuilt packages for the four officially supported distributions are
+Prebuilt packages for the three officially supported distributions are
 attached to every [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
 Replace `<version>` with the actual release tag (e.g. `0.4.0`).
 
@@ -28,12 +28,6 @@ sudo apt install ./xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
 sudo dnf install ./xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
 ```
 
-## openSUSE Leap 15.6
-
-```bash
-sudo zypper install --allow-unsigned-rpm ./xfce4-meowmenu-plugin-<version>-1.suse15.6.x86_64.rpm
-```
-
 ## Arch Linux (AUR)
 
 Arch and Arch-based distributions — including CachyOS, EndeavourOS, and
@@ -45,7 +39,7 @@ yay -S xfce4-meowmenu-plugin
 
 The package
 ([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
-is maintainer-published and distributed through the AUR. Unlike the four
+is maintainer-published and distributed through the AUR. Unlike the three
 prebuilt packages above, it is **not** built or smoke-tested in CI.
 
 Uninstall with `yay -R xfce4-meowmenu-plugin`.
@@ -62,7 +56,6 @@ Remove the package with the appropriate command for your distribution:
 
 - **Ubuntu / Debian**: `sudo apt purge xfce4-meowmenu-plugin`
 - **Fedora**: `sudo dnf remove xfce4-meowmenu-plugin`
-- **openSUSE**: `sudo zypper remove xfce4-meowmenu-plugin`
 - **Source install**: `sudo ninja -C build uninstall`
 
 Then remove any user configuration left behind:
@@ -114,47 +107,6 @@ sudo dnf install \
     xfconf-devel \
     accountsservice-devel gtk-layer-shell-devel \
     gettext
-```
-
-### openSUSE Leap 15.6
-
-Xfce devel packages live in the `X11:xfce` OBS project and their binary
-names are not stable across reshuffles, so dependencies are resolved by
-their `pkgconfig(...)` capability (the `.pc` filenames are stable):
-
-```bash
-sudo zypper addrepo --no-gpgcheck \
-    https://download.opensuse.org/repositories/X11:/xfce/15.6/ xfce
-sudo zypper refresh
-sudo zypper install \
-    gcc gcc-c++ make meson ninja pkgconfig \
-    'pkgconfig(gtk+-3.0)' \
-    'pkgconfig(glib-2.0)' \
-    'pkgconfig(gio-2.0)' \
-    'pkgconfig(garcon-1)' \
-    'pkgconfig(libxfce4panel-2.0)' \
-    'pkgconfig(libxfce4ui-2)' \
-    'pkgconfig(libxfce4util-1.0)' \
-    'pkgconfig(exo-2)' \
-    'pkgconfig(libxfconf-0)' \
-    'pkgconfig(accountsservice)' \
-    'pkgconfig(gtk-layer-shell-0)' \
-    gettext-tools
-```
-
-### openSUSE Tumbleweed
-
-```bash
-sudo zypper install -t pattern devel_C_C++
-sudo zypper install \
-    meson ninja pkg-config \
-    gtk3-devel glib2-devel \
-    garcon-devel \
-    xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
-    libexo-devel \
-    xfconf-devel \
-    accountsservice-devel gtk-layer-shell-devel \
-    gettext-tools
 ```
 
 ### Arch / Manjaro / EndeavourOS
