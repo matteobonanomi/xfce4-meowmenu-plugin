@@ -49,7 +49,7 @@ jobs:
               gettext
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: cpp
 
@@ -62,10 +62,10 @@ jobs:
           meson compile -C build
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
 # Action-pinning audit (FR-022, T025):
 #   - actions/checkout@v4
-#   - github/codeql-action/init@v3
-#   - github/codeql-action/analyze@v3
+#   - github/codeql-action/init@v4
+#   - github/codeql-action/analyze@v4
 #   No `@main` / `@master` references.
