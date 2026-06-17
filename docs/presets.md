@@ -37,7 +37,7 @@ built-in presets are never modified.
 
 ### Classic
 
-<!-- preset-classic.png not yet available -->
+![Classic preset](assets/images/preset-classic.png)
 
 Traditional Whisker Menu look. Compact docked window, apps as a list,
 sidebar on the right, no rounded corners, fully solid (menu opacity 100%). The
@@ -53,7 +53,7 @@ Apps/Places switch uses icon buttons.
 
 ### Full Screen
 
-<!-- preset-fullscreen.png not yet available -->
+![Full Screen preset](assets/images/preset-fullscreen.png)
 
 Launcher fills the entire screen over a translucent backdrop (menu opacity
 80%). Ideal for touch or keyboard-first workflows. Places search enabled. The
@@ -61,7 +61,7 @@ Apps/Places switch uses text labels.
 
 ### Minimal
 
-<!-- preset-minimal.png not yet available -->
+![Minimal preset](assets/images/preset-minimal.png)
 
 A compact, distraction-free launcher: a search bar over an app list, with no
 sidebar, no profile area, and no command buttons. Opens centred on screen in a
