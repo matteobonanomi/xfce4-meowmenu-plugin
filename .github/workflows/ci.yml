@@ -72,6 +72,7 @@ jobs:
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext \
+              xvfb \
               git ca-certificates
 
       - name: Install build dependencies (Debian 13)
@@ -88,6 +89,7 @@ jobs:
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext \
+              xvfb \
               git ca-certificates
 
       - name: Install build dependencies (Fedora 44)
@@ -102,6 +104,7 @@ jobs:
               xfconf-devel \
               accountsservice-devel gtk-layer-shell-devel \
               gettext \
+              xorg-x11-server-Xvfb \
               dbus-daemon xfconf \
               git ca-certificates
 
@@ -112,7 +115,7 @@ jobs:
         run: meson compile -C build
 
       - name: Meson test
-        run: meson test -C build --print-errorlogs
+        run: xvfb-run -a meson test -C build --print-errorlogs
 
   # HACK: `b_lundef=false` is required because the plugin is built as a
   # `shared_module` (see Edge Cases §269 in spec.md). Without it, the
@@ -142,6 +145,7 @@ jobs:
               libxfconf-0-dev \
               libaccountsservice-dev libgtk-layer-shell-dev \
               gettext \
+              xvfb \
               git ca-certificates
 
       - name: Meson setup (ASan + UBSan, b_lundef=false for shared_module)
@@ -161,7 +165,10 @@ jobs:
           export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/asan_suppressions.txt"
           export LSAN_OPTIONS="suppressions=${GITHUB_WORKSPACE}/build-aux/lsan_suppressions.txt"
           export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/ubsan_suppressions.txt"
-          meson test -C build --print-errorlogs
+          # xvfb-run provides a virtual display so the GTK widget-construction
+          # tests run here instead of aborting; the sanitizers then exercise the
+          # freed-view safeguard path under a real display.
+          xvfb-run -a meson test -C build --print-errorlogs
 
   translations:
     name: translations
@@ -209,6 +216,7 @@ jobs:
               libexo-2-dev \
               libxfconf-0-dev \
               gettext \
+              xvfb \
               git ca-certificates
 
       - name: Meson setup (optional deps disabled)
@@ -222,7 +230,7 @@ jobs:
         run: meson compile -C build
 
       - name: Meson test
-        run: meson test -C build --print-errorlogs
+        run: xvfb-run -a meson test -C build --print-errorlogs
 
   # Feature 010 — identity-grep gate (FR-006, FR-007, FR-008, FR-015).
   # (1) Confirms no `xfce4-whiskermenu-plugin` references outside the
