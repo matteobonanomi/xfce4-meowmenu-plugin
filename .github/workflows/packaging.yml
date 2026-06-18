@@ -832,7 +832,7 @@ jobs:
           ls -la artifacts/
 
       - name: Attach to the Release for ${{ github.ref_name }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           files: |
@@ -945,5 +945,5 @@ jobs:
 #   - actions/checkout@v6
 #   - actions/upload-artifact@v4
 #   - actions/download-artifact@v8
-#   - softprops/action-gh-release@v2
+#   - softprops/action-gh-release@v3
 #   No `@main` / `@master` references.
