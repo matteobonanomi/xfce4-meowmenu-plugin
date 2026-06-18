@@ -147,7 +147,7 @@ jobs:
           ls -la artifacts/
 
       - name: Upload Ubuntu .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deb-package-ubuntu
           path: artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
@@ -215,7 +215,7 @@ jobs:
           ls -la artifacts/
 
       - name: Upload Debian .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deb-package-debian
           path: artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
@@ -305,7 +305,7 @@ jobs:
           ls -la artifacts/
 
       - name: Upload .rpm artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpm-package
           path: artifacts/xfce4-meowmenu-plugin-*.rpm
@@ -485,7 +485,7 @@ jobs:
           dpkg -s xfce4-meowmenu-plugin
 
       - name: Upload overlap report (ubuntu-26.04)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: whisker-overlap-report-ubuntu-26.04
           path: /tmp/report/ubuntu-26.04.md
@@ -571,7 +571,7 @@ jobs:
           dpkg -s xfce4-meowmenu-plugin
 
       - name: Upload overlap report (debian-13)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: whisker-overlap-report-debian-13
           path: /tmp/report/debian-13.md
@@ -651,7 +651,7 @@ jobs:
           rpm -qi xfce4-meowmenu-plugin
 
       - name: Upload overlap report (fedora-44)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: whisker-overlap-report-fedora-44
           path: /tmp/report/fedora-44.md
@@ -741,7 +741,7 @@ jobs:
           exit $fail
 
       - name: Upload relationship report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: relationship-declaration-report
           path: /tmp/report/
@@ -934,7 +934,7 @@ jobs:
       # attach-artifacts Release files: list (FR-019).
       - name: Upload Arch validation logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: arch-pkgbuild-logs
           path: ${{ runner.temp }}/arch-logs
