@@ -57,7 +57,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -85,7 +85,7 @@ jobs:
       image: ubuntu:26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -161,7 +161,7 @@ jobs:
       image: debian:13
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -229,7 +229,7 @@ jobs:
       image: fedora:44
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -870,7 +870,7 @@ jobs:
         run: pacman -Sy --noconfirm --needed git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -942,8 +942,8 @@ jobs:
           if-no-files-found: ignore
 
 # Action-pinning audit (FR-022, T047):
-#   - actions/checkout@v4
-#   - actions/upload-artifact@v7
+#   - actions/checkout@v6
+#   - actions/upload-artifact@v4
 #   - actions/download-artifact@v8
 #   - softprops/action-gh-release@v2
 #   No `@main` / `@master` references.
