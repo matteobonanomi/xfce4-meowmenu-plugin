@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -65,7 +65,7 @@ jobs:
         uses: github/codeql-action/analyze@v4
 
 # Action-pinning audit (FR-022, T025):
-#   - actions/checkout@v6
+#   - actions/checkout@v7
 #   - github/codeql-action/init@v4
 #   - github/codeql-action/analyze@v4
 #   No `@main` / `@master` references.
