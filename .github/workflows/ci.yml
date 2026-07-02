@@ -54,7 +54,7 @@ jobs:
       image: ${{ matrix.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -128,7 +128,7 @@ jobs:
       image: ubuntu:26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -177,7 +177,7 @@ jobs:
       image: ubuntu:26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -200,7 +200,7 @@ jobs:
       image: ubuntu:26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -243,7 +243,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -322,7 +322,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Compare package and docs dep lists
         shell: bash
@@ -354,6 +354,6 @@ jobs:
           fi
 
 # Action-pinning audit (FR-022, T012/T047):
-#   - actions/checkout@v6  (allowed; major pin)
+#   - actions/checkout@v7  (allowed; major pin)
 #   No `@main` / `@master` references. See
 #   .specify/specs/009-ci-foundation/notes/action-pins.md.
