@@ -1,4 +1,9 @@
 MEOW MENU DEVELOPMENT
+0.7.1 (2026-07-xx)
+=====
+- Arch: simplify test book when installing from AUR 
+- Arch: add test book to CI 
+
 0.7.0 (2026-06-17)
 =====
 - Opacity: serialize CSS alpha locale-independently
