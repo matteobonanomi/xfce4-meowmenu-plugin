@@ -20,3 +20,4 @@ _build/
 *.dll
 *.exe
 .DS_Store
+dist/arch/.SRCINFO
