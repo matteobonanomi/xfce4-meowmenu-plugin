@@ -3,8 +3,7 @@
  * panel-plugin/core/theme-fallback.h. No GTK widgets are instantiated; only
  * GdkRGBA values and the prefer-dark boolean are fabricated.
  *
- * Asserts the normative decision table in
- * .specify/specs/018-theme-aware-fallback/contracts/fallback-decision.md.
+ * Asserts the normative decision table for contrast-preserving fallback colors.
  */
 
 #include "core/theme-fallback.h"

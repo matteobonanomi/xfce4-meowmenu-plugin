@@ -154,8 +154,8 @@ test_places_open = executable(
 
 test('places_open', test_places_open)
 
-# NOTE: test_migration covers the T1..T7 contract from
-# .specify/specs/010-standalone-identity/contracts/xfconf-migration.md.
+# NOTE: test_migration covers the legacy Whisker to MeowMenu Xfconf migration
+# contract.
 # It exercises panel-plugin/migration.cpp directly (source compiled into
 # the test executable rather than linked against libmeowmenu, matching the
 # pattern of the other tests in this directory). The fixture brings up a
@@ -510,6 +510,23 @@ test_user_session_row = executable(
 )
 
 test('user_session_row', test_user_session_row)
+
+# test_user_session_relayout: GTK coverage for the guarded row-relayout helpers
+# used by window.cpp when Profile/Session visibility changes while Properties is
+# open. It skips cleanly when no display is available.
+test_user_session_relayout_sources = [
+  'test_user_session_relayout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-relayout.cpp',
+]
+
+test_user_session_relayout = executable(
+  'test_user_session_relayout',
+  test_user_session_relayout_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [gtk],
+)
+
+test('user_session_relayout', test_user_session_relayout)
 
 # test_launcher_safeguard_lifecycle: headless freeze for the FR-008a safeguard
 # lifetime (render-invariants I13). The fix lives entirely in the header-only

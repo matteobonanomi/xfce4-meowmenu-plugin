@@ -3,9 +3,8 @@
  * panel-plugin/core/window-size-clamp.h. No GTK/GDK types are used; only the
  * integer logical sizes the helper consumes are fabricated.
  *
- * Asserts the normative decision table (C1..C7) in
- * .specify/specs/019-hidpi-audit/contracts/size-clamp.md. The cases pin
- * behaviour, not the exact edge-margin fraction.
+ * Asserts the normative decision table (C1..C7). The cases pin behaviour, not
+ * the exact edge-margin fraction.
  */
 
 #include "core/window-size-clamp.h"

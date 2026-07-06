@@ -1,6 +1,6 @@
 /*
- * Tests for panel-plugin/migration.{cpp,h} — covers T1–T7 from
- * .specify/specs/010-standalone-identity/contracts/xfconf-migration.md.
+ * Tests for panel-plugin/migration.{cpp,h}, covering the legacy Whisker to
+ * MeowMenu Xfconf migration contract.
  *
  * Each test uses a unique panel channel name so test cases do not
  * interfere with one another.

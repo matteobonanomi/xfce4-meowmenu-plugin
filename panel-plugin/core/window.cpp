@@ -36,6 +36,7 @@
 #include "sidebar-layout.h"
 #include "theme-fallback.h"
 #include "user-session-layout.h"
+#include "user-session-relayout.h"
 #include "window-frame.h"
 #include "ui/slot.h"
 #include "ui/switch-icons.h"
@@ -1227,6 +1228,11 @@ void WhiskerMenu::Window::show(const Position position)
 	const char* search_pos   = m_settings->search_bar_position;
 	const char* profile_pos  = m_settings->profile_position;
 	const char* commands_pos = m_settings->commands_position;
+	const LayoutMode user_session_mode =
+			(g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+			? LayoutMode::FullScreen : LayoutMode::Docked;
+	const UserSessionResolution user_session = normalize_user_session(
+			user_session_mode, search_pos, profile_pos, commands_pos);
 
 	// Map string settings → layout booleans
 	// sidebar_position: "left" (default) / "right" (alternate) / "hidden"
@@ -1237,21 +1243,17 @@ void WhiskerMenu::Window::show(const Position position)
 	// search_bar_position: "bottom" = alternate
 	const bool search_alt = (g_strcmp0(search_pos, "bottom") == 0)
 			|| (g_strcmp0(search_pos, "top") != 0 && m_settings->position_search_alternate);
-	// profile_position: "bottom" or "bottom-right" = alternate (bottom)
-	const bool profile_alt = (g_strcmp0(profile_pos, "bottom") == 0
-			|| g_strcmp0(profile_pos, "bottom-right") == 0)
-			|| (g_strcmp0(profile_pos, "top") != 0 && g_strcmp0(profile_pos, "hidden") != 0
-				&& m_settings->position_profile_alternate);
-	// commands_position: "bottom-right" = alternate
-	const bool commands_alt = (g_strcmp0(commands_pos, "bottom-right") == 0)
-			|| (g_strcmp0(commands_pos, "top-right") != 0 && g_strcmp0(commands_pos, "hidden") != 0
-				&& m_settings->position_commands_alternate);
+	// User/session layout decisions follow the shared passive normalization so a
+	// relayout reacts to canonical aliases, conflicting saved pairs, and hidden
+	// ↔ visible transitions the same way the renderer and Preferences do.
+	const bool profile_alt = profile_position_is_bottom(user_session.profile_position);
+	const bool commands_alt = commands_position_is_bottom(user_session.commands_position);
 	// NOTE: hidden state is tracked independently of the edge flags above. A
 	// Hidden ↔ visible transition (e.g. "hidden" → "top") leaves *_alternate
 	// unchanged, so without these comparisons show() would skip update_layout()
 	// and the restored element would never re-render (defect 2, FR-005/006).
-	const bool profile_hidden  = (g_strcmp0(profile_pos, "hidden") == 0);
-	const bool commands_hidden = (g_strcmp0(commands_pos, "hidden") == 0);
+	const bool profile_hidden  = profile_position_is_hidden(user_session.profile_position);
+	const bool commands_hidden = commands_position_is_hidden(user_session.commands_position);
 
 	// NOTE: schema v2 — horizontal-categories is derived from sidebar-position
 	// (top|bottom); the legacy /position-categories-horizontal key is migrated
@@ -2942,35 +2944,40 @@ void WhiskerMenu::Window::update_layout()
 	m_applications->set_default_heading(pres.show_default_category_heading,
 			m_settings->default_category);
 
-	// Set vertical position of commands
-	g_object_ref(m_commands_box);
-	gtk_container_remove(GTK_CONTAINER(gtk_widget_get_parent(GTK_WIDGET(m_commands_box))), GTK_WIDGET(m_commands_box));
+	// Set vertical position of commands. The row can be rebuilt repeatedly
+	// while Properties is open, so the helper validates the current parent
+	// before moving the command box between rows.
 	if (m_layout_commands_alternate)
 	{
-		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_commands_box), false, false, 0);
+		meow_box_repack_child(m_search_box, GTK_WIDGET(m_commands_box),
+				false, false, false, 0);
 
 		if (!m_layout_categories_horizontal)
 		{
 			if (m_layout_ltr == m_layout_categories_alternate)
 			{
-				gtk_box_reorder_child(m_search_box, GTK_WIDGET(m_commands_box), 0);
-				gtk_box_reorder_child(m_search_box, GTK_WIDGET(m_search_entry), 1);
+				meow_box_reorder_child_if_present(m_search_box,
+						GTK_WIDGET(m_commands_box), 0);
+				meow_box_reorder_child_if_present(m_search_box,
+						GTK_WIDGET(m_search_entry), 1);
 			}
 		}
 		else
 		{
 			if (!m_layout_ltr)
 			{
-				gtk_box_reorder_child(m_search_box, GTK_WIDGET(m_commands_box), 0);
-				gtk_box_reorder_child(m_search_box, GTK_WIDGET(m_search_entry), 1);
+				meow_box_reorder_child_if_present(m_search_box,
+						GTK_WIDGET(m_commands_box), 0);
+				meow_box_reorder_child_if_present(m_search_box,
+						GTK_WIDGET(m_search_entry), 1);
 			}
 		}
 	}
 	else
 	{
-		gtk_box_pack_start(m_title_box, GTK_WIDGET(m_commands_box), false, false, 0);
+		meow_box_repack_child(m_title_box, GTK_WIDGET(m_commands_box),
+				false, false, false, 0);
 	}
-	g_object_unref(m_commands_box);
 
 	// Arrange the category list and the Apps/Places switch structurally
 	// (feature 020). Three category-list placements — vertical sidebar,
@@ -3183,9 +3190,16 @@ void WhiskerMenu::Window::update_layout()
 	const bool profile_hidden  = (g_strcmp0(user_session.profile_position, "hidden") == 0);
 	const bool commands_hidden = (g_strcmp0(user_session.commands_position, "hidden") == 0);
 
-	gtk_widget_set_visible(m_profile->get_picture(),  !profile_hidden);
-	gtk_widget_set_visible(m_profile->get_username(), !profile_hidden);
-	gtk_widget_set_visible(GTK_WIDGET(m_commands_box), !commands_hidden);
+	GtkWidget* profile_picture = m_profile ? m_profile->get_picture() : nullptr;
+	GtkWidget* profile_username = m_profile ? m_profile->get_username() : nullptr;
+
+	meow_widget_set_visible_if_valid(profile_picture, !profile_hidden);
+	meow_widget_set_visible_if_valid(profile_username, !profile_hidden);
+	meow_widget_set_visible_if_valid(GTK_WIDGET(m_commands_box), !commands_hidden);
+	for (int i = 0; i < 9; ++i)
+	{
+		meow_widget_set_can_focus_if_valid(m_commands_button[i], !commands_hidden);
+	}
 
 	// A bottom-right commands cluster is packed into the search row (the
 	// m_layout_commands_alternate branch above), not the user/session row, so it
@@ -3196,7 +3210,7 @@ void WhiskerMenu::Window::update_layout()
 	// Collapse the user/session row only when nothing remains in it (FR-003);
 	// keep it in unified-bar / full-screen where it carries the shared search row
 	// (FR-004). Independent of category placement (FR-001).
-	gtk_widget_set_visible(GTK_WIDGET(m_title_box),
+	meow_widget_set_visible_if_valid(GTK_WIDGET(m_title_box),
 			user_session_row_visible(unified, profile_hidden, !commands_in_title_row,
 					m_layout_categories_alternate));
 
@@ -3206,59 +3220,66 @@ void WhiskerMenu::Window::update_layout()
 	// the neutral state otherwise; the unified bar handles its own right-edge
 	// placement via pack_end below.
 	const bool docked_solo_commands = commands_in_title_row && profile_hidden && !unified;
-	gtk_widget_set_hexpand(GTK_WIDGET(m_commands_box), docked_solo_commands);
-	gtk_widget_set_halign(GTK_WIDGET(m_commands_box),
+	if (docked_solo_commands)
+	{
+		meow_box_repack_child(m_title_box, GTK_WIDGET(m_commands_box),
+				true, true, true, 0);
+	}
+	meow_widget_set_hexpand_if_valid(GTK_WIDGET(m_commands_box), docked_solo_commands);
+	meow_widget_set_halign_if_valid(GTK_WIDGET(m_commands_box),
 			docked_solo_commands ? GTK_ALIGN_END : GTK_ALIGN_FILL);
 
 	// Arrange horizontal order of profile picture, username, and commands
 	if (m_layout_ltr && m_layout_commands_alternate)
 	{
-		gtk_widget_set_halign(m_profile->get_username(), GTK_ALIGN_START);
+		meow_widget_set_halign_if_valid(profile_username, GTK_ALIGN_START);
 
-		gtk_box_reorder_child(m_title_box, m_profile->get_picture(), 0);
-		gtk_box_reorder_child(m_title_box, m_profile->get_username(), 1);
+		meow_box_reorder_child_if_present(m_title_box, profile_picture, 0);
+		meow_box_reorder_child_if_present(m_title_box, profile_username, 1);
 
 		for (int i = 0; i < 9; ++i)
 		{
-			gtk_box_reorder_child(m_commands_box, m_commands_button[i], i);
+			meow_box_reorder_child_if_present(m_commands_box, m_commands_button[i], i);
 		}
 	}
 	else if (m_layout_commands_alternate)
 	{
-		gtk_widget_set_halign(m_profile->get_username(), GTK_ALIGN_END);
+		meow_widget_set_halign_if_valid(profile_username, GTK_ALIGN_END);
 
-		gtk_box_reorder_child(m_title_box, m_profile->get_picture(), 1);
-		gtk_box_reorder_child(m_title_box, m_profile->get_username(), 0);
+		meow_box_reorder_child_if_present(m_title_box, profile_picture, 1);
+		meow_box_reorder_child_if_present(m_title_box, profile_username, 0);
 
 		for (int i = 0; i < 9; ++i)
 		{
-			gtk_box_reorder_child(m_commands_box, m_commands_button[i], 8 - i);
+			meow_box_reorder_child_if_present(m_commands_box,
+					m_commands_button[i], 8 - i);
 		}
 	}
 	else if (m_layout_ltr)
 	{
-		gtk_widget_set_halign(m_profile->get_username(), GTK_ALIGN_START);
+		meow_widget_set_halign_if_valid(profile_username, GTK_ALIGN_START);
 
-		gtk_box_reorder_child(m_title_box, m_profile->get_picture(), 0);
-		gtk_box_reorder_child(m_title_box, m_profile->get_username(), 1);
-		gtk_box_reorder_child(m_title_box, GTK_WIDGET(m_commands_box), 2);
+		meow_box_reorder_child_if_present(m_title_box, profile_picture, 0);
+		meow_box_reorder_child_if_present(m_title_box, profile_username, 1);
+		meow_box_reorder_child_if_present(m_title_box, GTK_WIDGET(m_commands_box), 2);
 
 		for (int i = 0; i < 9; ++i)
 		{
-			gtk_box_reorder_child(m_commands_box, m_commands_button[i], i);
+			meow_box_reorder_child_if_present(m_commands_box, m_commands_button[i], i);
 		}
 	}
 	else
 	{
-		gtk_widget_set_halign(m_profile->get_username(), GTK_ALIGN_END);
+		meow_widget_set_halign_if_valid(profile_username, GTK_ALIGN_END);
 
-		gtk_box_reorder_child(m_title_box, m_profile->get_picture(), 2);
-		gtk_box_reorder_child(m_title_box, m_profile->get_username(), 1);
-		gtk_box_reorder_child(m_title_box, GTK_WIDGET(m_commands_box), 0);
+		meow_box_reorder_child_if_present(m_title_box, profile_picture, 2);
+		meow_box_reorder_child_if_present(m_title_box, profile_username, 1);
+		meow_box_reorder_child_if_present(m_title_box, GTK_WIDGET(m_commands_box), 0);
 
 		for (int i = 0; i < 9; ++i)
 		{
-			gtk_box_reorder_child(m_commands_box, m_commands_button[i], 8 - i);
+			meow_box_reorder_child_if_present(m_commands_box,
+					m_commands_button[i], 8 - i);
 		}
 	}
 
@@ -3454,9 +3475,9 @@ void WhiskerMenu::Window::update_layout()
 		gtk_box_pack_start(m_search_box, GTK_WIDGET(m_search_entry), TRUE, TRUE, 0);
 		// Restore username visibility per profile_position (the authoritative
 		// hide signal) and re-expand it for the docked row.
-		gtk_widget_set_visible(m_profile->get_username(),
-				g_strcmp0(m_settings->profile_position, "hidden") != 0);
-		gtk_widget_set_hexpand(m_profile->get_username(), TRUE);
+		meow_widget_set_visible_if_valid(profile_username,
+				!profile_position_is_hidden(m_settings->profile_position));
+		meow_widget_set_hexpand_if_valid(profile_username, TRUE);
 		gtk_widget_set_visible(GTK_WIDGET(m_search_box), TRUE);
 		gtk_style_context_remove_class(title_ctx, "unified-bar");
 		g_object_unref(m_search_entry);
@@ -3498,10 +3519,8 @@ void WhiskerMenu::Window::update_layout()
 	// (m_layout_commands_alternate == false).
 	if (eff && !m_layout_commands_alternate)
 	{
-		g_object_ref(GTK_WIDGET(m_commands_box));
-		gtk_container_remove(GTK_CONTAINER(m_title_box), GTK_WIDGET(m_commands_box));
-		gtk_box_pack_end(m_title_box, GTK_WIDGET(m_commands_box), false, false, 0);
-		g_object_unref(GTK_WIDGET(m_commands_box));
+		meow_box_repack_child(m_title_box, GTK_WIDGET(m_commands_box),
+				true, false, false, 0);
 	}
 
 	// Three void bands: top (above unified bar), middle (between bar and content),

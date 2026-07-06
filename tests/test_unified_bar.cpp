@@ -57,41 +57,41 @@ int main()
 	// State-machine rows from data-model.md.
 
 	// Row 1: FullScreen + all-top → preconditions OK.
-	assert(unified_bar_preconditions_raw("fullscreen", "top", "top", "top-right"));
+	assert(unified_bar_preconditions_raw("fullscreen", "top", "top-left", "top-right"));
 	// Row 2: FullScreen + all-bottom → preconditions OK.
-	assert(unified_bar_preconditions_raw("fullscreen", "bottom", "bottom", "bottom-right"));
+	assert(unified_bar_preconditions_raw("fullscreen", "bottom", "bottom-left", "bottom-right"));
 	// Row 3: FullScreen + mismatched ends → fail.
-	assert(!unified_bar_preconditions_raw("fullscreen", "top", "bottom", "top-right"));
-	assert(!unified_bar_preconditions_raw("fullscreen", "bottom", "top", "top-right"));
+	assert(!unified_bar_preconditions_raw("fullscreen", "top", "bottom-left", "top-right"));
+	assert(!unified_bar_preconditions_raw("fullscreen", "bottom", "top-left", "top-right"));
 	// Row 4: Wrong layout mode → fail.
-	assert(!unified_bar_preconditions_raw("docked", "top", "top", "top-right"));
-	assert(!unified_bar_preconditions_raw("classic", "top", "top", "top-right"));
+	assert(!unified_bar_preconditions_raw("docked", "top", "top-left", "top-right"));
+	assert(!unified_bar_preconditions_raw("classic", "top", "top-left", "top-right"));
 
 	// "hidden" profile is transparent — does not block.
 	assert(unified_bar_preconditions_raw("fullscreen", "top", "hidden", "top-right"));
 	assert(unified_bar_preconditions_raw("fullscreen", "bottom", "hidden", "bottom-right"));
 
 	// Hidden commands also transparent.
-	assert(unified_bar_preconditions_raw("fullscreen", "top", "top", "hidden"));
+	assert(unified_bar_preconditions_raw("fullscreen", "top", "top-left", "hidden"));
 
 	// Effective = stored AND preconditions.
-	assert(!unified_bar_effective(false, "fullscreen", "top", "top", "top-right"));
-	assert( unified_bar_effective(true,  "fullscreen", "top", "top", "top-right"));
-	assert(!unified_bar_effective(true,  "docked",     "top", "top", "top-right"));
-	assert(!unified_bar_effective(true,  "fullscreen", "top", "bottom", "top-right"));
+	assert(!unified_bar_effective(false, "fullscreen", "top", "top-left", "top-right"));
+	assert( unified_bar_effective(true,  "fullscreen", "top", "top-left", "top-right"));
+	assert(!unified_bar_effective(true,  "docked",     "top", "top-left", "top-right"));
+	assert(!unified_bar_effective(true,  "fullscreen", "top", "bottom-left", "top-right"));
 
 	// Void-band visibility truth table (mirrors T028/T048).
 	// All three bands (top/middle/bottom) share the same predicate: effective().
 	// FullScreen + unified-on → all three bands visible.
-	assert(unified_bar_effective(true, "fullscreen", "top", "top", "top-right"));
+	assert(unified_bar_effective(true, "fullscreen", "top", "top-left", "top-right"));
 	// FullScreen + unified-off → all three bands hidden.
-	assert(!unified_bar_effective(false, "fullscreen", "top", "top", "top-right"));
+	assert(!unified_bar_effective(false, "fullscreen", "top", "top-left", "top-right"));
 	// Non-FullScreen + unified-on → all three bands hidden.
-	assert(!unified_bar_effective(true, "docked", "top", "top", "top-right"));
+	assert(!unified_bar_effective(true, "docked", "top", "top-left", "top-right"));
 
 	// NULL guards.
-	assert(!unified_bar_preconditions_raw(nullptr, "top", "top", "top-right"));
-	assert(!unified_bar_preconditions_raw("fullscreen", nullptr, "top", "top-right"));
+	assert(!unified_bar_preconditions_raw(nullptr, "top", "top-left", "top-right"));
+	assert(!unified_bar_preconditions_raw("fullscreen", nullptr, "top-left", "top-right"));
 
 	return 0;
 }

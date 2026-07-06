@@ -72,7 +72,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "category-show-name",   PresetValue::from_bool(true)          },
 			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("top")          },
+			{ "profile-position",     PresetValue::from_str("top-left")     },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "layout-mode",          PresetValue::from_str("docked")       },
 			{ "unified-bar",          PresetValue::from_bool(false)         },
@@ -104,7 +104,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "category-show-name",   PresetValue::from_bool(true)         },
 			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("bottom")      },
-			{ "profile-position",     PresetValue::from_str("top")         },
+			{ "profile-position",     PresetValue::from_str("top-left")    },
 			{ "commands-position",    PresetValue::from_str("top-right")   },
 			{ "layout-mode",          PresetValue::from_str("docked")      },
 			{ "unified-bar",          PresetValue::from_bool(false)        },
@@ -143,7 +143,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "category-show-name",   PresetValue::from_bool(true)          },
 			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("top")          },
+			{ "profile-position",     PresetValue::from_str("top-left")     },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
 			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller

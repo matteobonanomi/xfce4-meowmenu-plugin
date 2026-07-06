@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-16 16:28+0200\n"
+"POT-Creation-Date: 2026-07-06 21:40+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -332,8 +332,8 @@ msgstr ""
 msgid "Sidebar"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:603
-#: panel-plugin/core/window.cpp:2856
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:604
+#: panel-plugin/core/window.cpp:2858
 msgid "Places"
 msgstr ""
 
@@ -785,19 +785,13 @@ msgstr ""
 msgid "_Search bar position:"
 msgstr ""
 
-#. NOTE: no "bottom-right" entry — for the profile it renders identically to
-#. "bottom" (there is no horizontal end distinction), so it would be a
-#. duplicate option. A stored "bottom-right" is normalised to "bottom" on
-#. upgrade; "bottom-right" remains a distinct Commands Position value.
 #: panel-plugin/ui/properties/search-bar.cpp:57
 #: panel-plugin/ui/properties/sidebar.cpp:141
-#: panel-plugin/ui/properties/user-session.cpp:73
 msgid "Top"
 msgstr ""
 
 #: panel-plugin/ui/properties/search-bar.cpp:58
 #: panel-plugin/ui/properties/sidebar.cpp:142
-#: panel-plugin/ui/properties/user-session.cpp:74
 msgid "Bottom"
 msgstr ""
 
@@ -946,62 +940,70 @@ msgstr ""
 msgid "Include _favorites in \"Recent\""
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:60
+#: panel-plugin/ui/properties/user-session.cpp:104
 msgid "Profile"
 msgstr ""
 
 #. Profile position
-#: panel-plugin/ui/properties/user-session.cpp:64
+#: panel-plugin/ui/properties/user-session.cpp:108
 msgid "_Position:"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:75
-#: panel-plugin/ui/properties/user-session.cpp:147
+#: panel-plugin/ui/properties/user-session.cpp:113
+msgid "Top Left"
+msgstr ""
+
+#: panel-plugin/ui/properties/user-session.cpp:114
+msgid "Bottom Left"
+msgstr ""
+
+#: panel-plugin/ui/properties/user-session.cpp:115
+#: panel-plugin/ui/properties/user-session.cpp:186
 msgid "Hidden"
 msgstr ""
 
 #. Avatar shape (sub-enabled when profile-position != hidden).
-#: panel-plugin/ui/properties/user-session.cpp:85
+#: panel-plugin/ui/properties/user-session.cpp:125
 msgid "Avatar _shape:"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:90
+#: panel-plugin/ui/properties/user-session.cpp:130
 msgid "Round Picture"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:91
+#: panel-plugin/ui/properties/user-session.cpp:131
 msgid "Square Picture"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:137
+#: panel-plugin/ui/properties/user-session.cpp:176
 msgid "Commands"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:140
+#: panel-plugin/ui/properties/user-session.cpp:179
 msgid "_Commands position:"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:145
+#: panel-plugin/ui/properties/user-session.cpp:184
 msgid "Top Right"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:146
+#: panel-plugin/ui/properties/user-session.cpp:185
 msgid "Bottom Right"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:211
+#: panel-plugin/ui/properties/user-session.cpp:255
 msgid "Place profile, search and session on a single _line"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:242
+#: panel-plugin/ui/properties/user-session.cpp:292
 msgid "Show c_onfirmation dialog"
 msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:257
+#: panel-plugin/ui/properties/user-session.cpp:307
 msgid "Session commands"
 msgstr ""
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2854
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2856
 msgid "Applications"
 msgstr ""
 
@@ -1166,7 +1168,7 @@ msgstr ""
 msgid "Custom"
 msgstr ""
 
-#: panel-plugin/core/window.cpp:602 panel-plugin/core/window.cpp:2854
+#: panel-plugin/core/window.cpp:603 panel-plugin/core/window.cpp:2856
 msgid "Apps"
 msgstr ""
 

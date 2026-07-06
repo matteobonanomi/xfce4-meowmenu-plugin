@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 7;
+	return 8;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -59,6 +59,11 @@ static bool needs_v6_block(int current_schema_version)
 static bool needs_v7_block(int current_schema_version)
 {
 	return current_schema_version < 7;
+}
+
+static bool needs_v8_block(int current_schema_version)
+{
+	return current_schema_version < 8;
 }
 
 /* fresh_install_preset_id:
@@ -317,7 +322,7 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 7);
+	assert(target_schema_version() == 8);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
@@ -325,17 +330,28 @@ static void test_schema_version_guard()
 	assert(needs_migration(4) == true);
 	assert(needs_migration(5) == true);
 	assert(needs_migration(6) == true);
-	assert(needs_migration(7) == false);
+	assert(needs_migration(7) == true);
+	assert(needs_migration(8) == false);
 
-	// v0 → v7 walks through every block
+	// v0 → v8 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
 	assert(needs_v4_block(0) == true);
 	assert(needs_v5_block(0) == true);
 	assert(needs_v6_block(0) == true);
 	assert(needs_v7_block(0) == true);
+	assert(needs_v8_block(0) == true);
 
-	// v6 → v7 only runs the v7 block
+	// v7 → v8 only runs the v8 block.
+	assert(needs_v1_block(7) == false);
+	assert(needs_v2_block(7) == false);
+	assert(needs_v4_block(7) == false);
+	assert(needs_v5_block(7) == false);
+	assert(needs_v6_block(7) == false);
+	assert(needs_v7_block(7) == false);
+	assert(needs_v8_block(7) == true);
+
+	// v6 → v8 still runs the v7 and v8 blocks.
 	assert(needs_v1_block(6) == false);
 	assert(needs_v2_block(6) == false);
 	assert(needs_v4_block(6) == false);
@@ -343,6 +359,8 @@ static void test_schema_version_guard()
 	assert(needs_v6_block(6) == false);
 	assert(needs_v7_block(6) == true);
 	assert(needs_v7_block(7) == false);
+	assert(needs_v8_block(6) == true);
+	assert(needs_v8_block(8) == false);
 }
 
 static void test_fresh_install_lands_on_modern()
@@ -511,6 +529,22 @@ static const char* v6_rewrite_profile_position(const char* value)
 	return nullptr;
 }
 
+/* v8_rewrite_profile_position:
+ * @value: the stored /profile-position string, or NULL when absent.
+ *
+ * Returns: the canonical value to write, or NULL to leave the key untouched.
+ * Visible legacy aliases are rewritten to the explicit left-anchored domain.
+ */
+static const char* v8_rewrite_profile_position(const char* value)
+{
+	if (value && std::strcmp(value, "top") == 0)
+		return "top-left";
+	if (value && (std::strcmp(value, "bottom") == 0
+			|| std::strcmp(value, "bottom-right") == 0))
+		return "bottom-left";
+	return nullptr;
+}
+
 static void test_v6_cleanup()
 {
 	// The four orphaned/removed keys are deleted.
@@ -533,6 +567,20 @@ static void test_v6_cleanup()
 	assert(v6_rewrite_profile_position("bottom") == nullptr);
 	assert(v6_rewrite_profile_position("hidden") == nullptr);
 	assert(v6_rewrite_profile_position(nullptr) == nullptr);
+}
+
+static void test_v8_profile_position_canonicalization()
+{
+	assert(std::strcmp(v8_rewrite_profile_position("top"), "top-left") == 0);
+	assert(std::strcmp(v8_rewrite_profile_position("bottom"), "bottom-left") == 0);
+	assert(std::strcmp(v8_rewrite_profile_position("bottom-right"), "bottom-left") == 0);
+	const char* after_v6 = v6_rewrite_profile_position("bottom-right");
+	assert(after_v6 && std::strcmp(after_v6, "bottom") == 0);
+	assert(std::strcmp(v8_rewrite_profile_position(after_v6), "bottom-left") == 0);
+	assert(v8_rewrite_profile_position("top-left") == nullptr);
+	assert(v8_rewrite_profile_position("bottom-left") == nullptr);
+	assert(v8_rewrite_profile_position("hidden") == nullptr);
+	assert(v8_rewrite_profile_position(nullptr) == nullptr);
 }
 
 // ---------------------------------------------------------------------------
@@ -648,6 +696,7 @@ int main()
 	test_fresh_install_lands_on_modern();
 	test_upgrade_label_derivation();
 	test_v6_cleanup();
+	test_v8_profile_position_canonicalization();
 	// 042-simple-opacity: schema-v7 single menu-opacity derivation + cleanup
 	test_v7_derives_from_active_preset();
 	test_v7_no_preset_falls_back_to_100();

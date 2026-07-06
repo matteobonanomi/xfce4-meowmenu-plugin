@@ -3,6 +3,7 @@ MEOW MENU DEVELOPMENT
 =====
 - Arch: simplify test book when installing from AUR 
 - Arch: add test book to CI 
+- Docs: removed old demo from git history
 
 0.7.0 (2026-06-17)
 =====

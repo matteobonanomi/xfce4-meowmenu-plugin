@@ -43,7 +43,7 @@ struct PropDef
 
 static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "top", "bottom" };
 static const char* SEARCHBAR_DOMAIN[]       = { "top", "bottom" };
-static const char* PROFILE_DOMAIN[]         = { "top", "bottom", "hidden" };
+static const char* PROFILE_DOMAIN[]         = { "top-left", "bottom-left", "hidden" };
 static const char* COMMANDS_DOMAIN[]        = { "top-right", "bottom-right", "hidden" };
 static const char* GRID_DENSITY_DOMAIN[]    = { "low", "medium", "high" };
 static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "fullscreen" };
@@ -95,19 +95,29 @@ static const PropDef* find_prop_def(const char* name)
  * @sv:  the raw string read from the preset file; ownership is taken.
  *
  * Applies forward-compatibility rewrites to a stored string before domain
- * validation. The retired profile-position "bottom-right" rendered identically
- * to "bottom" and is no longer a valid option, so a preset still carrying it is
- * normalised to "bottom" on import rather than rejected.
+ * validation. Legacy profile-position aliases are accepted on import and
+ * rewritten to the canonical left-anchored storage vocabulary instead of being
+ * rejected.
  *
  * Returns: a newly-allocated string the caller owns (freed with g_free), or
  *          NULL when @sv was NULL.
  */
 static gchar* normalize_str_value(const char* key, gchar* sv)
 {
-	if (sv && strcmp(key, "profile-position") == 0 && strcmp(sv, "bottom-right") == 0)
+	if (sv && strcmp(key, "profile-position") == 0)
 	{
-		g_free(sv);
-		return g_strdup("bottom");
+		const char* rewritten = nullptr;
+		if (strcmp(sv, "top") == 0)
+			rewritten = "top-left";
+		else if ((strcmp(sv, "bottom") == 0)
+				|| (strcmp(sv, "bottom-right") == 0))
+			rewritten = "bottom-left";
+
+		if (rewritten)
+		{
+			g_free(sv);
+			return g_strdup(rewritten);
+		}
 	}
 	return sv;
 }

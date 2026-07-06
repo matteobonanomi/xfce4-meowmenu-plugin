@@ -55,22 +55,28 @@ options are greyed out and switch live as you change the mode:
 |--------|-------------|
 | Show user profile picture | Display the account avatar at the top of the menu. |
 | Show username | Display the logged-in user's name. |
-| Profile position | Where the profile block appears: top, bottom, or hidden. **Hidden** removes the avatar and username (and keeps them out of keyboard focus). |
+| Profile position | Where the profile block appears: top left, bottom left, or hidden. **Hidden** removes the avatar and username (and keeps them out of keyboard focus). |
 | Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. **Hidden** removes the session buttons. |
 
 Profile and Session commands are **independent**: hiding one always keeps the
 other on its own side (profile on the left, session buttons on the right),
 regardless of where the category list sits. The row collapses only when **both**
-are hidden. **Hidden is fully reversible** — switching a hidden element back to a
-visible position restores it (and the row, if it had collapsed) immediately, with
-no restart and no need to reset to defaults.
+are hidden. When only one cluster remains visible it keeps its natural edge:
+Profile stays left-aligned and Session commands stay right-aligned. **Hidden is
+fully reversible** — switching a hidden element back to a visible position
+restores it (and the row, if it had collapsed) immediately, with no restart and
+no need to reset to defaults.
 
 The two positions are **coupled** so the row always stays coherent:
 
-* **Docked layout** — the Session commands edge follows the Profile edge.
-  Choosing Profile = *Top* makes Session commands = *Top Right* (and *Bottom
-  Right* is greyed out); Profile = *Bottom* makes Session commands = *Bottom
-  Right*. When Profile is *Hidden* both Session-commands edges are available.
+* **Docked layout** — when both clusters are visible they always share one
+  row. Choosing Profile = *Top Left* moves Session commands to *Top Right*;
+  choosing Profile = *Bottom Left* moves Session commands to *Bottom Right*.
+  The same is true in reverse: choosing *Top Right* or *Bottom Right* from the
+  Session commands combo moves the Profile block to the matching left edge.
+  The opposite-row option stays listed but greyed in both combos as a
+  discoverable "move the whole row" action. When one cluster is *Hidden*, the
+  visible cluster keeps its own edge and the hidden one stays hidden.
 * **Full Screen layout** — both Profile and Session commands follow the
   **search bar** edge. With the search bar on top, both sit on the top edge (the
   bottom options are greyed); moving the search bar to the bottom moves both with
@@ -180,7 +186,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | `layout-mode` | string | `docked` | `docked`, `centered`, or `fullscreen`. |
 | `sidebar-position` | string | `left` | `left`, `right`, `top`, or `bottom`. (A legacy `hidden` value is migrated to `sidebar-enabled = false`.) |
 | `search-bar-position` | string | `top` | `top` or `bottom`. |
-| `profile-position` | string | `top` | `top`, `bottom`, or `hidden`. (A legacy `bottom-right` value is migrated to `bottom`.) |
+| `profile-position` | string | `top-left` | `top-left`, `bottom-left`, or `hidden`. Legacy `top`, `bottom`, and `bottom-right` values are accepted on load and rewritten to the canonical left-anchored form. |
 | `commands-position` | string | `top-right` | `top-right`, `bottom-right`, or `hidden`. |
 | `unified-bar` | bool | false | Merge profile, search, and session into one row (FullScreen only). |
 

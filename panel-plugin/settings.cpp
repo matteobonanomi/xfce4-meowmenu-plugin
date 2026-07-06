@@ -126,7 +126,7 @@ Settings::Settings(Plugin* plugin) :
 	sidebar_position(this, "/sidebar-position", "left"),
 	sidebar_enabled(this, "/sidebar-enabled", true),
 	search_bar_position(this, "/search-bar-position", "top"),
-	profile_position(this, "/profile-position", "top"),
+	profile_position(this, "/profile-position", "top-left"),
 	commands_position(this, "/commands-position", "top-right"),
 
 	grid_density(this, "/grid-density", "medium"),
@@ -672,4 +672,3 @@ void Settings::save_aliases(XfconfChannel* ch)
 	}
 	end_property_update();
 }
-

@@ -42,7 +42,7 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "sidebar-position",      PropKind::Str,  0,   0,    {"left","right","hidden"} },
 	{ "position-categories-horizontal", PropKind::Bool, 0, 0, {} },
 	{ "search-bar-position",   PropKind::Str,  0,   0,    {"top","bottom"} },
-	{ "profile-position",      PropKind::Str,  0,   0,    {"top","bottom","hidden"} },
+	{ "profile-position",      PropKind::Str,  0,   0,    {"top-left","bottom-left","hidden"} },
 	{ "commands-position",     PropKind::Str,  0,   0,    {"top-right","bottom-right","hidden"} },
 	{ "grid-density",          PropKind::Str,  0,   0,    {"low","medium","high"} },
 	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },
@@ -60,6 +60,15 @@ static const ShadowPropDef* find_shadow_prop(const std::string& name)
 	for (const auto& pd : SHADOW_SCHEMA)
 		if (pd.name == name) return &pd;
 	return nullptr;
+}
+
+static std::string normalize_shadow_profile_position(const std::string& value)
+{
+	if (value == "top")
+		return "top-left";
+	if ((value == "bottom") || (value == "bottom-right"))
+		return "bottom-left";
+	return value;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,13 +146,17 @@ static ShadowValueMap validate_settings(const RawSettings& raw,
 		}
 		else // Str
 		{
-			bool in_domain = std::find(pd->domain.begin(), pd->domain.end(), val) != pd->domain.end();
+			std::string normalized = val;
+			if (key == "profile-position")
+				normalized = normalize_shadow_profile_position(val);
+
+			bool in_domain = std::find(pd->domain.begin(), pd->domain.end(), normalized) != pd->domain.end();
 			if (!in_domain)
 			{
 				skipped.push_back(key);
 				continue;
 			}
-			result[key] = ShadowValue::make_str(val);
+			result[key] = ShadowValue::make_str(normalized);
 		}
 	}
 	return result;
@@ -178,7 +191,7 @@ static RawSettings make_valid_modern_raw()
 	r.put("sidebar-position",   "left");
 	r.put("position-categories-horizontal", "false");
 	r.put("search-bar-position","bottom");
-	r.put("profile-position",   "top");
+	r.put("profile-position",   "top-left");
 	r.put("commands-position",  "top-right");
 	r.put("layout-mode",        "docked");
 	r.put("launcher-icon-size", "3");
@@ -199,6 +212,30 @@ static void test_round_trip_all_valid()
 	ShadowValueMap result = validate_settings(raw, skipped);
 	assert(skipped.empty());
 	assert(result.size() == raw.entries.size());
+}
+
+static void test_profile_aliases_rewritten_to_canonical_domain()
+{
+	RawSettings raw;
+	raw.put("profile-position", "top");
+	raw.put("commands-position", "bottom-right");
+
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+
+	assert(skipped.empty());
+	assert(result.count("profile-position") == 1);
+	assert(result.at("profile-position").s == "top-left");
+
+	raw.put("profile-position", "bottom");
+	skipped.clear();
+	result = validate_settings(raw, skipped);
+	assert(result.at("profile-position").s == "bottom-left");
+
+	raw.put("profile-position", "bottom-right");
+	skipped.clear();
+	result = validate_settings(raw, skipped);
+	assert(result.at("profile-position").s == "bottom-left");
 }
 
 static void test_unknown_keys_skipped()
@@ -556,6 +593,11 @@ static void test_export_import_round_trip_equality()
 		else
 			exported.put(kv.first, v.s);
 	}
+	auto exported_profile = exported.entries.find("profile-position");
+	assert(exported_profile != exported.entries.end());
+	assert(exported_profile->second != "top");
+	assert(exported_profile->second != "bottom");
+	assert(exported_profile->second != "bottom-right");
 
 	// "Import" the exported file under a fresh name.
 	std::vector<std::string> sk1;
@@ -620,6 +662,7 @@ static void test_import_new_opacity_wins_over_old()
 int main()
 {
 	test_round_trip_all_valid();
+	test_profile_aliases_rewritten_to_canonical_domain();
 	test_unknown_keys_skipped();
 	test_out_of_range_int_skipped_others_survive();
 	test_invalid_str_domain_skipped_others_survive();
