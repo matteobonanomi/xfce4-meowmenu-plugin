@@ -66,7 +66,10 @@ public:
 	void reload_category_icon_size();
 
 private:
+	struct LoadJob;
+
 	void show_category(GtkToggleButton* togglebutton, std::vector<Category*>::size_type index);
+	void cancel_pending_load();
 	void clear();
 	void load_garcon_menu();
 	void load_contents();
@@ -82,6 +85,8 @@ private:
 	GarconMenu* m_garcon_settings_menu;
 	std::vector<Category*> m_categories;
 	std::unordered_map<std::string, Launcher*> m_items;
+	LoadJob* m_load_job;
+	guint64 m_load_generation;
 
 	enum class LoadStatus
 	{

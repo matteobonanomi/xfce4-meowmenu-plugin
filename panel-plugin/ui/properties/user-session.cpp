@@ -31,6 +31,50 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+class SettingsDialog::UserSessionTransactionGuard
+{
+public:
+	explicit UserSessionTransactionGuard(SettingsDialog* dialog) :
+		m_dialog(dialog),
+		m_active(dialog && dialog->m_settings)
+	{
+		if (!m_active)
+			return;
+
+		m_dialog->m_user_session_transaction_active = true;
+		m_dialog->m_user_session_defer_coupling = true;
+		m_dialog->m_user_session_defer_unified_bar = false;
+		m_dialog->m_settings->begin_property_update();
+	}
+
+	~UserSessionTransactionGuard()
+	{
+		if (!m_active)
+			return;
+
+		m_dialog->m_settings->end_property_update();
+		m_dialog->m_user_session_transaction_active = false;
+		const bool refresh_coupling = m_dialog->m_user_session_defer_coupling;
+		const bool refresh_unified_bar = m_dialog->m_user_session_defer_unified_bar;
+		m_dialog->m_user_session_defer_coupling = false;
+		m_dialog->m_user_session_defer_unified_bar = false;
+
+		if (refresh_coupling)
+			m_dialog->apply_user_session_coupling();
+		if (refresh_unified_bar)
+			m_dialog->apply_unified_bar_sensitivity();
+	}
+
+	UserSessionTransactionGuard(const UserSessionTransactionGuard&) = delete;
+	UserSessionTransactionGuard& operator=(const UserSessionTransactionGuard&) = delete;
+
+private:
+	SettingsDialog* m_dialog;
+	bool m_active;
+};
+
+//-----------------------------------------------------------------------------
+
 /* init_user_session_tab:
  *
  * Builds the User/Session tab in the 003-properties-refactor 5-tab dictionary.
@@ -66,12 +110,8 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 	gtk_grid_attach(profile_table, prof_pos_label, 0, 0, 1, 1);
 
 	m_profile_position_combo = gtk_combo_box_text_new();
-	// NOTE: no "bottom-right" entry — for the profile it renders identically to
-	// "bottom" (there is no horizontal end distinction), so it would be a
-	// duplicate option. A stored "bottom-right" is normalised to "bottom" on
-	// upgrade; "bottom-right" remains a distinct Commands Position value.
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "top", _("Top"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom", _("Bottom"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "top-left", _("Top Left"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "bottom-left", _("Bottom Left"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_profile_position_combo), "hidden", _("Hidden"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
 		static_cast<const gchar*>(m_settings->profile_position));
@@ -113,19 +153,18 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;
-			m_settings->profile_position = val;
+			apply_user_session_selection(true, val);
 			apply_profile_visibility();
-			m_plugin->reload_menu();
 			refresh_customized_indicator();
 		});
 
 	connect(m_profile_shape, "changed",
 		[this](GtkComboBox* combo)
-		{
-			m_settings->profile_shape = gtk_combo_box_get_active(combo);
-			m_plugin->reload_menu();
-			refresh_customized_indicator();
-		});
+			{
+				m_settings->profile_shape = gtk_combo_box_get_active(combo);
+				m_plugin->refresh_layout();
+				refresh_customized_indicator();
+			});
 
 	// =========================================================================
 	// 2. Commands section (position + confirmation)
@@ -161,8 +200,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			const gchar* val = gtk_combo_box_get_active_id(combo);
 			if (!val)
 				return;
-			m_settings->commands_position = val;
-			m_plugin->reload_menu();
+			apply_user_session_selection(false, val);
 			refresh_customized_indicator();
 		});
 
@@ -197,7 +235,13 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 						&& g_strcmp0(property, "/profile-position") != 0
 						&& g_strcmp0(property, "/commands-position") != 0)
 					return;
-				static_cast<SettingsDialog*>(data)->apply_user_session_coupling();
+				auto* self = static_cast<SettingsDialog*>(data);
+				if (self->m_user_session_transaction_active)
+				{
+					self->m_user_session_defer_coupling = true;
+					return;
+				}
+				self->apply_user_session_coupling();
 			}), this);
 	}
 
@@ -220,7 +264,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->unified_bar = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -235,7 +279,13 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 						&& g_strcmp0(property, "/commands-position") != 0
 						&& g_strcmp0(property, "/unified-bar") != 0)
 					return;
-				static_cast<SettingsDialog*>(data)->apply_unified_bar_sensitivity();
+				auto* self = static_cast<SettingsDialog*>(data);
+				if (self->m_user_session_transaction_active)
+				{
+					self->m_user_session_defer_unified_bar = true;
+					return;
+				}
+				self->apply_unified_bar_sensitivity();
 			}), this);
 	}
 
@@ -309,10 +359,10 @@ void SettingsDialog::apply_user_session_combo_sensitivity(GtkCellLayout* layout,
 	bool enabled = true;
 	if (layout == GTK_CELL_LAYOUT(m_profile_position_combo))
 	{
-		if (g_strcmp0(id, "top") == 0)
-			enabled = res.profile_top_enabled;
-		else if (g_strcmp0(id, "bottom") == 0)
-			enabled = res.profile_bottom_enabled;
+		if (g_strcmp0(id, "top-left") == 0)
+			enabled = res.profile_top_left_enabled;
+		else if (g_strcmp0(id, "bottom-left") == 0)
+			enabled = res.profile_bottom_left_enabled;
 		else
 			enabled = res.profile_hidden_enabled;
 	}
@@ -354,13 +404,75 @@ void SettingsDialog::apply_user_session_coupling()
 	// Guard the programmatic active-id updates so the combos' "changed" handlers
 	// (which write back to Settings) do not re-fire for a value we are merely
 	// mirroring.
+	const bool was_programmatic_update = m_programmatic_update;
 	m_programmatic_update = true;
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
 			res.profile_position);
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_commands_position_combo),
 			res.commands_position);
-	m_programmatic_update = false;
+	m_programmatic_update = was_programmatic_update;
 
 	gtk_widget_queue_draw(m_profile_position_combo);
 	gtk_widget_queue_draw(m_commands_position_combo);
+}
+
+//-----------------------------------------------------------------------------
+
+/* apply_user_session_selection:
+ * @profile_combo: true when the Profile combo triggered the change, false for
+ *                 the Commands combo.
+ * @requested_position: the newly selected combo id; canonical visible values
+ *                      are paired to the matching opposite cluster row.
+ *
+ * Applies a live User/Session row edit as one coherent property update. When
+ * the non-edited cluster is visible, a visible row change moves the whole pair
+ * together; when the partner is hidden, it stays hidden. The final passive
+ * normalization pass keeps full-screen search-bar parity and legacy-alias
+ * cleanup intact without exposing a partially-applied intermediate state.
+ */
+void SettingsDialog::apply_user_session_selection(bool profile_combo,
+		const char* requested_position)
+{
+	if (!requested_position)
+		return;
+
+	const LayoutMode mode = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+			? LayoutMode::FullScreen : LayoutMode::Docked;
+	const UserSessionResolution current = normalize_user_session(mode,
+			m_settings->search_bar_position, m_settings->profile_position,
+			m_settings->commands_position);
+	const bool requested_visible = profile_combo
+			? !profile_position_is_hidden(requested_position)
+			: !commands_position_is_hidden(requested_position);
+	const UserSessionRowEdge requested_row = (profile_combo
+			? profile_position_is_bottom(requested_position)
+			: commands_position_is_bottom(requested_position))
+			? UserSessionRowEdge::Bottom : UserSessionRowEdge::Top;
+
+	{
+		UserSessionTransactionGuard transaction(this);
+
+		if (profile_combo)
+		{
+			m_settings->profile_position = requested_position;
+			if ((mode == LayoutMode::Docked) && requested_visible && current.commands_visible)
+				m_settings->commands_position = commands_position_for_row(requested_row);
+		}
+		else
+		{
+			m_settings->commands_position = requested_position;
+			if ((mode == LayoutMode::Docked) && requested_visible && current.profile_visible)
+				m_settings->profile_position = profile_position_for_row(requested_row);
+		}
+
+		const UserSessionResolution resolved = normalize_user_session(mode,
+				m_settings->search_bar_position, m_settings->profile_position,
+				m_settings->commands_position);
+		if (resolved.profile_changed)
+			m_settings->profile_position = resolved.profile_position;
+		if (resolved.commands_changed)
+			m_settings->commands_position = resolved.commands_position;
+	}
+
+	m_plugin->refresh_layout();
 }

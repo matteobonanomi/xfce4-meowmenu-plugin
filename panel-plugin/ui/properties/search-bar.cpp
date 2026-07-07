@@ -70,7 +70,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			if (!val)
 				return;
 			m_settings->search_bar_position = val;
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 

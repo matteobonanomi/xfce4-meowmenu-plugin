@@ -74,6 +74,12 @@ public:
 
 	void menu_hidden();
 	void reload_button();
+	/* refresh_layout:
+	 *
+	 * Applies layout/presentation settings to the live menu without forcing an
+	 * application/category content reload.
+	 */
+	void refresh_layout();
 	void reload_menu();
 	void set_button_style(ButtonStyle style);
 	void set_button_title(const std::string& title);

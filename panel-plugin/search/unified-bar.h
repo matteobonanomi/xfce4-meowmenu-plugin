@@ -18,7 +18,7 @@ class Settings;
 /* unified_bar_preconditions_raw:
  * @layout_mode:        e.g. "fullscreen", "docked".
  * @search_bar_position: e.g. "top", "bottom".
- * @profile_position:    e.g. "top", "bottom", "hidden".
+ * @profile_position:    e.g. "top-left", "bottom-left", "hidden".
  * @commands_position:   e.g. "top-right", "bottom-right", "hidden".
  *
  * Pure variant of unified_bar_preconditions_met() that takes raw strings
@@ -38,8 +38,9 @@ bool unified_bar_preconditions_raw(const char* layout_mode,
  * Returns true when the active layout permits the unified profile/search/
  * session bar: FullScreen layout mode AND the three vertical-end position
  * keys (/search-bar-position, /profile-position, /commands-position)
- * collapse to the same end (all top or all bottom). The "hidden" profile
- * case is treated as transparent.
+ * collapse to the same end (all top or all bottom). The canonical
+ * `top-left` / `bottom-left` Profile values participate by prefix and the
+ * "hidden" profile case is treated as transparent.
  *
  * Returns: true if a unified bar would be visually coherent now.
  */

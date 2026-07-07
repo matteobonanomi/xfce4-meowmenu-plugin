@@ -24,7 +24,6 @@
 #include "search/search-action.h"
 #include "ui/slot.h"
 
-#include <algorithm>
 #include <sstream>
 
 #include <cstdio>
@@ -126,7 +125,7 @@ Settings::Settings(Plugin* plugin) :
 	sidebar_position(this, "/sidebar-position", "left"),
 	sidebar_enabled(this, "/sidebar-enabled", true),
 	search_bar_position(this, "/search-bar-position", "top"),
-	profile_position(this, "/profile-position", "top"),
+	profile_position(this, "/profile-position", "top-left"),
 	commands_position(this, "/commands-position", "top-right"),
 
 	grid_density(this, "/grid-density", "medium"),
@@ -468,6 +467,7 @@ void Settings::prevent_invalid()
 void Settings::property_changed(const gchar* property, const GValue* value)
 {
 	bool reload = true;
+	bool changed = false;
 	if (favorites.load(property, value, reload)
 			|| recent.load(property, value, reload)
 			|| launcher_show_name.load(property, value)
@@ -475,10 +475,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| sort_categories.load(property, value)
 			|| view_mode.load(property, value))
 	{
-		if (reload)
-		{
-			m_plugin->reload_menu();
-		}
+		changed = true;
 	}
 
 	else if (button_title.load(property, value)
@@ -487,7 +484,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| button_icon_visible.load(property, value)
 			|| button_single_row.load(property, value))
 	{
-		m_plugin->reload_button();
+		changed = true;
 	}
 
 	else if (custom_menu_file.load(property, value)
@@ -539,6 +536,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| places_favourites.load(property, value, reload)
 			|| places_switch_show_icons.load(property, value))
 	{
+		changed = true;
 	}
 
 	else
@@ -547,9 +545,33 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 		{
 			if (i->load(property, value))
 			{
+				changed = true;
 				break;
 			}
 		}
+	}
+
+	if (!changed)
+	{
+		return;
+	}
+
+	switch (classify_reload_intent(property))
+	{
+	case ReloadIntent::Button:
+		m_plugin->reload_button();
+		break;
+	case ReloadIntent::Layout:
+		m_plugin->refresh_layout();
+		break;
+	case ReloadIntent::Content:
+		if (reload)
+		{
+			m_plugin->reload_menu();
+		}
+		break;
+	case ReloadIntent::None:
+		break;
 	}
 }
 
@@ -672,4 +694,3 @@ void Settings::save_aliases(XfconfChannel* ch)
 	}
 	end_property_update();
 }
-

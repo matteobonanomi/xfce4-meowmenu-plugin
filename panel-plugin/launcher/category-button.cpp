@@ -70,6 +70,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	m_settings(settings)
 {
 	m_button = GTK_RADIO_BUTTON(gtk_radio_button_new(nullptr));
+	g_object_ref_sink(m_button);
 	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(m_button), false);
 	gtk_button_set_relief(GTK_BUTTON(m_button), GTK_RELIEF_NONE);
 	gtk_widget_set_tooltip_text(GTK_WIDGET(m_button), text);
@@ -161,6 +162,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 CategoryButton::~CategoryButton()
 {
 	gtk_widget_destroy(GTK_WIDGET(m_button));
+	g_object_unref(m_button);
 }
 
 //-----------------------------------------------------------------------------

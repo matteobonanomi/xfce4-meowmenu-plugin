@@ -5,13 +5,18 @@ This directory holds the Arch Linux package recipe for
 (`dist/rpm/`) sources.
 
 - `PKGBUILD` — the package recipe (source of truth for the AUR package).
-- `.SRCINFO` — generated from `PKGBUILD` via `makepkg --printsrcinfo`; never
-  hand-edited. Regenerate it whenever `PKGBUILD` changes.
 
-The package builds from the published `vX.Y.Z` GitHub tag archive and runs the
-project test suite during the build. It installs alongside Arch's official
-`xfce4-whiskermenu-plugin` and never declares any substitution metadata
-against it.
+The committed recipe builds from the published `vX.Y.Z` GitHub tag archive and
+uses `sha256sums=('SKIP')` so the in-tree recipe does not carry a stale,
+hand-pinned checksum. The authoritative AUR metadata, including the release
+checksum and `.SRCINFO`, is generated at release time by `dev/aur-release.sh` in
+the sibling AUR clone.
+
+The shipped recipe intentionally omits the install-time `check()` phase so
+default `yay` and `makepkg` installs are fast. The project test suite is still
+exercised on the Arch toolchain by the advisory packaging-validation CI job.
+The package installs alongside Arch's official Whisker Menu package and never
+declares any substitution metadata against it.
 
 ## Reproducing the build locally
 
@@ -33,30 +38,26 @@ Then, from `dist/arch/`:
 test "$(python3 ../../build-aux/news-version.py --version)" \
      = "$(bash -c 'source PKGBUILD; printf %s "$pkgver"')"
 
-# 2. .SRCINFO must be fresh against the committed PKGBUILD
-makepkg --printsrcinfo | diff -u .SRCINFO -
-
-# 3. validate the committed checksum against the published tarball
+# 2. validate the source archive named by the recipe
 sudo -u builder makepkg --verifysource --noconfirm
 
-# 4. build (runs the test suite via check()), lint, install
-sudo -u builder LC_ALL=C makepkg --syncdeps --noconfirm --cleanbuild --check --force
+# 3. build, lint, install
+sudo -u builder LC_ALL=C makepkg --syncdeps --noconfirm --cleanbuild --force
 pkg="$(ls -1 *.pkg.tar.* | head -n1)"
 namcap PKGBUILD "$pkg"
 sudo pacman -U --noconfirm "$pkg"
 pacman -Qi xfce4-meowmenu-plugin
 ```
 
-To build from an un-tagged working tree instead of a published tag, patch a
+To build from an untagged working tree instead of a published tag, patch a
 **scratch copy** of `PKGBUILD` (never this committed file) to point at a local
 `git archive` tarball with a freshly computed checksum.
 
-## Re-pinning the checksum at release time
+## Release-time AUR metadata
 
-```bash
-updpkgsums                       # rewrites sha256sums from the live tarball
-makepkg --printsrcinfo > .SRCINFO
-```
+`dev/aur-release.sh` copies the recipe to the sibling AUR clone, refreshes the
+checksum from the live release tarball, regenerates `.SRCINFO`, and verifies the
+download there. The generated AUR metadata is not committed in this repository.
 
 ## Tolerated namcap warnings
 

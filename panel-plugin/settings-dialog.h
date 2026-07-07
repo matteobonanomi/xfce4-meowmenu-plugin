@@ -103,13 +103,20 @@ private:
 	gulong m_unified_bar_slot = 0;
 	void apply_unified_bar_sensitivity();
 
+	class UserSessionTransactionGuard;
+
 	// User/Session coupling (feature 027) — per-row greying of the Profile and
 	// Commands position combos plus reflecting any persisted auto-snap, driven
 	// by the shared normalize_user_session() helper. Refreshed whenever
 	// /layout-mode, /search-bar-position, /profile-position or /commands-position
 	// changes. The combo widget itself disambiguates Profile from Commands.
 	gulong m_user_session_coupling_slot = 0;
+	bool m_user_session_transaction_active = false;
+	bool m_user_session_defer_coupling = false;
+	bool m_user_session_defer_unified_bar = false;
 	void apply_user_session_coupling();
+	void apply_user_session_selection(bool profile_combo,
+			const char* requested_position);
 	void apply_user_session_combo_sensitivity(GtkCellLayout* layout,
 			GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter);
 	// GtkCellLayoutDataFunc trampoline: forwards to the member above (a static

@@ -115,7 +115,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		struct { const char* prop; const char* val; } str_props[] = {
 			{ "/sidebar-position",     "left"      },
 			{ "/search-bar-position",  "top"       },
-			{ "/profile-position",     "top"       },
+			{ "/profile-position",     "top-left"  },
 			{ "/commands-position",    "top-right" },
 			{ "/grid-density",         "medium"    },
 			{ "/layout-mode",          "docked"    },
@@ -358,6 +358,30 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 			xfconf_channel_reset_property(channel, k, FALSE);
 
 		schema_version = 7;
+	}
+
+	if (schema_version < 8)
+	{
+		// Canonicalize the Profile row vocabulary without changing the key path.
+		// Visible legacy aliases remain accepted on input elsewhere, but the
+		// persisted value is rewritten once here so reopened Properties, presets,
+		// and later exports all speak the same explicit left-anchored domain.
+		gchar* profile_pos = xfconf_channel_get_string(channel, "/profile-position", nullptr);
+		const char* rewritten = nullptr;
+		if (g_strcmp0(profile_pos, "top") == 0)
+			rewritten = "top-left";
+		else if ((g_strcmp0(profile_pos, "bottom") == 0)
+				|| (g_strcmp0(profile_pos, "bottom-right") == 0))
+			rewritten = "bottom-left";
+
+		if (rewritten)
+		{
+			xfconf_channel_set_string(channel, "/profile-position", rewritten);
+			profile_position = rewritten;
+		}
+		g_free(profile_pos);
+
+		schema_version = 8;
 	}
 
 	// Back-fill the marker on every path (fresh, upgrade, or already-current

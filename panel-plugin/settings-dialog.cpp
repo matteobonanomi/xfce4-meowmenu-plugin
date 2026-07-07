@@ -727,10 +727,12 @@ void SettingsDialog::sync_preset_widgets()
 	// grid controls, layout-mode-gated widgets, Places dependents, and the
 	// Sidebar sub-enable greying. The Places/Sidebar hooks are owned by their
 	// tab builders and may be empty until those tabs are built.
-	update_grid_controls_state();
-	apply_layout_mode_sensitivity();
-	if (m_places_refresh_sensitivity)
-		m_places_refresh_sensitivity();
+		update_grid_controls_state();
+		apply_layout_mode_sensitivity();
+		apply_user_session_coupling();
+		apply_unified_bar_sensitivity();
+		if (m_places_refresh_sensitivity)
+			m_places_refresh_sensitivity();
 	if (m_sidebar_apply_sub_enable)
 		m_sidebar_apply_sub_enable();
 
@@ -920,4 +922,3 @@ void SettingsDialog::apply_unified_bar_sensitivity()
 // units under ui/properties/. Each init_*_tab() returns a fully wired
 // scrolled container ready to be added to the dialog's stack.
 //-----------------------------------------------------------------------------
-

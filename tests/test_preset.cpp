@@ -74,7 +74,7 @@ static TestPresetDef make_classic()
 			{ "sidebar-position",      PV::from_str("right") },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")   },
-			{ "profile-position",      PV::from_str("top")   },
+			{ "profile-position",      PV::from_str("top-left")   },
 			{ "commands-position",     PV::from_str("top-right") },
 			{ "layout-mode",           PV::from_str("docked") },
 			{ "launcher-icon-size",    PV::from_int(2)       },
@@ -99,7 +99,7 @@ static TestPresetDef make_modern()
 			{ "sidebar-position",      PV::from_str("left")   },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("bottom") },
-			{ "profile-position",      PV::from_str("top")    },
+			{ "profile-position",      PV::from_str("top-left")    },
 			{ "commands-position",     PV::from_str("top-right") },
 			{ "layout-mode",           PV::from_str("docked") },
 			{ "launcher-icon-size",    PV::from_int(3)        },
@@ -125,7 +125,7 @@ static TestPresetDef make_fullscreen()
 			{ "sidebar-position",      PV::from_str("left")         },
 			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")          },
-			{ "profile-position",      PV::from_str("top")          },
+			{ "profile-position",      PV::from_str("top-left")          },
 			{ "commands-position",     PV::from_str("top-right")    },
 			{ "launcher-icon-size",    PV::from_int(4)              },
 			{ "grid-density",          PV::from_str("medium")       },
@@ -176,7 +176,7 @@ struct SettingsShadow
 	std::string sidebar_position    = "left";
 	bool position_categories_horizontal = false;
 	std::string search_bar_position = "top";
-	std::string profile_position    = "top";
+	std::string profile_position    = "top-left";
 	std::string commands_position   = "top-right";
 	std::string grid_density = "medium";
 	std::string layout_mode  = "docked";
@@ -815,7 +815,7 @@ static TestPresetDef make_classic_from_file_equivalent()
 			{ "view-mode-default",    PV::from_str("list")        },
 			{ "sidebar-position",     PV::from_str("right")       },
 			{ "search-bar-position",  PV::from_str("top")         },
-			{ "profile-position",     PV::from_str("top")         },
+			{ "profile-position",     PV::from_str("top-left")    },
 			{ "commands-position",    PV::from_str("top-right")   },
 			{ "menu-opacity",         PV::from_int(100)           },
 			{ "hover-switch-category",PV::from_bool(false)        },
@@ -841,7 +841,7 @@ static TestPresetDef make_modern_from_file_equivalent()
 			{ "grid-density",         PV::from_str("medium")    },
 			{ "sidebar-position",     PV::from_str("left")      },
 			{ "search-bar-position",  PV::from_str("bottom")    },
-			{ "profile-position",     PV::from_str("top")       },
+			{ "profile-position",     PV::from_str("top-left")   },
 			{ "commands-position",    PV::from_str("top-right") },
 			{ "menu-opacity",         PV::from_int(100)         },
 			{ "hover-switch-category",PV::from_bool(true)       },
@@ -865,7 +865,7 @@ static TestPresetDef make_fullscreen_from_file_equivalent()
 			{ "grid-density",         PV::from_str("medium")     },
 			{ "sidebar-position",     PV::from_str("left")       },
 			{ "search-bar-position",  PV::from_str("top")        },
-			{ "profile-position",     PV::from_str("top")        },
+			{ "profile-position",     PV::from_str("top-left")   },
 			{ "commands-position",    PV::from_str("top-right")  },
 			{ "menu-opacity",         PV::from_int(80)           },
 			{ "hover-switch-category",PV::from_bool(true)        },
@@ -950,6 +950,11 @@ static TestPresetDef make_minimal_from_file_equivalent()
 	};
 }
 
+static bool is_legacy_profile_position(const std::string& value)
+{
+	return value == "top" || value == "bottom" || value == "bottom-right";
+}
+
 static void test_parity_minimal_cpp_vs_file()
 {
 	auto cpp  = make_minimal();
@@ -1031,6 +1036,10 @@ static void test_governed_keys_completeness_table()
 			assert(p.values.find(k) != p.values.end());
 		// Every built-in carries a stored identity name (FR-011a).
 		assert(!p.name.empty());
+		auto profile = p.values.find("profile-position");
+		assert(profile != p.values.end());
+		assert(profile->second.kind == WhiskerMenu::PresetValue::Str);
+		assert(!is_legacy_profile_position(profile->second.s));
 	}
 }
 
@@ -1082,6 +1091,8 @@ static void test_file_table_agreement()
 			{
 				gchar* fv = g_key_file_get_string(kf, "Settings", k.c_str(), nullptr);
 				assert(fv && v.s == fv);
+				if (k == "profile-position")
+					assert(!is_legacy_profile_position(fv));
 				g_free(fv);
 			}
 		}
