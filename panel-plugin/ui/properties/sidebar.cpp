@@ -101,7 +101,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->category_show_name = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -122,7 +122,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->category_icon_size = gtk_combo_box_get_active(combo) - 1;
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -171,7 +171,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 				return FALSE;
 			m_settings->sidebar_enabled = state;
 			apply_sidebar_sub_enable();
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 			return FALSE;
 		});
@@ -186,7 +186,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 				return;
 			m_settings->sidebar_position = val;
 			apply_sidebar_sub_enable();
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -258,7 +258,10 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			if (gtk_toggle_button_get_active(button))
+			{
 				m_settings->default_category = Settings::CategoryFavorites;
+				m_plugin->refresh_layout();
+			}
 		});
 
 	connect(m_display_recent, "toggled",
@@ -267,7 +270,10 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			if (gtk_toggle_button_get_active(button))
+			{
 				m_settings->default_category = Settings::CategoryRecent;
+				m_plugin->refresh_layout();
+			}
 		});
 
 	connect(m_display_applications, "toggled",
@@ -276,7 +282,10 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			if (gtk_toggle_button_get_active(button))
+			{
 				m_settings->default_category = Settings::CategoryAll;
+				m_plugin->refresh_layout();
+			}
 		});
 
 	// =========================================================================
@@ -301,6 +310,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			gtk_widget_set_sensitive(m_display_recent, active);
 			if (!active && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(m_display_recent)))
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_favorites), true);
+			m_plugin->refresh_layout();
 		});
 
 	m_remember_favorites = gtk_check_button_new_with_mnemonic(_("Include _favorites in \"Recent\""));
@@ -312,6 +322,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->favorites_in_recent = gtk_toggle_button_get_active(button);
+			m_plugin->reload_menu();
 		});
 
 	// Initial sensitivity pass: run once every section frame exists so a

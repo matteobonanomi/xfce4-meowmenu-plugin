@@ -34,6 +34,16 @@ class Command;
 class Plugin;
 class SearchAction;
 
+enum class ReloadIntent
+{
+	None,
+	Button,
+	Layout,
+	Content
+};
+
+ReloadIntent classify_reload_intent(const gchar* property);
+
 
 // Boolean setting
 class Boolean

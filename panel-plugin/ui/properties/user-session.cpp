@@ -160,11 +160,11 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 
 	connect(m_profile_shape, "changed",
 		[this](GtkComboBox* combo)
-		{
-			m_settings->profile_shape = gtk_combo_box_get_active(combo);
-			m_plugin->reload_menu();
-			refresh_customized_indicator();
-		});
+			{
+				m_settings->profile_shape = gtk_combo_box_get_active(combo);
+				m_plugin->refresh_layout();
+				refresh_customized_indicator();
+			});
 
 	// =========================================================================
 	// 2. Commands section (position + confirmation)
@@ -264,7 +264,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->unified_bar = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -474,5 +474,5 @@ void SettingsDialog::apply_user_session_selection(bool profile_combo,
 			m_settings->commands_position = resolved.commands_position;
 	}
 
-	m_plugin->reload_menu();
+	m_plugin->refresh_layout();
 }

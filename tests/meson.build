@@ -528,6 +528,50 @@ test_user_session_relayout = executable(
 
 test('user_session_relayout', test_user_session_relayout)
 
+test_reload_intent_sources = [
+  'test_reload_intent.cpp',
+  '..' / 'panel-plugin' / 'settings.cpp',
+]
+
+test_reload_intent = executable(
+  'test_reload_intent',
+  test_reload_intent_sources,
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gio, gtk, garcon, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('reload_intent', test_reload_intent)
+
+test_category_lifetime_sources = [
+  'test_category_lifetime.cpp',
+  '..' / 'panel-plugin' / 'core' / 'category-lifetime.cpp',
+]
+
+test_category_lifetime = executable(
+  'test_category_lifetime',
+  test_category_lifetime_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [gtk],
+)
+
+test('category_lifetime', test_category_lifetime, timeout: 30)
+
+test_application_load_generation_sources = [
+  'test_application_load_generation.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'application-load-generation.cpp',
+]
+
+test_application_load_generation = executable(
+  'test_application_load_generation',
+  test_application_load_generation_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+
+test('application_load_generation', test_application_load_generation)
+
 # test_launcher_safeguard_lifecycle: headless freeze for the FR-008a safeguard
 # lifetime (render-invariants I13). The fix lives entirely in the header-only
 # shared base LauncherView, so the binary needs only that header (plus slot.h)
