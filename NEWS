@@ -6,6 +6,7 @@ MEOW MENU DEVELOPMENT
 - Docs: removed old demo from git history
 - Bugfix: keep session buttons right-aligned when the user profile is hidden
 - Bugfix: prevent profile/session row crashes when changing Profile or Session positions live
+- Bugfix: remove a stale upstream package token from the Arch packaging notes
 
 0.7.0 (2026-06-17)
 =====

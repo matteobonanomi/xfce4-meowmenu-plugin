@@ -530,16 +530,14 @@ test('user_session_relayout', test_user_session_relayout)
 
 test_reload_intent_sources = [
   'test_reload_intent.cpp',
-  '..' / 'panel-plugin' / 'settings.cpp',
+  '..' / 'panel-plugin' / 'settings-reload-intent.cpp',
 ]
 
 test_reload_intent = executable(
   'test_reload_intent',
   test_reload_intent_sources,
-  cpp_args: ['-ffunction-sections', '-fdata-sections'],
-  link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gio, gtk, garcon, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [glib, libxfce4util, xfconf],
 )
 
 test('reload_intent', test_reload_intent)

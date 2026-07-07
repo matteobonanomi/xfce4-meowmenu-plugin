@@ -15,8 +15,8 @@ the sibling AUR clone.
 The shipped recipe intentionally omits the install-time `check()` phase so
 default `yay` and `makepkg` installs are fast. The project test suite is still
 exercised on the Arch toolchain by the advisory packaging-validation CI job.
-The package installs alongside Arch's official `xfce4-whiskermenu-plugin` and
-never declares any substitution metadata against it.
+The package installs alongside Arch's official Whisker Menu package and never
+declares any substitution metadata against it.
 
 ## Reproducing the build locally
 

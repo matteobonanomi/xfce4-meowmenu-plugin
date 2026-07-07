@@ -43,6 +43,7 @@ plugin_sources = [
   'search/search-action.cpp',
   'config/usage-stats.cpp',
   'search/search-page.cpp',
+  'settings-reload-intent.cpp',
   'settings.cpp',
   'settings-bindings.cpp',
   'settings-defaults.cpp',
