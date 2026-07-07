@@ -95,6 +95,20 @@ public:
 	void resize_start();
 	void resize_end();
 	void set_child_has_focus();
+	/* detach_categories:
+	 *
+	 * Ends the current dynamic application-category borrow epoch. The window
+	 * removes borrowed category widgets from its containers and forgets them,
+	 * but ownership remains with ApplicationsPage/CategoryButton.
+	 */
+	void detach_categories();
+	/* refresh_layout:
+	 *
+	 * Re-applies current settings to the existing window without invalidating
+	 * Garcon application/category contents. If the menu is open, it also
+	 * re-runs the visible sizing and placement pass.
+	 */
+	void refresh_layout();
 	void set_categories(const std::vector<CategoryButton*>& categories);
 	void set_items();
 	void set_loaded();

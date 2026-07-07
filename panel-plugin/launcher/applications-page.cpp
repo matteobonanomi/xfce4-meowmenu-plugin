@@ -17,6 +17,7 @@
 
 #include "applications-page.h"
 
+#include "launcher/application-load-generation.h"
 #include "launcher/category.h"
 #include "launcher/category-button.h"
 #include "launcher.h"
@@ -31,10 +32,68 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+struct ApplicationsPage::LoadJob
+{
+	LoadJob(ApplicationsPage* owner, guint64 generation_id) :
+		page(owner),
+		generation(generation_id),
+		cancelled(FALSE),
+		worker_done(false)
+	{
+		g_mutex_init(&mutex);
+		g_cond_init(&cond);
+	}
+
+	~LoadJob()
+	{
+		g_cond_clear(&cond);
+		g_mutex_clear(&mutex);
+	}
+
+	void cancel()
+	{
+		g_atomic_int_set(&cancelled, TRUE);
+	}
+
+	bool is_cancelled() const
+	{
+		return g_atomic_int_get(const_cast<gint*>(&cancelled));
+	}
+
+	void mark_worker_done()
+	{
+		g_mutex_lock(&mutex);
+		worker_done = true;
+		g_cond_broadcast(&cond);
+		g_mutex_unlock(&mutex);
+	}
+
+	void wait_for_worker()
+	{
+		g_mutex_lock(&mutex);
+		while (!worker_done)
+		{
+			g_cond_wait(&cond, &mutex);
+		}
+		g_mutex_unlock(&mutex);
+	}
+
+	ApplicationsPage* page;
+	guint64 generation;
+	gint cancelled;
+	GMutex mutex;
+	GCond cond;
+	bool worker_done;
+};
+
+//-----------------------------------------------------------------------------
+
 ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 	Page(settings, window, "applications-other", _("All Applications")),
 	m_garcon_menu(nullptr),
 	m_garcon_settings_menu(nullptr),
+	m_load_job(nullptr),
+	m_load_generation(0),
 	m_status(LoadStatus::Invalid)
 {
 	garcon_set_environment_xdg(GARCON_ENVIRONMENT_XFCE);
@@ -67,6 +126,7 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 
 ApplicationsPage::~ApplicationsPage()
 {
+	cancel_pending_load();
 	clear();
 
 	// Detach the base view before tearing down the wrapper so ~Page can still
@@ -214,17 +274,36 @@ bool ApplicationsPage::load()
 	clear();
 
 	// Load contents in thread if possible
+	LoadJob* job = new LoadJob(this, ++m_load_generation);
+	m_load_job = job;
 	GTask* task = g_task_new(nullptr, nullptr,
 		+[](GObject*, GAsyncResult*, gpointer user_data)
 		{
-			static_cast<ApplicationsPage*>(user_data)->load_contents();
+			LoadJob* load_job = static_cast<LoadJob*>(user_data);
+			ApplicationsPage* page = load_job->page;
+			if (page
+					&& application_load_generation_can_commit(
+						page->m_load_generation,
+						load_job->generation,
+						load_job->is_cancelled(),
+						page->m_load_job == load_job))
+			{
+				page->m_load_job = nullptr;
+				page->load_contents();
+			}
+			delete load_job;
 		},
-		this);
-	g_task_set_task_data(task, this, nullptr);
+		job);
+	g_task_set_task_data(task, job, nullptr);
 	g_task_run_in_thread(task,
 		+[](GTask* thread_task, gpointer, gpointer task_data, GCancellable*)
 		{
-			static_cast<ApplicationsPage*>(task_data)->load_garcon_menu();
+			LoadJob* load_job = static_cast<LoadJob*>(task_data);
+			if (!load_job->is_cancelled() && load_job->page)
+			{
+				load_job->page->load_garcon_menu();
+			}
+			load_job->mark_worker_done();
 			g_task_return_boolean(thread_task, true);
 		});
 	g_object_unref(task);
@@ -244,8 +323,47 @@ void ApplicationsPage::reload_category_icon_size()
 
 //-----------------------------------------------------------------------------
 
+/* ApplicationsPage::cancel_pending_load:
+ *
+ * Invalidates the active async application-load generation and waits until its
+ * worker no longer touches this page before teardown continues. The completion
+ * callback owns the LoadJob memory and will discard cancelled/stale jobs.
+ */
+void ApplicationsPage::cancel_pending_load()
+{
+	LoadJob* job = m_load_job;
+	if (!job)
+	{
+		return;
+	}
+
+	job->cancel();
+	job->wait_for_worker();
+	if (m_load_job == job)
+	{
+		m_load_job = nullptr;
+	}
+	if (job->page == this)
+	{
+		job->page = nullptr;
+	}
+	if (m_status == LoadStatus::Loading || m_status == LoadStatus::ReloadRequired)
+	{
+		m_status = LoadStatus::Invalid;
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void ApplicationsPage::clear()
 {
+	cancel_pending_load();
+
+	// End Window's borrow epoch before the owned Category/CategoryButton graph is
+	// deleted. After this point dynamic category widgets are no longer reachable
+	// through layout, mode-switch, focus, or width-measurement code.
+	get_window()->detach_categories();
+
 	// Free categories
 	for (auto category : m_categories)
 	{

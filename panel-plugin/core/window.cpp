@@ -17,6 +17,7 @@
 
 #include "window.h"
 
+#include "category-lifetime.h"
 #include "launcher/applications-page.h"
 #include "launcher/category-button.h"
 #include "launcher/command.h"
@@ -972,12 +973,11 @@ WhiskerMenu::Window::~Window()
 		m_places_property_slot = 0;
 	}
 
+	delete m_applications;
 	delete m_places;
 	delete m_places_home_btn;
 	delete m_places_history_btn;
 	delete m_places_fav_btn;
-
-	delete m_applications;
 	delete m_search_results;
 	delete m_recent;
 	delete m_favorites;
@@ -1465,10 +1465,56 @@ void WhiskerMenu::Window::set_child_has_focus()
 
 //-----------------------------------------------------------------------------
 
+/* Window::detach_categories:
+ *
+ * Ends the dynamic application-category borrow epoch before ApplicationsPage
+ * deletes or replaces the owning Category objects. The window only borrows
+ * these widgets/buttons, so it removes them from GTK containers and size groups
+ * but never destroys them; CategoryButton remains responsible for destruction.
+ */
+void WhiskerMenu::Window::detach_categories()
+{
+	detach_category_widgets(m_category_width_group, m_app_category_widgets);
+	m_app_categories.clear();
+
+	// Keep the visible surface on stable built-in Apps controls while the
+	// replacement categories are absent. This avoids focus, measuring, or mode
+	// switching through controls whose owners are about to disappear.
+	if (!m_places_active && m_applications)
+	{
+		m_applications->get_button()->set_active(true);
+		gtk_stack_set_visible_child_name(m_panels_stack, "applications");
+	}
+
+	sync_category_label_width();
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::refresh_layout:
+ *
+ * Applies current layout and presentation settings to the existing menu window
+ * without changing the application/category content epoch. A visible menu reuses
+ * the normal show pass because that already handles size, icon, view and
+ * placement refreshes; a hidden menu waits until the next show.
+ */
+void WhiskerMenu::Window::refresh_layout()
+{
+	update_background_css();
+
+	if (gtk_widget_get_visible(GTK_WIDGET(m_window)))
+	{
+		show(m_position);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& categories)
 {
+	detach_categories();
+
 	CategoryButton* last_button = m_applications->get_button();
-	m_app_category_widgets.clear();
 	m_app_categories = categories;
 	for (auto button : categories)
 	{

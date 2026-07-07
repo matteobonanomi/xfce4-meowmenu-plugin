@@ -19,6 +19,7 @@
 
 #include "ui/properties/common.h"
 
+#include "core/plugin.h"
 #include "settings.h"
 #include "ui/slot.h"
 
@@ -148,6 +149,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 				return FALSE;
 			m_settings->places_enabled = state;
 			refresh_sensitivity();
+			m_plugin->refresh_layout();
 			return FALSE; // let the switch update its visual state
 		});
 	connect(show_icons_switch, "state-set",
@@ -158,12 +160,14 @@ GtkWidget* SettingsDialog::init_places_tab()
 			// Stored intent only; the switch re-renders on the next menu open
 			// when update_layout() reads the new value (FR-029, render-time).
 			m_settings->places_switch_show_icons = state;
+			m_plugin->refresh_layout();
 			return FALSE;
 		});
 	connect(history_switch, "state-set",
 		[this](GtkSwitch*, gboolean state) -> gboolean
 		{
 			m_settings->places_history_enabled = state;
+			m_plugin->refresh_layout();
 			return FALSE;
 		});
 	connect(fav_switch, "state-set",
@@ -171,18 +175,24 @@ GtkWidget* SettingsDialog::init_places_tab()
 		{
 			m_settings->places_favourites_enabled = state;
 			refresh_sensitivity();
+			m_plugin->refresh_layout();
 			return FALSE;
 		});
 	connect(sync_combo, "changed",
 		[this](GtkComboBox* combo)
 		{
 			const gchar* val = gtk_combo_box_get_active_id(combo);
-			if (val) m_settings->places_favourite_sync = val;
+			if (val)
+			{
+				m_settings->places_favourite_sync = val;
+				m_plugin->refresh_layout();
+			}
 		});
 	connect(max_spin, "value-changed",
 		[this](GtkSpinButton* btn)
 		{
 			m_settings->places_max_items = gtk_spin_button_get_value_as_int(btn);
+			m_plugin->refresh_layout();
 		});
 	connect(remember_check, "toggled",
 		[this](GtkToggleButton* btn)

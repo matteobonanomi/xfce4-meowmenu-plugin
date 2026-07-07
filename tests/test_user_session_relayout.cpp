@@ -45,10 +45,22 @@ int main(int argc, char** argv)
 	meow_widget_set_visible_if_valid(child, false);
 	assert(!gtk_widget_get_visible(child));
 	meow_widget_set_visible_if_valid(nullptr, false);
+	for (int i = 0; i < 20; ++i)
+	{
+		const bool visible = (i % 2) == 0;
+		meow_widget_set_visible_if_valid(child, visible);
+		assert(gtk_widget_get_visible(child) == visible);
+	}
 
 	gtk_widget_set_can_focus(child, true);
 	meow_widget_set_can_focus_if_valid(child, false);
 	assert(!gtk_widget_get_can_focus(child));
+	for (int i = 0; i < 20; ++i)
+	{
+		const bool focusable = (i % 2) == 0;
+		meow_widget_set_can_focus_if_valid(child, focusable);
+		assert(gtk_widget_get_can_focus(child) == focusable);
+	}
 
 	meow_widget_set_hexpand_if_valid(child, true);
 	assert(gtk_widget_get_hexpand(child));

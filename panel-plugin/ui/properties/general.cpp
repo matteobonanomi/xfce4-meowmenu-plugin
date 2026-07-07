@@ -704,7 +704,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			// in sync even if the handler hasn't fired yet for the local channel.
 			apply_layout_mode_sensitivity();
 			update_grid_controls_state();
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -721,7 +721,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->panel_gap = gtk_spin_button_get_value_as_int(button);
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -738,6 +738,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_width = gtk_spin_button_get_value_as_int(button);
+			m_plugin->refresh_layout();
 		});
 
 	// Row 1 C2: Menu height (narrow, enable-when-docked).
@@ -753,6 +754,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_height = gtk_spin_button_get_value_as_int(button);
+			m_plugin->refresh_layout();
 		});
 
 	// Row 2 C2: Corner radius (narrow).
@@ -768,7 +770,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->corner_radius = gtk_spin_button_get_value_as_int(button);
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
@@ -788,7 +790,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_opacity = static_cast<int>(gtk_range_get_value(range));
-			m_plugin->reload_menu();
+			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 

@@ -1,5 +1,6 @@
 plugin_sources = [
   'launcher/applications-page.cpp',
+  'launcher/application-load-generation.cpp',
   'presets/preset.cpp',
   'presets/preset-builtins.cpp',
   'presets/preset-io.cpp',
@@ -24,6 +25,7 @@ plugin_sources = [
   'launcher/page.cpp',
   'places/places-item.cpp',
   'places/places-page.cpp',
+  'core/category-lifetime.cpp',
   'core/opacity-model.cpp',
   'core/plugin.cpp',
   'core/sidebar-layout.cpp',

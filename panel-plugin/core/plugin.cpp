@@ -294,6 +294,23 @@ void Plugin::reload_button()
 
 //-----------------------------------------------------------------------------
 
+/* Plugin::refresh_layout:
+ *
+ * Re-applies layout-only settings without invalidating ApplicationsPage. The
+ * Settings pass first normalizes coupled keys (Profile/Session, layout mode
+ * aliases) so the window renders the same resolved state that will persist.
+ */
+void Plugin::refresh_layout()
+{
+	m_settings->prevent_invalid();
+	if (m_window)
+	{
+		m_window->refresh_layout();
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void Plugin::reload_menu()
 {
 	if (m_window)

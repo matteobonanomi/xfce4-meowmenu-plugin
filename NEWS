@@ -4,6 +4,7 @@ MEOW MENU DEVELOPMENT
 - Arch: simplify test book when installing from AUR 
 - Arch: add test book to CI 
 - Docs: removed old demo from git history
+- Bugfix: right alignment of session buttons when user profile is disabled
 
 0.7.0 (2026-06-17)
 =====
