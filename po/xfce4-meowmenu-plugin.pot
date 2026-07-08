@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 21:40+0200\n"
+"POT-Creation-Date: 2026-07-08 08:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,21 +17,21 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: panel-plugin/launcher/applications-page.cpp:35
+#: panel-plugin/launcher/applications-page.cpp:92
 #: panel-plugin/launcher/category.cpp:52
 #: panel-plugin/ui/properties/sidebar.cpp:239
 msgid "All Applications"
 msgstr ""
 
-#: panel-plugin/launcher/applications-page.cpp:93
+#: panel-plugin/launcher/applications-page.cpp:153
 msgid "RECENTLY USED"
 msgstr ""
 
-#: panel-plugin/launcher/applications-page.cpp:94
+#: panel-plugin/launcher/applications-page.cpp:154
 msgid "ALL APPLICATIONS"
 msgstr ""
 
-#: panel-plugin/launcher/applications-page.cpp:96
+#: panel-plugin/launcher/applications-page.cpp:156
 msgid "FAVORITES"
 msgstr ""
 
@@ -254,25 +254,25 @@ msgstr ""
 msgid "Add Desktop Link"
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/core/plugin.cpp:473
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
+#: panel-plugin/core/plugin.cpp:479 panel-plugin/core/plugin.cpp:578
 msgid "What's New"
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:465
+#: panel-plugin/core/plugin.cpp:482
 msgid "Close"
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:553
+#: panel-plugin/core/plugin.cpp:570
 msgid "Alternate launcher for XFCE4"
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:559
+#: panel-plugin/core/plugin.cpp:576
 msgid "Based on Whisker Menu"
 msgstr ""
 
@@ -332,8 +332,8 @@ msgstr ""
 msgid "Sidebar"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:604
-#: panel-plugin/core/window.cpp:2858
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:605
+#: panel-plugin/core/window.cpp:2909
 msgid "Places"
 msgstr ""
 
@@ -386,31 +386,31 @@ msgid "Unsaved custom"
 msgstr ""
 
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:797
+#: panel-plugin/settings-dialog.cpp:806
 msgid "Classic"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:798
+#: panel-plugin/settings-dialog.cpp:807
 msgid "Modern"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:799
+#: panel-plugin/settings-dialog.cpp:808
 msgid "Full Screen"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:800
+#: panel-plugin/settings-dialog.cpp:809
 msgid "Minimal"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:895
+#: panel-plugin/settings-dialog.cpp:904
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:897
+#: panel-plugin/settings-dialog.cpp:906
 msgid "This option requires the FullScreen layout."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:899
+#: panel-plugin/settings-dialog.cpp:908
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
@@ -646,73 +646,73 @@ msgid "Menu _width:"
 msgstr ""
 
 #. Row 1 C2: Menu height (narrow, enable-when-docked).
-#: panel-plugin/ui/properties/general.cpp:744
+#: panel-plugin/ui/properties/general.cpp:745
 msgid "Menu _height:"
 msgstr ""
 
 #. Row 2 C2: Corner radius (narrow).
-#: panel-plugin/ui/properties/general.cpp:759
+#: panel-plugin/ui/properties/general.cpp:761
 msgid "_Corner radius:"
 msgstr ""
 
 #. Row 3 C1: Menu opacity (wide-fill). One control fades the whole menu
 #. background uniformly in every layout mode, so it is sensitive in all modes
 #. (no LayoutControl registration); compositing availability gates it instead.
-#: panel-plugin/ui/properties/general.cpp:778
+#: panel-plugin/ui/properties/general.cpp:780
 msgid "_Menu opacity:"
 msgstr ""
 
 #. Row 3 C2: Stay visible when focus is lost (control-only).
-#: panel-plugin/ui/properties/general.cpp:810
+#: panel-plugin/ui/properties/general.cpp:812
 msgid "Stay _visible when focus is lost"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:51
+#: panel-plugin/ui/properties/places.cpp:52
 msgid "Places mode"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:55
+#: panel-plugin/ui/properties/places.cpp:56
 msgid "Enable _Places"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:65
+#: panel-plugin/ui/properties/places.cpp:66
 msgid "Show _icons"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:74
+#: panel-plugin/ui/properties/places.cpp:75
 msgid "Sections"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:79
+#: panel-plugin/ui/properties/places.cpp:80
 msgid "Enable _History section"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:85
+#: panel-plugin/ui/properties/places.cpp:86
 msgid "Enable _Favourites section"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:90
+#: panel-plugin/ui/properties/places.cpp:91
 msgid "Favourite _sync:"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:92
+#: panel-plugin/ui/properties/places.cpp:93
 msgid "MeowMenu only"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:93
+#: panel-plugin/ui/properties/places.cpp:94
 msgid "Thunar bookmarks (read-only)"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:99
+#: panel-plugin/ui/properties/places.cpp:100
 msgid "Maximum places _items:"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:107
+#: panel-plugin/ui/properties/places.cpp:108
 #: panel-plugin/ui/properties/sidebar.cpp:197
 msgid "Behaviour"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:111
+#: panel-plugin/ui/properties/places.cpp:112
 msgid "_Remember last selected mode"
 msgstr ""
 
@@ -763,17 +763,21 @@ msgstr ""
 
 #. NOTE: launcher_show_name stores "show the real (non-generic) name"; the
 #. checkbox is therefore inverted — checked means "Show generic" (false).
-#: panel-plugin/ui/properties/results-view.cpp:164
+#: panel-plugin/ui/properties/results-view.cpp:165
 msgid "Show generic application _names"
 msgstr ""
 
-#: panel-plugin/ui/properties/results-view.cpp:175
+#: panel-plugin/ui/properties/results-view.cpp:176
 msgid "Show application too_ltips"
 msgstr ""
 
 #. Show descriptions — list-only sub-enable. C1 with C2 left empty (FR-018).
-#: panel-plugin/ui/properties/results-view.cpp:186
+#: panel-plugin/ui/properties/results-view.cpp:188
 msgid "Show application _descriptions"
+msgstr ""
+
+#: panel-plugin/ui/properties/results-view.cpp:199
+msgid "Transparent grid"
 msgstr ""
 
 #: panel-plugin/ui/properties/search-bar.cpp:52
@@ -928,15 +932,15 @@ msgstr ""
 msgid "Default category"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:286
+#: panel-plugin/ui/properties/sidebar.cpp:295
 msgid "Recently used"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:290
+#: panel-plugin/ui/properties/sidebar.cpp:299
 msgid "Maximum _items:"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:306
+#: panel-plugin/ui/properties/sidebar.cpp:316
 msgid "Include _favorites in \"Recent\""
 msgstr ""
 
@@ -1003,7 +1007,7 @@ msgstr ""
 msgid "Session commands"
 msgstr ""
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2856
+#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2907
 msgid "Applications"
 msgstr ""
 
@@ -1164,11 +1168,11 @@ msgstr ""
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings.cpp:409 panel-plugin/settings-defaults.cpp:300
+#: panel-plugin/settings.cpp:410 panel-plugin/settings-defaults.cpp:300
 msgid "Custom"
 msgstr ""
 
-#: panel-plugin/core/window.cpp:603 panel-plugin/core/window.cpp:2856
+#: panel-plugin/core/window.cpp:604 panel-plugin/core/window.cpp:2907
 msgid "Apps"
 msgstr ""
 

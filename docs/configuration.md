@@ -200,6 +200,12 @@ Replace `<id>` with the numeric plugin ID shown by
 | `launcher-show-tooltip` | bool | true | Show a hover tooltip. |
 | `launcher-icon-size` | int | -1 | Icon size (-1 = theme default). |
 | `grid-density` | string | `medium` | `low`, `medium`, or `high` columns in grid mode. |
+| `transparent-grid` | bool | false | In grid mode, make resting result tiles blend into the results area while keeping icons, labels, and interaction states visible. |
+
+When results are shown as an icon grid, application tiles and Places file or
+folder tiles use the same application-style tile height. This keeps switching
+between Applications and Places visually stable across docked, centered, and
+full-screen layouts.
 
 ### Sidebar
 

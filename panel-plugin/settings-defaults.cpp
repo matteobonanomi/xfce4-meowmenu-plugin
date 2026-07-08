@@ -384,6 +384,16 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		schema_version = 8;
 	}
 
+	if (schema_version < 9)
+	{
+		// NOTE: /transparent-grid defaults to false so existing installs keep
+		// their solid resting grid tiles until the user opts into transparency.
+		if (!xfconf_channel_has_property(channel, "/transparent-grid"))
+			xfconf_channel_set_bool(channel, "/transparent-grid", FALSE);
+
+		schema_version = 9;
+	}
+
 	// Back-fill the marker on every path (fresh, upgrade, or already-current
 	// schema) so the next load is unambiguously an upgrade and the user's
 	// layout is never reset again. Written inside the active begin/end batch.

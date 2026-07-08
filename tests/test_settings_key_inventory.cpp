@@ -338,6 +338,20 @@ void test_snapshot_well_formed(const std::vector<BasePair>& pairs)
 		&& "snapshot is missing the meowmenu/whiskermenu channel-root pair");
 }
 
+void test_snapshot_contains_transparent_grid_key(const std::vector<std::string>& snapshot)
+{
+	bool found = false;
+	for (const std::string& key : snapshot)
+	{
+		if (key == "/transparent-grid")
+		{
+			found = true;
+			break;
+		}
+	}
+	assert(found && "snapshot is missing /transparent-grid");
+}
+
 void test_production_migration_pairs_match_snapshot(const BasePair& pair)
 {
 	// Use a unique channel so successive pairs cannot collide on the bus.
@@ -397,6 +411,7 @@ int main(int argc, char** argv)
 
 	const std::vector<BasePair> pairs = pair_bases_by_id(snapshot);
 	test_snapshot_well_formed(pairs);
+	test_snapshot_contains_transparent_grid_key(snapshot);
 
 	if (!fixture_up())
 	{

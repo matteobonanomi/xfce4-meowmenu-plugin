@@ -58,6 +58,7 @@ Settings::Settings(Plugin* plugin) :
 	launcher_show_name(this, "/launcher-show-name", true),
 	launcher_show_description(this, "/launcher-show-description", true),
 	launcher_show_tooltip(this, "/launcher-show-tooltip", true),
+	transparent_grid(this, "/transparent-grid", false),
 	launcher_icon_size(this, "/launcher-icon-size", IconSize::Small),
 
 	category_hover_activate(this, "/hover-switch-category", false),
@@ -255,6 +256,7 @@ void Settings::load(const gchar* file, bool is_default)
 	launcher_show_name.load(rc, is_default);
 	launcher_show_description.load(rc, is_default);
 	launcher_show_tooltip.load(rc, is_default);
+	transparent_grid.load(rc, is_default);
 	if (xfce_rc_has_entry(rc, "item-icon-size"))
 	{
 		launcher_icon_size = xfce_rc_read_int_entry(rc, "item-icon-size", launcher_icon_size);
@@ -489,6 +491,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 
 	else if (custom_menu_file.load(property, value)
 			|| launcher_show_tooltip.load(property, value)
+			|| transparent_grid.load(property, value)
 			|| launcher_icon_size.load(property, value)
 			|| category_hover_activate.load(property, value)
 			|| category_show_name.load(property, value)

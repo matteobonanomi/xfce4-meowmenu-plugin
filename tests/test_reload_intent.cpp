@@ -29,6 +29,7 @@ int main()
 	expect_intent("/panel-gap", ReloadIntent::Layout);
 	expect_intent("/places/enabled", ReloadIntent::Layout);
 	expect_intent("/places/switch-show-icons", ReloadIntent::Layout);
+	expect_intent("/transparent-grid", ReloadIntent::Layout);
 	expect_intent("/show-command-lockscreen", ReloadIntent::Layout);
 
 	expect_intent("/button-title", ReloadIntent::Button);

@@ -361,6 +361,21 @@ static void test_governed_keys_opacity_membership()
 	assert(!has("full-screen-opacity"));
 }
 
+static void test_transparent_grid_is_not_builtin_default()
+{
+	const auto& keys = WhiskerMenu::governed_keys();
+	const bool governed = std::find(keys.begin(), keys.end(),
+			std::string("transparent-grid")) != keys.end();
+	assert(!governed);
+
+	for (int i = 0; i < WhiskerMenu::PRESET_BUILTIN_COUNT; ++i)
+	{
+		const auto& values = WhiskerMenu::BUILTIN_PRESETS[i].values;
+		assert(values.find("transparent-grid") == values.end()
+				&& "built-in preset must not enable Transparent grid");
+	}
+}
+
 static void test_fullscreen_layout_mode()
 {
 	auto f = make_fullscreen();
@@ -1110,6 +1125,7 @@ int main()
 	test_modern_corner_radius();
 	test_builtin_menu_opacity_values();
 	test_governed_keys_opacity_membership();
+	test_transparent_grid_is_not_builtin_default();
 	test_fullscreen_layout_mode();
 	test_fullscreen_sidebar_left();
 	test_fullscreen_to_docked_restores_menu_size();

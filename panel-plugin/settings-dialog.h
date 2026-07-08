@@ -143,6 +143,7 @@ private:
 	GtkWidget* m_show_category_names = nullptr;
 	GtkWidget* m_show_descriptions = nullptr;
 	GtkWidget* m_show_tooltips = nullptr;
+	GtkWidget* m_transparent_grid = nullptr;
 	GtkWidget* m_category_icon_size = nullptr;
 	GtkWidget* m_item_icon_size = nullptr;
 

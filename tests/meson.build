@@ -394,10 +394,10 @@ test_sidebar_layout = executable(
 
 test('sidebar_layout', test_sidebar_layout)
 
-# test_grid_cell_metrics: headless coverage of the pure icon-grid cell-width
+# test_grid_cell_metrics: headless coverage of the pure icon-grid cell metric
 # arithmetic in panel-plugin/ui/grid-cell-metrics.cpp (minimum/natural width
-# from padding + icon size + stretch, with no label-text input). GTK-free
-# helper; no display.
+# and height from geometry inputs, with no label-text input). GTK-free helper;
+# no display.
 test_grid_cell_metrics_sources = [
   'test_grid_cell_metrics.cpp',
   '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',

@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 8;
+	return 9;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -64,6 +64,11 @@ static bool needs_v7_block(int current_schema_version)
 static bool needs_v8_block(int current_schema_version)
 {
 	return current_schema_version < 8;
+}
+
+static bool needs_v9_block(int current_schema_version)
+{
+	return current_schema_version < 9;
 }
 
 /* fresh_install_preset_id:
@@ -322,7 +327,7 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 8);
+	assert(target_schema_version() == 9);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
@@ -331,9 +336,10 @@ static void test_schema_version_guard()
 	assert(needs_migration(5) == true);
 	assert(needs_migration(6) == true);
 	assert(needs_migration(7) == true);
-	assert(needs_migration(8) == false);
+	assert(needs_migration(8) == true);
+	assert(needs_migration(9) == false);
 
-	// v0 → v8 walks through every block
+	// v0 → v9 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
 	assert(needs_v4_block(0) == true);
@@ -341,8 +347,9 @@ static void test_schema_version_guard()
 	assert(needs_v6_block(0) == true);
 	assert(needs_v7_block(0) == true);
 	assert(needs_v8_block(0) == true);
+	assert(needs_v9_block(0) == true);
 
-	// v7 → v8 only runs the v8 block.
+	// v7 → v9 runs the v8 and v9 blocks.
 	assert(needs_v1_block(7) == false);
 	assert(needs_v2_block(7) == false);
 	assert(needs_v4_block(7) == false);
@@ -350,8 +357,14 @@ static void test_schema_version_guard()
 	assert(needs_v6_block(7) == false);
 	assert(needs_v7_block(7) == false);
 	assert(needs_v8_block(7) == true);
+	assert(needs_v9_block(7) == true);
 
-	// v6 → v8 still runs the v7 and v8 blocks.
+	// v8 → v9 only runs the v9 block.
+	assert(needs_v8_block(8) == false);
+	assert(needs_v9_block(8) == true);
+	assert(needs_v9_block(9) == false);
+
+	// v6 → v9 still runs the v7, v8, and v9 blocks.
 	assert(needs_v1_block(6) == false);
 	assert(needs_v2_block(6) == false);
 	assert(needs_v4_block(6) == false);
@@ -361,6 +374,7 @@ static void test_schema_version_guard()
 	assert(needs_v7_block(7) == false);
 	assert(needs_v8_block(6) == true);
 	assert(needs_v8_block(8) == false);
+	assert(needs_v9_block(6) == true);
 }
 
 static void test_fresh_install_lands_on_modern()
@@ -478,6 +492,25 @@ static void test_unified_bar_default_fresh_install()
 	assert(unified_bar_default(false) == 0);
 	// Already present → leave alone.
 	assert(unified_bar_default(true)  == -1);
+}
+
+/* transparent_grid_default:
+ * @has_key: whether the channel already has /transparent-grid.
+ *
+ * Returns the value to write during schema-v9 migration, or -1 to leave the
+ * key untouched. Existing users keep solid grid tiles unless they opt in.
+ */
+static int transparent_grid_default(bool has_key)
+{
+	return has_key ? -1 : 0; // false
+}
+
+static void test_transparent_grid_default_fresh_install()
+{
+	assert(transparent_grid_default(false) == 0);
+	assert(transparent_grid_default(true) == -1);
+	assert(needs_v9_block(8) == true);
+	assert(needs_v9_block(9) == false);
 }
 
 static void test_idempotent_guard()
@@ -691,6 +724,7 @@ int main()
 	test_position_categories_horizontal_migration();
 	test_profile_shape_hidden_migration();
 	test_unified_bar_default_fresh_install();
+	test_transparent_grid_default_fresh_install();
 	test_hidden_sidebar_migration();
 	test_idempotent_guard();
 	test_fresh_install_lands_on_modern();

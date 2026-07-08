@@ -329,6 +329,7 @@ public:
 	Boolean launcher_show_name;
 	Boolean launcher_show_description;
 	Boolean launcher_show_tooltip;
+	Boolean transparent_grid;
 	IconSize launcher_icon_size;
 
 	Boolean category_hover_activate;
