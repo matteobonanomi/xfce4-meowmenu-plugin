@@ -2473,10 +2473,15 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .launchers row:hover:not(:selected)"
 		"{ background-color: transparent; background-image: none; }"
 		// Transparent grid is opt-in and view-scoped. It removes only the
-		// resting icon-grid cell fill; selected, hover, active, and focus states
+		// resting icon-grid cell box; selected, hover, active, and focus states
 		// stay theme-visible so navigation and drag feedback remain legible.
+		".meowmenu iconview.launchers.transparent-grid.view.cell:not(:selected):not(:hover):not(:active):not(:focus),"
+		".meowmenu .launchers.transparent-grid.cell:not(:selected):not(:hover):not(:active):not(:focus),"
+		".meowmenu iconview.launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus),"
 		".meowmenu .launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus)"
-		"{ background-color: transparent; background-image: none; }"
+		"{ background: none; background-color: transparent;"
+		"  background-image: none; border: none; border-color: transparent;"
+		"  box-shadow: none; }"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"

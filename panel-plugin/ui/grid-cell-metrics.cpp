@@ -23,7 +23,7 @@ namespace WhiskerMenu
 namespace
 {
 
-const int k_grid_label_line_height = 17;
+const int k_grid_label_line_height = 14;
 
 }
 
@@ -36,8 +36,9 @@ const int k_grid_label_line_height = 17;
  *
  * Calculates the shared icon-grid cell geometry without consulting GTK state or
  * item text. The width formula is the historical renderer contract; the height
- * formula adds a deterministic label allowance so one-line Places labels still
- * occupy the same application-style tile height as application labels.
+ * formula adds a compact deterministic label allowance so one-line Places
+ * labels still occupy the same application-style tile height as application
+ * labels without over-reserving vertical space.
  *
  * Returns: the renderer's minimum and natural grid-cell metrics.
  */

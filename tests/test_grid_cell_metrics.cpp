@@ -27,7 +27,7 @@ int g_failures = 0;
 		} \
 	} while (0)
 
-const int k_label_line_height = 17;
+const int k_label_line_height = 14;
 
 // Reference reproduction of the renderer arithmetic, kept separate so the
 // helper is checked against an independent copy of the formula.
