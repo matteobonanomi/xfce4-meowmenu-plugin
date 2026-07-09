@@ -103,6 +103,15 @@ to the nearest coherent edge (the element stays visible — only its edge moves)
 | Favorites boost level | Strength of the boost: low, medium, or high. |
 | Search actions | Custom keyword-triggered commands (e.g. type `!` to run a shell command). |
 
+Search-action command templates are split into arguments using shell-style
+quoting, but they are launched directly rather than through a shell. In a
+non-regex action, `%s` inserts the query text after the matched prefix, `%S`
+inserts the complete query, `%u` inserts a URI-escaped form of the text after
+the prefix, and `%%` inserts a literal percent sign. Use `%u` when arbitrary
+text must remain one command argument. `%s` and `%S` preserve spaces and quote
+characters, so they should be used only where the command template deliberately
+expects argument splitting.
+
 ### Results View
 
 | Option | Description |

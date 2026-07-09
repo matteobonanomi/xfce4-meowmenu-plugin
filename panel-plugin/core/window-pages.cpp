@@ -16,6 +16,7 @@
 #include "window-pages.h"
 #include "window.h"
 
+#include "core/category-lifetime.h"
 #include "launcher/applications-page.h"
 #include "launcher/category-button.h"
 #include "launcher/favorites-page.h"
@@ -58,21 +59,8 @@ Page* WhiskerMenu::Window::get_active_page()
 
 GtkWidget* WhiskerMenu::Window::get_active_category_button()
 {
-	GtkWidget* widget = m_default_button->get_widget();
-
-	GList* children = gtk_container_get_children(GTK_CONTAINER(m_category_buttons));
-	for (GList* li = children; li; li = li->next)
-	{
-		GtkToggleButton* button = GTK_TOGGLE_BUTTON(li->data);
-		if (button && gtk_toggle_button_get_active(button))
-		{
-			widget = GTK_WIDGET(button);
-			break;
-		}
-	}
-	g_list_free(children);
-
-	return widget;
+	return active_toggle_child_or_default(GTK_CONTAINER(m_category_buttons),
+			m_default_button->get_widget());
 }
 
 //-----------------------------------------------------------------------------

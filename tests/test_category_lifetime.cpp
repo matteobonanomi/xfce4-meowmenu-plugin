@@ -51,6 +51,35 @@ int main(int argc, char** argv)
 		g_object_unref(button);
 	}
 
+	GtkWidget* fallback = gtk_button_new();
+	g_object_ref_sink(fallback);
+	GtkWidget* spacer = gtk_label_new(nullptr);
+	g_object_ref_sink(spacer);
+	GtkWidget* inactive = gtk_toggle_button_new();
+	g_object_ref_sink(inactive);
+	GtkWidget* active = gtk_toggle_button_new();
+	g_object_ref_sink(active);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(active), TRUE);
+	gtk_box_pack_start(GTK_BOX(box), spacer, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(box), inactive, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(box), active, false, false, 0);
+	assert(active_toggle_child_or_default(GTK_CONTAINER(box), fallback) == active);
+
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(active), FALSE);
+	assert(active_toggle_child_or_default(GTK_CONTAINER(box), fallback) == fallback);
+
+	gtk_container_remove(GTK_CONTAINER(box), spacer);
+	gtk_container_remove(GTK_CONTAINER(box), inactive);
+	gtk_container_remove(GTK_CONTAINER(box), active);
+	gtk_widget_destroy(fallback);
+	gtk_widget_destroy(spacer);
+	gtk_widget_destroy(inactive);
+	gtk_widget_destroy(active);
+	g_object_unref(fallback);
+	g_object_unref(spacer);
+	g_object_unref(inactive);
+	g_object_unref(active);
+
 	gtk_widget_destroy(box);
 	g_object_unref(box);
 	g_object_unref(width_group);

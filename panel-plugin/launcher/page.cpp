@@ -21,6 +21,7 @@
 #include "favorites-page.h"
 #include "ui/image-menu-item.h"
 #include "launcher.h"
+#include "launcher-safety.h"
 #include "ui/launcher-icon-view.h"
 #include "ui/launcher-tree-view.h"
 #include "core/opacity-model.h"
@@ -35,6 +36,41 @@
 #include <glib/gstdio.h>
 
 using namespace WhiskerMenu;
+
+//-----------------------------------------------------------------------------
+
+static Launcher* get_launcher_at_path(LauncherView* view, GtkTreePath* path,
+		Element** out_element = nullptr)
+{
+	if (out_element)
+	{
+		*out_element = nullptr;
+	}
+	if (!view || !path)
+	{
+		return nullptr;
+	}
+
+	GtkTreeModel* model = view->get_model();
+	if (!model)
+	{
+		return nullptr;
+	}
+
+	GtkTreeIter iter;
+	if (!launcher_model_get_iter(model, path, &iter))
+	{
+		return nullptr;
+	}
+
+	Element* element = nullptr;
+	gtk_tree_model_get(model, &iter, LauncherView::COLUMN_LAUNCHER, &element, -1);
+	if (out_element)
+	{
+		*out_element = element;
+	}
+	return dynamic_cast<Launcher*>(element);
+}
 
 //-----------------------------------------------------------------------------
 
@@ -279,13 +315,9 @@ void Page::launcher_activated(GtkTreePath* path)
 		return;
 	}
 
-	GtkTreeIter iter;
-	GtkTreeModel* model = m_view->get_model();
-	gtk_tree_model_get_iter(model, &iter, path);
-
 	// Find element
 	Element* element = nullptr;
-	gtk_tree_model_get(model, &iter, LauncherView::COLUMN_LAUNCHER, &element, -1);
+	get_launcher_at_path(m_view, path, &element);
 	if (!element)
 	{
 		return;
@@ -353,11 +385,8 @@ gboolean Page::view_button_press_event(GdkEvent* event)
 	}
 
 	Element* element = nullptr;
-	GtkTreeModel* model = m_view->get_model();
-	GtkTreeIter iter;
-	gtk_tree_model_get_iter(model, &iter, path);
+	get_launcher_at_path(m_view, path, &element);
 	gtk_tree_path_free(path);
-	gtk_tree_model_get(model, &iter, LauncherView::COLUMN_LAUNCHER, &element, -1);
 	if (!(m_selected_launcher = dynamic_cast<Launcher*>(element)))
 	{
 		m_drag_enabled = false;
@@ -444,12 +473,7 @@ gboolean Page::view_popup_menu_event()
 void Page::create_context_menu(GtkTreePath* path, GdkEvent* event)
 {
 	// Get selected launcher
-	Element* element = nullptr;
-	GtkTreeModel* model = m_view->get_model();
-	GtkTreeIter iter;
-	gtk_tree_model_get_iter(model, &iter, path);
-	gtk_tree_model_get(model, &iter, LauncherView::COLUMN_LAUNCHER, &element, -1);
-	if (!(m_selected_launcher = dynamic_cast<Launcher*>(element)))
+	if (!(m_selected_launcher = get_launcher_at_path(m_view, path)))
 	{
 		gtk_tree_path_free(path);
 		return;
@@ -693,20 +717,30 @@ void Page::edit_selected()
 	m_window->hide();
 
 	gchar* uri = m_selected_launcher->get_uri();
+	if (!uri)
+	{
+		return;
+	}
 #if LIBXFCE4UI_CHECK_VERSION(4, 21, 0)
-	gchar* command = g_strdup_printf("xfce-desktop-item-edit '%s'", uri);
+	const gchar* editor = "xfce-desktop-item-edit";
 #else
-	gchar* command = g_strdup_printf("exo-desktop-item-edit '%s'", uri);
+	const gchar* editor = "exo-desktop-item-edit";
 #endif
+	gchar** argv = launcher_editor_argv(editor, uri);
 	g_free(uri);
+	if (!argv)
+	{
+		return;
+	}
 
 	GError* error = nullptr;
-	if (!g_spawn_command_line_async(command, &error))
+	if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_SEARCH_PATH,
+			nullptr, nullptr, nullptr, &error))
 	{
 		xfce_dialog_show_error(nullptr, error, _("Unable to edit launcher."));
 		g_error_free(error);
 	}
-	g_free(command);
+	g_strfreev(argv);
 }
 
 //-----------------------------------------------------------------------------

@@ -28,6 +28,18 @@ namespace WhiskerMenu
 void detach_category_widgets(GtkSizeGroup* width_group,
 		std::vector<GtkWidget*>& widgets);
 
+/* active_toggle_child_or_default:
+ * @container: category/navigation button container to inspect.
+ * @fallback: widget returned when no active toggle child is present.
+ *
+ * Finds the active GtkToggleButton child while ignoring separators, spacers,
+ * and other non-toggle controls that can share the same container.
+ *
+ * Returns: the active toggle widget, or @fallback when none is active.
+ */
+GtkWidget* active_toggle_child_or_default(GtkContainer* container,
+		GtkWidget* fallback);
+
 }
 
 #endif // WHISKERMENU_CATEGORY_LIFETIME_H

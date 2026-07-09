@@ -28,8 +28,43 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-// Rolling 2-row Levenshtein distance: O(m·n) time, O(n) space
-static int levenshtein(const std::string& a, const std::string& b)
+/* normalized_codepoints:
+ * @text: valid UTF-8 search text to normalize and case-fold.
+ *
+ * Returns: Unicode code points used by fuzzy distance; empty for invalid input.
+ */
+static std::vector<gunichar> normalized_codepoints(const std::string& text)
+{
+	std::vector<gunichar> result;
+	if (!g_utf8_validate(text.c_str(), -1, nullptr))
+	{
+		return result;
+	}
+
+	gchar* normalized = g_utf8_normalize(text.c_str(), -1, G_NORMALIZE_DEFAULT);
+	if (!normalized)
+	{
+		return result;
+	}
+	gchar* folded = g_utf8_casefold(normalized, -1);
+	g_free(normalized);
+	if (!folded)
+	{
+		return result;
+	}
+
+	for (const gchar* pos = folded; *pos; pos = g_utf8_next_char(pos))
+	{
+		result.push_back(g_utf8_get_char(pos));
+	}
+	g_free(folded);
+
+	return result;
+}
+
+// Rolling 2-row Levenshtein distance: O(m*n) time, O(n) space.
+static int levenshtein(const std::vector<gunichar>& a,
+		const std::vector<gunichar>& b)
 {
 	const size_t m = a.size();
 	const size_t n = b.size();
@@ -255,17 +290,28 @@ unsigned int Query::match_fuzzy(const std::string& haystack, int max_errors) con
 	if (m_query.empty() || m_query_words.size() > 1)
 		return UINT_MAX;
 
-	// Quick length check: haystack word must be at least len(query) - max_errors
-	// (checked per-word below, but reject trivially short haystacks early)
-	if (static_cast<int>(haystack.length()) < static_cast<int>(m_query.length()) - max_errors)
+	const std::vector<gunichar> query_points = normalized_codepoints(m_query);
+	if (query_points.empty())
+	{
 		return UINT_MAX;
+	}
 
 	// Compare query against each whitespace-delimited word of haystack
 	std::string word;
 	std::stringstream ss(haystack);
 	while (ss >> word)
 	{
-		if (levenshtein(m_query, word) <= max_errors)
+		const std::vector<gunichar> word_points = normalized_codepoints(word);
+		if (word_points.empty())
+		{
+			continue;
+		}
+		if (static_cast<int>(word_points.size())
+				< static_cast<int>(query_points.size()) - max_errors)
+		{
+			continue;
+		}
+		if (levenshtein(query_points, word_points) <= max_errors)
 			return 0x400;
 	}
 	return UINT_MAX;

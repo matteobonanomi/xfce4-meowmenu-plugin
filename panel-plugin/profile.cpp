@@ -124,6 +124,12 @@ void Profile::reset_tooltip()
 
 void Profile::update_picture()
 {
+	if (xfce_str_is_empty(m_file_path))
+	{
+		gtk_image_set_from_icon_name(GTK_IMAGE(m_image), "avatar-default", GTK_ICON_SIZE_DND);
+		return;
+	}
+
 	const gint scale = gtk_widget_get_scale_factor(m_image);
 	const gint size = 32;
 	const gint half_size = size / 2;
@@ -218,7 +224,8 @@ void Profile::on_user_changed(ActUser* user)
 
 	// Load picture
 	g_free(m_file_path);
-	m_file_path = g_strdup(act_user_get_icon_file(user));
+	const gchar* icon_file = act_user_get_icon_file(user);
+	m_file_path = !xfce_str_is_empty(icon_file) ? g_strdup(icon_file) : nullptr;
 	update_picture();
 }
 
@@ -239,6 +246,11 @@ void Profile::on_user_info_loaded()
 		});
 
 	m_act_user = act_user_manager_get_user_by_id(m_act_user_manager, getuid());
+	if (!m_act_user)
+	{
+		init_fallback();
+		return;
+	}
 	g_object_ref(m_act_user);
 	if (act_user_is_loaded(m_act_user))
 	{

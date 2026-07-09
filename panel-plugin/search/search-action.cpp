@@ -109,11 +109,15 @@ unsigned int SearchAction::match_prefix(const gchar* haystack)
 		switch (m_expanded_command[pos + 1])
 		{
 		case 's':
+			// Preserve historical raw substitution. Element::spawn later parses
+			// the expanded line into argv, so spaces/quotes can change argument
+			// boundaries; %u is the arbitrary-text single-argument form.
 			m_expanded_command.replace(pos, 2, trimmed);
 			pos += strlen(trimmed) + 1;
 			break;
 
 		case 'S':
+			// Same raw argv-parsing semantics as %s, but includes the prefix.
 			m_expanded_command.replace(pos, 2, haystack);
 			pos += strlen(haystack) + 1;
 			break;

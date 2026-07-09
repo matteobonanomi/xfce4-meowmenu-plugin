@@ -70,6 +70,23 @@ gulong connect(Sender instance, const gchar* detailed_signal, Func func, Connect
 			GConnectFlags(flags));
 }
 
+/* disconnect_signal:
+ * @instance: GObject instance that owns the signal connection.
+ * @handler_id: stored handler id; cleared after disconnection.
+ *
+ * Disconnects an owned signal subscription exactly once. NULL instances and
+ * zero ids are safe no-ops, which keeps teardown paths idempotent.
+ */
+template<typename Sender>
+void disconnect_signal(Sender instance, gulong& handler_id)
+{
+	if (instance && handler_id)
+	{
+		g_signal_handler_disconnect(instance, handler_id);
+		handler_id = 0;
+	}
+}
+
 }
 
 #endif // WHISKERMENU_SLOT_H

@@ -107,8 +107,13 @@ test_search_action_edit_sources = ['test_search_action_edit.cpp']
 
 test_search_action_edit = executable(
   'test_search_action_edit',
-  test_search_action_edit_sources,
-  dependencies: [],
+  test_search_action_edit_sources + [
+    '..' / 'panel-plugin' / 'settings-bindings.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  dependencies: [glib, gtk, libxfce4ui, xfconf],
 )
 
 test('search_action_edit', test_search_action_edit)
@@ -579,7 +584,10 @@ test('application_load_generation', test_application_load_generation)
 # view (the SC-005a crash; also caught by the sanitizer CI). Constructing the
 # widgets needs a display, so it skips cleanly when none is present and CI runs
 # it under a virtual display so the sanitizers still exercise the freed-view path.
-test_launcher_safeguard_lifecycle_sources = ['test_launcher_safeguard_lifecycle.cpp']
+test_launcher_safeguard_lifecycle_sources = [
+  'test_launcher_safeguard_lifecycle.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'launcher-safety.cpp',
+]
 
 test_launcher_safeguard_lifecycle = executable(
   'test_launcher_safeguard_lifecycle',

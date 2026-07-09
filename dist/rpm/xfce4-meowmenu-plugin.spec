@@ -7,7 +7,7 @@
 %global plugin_name xfce4-meowmenu-plugin
 
 Name:           %{plugin_name}
-Version:        0.3.3
+Version:        0.7.2
 Release:        1%{?dist}
 Summary:        Modern menu launcher plugin for the Xfce panel
 

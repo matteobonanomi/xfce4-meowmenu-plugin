@@ -211,6 +211,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_mode_switch_in_progress(false),
 	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
+	m_live_settings_property_slot(0),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
@@ -934,7 +935,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	// the rounded-rect clip path is activated/deactivated without reopening the menu.
 	if (m_settings->channel)
 	{
-		g_signal_connect(m_settings->channel, "property-changed",
+		m_live_settings_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
 				if (g_strcmp0(property, "/corner-radius") != 0
@@ -967,10 +968,10 @@ WhiskerMenu::Window::~Window()
 		gtk_container_remove(GTK_CONTAINER(m_commands_box), m_commands_button[i]);
 	}
 
-	if (m_places_property_slot && m_settings && m_settings->channel)
+	if (m_settings && m_settings->channel)
 	{
-		g_signal_handler_disconnect(m_settings->channel, m_places_property_slot);
-		m_places_property_slot = 0;
+		disconnect_signal(m_settings->channel, m_places_property_slot);
+		disconnect_signal(m_settings->channel, m_live_settings_property_slot);
 	}
 
 	delete m_applications;

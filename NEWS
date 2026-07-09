@@ -1,4 +1,13 @@
 MEOW MENU DEVELOPMENT
+0.7.2 (2026-07-13)
+=====
+- Bugfix: make grid size consistent when switching Apps/Places
+- Bugfix: harden menu callbacks and application reload lifecycles
+- Security: handle launcher paths and malformed search actions safely
+- Search: make fuzzy matching Unicode-aware
+- Release: align package metadata and installation examples with 0.7.2
+- Properties: add "grid transparency" option for grid layout in result box
+
 0.7.1 (2026-07-07)
 =====
 - Arch: simplify test book when installing from AUR
@@ -168,7 +177,7 @@ MEOW MENU DEVELOPMENT
 - language support covers new Property and Places
 - update readme
 
-0.3.0 (2026-06-15)
+0.3.0 (2026-05-15)
 =====
 - Places brand new features to explore files and folders
 - update readme and installation guide

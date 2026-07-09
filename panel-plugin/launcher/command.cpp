@@ -17,6 +17,7 @@
 
 #include "command.h"
 
+#include "command-timeout.h"
 #include "ui/image-menu-item.h"
 #include "ui/slot.h"
 
@@ -303,7 +304,10 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 
 	gint result = gtk_dialog_run(dialog);
 
-	g_source_remove(timeout_id);
+	if (command_timeout_source_is_active(m_timeout_details.time_left))
+	{
+		g_source_remove(timeout_id);
+	}
 	gtk_widget_destroy(m_timeout_details.dialog);
 	m_timeout_details.dialog = nullptr;
 

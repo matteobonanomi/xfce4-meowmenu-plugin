@@ -211,6 +211,27 @@ void test_match_fuzzy_haystack_too_short_rejected()
 	assert(s == UINT_MAX && "fuzzy must reject trivially short haystack");
 }
 
+void test_match_fuzzy_precomposed_accented_latin()
+{
+	Query q("cafe");
+	const unsigned int s = q.match_fuzzy("café", 1);
+	assert(s == 0x400 && "one accented Latin code point must count as one edit");
+}
+
+void test_match_fuzzy_decomposed_accented_latin()
+{
+	Query q("cafe");
+	const unsigned int s = q.match_fuzzy("cafe\xcc\x81", 1);
+	assert(s == 0x400 && "decomposed accented Latin must normalize before fuzzy distance");
+}
+
+void test_match_fuzzy_non_latin_script()
+{
+	Query q("кот");
+	const unsigned int s = q.match_fuzzy("кит", 1);
+	assert(s == 0x400 && "non-Latin UTF-8 code points must not be counted by byte");
+}
+
 // ---------------------------------------------------------------------------
 // Class-ordering invariant
 //
@@ -265,6 +286,9 @@ int main()
 	test_match_fuzzy_beyond_threshold_no_match();
 	test_match_fuzzy_multi_token_query_rejected();
 	test_match_fuzzy_haystack_too_short_rejected();
+	test_match_fuzzy_precomposed_accented_latin();
+	test_match_fuzzy_decomposed_accented_latin();
+	test_match_fuzzy_non_latin_script();
 
 	test_class_ordering_is_strict();
 

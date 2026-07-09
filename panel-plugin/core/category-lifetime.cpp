@@ -33,3 +33,34 @@ void WhiskerMenu::detach_category_widgets(GtkSizeGroup* width_group,
 	widgets.clear();
 }
 
+//-----------------------------------------------------------------------------
+
+GtkWidget* WhiskerMenu::active_toggle_child_or_default(GtkContainer* container,
+		GtkWidget* fallback)
+{
+	GtkWidget* widget = fallback;
+
+	if (!container)
+	{
+		return widget;
+	}
+
+	GList* children = gtk_container_get_children(container);
+	for (GList* li = children; li; li = li->next)
+	{
+		if (!GTK_IS_TOGGLE_BUTTON(li->data))
+		{
+			continue;
+		}
+
+		GtkToggleButton* button = GTK_TOGGLE_BUTTON(li->data);
+		if (gtk_toggle_button_get_active(button))
+		{
+			widget = GTK_WIDGET(button);
+			break;
+		}
+	}
+	g_list_free(children);
+
+	return widget;
+}

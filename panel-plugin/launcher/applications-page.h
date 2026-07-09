@@ -71,7 +71,8 @@ private:
 	void show_category(GtkToggleButton* togglebutton, std::vector<Category*>::size_type index);
 	void cancel_pending_load();
 	void clear();
-	void load_garcon_menu();
+	void load_garcon_menus();
+	void populate_garcon_menus();
 	void load_contents();
 	bool load_menu(GarconMenu* menu, Category* parent_category, bool load_hierarchy);
 
