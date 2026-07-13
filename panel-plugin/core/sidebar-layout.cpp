@@ -100,7 +100,22 @@ StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr)
 	// physical side follows the text direction without a branch here.
 	out.toggle_anchor = StripAnchor::Leading;
 	out.categories_anchor = StripAnchor::Trailing;
-	out.width_from_search_box = true;
+	out.width_from_main_column = true;
+	return out;
+}
+
+FullscreenMainColumn meow_fullscreen_main_column(int workarea_width)
+{
+	FullscreenMainColumn out;
+	if (workarea_width <= 0)
+	{
+		out.width = 0;
+		out.margin = 0;
+		return out;
+	}
+
+	out.margin = workarea_width / 6;
+	out.width = workarea_width - (out.margin * 2);
 	return out;
 }
 
@@ -118,6 +133,25 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
 	default:
 		return 0;
 	}
+}
+
+int meow_toggle_button_height_px(SwitchLocation location, bool categories_horizontal,
+		int category_px)
+{
+	if (location == SwitchLocation::InSidebar && categories_horizontal)
+		return category_px;
+
+	return -1;
+}
+
+int meow_strip_spacer_order(bool categories_horizontal)
+{
+	return categories_horizontal ? 0 : -1;
+}
+
+int meow_default_category_order_base(bool strip_spacer_visible)
+{
+	return strip_spacer_visible ? 1 : 0;
 }
 
 EmbeddedSwitchSlot meow_embedded_switch_slot(bool commands_in_row)

@@ -86,6 +86,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "menu-height",          PresetValue::from_int(500)            },
 			{ "places-enabled",       PresetValue::from_bool(false)         },
 			{ "places-show-icons",    PresetValue::from_bool(false)         },
+			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
 		})
 	},
 	// PRESET_MODERN
@@ -122,6 +123,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "menu-height",          PresetValue::from_int(500)           },
 			{ "places-enabled",       PresetValue::from_bool(true)         },
 			{ "places-show-icons",    PresetValue::from_bool(true)         },
+			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
 		})
 	},
 	// PRESET_FULLSCREEN
@@ -156,6 +158,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
 			{ "places-enabled",       PresetValue::from_bool(true)          },
 			{ "places-show-icons",    PresetValue::from_bool(false)         },
+			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
 		})
 	},
 	// PRESET_MINIMAL
@@ -192,6 +195,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "default-category",     PresetValue::from_str("recent")       },
 			{ "places-enabled",       PresetValue::from_bool(true)          },
 			{ "places-show-icons",    PresetValue::from_bool(true)          },
+			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
 		})
 	},
 };
@@ -235,6 +239,7 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 		"stay-on-focus-out",
 		"places-enabled",
 		"places-show-icons",
+		"places-switch-button-shape",
 	};
 	return keys;
 }

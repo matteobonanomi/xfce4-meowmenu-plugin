@@ -31,3 +31,4 @@ stay-on-focus-out=false
 default-category=favorites
 places-enabled=false
 places-show-icons=false
+places-switch-button-shape=gtk-theme

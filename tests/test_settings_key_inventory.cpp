@@ -352,6 +352,20 @@ void test_snapshot_contains_transparent_grid_key(const std::vector<std::string>&
 	assert(found && "snapshot is missing /transparent-grid");
 }
 
+void test_snapshot_contains_places_switch_shape_key(const std::vector<std::string>& snapshot)
+{
+	bool found = false;
+	for (const std::string& key : snapshot)
+	{
+		if (key == "/places/switch-button-shape")
+		{
+			found = true;
+			break;
+		}
+	}
+	assert(found && "snapshot is missing /places/switch-button-shape");
+}
+
 void test_production_migration_pairs_match_snapshot(const BasePair& pair)
 {
 	// Use a unique channel so successive pairs cannot collide on the bus.
@@ -412,6 +426,7 @@ int main(int argc, char** argv)
 	const std::vector<BasePair> pairs = pair_bases_by_id(snapshot);
 	test_snapshot_well_formed(pairs);
 	test_snapshot_contains_transparent_grid_key(snapshot);
+	test_snapshot_contains_places_switch_shape_key(snapshot);
 
 	if (!fixture_up())
 	{

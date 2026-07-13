@@ -104,38 +104,59 @@ void WhiskerMenu::Window::category_toggled()
 
 void WhiskerMenu::Window::reset_default_button()
 {
+	const int default_base = meow_default_category_order_base(m_strip_lead_spacer
+			&& gtk_widget_get_visible(m_strip_lead_spacer));
+
 	switch (m_settings->default_category)
 	{
 	case Settings::CategoryRecent:
 		m_default_button = m_recent->get_button();
-		gtk_box_reorder_child(m_category_buttons, m_recent->get_button()->get_widget(), 0);
-		gtk_box_reorder_child(m_category_buttons, m_favorites->get_button()->get_widget(), 1);
-		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(), 2);
+		gtk_box_reorder_child(m_category_buttons, m_recent->get_button()->get_widget(),
+				default_base);
+		gtk_box_reorder_child(m_category_buttons, m_favorites->get_button()->get_widget(),
+				default_base + 1);
+		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(),
+				default_base + 2);
 		break;
 
 	case Settings::CategoryAll:
 		m_default_button = m_applications->get_button();
-		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(), 0);
-		gtk_box_reorder_child(m_category_buttons, m_favorites->get_button()->get_widget(), 1);
-		gtk_box_reorder_child(m_category_buttons, m_recent->get_button()->get_widget(), 2);
+		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(),
+				default_base);
+		gtk_box_reorder_child(m_category_buttons, m_favorites->get_button()->get_widget(),
+				default_base + 1);
+		gtk_box_reorder_child(m_category_buttons, m_recent->get_button()->get_widget(),
+				default_base + 2);
 		break;
 
 	default:
 		m_default_button = m_favorites->get_button();
-		gtk_box_reorder_child(m_category_buttons, m_favorites->get_button()->get_widget(), 0);
-		gtk_box_reorder_child(m_category_buttons, m_recent->get_button()->get_widget(), 1);
-		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(), 2);
+		gtk_box_reorder_child(m_category_buttons, m_favorites->get_button()->get_widget(),
+				default_base);
+		gtk_box_reorder_child(m_category_buttons, m_recent->get_button()->get_widget(),
+				default_base + 1);
+		gtk_box_reorder_child(m_category_buttons, m_applications->get_button()->get_widget(),
+				default_base + 2);
 		break;
 	}
 
-	// NOTE: the three reorders above push m_mode_selector_box (packed first
-	// in the ctor) past the category buttons. Restore it to the top so the
-	// Apps/Places switch stays above Recently Used/Favorites/All Applications.
-	if (m_mode_selector_box)
+	// NOTE: the default-button reorders above can push leading controls past the
+	// built-ins. Keep the strip spacer first when visible so it can continue to
+	// pin the built-ins to the trailing edge across close/reopen.
+	if (m_strip_lead_spacer && gtk_widget_get_visible(m_strip_lead_spacer))
+	{
+		gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
+				meow_strip_spacer_order(true));
+	}
+	if (m_mode_selector_box
+			&& gtk_widget_get_parent(GTK_WIDGET(m_mode_selector_box))
+					== GTK_WIDGET(m_category_buttons))
 	{
 		gtk_box_reorder_child(m_category_buttons, GTK_WIDGET(m_mode_selector_box), 0);
 	}
-	if (m_mode_selector_separator)
+	if (m_mode_selector_separator
+			&& gtk_widget_get_parent(m_mode_selector_separator)
+					== GTK_WIDGET(m_category_buttons))
 	{
 		gtk_box_reorder_child(m_category_buttons, m_mode_selector_separator, 1);
 	}

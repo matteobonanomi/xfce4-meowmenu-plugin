@@ -84,6 +84,7 @@ static TestPresetDef make_classic()
 			{ "stay-on-focus-out",     PV::from_bool(false)  },
 			{ "menu-width",            PV::from_int(450)     },
 			{ "menu-height",           PV::from_int(500)     },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -110,6 +111,7 @@ static TestPresetDef make_modern()
 			{ "stay-on-focus-out",     PV::from_bool(false)   },
 			{ "menu-width",            PV::from_int(450)      },
 			{ "menu-height",           PV::from_int(500)      },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -134,6 +136,7 @@ static TestPresetDef make_fullscreen()
 			{ "view-mode-default",     PV::from_str("icons")        },
 			{ "default-category",      PV::from_str("all")          },
 			{ "stay-on-focus-out",     PV::from_bool(false)         },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -160,6 +163,7 @@ static TestPresetDef make_minimal()
 			{ "stay-on-focus-out",     PV::from_bool(false)   },
 			{ "menu-width",            PV::from_int(450)      },
 			{ "menu-height",           PV::from_int(306)      },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -187,6 +191,7 @@ struct SettingsShadow
 	bool stay_on_focus_out = false;
 	int menu_width = 450;
 	int menu_height = 500;
+	std::string places_switch_button_shape = "gtk-theme";
 	std::string current_preset_id;
 };
 
@@ -211,6 +216,8 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		else if (prop == "hover-switch-category" && val.kind == PV::B)s.category_hover_activate = val.b;
 		else if (prop == "menu-width" && val.kind == PV::I)           s.menu_width = val.i;
 		else if (prop == "menu-height" && val.kind == PV::I)          s.menu_height = val.i;
+		else if (prop == "places-switch-button-shape" && val.kind == PV::S)
+			s.places_switch_button_shape = val.s;
 		else if (prop == "view-mode-default" && val.kind == PV::S)
 		{
 			if (val.s == "icons") s.view_mode = 0;
@@ -265,6 +272,8 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 				return true;
 		}
 		if (prop == "stay-on-focus-out" && val.kind == PV::B && s.stay_on_focus_out != val.b) return true;
+		if (prop == "places-switch-button-shape" && val.kind == PV::S
+				&& s.places_switch_button_shape != val.s) return true;
 	}
 	return false;
 }
@@ -276,19 +285,19 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 static void test_classic_property_count()
 {
 	auto c = make_classic();
-	assert(c.values.size() == 16);
+	assert(c.values.size() == 17);
 }
 
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	assert(m.values.size() == 17);
+	assert(m.values.size() == 18);
 }
 
 static void test_fullscreen_property_count()
 {
 	auto f = make_fullscreen();
-	assert(f.values.size() == 15);
+	assert(f.values.size() == 16);
 }
 
 static void test_apply_then_no_diff()
@@ -836,6 +845,7 @@ static TestPresetDef make_classic_from_file_equivalent()
 			{ "hover-switch-category",PV::from_bool(false)        },
 			{ "stay-on-focus-out",    PV::from_bool(false)        },
 			{ "default-category",     PV::from_str("favorites")   },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -862,6 +872,7 @@ static TestPresetDef make_modern_from_file_equivalent()
 			{ "hover-switch-category",PV::from_bool(true)       },
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -886,6 +897,7 @@ static TestPresetDef make_fullscreen_from_file_equivalent()
 			{ "hover-switch-category",PV::from_bool(true)        },
 			{ "stay-on-focus-out",    PV::from_bool(false)       },
 			{ "default-category",     PV::from_str("all")        },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -906,6 +918,7 @@ static void test_parity_classic_cpp_vs_file()
 	assert(s_cpp.view_mode      == s_file.view_mode);
 	assert(s_cpp.menu_width     == s_file.menu_width);
 	assert(s_cpp.menu_height    == s_file.menu_height);
+	assert(s_cpp.places_switch_button_shape == s_file.places_switch_button_shape);
 }
 
 static void test_parity_modern_cpp_vs_file()
@@ -922,6 +935,7 @@ static void test_parity_modern_cpp_vs_file()
 	assert(s_cpp.sidebar_position    == s_file.sidebar_position);
 	assert(s_cpp.view_mode           == s_file.view_mode);
 	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
+	assert(s_cpp.places_switch_button_shape == s_file.places_switch_button_shape);
 }
 
 static void test_parity_fullscreen_cpp_vs_file()
@@ -937,6 +951,7 @@ static void test_parity_fullscreen_cpp_vs_file()
 	assert(s_cpp.view_mode               == s_file.view_mode);
 	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
 	assert(s_cpp.default_category        == s_file.default_category);
+	assert(s_cpp.places_switch_button_shape == s_file.places_switch_button_shape);
 }
 
 static TestPresetDef make_minimal_from_file_equivalent()
@@ -961,6 +976,7 @@ static TestPresetDef make_minimal_from_file_equivalent()
 			{ "hover-switch-category",PV::from_bool(true)       },
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
+			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
 		}
 	};
 }
@@ -990,6 +1006,7 @@ static void test_parity_minimal_cpp_vs_file()
 	assert(s_cpp.menu_height             == s_file.menu_height);
 	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
 	assert(s_cpp.default_category        == s_file.default_category);
+	assert(s_cpp.places_switch_button_shape == s_file.places_switch_button_shape);
 }
 
 // ---------------------------------------------------------------------------

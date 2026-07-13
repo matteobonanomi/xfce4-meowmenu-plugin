@@ -114,6 +114,7 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 		"/places/last-mode",
 		"/places/favourites",
 		"/places/switch-show-icons",
+		"/places/switch-button-shape",
 		nullptr
 	};
 

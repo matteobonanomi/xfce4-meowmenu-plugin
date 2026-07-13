@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-08 08:04+0200\n"
+"POT-Creation-Date: 2026-07-09 23:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -131,59 +131,59 @@ msgid "Very Large"
 msgstr ""
 
 #. I18N: the first %s will be replaced with desktop file path, the second with Hidden=true
-#: panel-plugin/launcher/launcher.cpp:207
+#: panel-plugin/launcher/launcher.cpp:217
 #, c-format
 msgid ""
 "To unhide it you have to manually remove the file \"%s\" or open the file "
 "and remove the line \"%s\"."
 msgstr ""
 
-#: panel-plugin/launcher/launcher.cpp:211 panel-plugin/launcher/page.cpp:566
+#: panel-plugin/launcher/launcher.cpp:221 panel-plugin/launcher/page.cpp:590
 msgid "Hide Application"
 msgstr ""
 
-#: panel-plugin/launcher/launcher.cpp:212
+#: panel-plugin/launcher/launcher.cpp:222
 #, c-format
 msgid "Are you sure you want to hide \"%s\"?"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:495
+#: panel-plugin/launcher/page.cpp:519
 msgid "Add to Favorites"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:506
+#: panel-plugin/launcher/page.cpp:530
 msgid "Remove from Favorites"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:516
+#: panel-plugin/launcher/page.cpp:540
 msgid "Add to Desktop"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:524
+#: panel-plugin/launcher/page.cpp:548
 msgid "Add to Panel"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:534
+#: panel-plugin/launcher/page.cpp:558
 msgid "Add to Autostart"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:545
+#: panel-plugin/launcher/page.cpp:569
 msgid "Remove from Autostart"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:558
+#: panel-plugin/launcher/page.cpp:582
 msgid "Edit Application..."
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:629
+#: panel-plugin/launcher/page.cpp:653
 msgid "Unable to add launcher to desktop."
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:669 panel-plugin/launcher/page.cpp:682
+#: panel-plugin/launcher/page.cpp:693 panel-plugin/launcher/page.cpp:706
 msgid "Unable to add launcher to panel."
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:706
+#: panel-plugin/launcher/page.cpp:740
 msgid "Unable to edit launcher."
 msgstr ""
 
@@ -290,7 +290,7 @@ msgstr ""
 msgid "Run %s"
 msgstr ""
 
-#: panel-plugin/search/search-action.cpp:262
+#: panel-plugin/search/search-action.cpp:266
 msgid "Search Action"
 msgstr ""
 
@@ -332,8 +332,8 @@ msgstr ""
 msgid "Sidebar"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:605
-#: panel-plugin/core/window.cpp:2909
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:606
+#: panel-plugin/core/window.cpp:2918
 msgid "Places"
 msgstr ""
 
@@ -386,31 +386,31 @@ msgid "Unsaved custom"
 msgstr ""
 
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:806
+#: panel-plugin/settings-dialog.cpp:809
 msgid "Classic"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:807
+#: panel-plugin/settings-dialog.cpp:810
 msgid "Modern"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:808
+#: panel-plugin/settings-dialog.cpp:811
 msgid "Full Screen"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:809
+#: panel-plugin/settings-dialog.cpp:812
 msgid "Minimal"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:904
+#: panel-plugin/settings-dialog.cpp:907
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:906
+#: panel-plugin/settings-dialog.cpp:909
 msgid "This option requires the FullScreen layout."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:908
+#: panel-plugin/settings-dialog.cpp:911
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
@@ -707,13 +707,25 @@ msgstr ""
 msgid "Maximum places _items:"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:108
+#: panel-plugin/ui/properties/places.cpp:109
 #: panel-plugin/ui/properties/sidebar.cpp:197
 msgid "Behaviour"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:112
+#: panel-plugin/ui/properties/places.cpp:113
 msgid "_Remember last selected mode"
+msgstr ""
+
+#: panel-plugin/ui/properties/places.cpp:118
+msgid "Switch button _shape:"
+msgstr ""
+
+#: panel-plugin/ui/properties/places.cpp:121
+msgid "GTK theme"
+msgstr ""
+
+#: panel-plugin/ui/properties/places.cpp:123
+msgid "Rounded"
 msgstr ""
 
 #: panel-plugin/ui/properties/results-view.cpp:59
@@ -1007,7 +1019,7 @@ msgstr ""
 msgid "Session commands"
 msgstr ""
 
-#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2907
+#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2916
 msgid "Applications"
 msgstr ""
 
@@ -1035,132 +1047,132 @@ msgstr ""
 msgid "Open URI"
 msgstr ""
 
-#: panel-plugin/settings.cpp:148
+#: panel-plugin/settings.cpp:149
 msgid "_Settings Manager"
 msgstr ""
 
-#: panel-plugin/settings.cpp:150
+#: panel-plugin/settings.cpp:151
 msgid "Failed to open settings manager."
 msgstr ""
 
-#: panel-plugin/settings.cpp:153
+#: panel-plugin/settings.cpp:154
 msgid "_Lock Screen"
 msgstr ""
 
-#: panel-plugin/settings.cpp:155
+#: panel-plugin/settings.cpp:156
 msgid "Failed to lock screen."
 msgstr ""
 
-#: panel-plugin/settings.cpp:158
+#: panel-plugin/settings.cpp:159
 msgid "Switch _User"
 msgstr ""
 
-#: panel-plugin/settings.cpp:160
+#: panel-plugin/settings.cpp:161
 msgid "Failed to switch user."
 msgstr ""
 
-#: panel-plugin/settings.cpp:163
+#: panel-plugin/settings.cpp:164
 msgid "Log _Out"
 msgstr ""
 
-#: panel-plugin/settings.cpp:165 panel-plugin/settings.cpp:200
+#: panel-plugin/settings.cpp:166 panel-plugin/settings.cpp:201
 msgid "Failed to log out."
 msgstr ""
 
-#: panel-plugin/settings.cpp:166
+#: panel-plugin/settings.cpp:167
 msgid "Are you sure you want to log out?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:167
+#: panel-plugin/settings.cpp:168
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:170
+#: panel-plugin/settings.cpp:171
 msgid "_Restart"
 msgstr ""
 
-#: panel-plugin/settings.cpp:172
+#: panel-plugin/settings.cpp:173
 msgid "Failed to restart."
 msgstr ""
 
-#: panel-plugin/settings.cpp:173
+#: panel-plugin/settings.cpp:174
 msgid "Are you sure you want to restart?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:174
+#: panel-plugin/settings.cpp:175
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:177
+#: panel-plugin/settings.cpp:178
 msgid "Shut _Down"
 msgstr ""
 
-#: panel-plugin/settings.cpp:179
+#: panel-plugin/settings.cpp:180
 msgid "Failed to shut down."
 msgstr ""
 
-#: panel-plugin/settings.cpp:180
+#: panel-plugin/settings.cpp:181
 msgid "Are you sure you want to shut down?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:181
+#: panel-plugin/settings.cpp:182
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:184
+#: panel-plugin/settings.cpp:185
 msgid "Suspe_nd"
 msgstr ""
 
-#: panel-plugin/settings.cpp:186
+#: panel-plugin/settings.cpp:187
 msgid "Failed to suspend."
 msgstr ""
 
-#: panel-plugin/settings.cpp:187
+#: panel-plugin/settings.cpp:188
 msgid "Do you want to suspend to RAM?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:188
+#: panel-plugin/settings.cpp:189
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:191
+#: panel-plugin/settings.cpp:192
 msgid "_Hibernate"
 msgstr ""
 
-#: panel-plugin/settings.cpp:193
+#: panel-plugin/settings.cpp:194
 msgid "Failed to hibernate."
 msgstr ""
 
-#: panel-plugin/settings.cpp:194
+#: panel-plugin/settings.cpp:195
 msgid "Do you want to suspend to disk?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:195
+#: panel-plugin/settings.cpp:196
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:198
+#: panel-plugin/settings.cpp:199
 msgid "Log Ou_t..."
 msgstr ""
 
-#: panel-plugin/settings.cpp:203
+#: panel-plugin/settings.cpp:204
 msgid "_Edit Applications"
 msgstr ""
 
-#: panel-plugin/settings.cpp:205
+#: panel-plugin/settings.cpp:206
 msgid "Failed to launch menu editor."
 msgstr ""
 
-#: panel-plugin/settings.cpp:208
+#: panel-plugin/settings.cpp:209
 msgid "Edit _Profile"
 msgstr ""
 
-#: panel-plugin/settings.cpp:210
+#: panel-plugin/settings.cpp:211
 msgid "Failed to edit profile."
 msgstr ""
 
@@ -1168,19 +1180,19 @@ msgstr ""
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings.cpp:410 panel-plugin/settings-defaults.cpp:300
+#: panel-plugin/settings.cpp:411 panel-plugin/settings-defaults.cpp:300
 msgid "Custom"
 msgstr ""
 
-#: panel-plugin/core/window.cpp:604 panel-plugin/core/window.cpp:2907
+#: panel-plugin/core/window.cpp:605 panel-plugin/core/window.cpp:2916
 msgid "Apps"
 msgstr ""
 
-#: panel-plugin/core/window-pages.cpp:289
+#: panel-plugin/core/window-pages.cpp:277
 msgid "Search places…"
 msgstr ""
 
-#: panel-plugin/core/window-pages.cpp:290
+#: panel-plugin/core/window-pages.cpp:278
 msgid "Search applications…"
 msgstr ""
 

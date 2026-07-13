@@ -677,6 +677,9 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_places_switch_show_icons)
 		gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
 			static_cast<bool>(m_settings->places_switch_show_icons));
+	if (m_places_switch_button_shape)
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_places_switch_button_shape),
+			places_switch_shape_or_default(m_settings->places_switch_button_shape));
 
 	if (m_hover_switch_category)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),

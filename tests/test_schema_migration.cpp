@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 9;
+	return 10;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -69,6 +69,11 @@ static bool needs_v8_block(int current_schema_version)
 static bool needs_v9_block(int current_schema_version)
 {
 	return current_schema_version < 9;
+}
+
+static bool needs_v10_block(int current_schema_version)
+{
+	return current_schema_version < 10;
 }
 
 /* fresh_install_preset_id:
@@ -327,7 +332,7 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 9);
+	assert(target_schema_version() == 10);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
@@ -337,9 +342,10 @@ static void test_schema_version_guard()
 	assert(needs_migration(6) == true);
 	assert(needs_migration(7) == true);
 	assert(needs_migration(8) == true);
-	assert(needs_migration(9) == false);
+	assert(needs_migration(9) == true);
+	assert(needs_migration(10) == false);
 
-	// v0 → v9 walks through every block
+	// v0 → v10 walks through every block
 	assert(needs_v1_block(0) == true);
 	assert(needs_v2_block(0) == true);
 	assert(needs_v4_block(0) == true);
@@ -348,8 +354,9 @@ static void test_schema_version_guard()
 	assert(needs_v7_block(0) == true);
 	assert(needs_v8_block(0) == true);
 	assert(needs_v9_block(0) == true);
+	assert(needs_v10_block(0) == true);
 
-	// v7 → v9 runs the v8 and v9 blocks.
+	// v7 → v10 runs the v8, v9, and v10 blocks.
 	assert(needs_v1_block(7) == false);
 	assert(needs_v2_block(7) == false);
 	assert(needs_v4_block(7) == false);
@@ -358,13 +365,17 @@ static void test_schema_version_guard()
 	assert(needs_v7_block(7) == false);
 	assert(needs_v8_block(7) == true);
 	assert(needs_v9_block(7) == true);
+	assert(needs_v10_block(7) == true);
 
-	// v8 → v9 only runs the v9 block.
+	// v8 → v10 runs the v9 and v10 blocks.
 	assert(needs_v8_block(8) == false);
 	assert(needs_v9_block(8) == true);
+	assert(needs_v10_block(8) == true);
 	assert(needs_v9_block(9) == false);
+	assert(needs_v10_block(9) == true);
+	assert(needs_v10_block(10) == false);
 
-	// v6 → v9 still runs the v7, v8, and v9 blocks.
+	// v6 → v10 still runs the v7, v8, v9, and v10 blocks.
 	assert(needs_v1_block(6) == false);
 	assert(needs_v2_block(6) == false);
 	assert(needs_v4_block(6) == false);
@@ -375,6 +386,7 @@ static void test_schema_version_guard()
 	assert(needs_v8_block(6) == true);
 	assert(needs_v8_block(8) == false);
 	assert(needs_v9_block(6) == true);
+	assert(needs_v10_block(6) == true);
 }
 
 static void test_fresh_install_lands_on_modern()

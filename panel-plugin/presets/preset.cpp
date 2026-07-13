@@ -113,6 +113,8 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.places_enabled = val.b;
 		else if (prop == "places-show-icons" && val.kind == PresetValue::Bool)
 			settings.places_switch_show_icons = val.b;
+		else if (prop == "places-switch-button-shape" && val.kind == PresetValue::Str)
+			settings.places_switch_button_shape = places_switch_shape_or_default(val.s.c_str());
 	}
 
 	settings.current_preset_id = preset.id;
@@ -337,6 +339,13 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 					&& static_cast<bool>(settings.places_switch_show_icons) != val.b)
 				return true;
 		}
+		else if (prop == "places-switch-button-shape")
+		{
+			if (val.kind == PresetValue::Str
+					&& !(settings.places_switch_button_shape
+						== places_switch_shape_or_default(val.s.c_str())))
+				return true;
+		}
 	}
 	return false;
 }
@@ -534,6 +543,8 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 		static_cast<bool>(settings.places_enabled));
 	xfconf_channel_set_bool(ch, (prefix + "places-show-icons").c_str(),
 		static_cast<bool>(settings.places_switch_show_icons));
+	xfconf_channel_set_string(ch, (prefix + "places-switch-button-shape").c_str(),
+		places_switch_shape_or_default(settings.places_switch_button_shape));
 
 	settings.current_preset_id = uuid;
 	enumerate_user_presets(ch);

@@ -53,6 +53,7 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "menu-width",            PropKind::Int,  200, 2000, {} },
 	{ "menu-height",           PropKind::Int,  200, 2000, {} },
 	{ "default-category",      PropKind::Str,  0,   0,    {"favorites","recent","all"} },
+	{ "places-switch-button-shape", PropKind::Str, 0, 0,  {"gtk-theme","rounded"} },
 };
 
 static const ShadowPropDef* find_shadow_prop(const std::string& name)
@@ -198,6 +199,7 @@ static RawSettings make_valid_modern_raw()
 	r.put("grid-density",       "medium");
 	r.put("hover-switch-category", "true");
 	r.put("view-mode-default",  "icons");
+	r.put("places-switch-button-shape", "gtk-theme");
 	return r;
 }
 

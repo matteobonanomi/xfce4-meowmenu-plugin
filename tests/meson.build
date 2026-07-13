@@ -469,7 +469,7 @@ test_switch_icons = executable(
   'test_switch_icons',
   test_switch_icons_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
+  dependencies: [glib, gtk, libxfce4util, xfconf],
 )
 
 test('switch_icons', test_switch_icons, timeout: 30)
@@ -490,7 +490,7 @@ test_properties_switch = executable(
   'test_properties_switch',
   test_properties_switch_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
+  dependencies: [glib, gtk, libxfce4util, xfconf],
 )
 
 test('properties_switch', test_properties_switch, timeout: 30)

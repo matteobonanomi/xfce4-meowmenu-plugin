@@ -33,7 +33,7 @@ using namespace WhiskerMenu;
 
 /* init_places_tab:
  *
- * Builds the Places panel (milestone 005). Seven controls bound directly to
+ * Builds the Places panel (milestone 005). Eight controls bound directly to
  * the /places-prefixed Xfconf-backed Settings members. Sensitivity is gated by
  * /places/enabled at the panel level and by /places/favourites-enabled for
  * the sync dropdown (FR-037, FR-038).
@@ -103,7 +103,8 @@ GtkWidget* SettingsDialog::init_places_tab()
 	add_form_row(sections_grid, COLUMN_C2, 1, max_label, max_spin, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), max_spin);
 
-	// Behaviour section (FR-030) — remember-last-mode check C1, C2 left empty.
+	// Behaviour section (FR-030): remember-last-mode and switch shape share one
+	// row so the mode memory and its visual presentation are configured together.
 	GtkWidget* behaviour_grid = make_two_column_section();
 	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), behaviour_grid);
 	gtk_box_pack_start(page, behaviour_frame, false, false, 0);
@@ -113,6 +114,18 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remember_check),
 			m_settings->places_remember_last_mode);
 	add_form_row(behaviour_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
+
+	GtkWidget* shape_label = gtk_label_new_with_mnemonic(_("Switch button _shape:"));
+	GtkWidget* shape_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(shape_combo),
+			PLACES_SWITCH_SHAPE_GTK_THEME, _("GTK theme"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(shape_combo),
+			PLACES_SWITCH_SHAPE_ROUNDED, _("Rounded"));
+	gtk_combo_box_set_active_id(GTK_COMBO_BOX(shape_combo),
+			places_switch_shape_or_default(m_settings->places_switch_button_shape));
+	add_form_row(behaviour_grid, COLUMN_C2, 0, shape_label, shape_combo, false, nullptr);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(shape_label), shape_combo);
+	m_places_switch_button_shape = shape_combo;
 
 	// Sensitivity helpers (FR-037, FR-038).
 	auto refresh_sensitivity = [=]()
@@ -198,6 +211,17 @@ GtkWidget* SettingsDialog::init_places_tab()
 		[this](GtkToggleButton* btn)
 		{
 			m_settings->places_remember_last_mode = gtk_toggle_button_get_active(btn);
+		});
+	connect(shape_combo, "changed",
+		[this](GtkComboBox* combo)
+		{
+			if (m_programmatic_update)
+				return;
+			const gchar* val = gtk_combo_box_get_active_id(combo);
+			if (!val)
+				return;
+			m_settings->places_switch_button_shape = places_switch_shape_or_default(val);
+			m_plugin->refresh_layout();
 		});
 
 	return wrap_in_scrolled(GTK_WIDGET(page));

@@ -49,6 +49,7 @@ static const char* GRID_DENSITY_DOMAIN[]    = { "low", "medium", "high" };
 static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "fullscreen" };
 static const char* VIEW_MODE_DOMAIN[]       = { "icons", "list", "tree" };
 static const char* DEFAULT_CATEGORY_DOMAIN[] = { "favorites", "recent", "all" };
+static const char* PLACES_SWITCH_SHAPE_DOMAIN[] = { "gtk-theme", "rounded" };
 
 #define STR_DOMAIN(arr) (arr), (int)(sizeof(arr)/sizeof(arr[0]))
 #define INT_RANGE(lo, hi) (lo), (hi), nullptr, 0
@@ -77,6 +78,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "default-category",      PresetValue::Str, 0, 0, STR_DOMAIN(DEFAULT_CATEGORY_DOMAIN) },
 	{ "places-enabled",        PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "places-show-icons",     PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "places-switch-button-shape", PresetValue::Str, 0, 0, STR_DOMAIN(PLACES_SWITCH_SHAPE_DOMAIN) },
 };
 static const int GOVERNED_PROPS_COUNT = (int)(sizeof(GOVERNED_PROPS) / sizeof(GOVERNED_PROPS[0]));
 

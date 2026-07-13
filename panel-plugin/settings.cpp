@@ -141,7 +141,8 @@ Settings::Settings(Plugin* plugin) :
 	places_remember_last_mode(this, "/places/remember-last-mode", false),
 	places_last_mode(this, "/places/last-mode", "apps"),
 	places_favourites(this, "/places/favourites", { }),
-	places_switch_show_icons(this, "/places/switch-show-icons", false)
+	places_switch_show_icons(this, "/places/switch-show-icons", false),
+	places_switch_button_shape(this, "/places/switch-button-shape", PLACES_SWITCH_SHAPE_GTK_THEME)
 {
 	command[CommandSettings] = new Command(this, "/command-settings", "/show-command-settings",
 			"org.xfce.settings.manager", "preferences-desktop",
@@ -462,6 +463,13 @@ void Settings::prevent_invalid()
 			commands_position = res.commands_position;
 		}
 	}
+
+	// NOTE: /places/switch-button-shape is a string for preset/import stability.
+	// Invalid stored values are rewritten to the safe theme-native default.
+	if (!places_switch_shape_is_valid(places_switch_button_shape))
+	{
+		places_switch_button_shape = PLACES_SWITCH_SHAPE_GTK_THEME;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -537,7 +545,8 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| places_remember_last_mode.load(property, value)
 			|| places_last_mode.load(property, value)
 			|| places_favourites.load(property, value, reload)
-			|| places_switch_show_icons.load(property, value))
+			|| places_switch_show_icons.load(property, value)
+			|| places_switch_button_shape.load(property, value))
 	{
 		changed = true;
 	}

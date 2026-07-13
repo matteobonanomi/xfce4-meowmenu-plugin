@@ -294,7 +294,7 @@ private:
 
 	GtkEntry* m_search_entry;
 
-	// Three void bands for FullScreen unified-bar mode (FR-008, FR-017, FR-018).
+	// Three void bands for FullScreen unified-bar mode.
 	GtkWidget* m_void_top;
 	GtkWidget* m_void_middle;
 	GtkWidget* m_void_bottom;

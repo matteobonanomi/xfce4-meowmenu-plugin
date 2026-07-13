@@ -394,6 +394,17 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		schema_version = 9;
 	}
 
+	if (schema_version < 10)
+	{
+		// NOTE: default to the active GTK theme's button shape. The explicit
+		// rounded shape remains available for users who prefer the older pill.
+		if (!xfconf_channel_has_property(channel, "/places/switch-button-shape"))
+			xfconf_channel_set_string(channel, "/places/switch-button-shape",
+					PLACES_SWITCH_SHAPE_GTK_THEME);
+
+		schema_version = 10;
+	}
+
 	// Back-fill the marker on every path (fresh, upgrade, or already-current
 	// schema) so the next load is unambiguously an upgrade and the user's
 	// layout is never reset again. Written inside the active begin/end batch.

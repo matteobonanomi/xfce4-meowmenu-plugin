@@ -30,3 +30,4 @@ stay-on-focus-out=false
 default-category=all
 places-enabled=true
 places-show-icons=false
+places-switch-button-shape=gtk-theme
