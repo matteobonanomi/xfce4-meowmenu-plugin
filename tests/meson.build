@@ -108,6 +108,8 @@ test_search_action_edit_sources = ['test_search_action_edit.cpp']
 test_search_action_edit = executable(
   'test_search_action_edit',
   test_search_action_edit_sources + [
+    '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
+    '..' / 'panel-plugin' / 'search' / 'search-action.cpp',
     '..' / 'panel-plugin' / 'settings-bindings.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
