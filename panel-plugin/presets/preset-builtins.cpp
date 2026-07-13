@@ -113,6 +113,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "category-icon-size",   PresetValue::from_int(1)             }, // Smaller
 			{ "grid-density",         PresetValue::from_str("medium")      },
 			{ "hover-switch-category",PresetValue::from_bool(true)         },
+			{ "transparent-grid",     PresetValue::from_bool(true)         },
 			{ "view-mode-default",    PresetValue::from_str("icons")       },
 			{ "default-category",     PresetValue::from_str("recent")      },
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)        },
@@ -153,6 +154,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
 			{ "unified-bar",          PresetValue::from_bool(true)          },
 			{ "hover-switch-category",PresetValue::from_bool(true)          },
+			{ "transparent-grid",     PresetValue::from_bool(true)          },
 			{ "view-mode-default",    PresetValue::from_str("icons")        },
 			{ "default-category",     PresetValue::from_str("all")          },
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },

@@ -45,6 +45,7 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "profile-position",      PropKind::Str,  0,   0,    {"top-left","bottom-left","hidden"} },
 	{ "commands-position",     PropKind::Str,  0,   0,    {"top-right","bottom-right","hidden"} },
 	{ "grid-density",          PropKind::Str,  0,   0,    {"low","medium","high"} },
+	{ "transparent-grid",      PropKind::Bool, 0,   0,    {} },
 	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },
 	{ "launcher-icon-size",    PropKind::Int,  -1,  6,    {} },
 	{ "view-mode-default",     PropKind::Str,  0,   0,    {"icons","list","tree"} },
@@ -198,6 +199,7 @@ static RawSettings make_valid_modern_raw()
 	r.put("launcher-icon-size", "3");
 	r.put("grid-density",       "medium");
 	r.put("hover-switch-category", "true");
+	r.put("transparent-grid",   "true");
 	r.put("view-mode-default",  "icons");
 	r.put("places-switch-button-shape", "gtk-theme");
 	return r;

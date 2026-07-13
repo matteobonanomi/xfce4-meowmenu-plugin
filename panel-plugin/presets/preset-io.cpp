@@ -66,6 +66,7 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "profile-position",      PresetValue::Str, 0, 0, STR_DOMAIN(PROFILE_DOMAIN) },
 	{ "commands-position",     PresetValue::Str, 0, 0, STR_DOMAIN(COMMANDS_DOMAIN) },
 	{ "grid-density",          PresetValue::Str, 0, 0, STR_DOMAIN(GRID_DENSITY_DOMAIN) },
+	{ "transparent-grid",      PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "layout-mode",           PresetValue::Str, 0, 0, STR_DOMAIN(LAYOUT_MODE_DOMAIN) },
 	{ "launcher-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },
 	{ "category-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },

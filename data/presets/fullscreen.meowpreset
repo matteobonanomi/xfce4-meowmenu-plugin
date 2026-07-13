@@ -26,6 +26,7 @@ commands-position=top-right
 unified-bar=true
 menu-opacity=80
 hover-switch-category=true
+transparent-grid=true
 stay-on-focus-out=false
 default-category=all
 places-enabled=true

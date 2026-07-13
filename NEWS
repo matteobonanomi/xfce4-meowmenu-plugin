@@ -9,6 +9,8 @@ MEOW MENU DEVELOPMENT
 - Search: make fuzzy matching Unicode-aware
 - Release: align package metadata and installation examples with 0.7.2
 - Properties: add "grid transparency" option for grid layout in result box
+- Properties: add GTK theme/rounded shape option for the Apps/Places switch
+- Presets: make the new "GTK theme" and "grid transparency" default option for Modern and FullScreen presets
 
 0.7.1 (2026-07-07)
 =====

@@ -106,6 +106,7 @@ static TestPresetDef make_modern()
 			{ "launcher-icon-size",    PV::from_int(3)        },
 			{ "grid-density",          PV::from_str("medium") },
 			{ "hover-switch-category", PV::from_bool(true)    },
+			{ "transparent-grid",      PV::from_bool(true)    },
 			{ "view-mode-default",     PV::from_str("icons")  },
 			{ "default-category",      PV::from_str("recent") },
 			{ "stay-on-focus-out",     PV::from_bool(false)   },
@@ -133,6 +134,7 @@ static TestPresetDef make_fullscreen()
 			{ "grid-density",          PV::from_str("medium")       },
 			{ "layout-mode",           PV::from_str("fullscreen")   },
 			{ "hover-switch-category", PV::from_bool(true)          },
+			{ "transparent-grid",      PV::from_bool(true)          },
 			{ "view-mode-default",     PV::from_str("icons")        },
 			{ "default-category",      PV::from_str("all")          },
 			{ "stay-on-focus-out",     PV::from_bool(false)         },
@@ -185,6 +187,7 @@ struct SettingsShadow
 	std::string grid_density = "medium";
 	std::string layout_mode  = "docked";
 	bool category_hover_activate = false;
+	bool transparent_grid = false;
 	int launcher_icon_size = 2;
 	int view_mode = 1; // ViewAsList
 	int default_category = 0; // Favorites
@@ -214,6 +217,7 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		else if (prop == "layout-mode" && val.kind == PV::S)          s.layout_mode = val.s;
 		else if (prop == "launcher-icon-size" && val.kind == PV::I)   s.launcher_icon_size = val.i;
 		else if (prop == "hover-switch-category" && val.kind == PV::B)s.category_hover_activate = val.b;
+		else if (prop == "transparent-grid" && val.kind == PV::B)     s.transparent_grid = val.b;
 		else if (prop == "menu-width" && val.kind == PV::I)           s.menu_width = val.i;
 		else if (prop == "menu-height" && val.kind == PV::I)          s.menu_height = val.i;
 		else if (prop == "places-switch-button-shape" && val.kind == PV::S)
@@ -254,6 +258,7 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 		if (prop == "layout-mode" && val.kind == PV::S && s.layout_mode != val.s) return true;
 		if (prop == "launcher-icon-size" && val.kind == PV::I && s.launcher_icon_size != val.i) return true;
 		if (prop == "hover-switch-category" && val.kind == PV::B && s.category_hover_activate != val.b) return true;
+		if (prop == "transparent-grid" && val.kind == PV::B && s.transparent_grid != val.b) return true;
 		if (prop == "menu-width" && val.kind == PV::I && s.menu_width != val.i) return true;
 		if (prop == "menu-height" && val.kind == PV::I && s.menu_height != val.i) return true;
 		if (prop == "view-mode-default" && val.kind == PV::S)
@@ -291,13 +296,13 @@ static void test_classic_property_count()
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	assert(m.values.size() == 18);
+	assert(m.values.size() == 19);
 }
 
 static void test_fullscreen_property_count()
 {
 	auto f = make_fullscreen();
-	assert(f.values.size() == 16);
+	assert(f.values.size() == 17);
 }
 
 static void test_apply_then_no_diff()
@@ -370,18 +375,30 @@ static void test_governed_keys_opacity_membership()
 	assert(!has("full-screen-opacity"));
 }
 
-static void test_transparent_grid_is_not_builtin_default()
+static void test_transparent_grid_is_modern_and_fullscreen_preset_default()
 {
 	const auto& keys = WhiskerMenu::governed_keys();
 	const bool governed = std::find(keys.begin(), keys.end(),
 			std::string("transparent-grid")) != keys.end();
 	assert(!governed);
 
-	for (int i = 0; i < WhiskerMenu::PRESET_BUILTIN_COUNT; ++i)
+	struct { const char* id; bool expected; } expected[] = {
+		{ "classic",    false },
+		{ "modern",     true  },
+		{ "fullscreen", true  },
+		{ "minimal",    false },
+	};
+	for (const auto& e : expected)
 	{
-		const auto& values = WhiskerMenu::BUILTIN_PRESETS[i].values;
-		assert(values.find("transparent-grid") == values.end()
-				&& "built-in preset must not enable Transparent grid");
+		const WhiskerMenu::LayoutPreset* p = find_builtin(e.id);
+		assert(p);
+		const auto it = p->values.find("transparent-grid");
+		assert((it != p->values.end()) == e.expected);
+		if (e.expected)
+		{
+			assert(it->second.kind == WhiskerMenu::PresetValue::Bool);
+			assert(it->second.b == true);
+		}
 	}
 }
 
@@ -870,6 +887,7 @@ static TestPresetDef make_modern_from_file_equivalent()
 			{ "commands-position",    PV::from_str("top-right") },
 			{ "menu-opacity",         PV::from_int(100)         },
 			{ "hover-switch-category",PV::from_bool(true)       },
+			{ "transparent-grid",     PV::from_bool(true)       },
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
@@ -895,6 +913,7 @@ static TestPresetDef make_fullscreen_from_file_equivalent()
 			{ "commands-position",    PV::from_str("top-right")  },
 			{ "menu-opacity",         PV::from_int(80)           },
 			{ "hover-switch-category",PV::from_bool(true)        },
+			{ "transparent-grid",     PV::from_bool(true)        },
 			{ "stay-on-focus-out",    PV::from_bool(false)       },
 			{ "default-category",     PV::from_str("all")        },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
@@ -935,6 +954,7 @@ static void test_parity_modern_cpp_vs_file()
 	assert(s_cpp.sidebar_position    == s_file.sidebar_position);
 	assert(s_cpp.view_mode           == s_file.view_mode);
 	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
+	assert(s_cpp.transparent_grid    == s_file.transparent_grid);
 	assert(s_cpp.places_switch_button_shape == s_file.places_switch_button_shape);
 }
 
@@ -950,6 +970,7 @@ static void test_parity_fullscreen_cpp_vs_file()
 	assert(s_cpp.sidebar_position        == s_file.sidebar_position);
 	assert(s_cpp.view_mode               == s_file.view_mode);
 	assert(s_cpp.category_hover_activate == s_file.category_hover_activate);
+	assert(s_cpp.transparent_grid        == s_file.transparent_grid);
 	assert(s_cpp.default_category        == s_file.default_category);
 	assert(s_cpp.places_switch_button_shape == s_file.places_switch_button_shape);
 }
@@ -1142,7 +1163,7 @@ int main()
 	test_modern_corner_radius();
 	test_builtin_menu_opacity_values();
 	test_governed_keys_opacity_membership();
-	test_transparent_grid_is_not_builtin_default();
+	test_transparent_grid_is_modern_and_fullscreen_preset_default();
 	test_fullscreen_layout_mode();
 	test_fullscreen_sidebar_left();
 	test_fullscreen_to_docked_restores_menu_size();

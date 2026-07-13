@@ -85,6 +85,8 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.category_icon_size = val.i;
 		else if (prop == "hover-switch-category" && val.kind == PresetValue::Bool)
 			settings.category_hover_activate = val.b;
+		else if (prop == "transparent-grid" && val.kind == PresetValue::Bool)
+			settings.transparent_grid = val.b;
 		else if (prop == "view-mode-default" && val.kind == PresetValue::Str)
 		{
 			if (val.s == "icons")
@@ -283,6 +285,12 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 		else if (prop == "hover-switch-category")
 		{
 			if (val.kind == PresetValue::Bool && static_cast<bool>(settings.category_hover_activate) != val.b)
+				return true;
+		}
+		else if (prop == "transparent-grid")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.transparent_grid) != val.b)
 				return true;
 		}
 		else if (prop == "view-mode-default")
@@ -527,6 +535,8 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 	xfconf_channel_set_int(ch, (prefix + "category-icon-size").c_str(), settings.category_icon_size);
 	xfconf_channel_set_bool(ch, (prefix + "hover-switch-category").c_str(),
 		static_cast<bool>(settings.category_hover_activate));
+	xfconf_channel_set_bool(ch, (prefix + "transparent-grid").c_str(),
+		static_cast<bool>(settings.transparent_grid));
 	const gchar* vm_str = "list";
 	if (static_cast<int>(settings.view_mode) == Settings::ViewAsIcons) vm_str = "icons";
 	else if (static_cast<int>(settings.view_mode) == Settings::ViewAsTree) vm_str = "tree";
