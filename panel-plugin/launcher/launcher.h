@@ -78,11 +78,21 @@ public:
 		return garcon_menu_item_get_desktop_id(m_item);
 	}
 
+	/* get_file:
+	 *
+	 * Returns: a newly referenced launcher file, or NULL when unavailable.
+	 * The caller owns the returned reference.
+	 */
 	GFile* get_file() const
 	{
 		return garcon_menu_item_get_file(m_item);
 	}
 
+	/* get_uri:
+	 *
+	 * Returns: a newly allocated launcher URI, or NULL when unavailable.
+	 * Free with g_free().
+	 */
 	gchar* get_uri() const
 	{
 		return garcon_menu_item_get_uri(m_item);
@@ -90,6 +100,11 @@ public:
 
 	bool has_auto_start() const;
 
+	/* hide:
+	 *
+	 * Creates a user-local Hidden=true desktop entry when the source URI and
+	 * destination are supported. Missing or unsupported locations are no-ops.
+	 */
 	void hide();
 
 	void run(GdkScreen* screen) const override;

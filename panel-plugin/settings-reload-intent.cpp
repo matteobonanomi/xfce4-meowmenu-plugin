@@ -79,6 +79,7 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 	};
 	static const char* const layout_properties[] = {
 		"/launcher-show-tooltip",
+		"/transparent-grid",
 		"/launcher-icon-size",
 		"/category-show-name",
 		"/category-icon-size",
@@ -113,6 +114,7 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 		"/places/last-mode",
 		"/places/favourites",
 		"/places/switch-show-icons",
+		"/places/switch-button-shape",
 		nullptr
 	};
 

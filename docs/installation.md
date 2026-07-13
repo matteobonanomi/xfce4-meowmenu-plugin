@@ -8,7 +8,7 @@ has_children: false
 
 Prebuilt packages for the three officially supported distributions are
 attached to every [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
-Replace `<version>` with the actual release tag (e.g. `0.4.0`).
+Replace `<version>` with the actual release tag (e.g. `0.7.2`).
 
 ## Ubuntu 26.04
 

@@ -211,6 +211,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_mode_switch_in_progress(false),
 	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
+	m_live_settings_property_slot(0),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
@@ -708,7 +709,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_search_cluster = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
 	g_object_ref_sink(m_search_cluster);
 
-	// Three void bands for FullScreen unified-bar mode (FR-008, FR-017, FR-018).
+	// Three void bands for FullScreen unified-bar mode.
 	// All three are hidden until update_layout() activates the unified bar.
 	// Fixed size_request heights give breathing room; theme authors can override
 	// the "symmetric-void" CSS class min-height. Top/bottom: 12 px; middle: 16 px.
@@ -934,7 +935,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	// the rounded-rect clip path is activated/deactivated without reopening the menu.
 	if (m_settings->channel)
 	{
-		g_signal_connect(m_settings->channel, "property-changed",
+		m_live_settings_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
 				if (g_strcmp0(property, "/corner-radius") != 0
@@ -967,10 +968,10 @@ WhiskerMenu::Window::~Window()
 		gtk_container_remove(GTK_CONTAINER(m_commands_box), m_commands_button[i]);
 	}
 
-	if (m_places_property_slot && m_settings && m_settings->channel)
+	if (m_settings && m_settings->channel)
 	{
-		g_signal_handler_disconnect(m_settings->channel, m_places_property_slot);
-		m_places_property_slot = 0;
+		disconnect_signal(m_settings->channel, m_places_property_slot);
+		disconnect_signal(m_settings->channel, m_live_settings_property_slot);
 	}
 
 	delete m_applications;
@@ -1320,27 +1321,26 @@ void WhiskerMenu::Window::show(const Position position)
 	// than their configured menu-width when switching back from FullScreen.
 	if (is_fullscreen)
 	{
-		// Centre the search bar in a fixed half-width column (issue #3). FILL plus
-		// symmetric side margins pin the column to exactly workarea/2 regardless
+		// Centre the search bar in the shared Full Screen column. FILL plus
+		// symmetric side margins pin the column to that exact width regardless
 		// of the search entry's natural width or whether the Apps/Places switch
 		// shares the row, so entry + switch together never grow past the width the
 		// entry alone occupies with Places off. A bare halign CENTER would instead
 		// grow to the children's natural width and let the switch widen the row.
-		const int column_width  = m_workarea.width / 2;
-		const int column_margin = (m_workarea.width - column_width) / 2;
+		const FullscreenMainColumn column =
+				meow_fullscreen_main_column(m_workarea.width);
 		gtk_widget_set_halign(GTK_WIDGET(m_search_box), GTK_ALIGN_FILL);
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_box), -1, -1);
-		gtk_widget_set_margin_start(GTK_WIDGET(m_search_box), column_margin);
-		gtk_widget_set_margin_end(GTK_WIDGET(m_search_box), column_margin);
-		// Full-screen strip parity (FR-010/011/019/020): the Top/Bottom category
-		// strip shares that exact column. Identical FILL + margins put the leading
-		// toggle on the search bar's left edge and the trailing category icons on
-		// its right edge, with the slack between them. Set on every relayout so
-		// docked↔full-screen and orientation flips reflow with no stale margins
-		// (FR-014).
+		gtk_widget_set_margin_start(GTK_WIDGET(m_search_box), column.margin);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_search_box), column.margin);
+		// Full-screen strip parity: the Top/Bottom category strip shares the
+		// results/application column. Identical FILL + margins put the leading
+		// toggle and trailing category icons on the same edges as the results
+		// box, with the slack between them. Set on every relayout so
+		// docked/full-screen and orientation flips reflow with no stale margins.
 		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
-		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), column_margin);
-		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), column_margin);
+		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), column.margin);
+		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), column.margin);
 		// Keep sidebar width meaningful, and compensate on the opposite side so
 		// the applications grid stays centered.
 		// NOTE (FR-026/027): the symmetry margin is a fixed fraction of the work
@@ -2326,6 +2326,18 @@ void WhiskerMenu::Window::update_background_css()
 		return;
 	}
 
+	if (m_mode_selector_box)
+	{
+		GtkStyleContext* switch_context =
+				gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box));
+		const bool rounded =
+				places_switch_shape_is_rounded(m_settings->places_switch_button_shape);
+		if (rounded)
+			gtk_style_context_add_class(switch_context, "rounded");
+		else
+			gtk_style_context_remove_class(switch_context, "rounded");
+	}
+
 	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_window));
 	// NOTE: the fallback below is recomputed from scratch on every call and
 	// never cached, so a live light<->dark theme switch is tracked by the
@@ -2472,6 +2484,16 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .launchers cell:hover:not(:selected),"
 		".meowmenu .launchers row:hover:not(:selected)"
 		"{ background-color: transparent; background-image: none; }"
+		// Transparent grid is opt-in and view-scoped. It removes only the
+		// resting icon-grid cell box; selected, hover, active, and focus states
+		// stay theme-visible so navigation and drag feedback remain legible.
+		".meowmenu iconview.launchers.transparent-grid.view.cell:not(:selected):not(:hover):not(:active):not(:focus),"
+		".meowmenu .launchers.transparent-grid.cell:not(:selected):not(:hover):not(:active):not(:focus),"
+		".meowmenu iconview.launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus),"
+		".meowmenu .launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus)"
+		"{ background: none; background-color: transparent;"
+		"  background-image: none; border: none; border-color: transparent;"
+		"  box-shadow: none; }"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2495,29 +2517,22 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
 		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }"
-		// NOTE: the Apps/Places switch is rendered as one rounded segmented
-		// control. The outer corners use a large constant radius (9999px) that
-		// CSS clamps to half the control height in any theme, so the group reads
-		// as a full pill matching the search field's rounded ends. The radius is
-		// a fixed styling rule on purpose: it is NOT read from the active theme at
-		// runtime and is NOT bound to the /corner-radius menu setting, so the
-		// switch keeps its pill shape regardless of the window corner radius. The
-		// two buttons abut (m_mode_selector_box is built with zero spacing) and
-		// share a single 1px seam line carried by the first button's inner edge —
-		// never two abutting borders, never a gap. :dir(ltr)/:dir(rtl) mirror the
-		// rounded ends and the seam for RTL with no C++ special-casing. No rule
-		// here changes padding, margin, min-size, hit area, the theme-owned
-		// hover/pressed/active fills, or the .meow-focus-ring focus outline.
-		".meowmenu .places-mode-selector button { border-radius: 0; }"
-		".meowmenu .places-mode-selector button:dir(ltr):first-child"
+		// NOTE: the Apps/Places switch's rounded option is an opt-in class on
+		// the selector box. Without it, GTK theme button radii are left alone.
+		// The rounded class changes only the outer radii and single seam; strip
+		// sizing is handled by its own class so the shape choice stays independent.
+		".meowmenu .places-mode-selector.strip button"
+		"{ min-height: 0; padding-top: 0; padding-bottom: 0; }"
+		".meowmenu .places-mode-selector.rounded button { border-radius: 0; }"
+		".meowmenu .places-mode-selector.rounded button:dir(ltr):first-child"
 		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px;"
 		"  border-right: 1px solid alpha(@theme_fg_color, 0.2); }"
-		".meowmenu .places-mode-selector button:dir(ltr):last-child"
+		".meowmenu .places-mode-selector.rounded button:dir(ltr):last-child"
 		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px; }"
-		".meowmenu .places-mode-selector button:dir(rtl):first-child"
+		".meowmenu .places-mode-selector.rounded button:dir(rtl):first-child"
 		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px;"
 		"  border-left: 1px solid alpha(@theme_fg_color, 0.2); }"
-		".meowmenu .places-mode-selector button:dir(rtl):last-child"
+		".meowmenu .places-mode-selector.rounded button:dir(rtl):last-child"
 		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px; }",
 		red, green, blue, alpha_shell);
 
@@ -2894,6 +2909,8 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 
 	const int icon_px =
 			meow_toggle_icon_px(pres.switch_location, category_px, search_bar_px);
+	const int button_height_px = meow_toggle_button_height_px(pres.switch_location,
+			pres.categories_horizontal, category_px);
 
 	// Text↔icon child swap (FR-012/014): the visible text label is the short
 	// "Apps"/"Places"; the long "Applications"/"Places" stays as tooltip and
@@ -2902,6 +2919,18 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 			_("Apps"), _("Applications"), icon_px);
 	set_mode_button_content(m_mode_btn_places, icons, MEOW_SWITCH_PLACES_ICONS,
 			_("Places"), _("Places"), icon_px);
+
+	// The horizontal strip is icon-only, so the mode switch must use the same
+	// height as the category icon buttons. Width stays natural so the segmented
+	// control remains comfortably wider than one icon.
+	GtkStyleContext* selector_context =
+			gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box));
+	if (button_height_px > 0)
+		gtk_style_context_add_class(selector_context, "strip");
+	else
+		gtk_style_context_remove_class(selector_context, "strip");
+	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_apps), -1, button_height_px);
+	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_places), -1, button_height_px);
 
 	// Switch-box orientation (FR-007/008/014): vertical only on a vertical
 	// sidebar with category names hidden; horizontal everywhere else.
@@ -3067,8 +3096,8 @@ void WhiskerMenu::Window::update_layout()
 				// FILL row below), not the policy. AUTOMATIC is retained so a
 				// genuinely icon-heavy strip still scrolls (many-categories edge
 				// case); propagate_natural_width stays FALSE so the strip can never
-				// widen the menu — it scrolls within the search-box-matched width
-				// instead (FR-008/009).
+				// widen the menu — it scrolls within the main-column width
+				// instead.
 				gtk_scrolled_window_set_propagate_natural_width(m_strip_scroll, FALSE);
 				gtk_box_pack_start(m_categories_box, GTK_WIDGET(m_strip_scroll), true, true, 0);
 			}
@@ -3088,16 +3117,17 @@ void WhiskerMenu::Window::update_layout()
 			// Single row: toggle flush-leading, categories flush-trailing
 			// (StripGeometry toggle_anchor/categories_anchor). The categories box
 			// fills the available width (docked = menu width); the fullscreen pass
-			// in show() overrides to CENTER so the strip tracks the search-box
-			// column. The switch is pinned leading by the re-homing block below;
+			// in show() applies the shared main-column margins so the strip
+			// tracks the results box. The switch is pinned leading below;
 			// this spacer pins the icons trailing.
-			gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer, 0);
-			gtk_widget_show(m_strip_lead_spacer);
+				gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
+						meow_strip_spacer_order(true));
+				gtk_widget_show(m_strip_lead_spacer);
 			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
-			// The strip's column width and its edge alignment with the search bar
+			// The strip's column width and its edge alignment with the results box
 			// in full-screen are owned by the FILL + symmetric-margin geometry
-			// applied in show() (docked = menu width, full-screen = workarea/2),
-			// so no size group is needed to track the search box (FR-019/020).
+			// applied in show() (docked = menu width, full-screen = main column),
+			// so no size group is needed to track the search box.
 			// Reveal the scroller/viewport without gtk_widget_show_all, which
 			// would override the per-button visibility set above.
 			gtk_widget_show(GTK_WIDGET(m_strip_scroll));
@@ -3124,9 +3154,15 @@ void WhiskerMenu::Window::update_layout()
 			// container imposes nothing on its size group.
 			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		}
-		g_object_unref(m_category_buttons);
-		m_sidebar_struct = want_struct;
-	}
+			g_object_unref(m_category_buttons);
+			m_sidebar_struct = want_struct;
+		}
+		if (want_strip && m_strip_lead_spacer)
+		{
+			gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
+					meow_strip_spacer_order(true));
+			gtk_widget_show(m_strip_lead_spacer);
+		}
 
 	// Re-home the Apps/Places switch to match the computed presentation.
 	{
@@ -3160,11 +3196,11 @@ void WhiskerMenu::Window::update_layout()
 			break;
 		}
 
-		if (target && cur != target)
-		{
-			g_object_ref(sw);
-			if (cur)
-				gtk_container_remove(GTK_CONTAINER(cur), sw);
+			if (target && cur != target)
+			{
+				g_object_ref(sw);
+				if (cur)
+					gtk_container_remove(GTK_CONTAINER(cur), sw);
 			if (pres.switch_location == SwitchLocation::InSearchBar
 					&& target == m_search_cluster)
 			{
@@ -3207,11 +3243,17 @@ void WhiskerMenu::Window::update_layout()
 				// Strip / vertical sidebar: the toggle anchors leading (child 0).
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
+				}
+				g_object_unref(sw);
 			}
-			g_object_unref(sw);
+			else if (target && cur == target
+					&& pres.switch_location == SwitchLocation::InSidebar
+					&& want_strip)
+			{
+				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
+			}
+			m_switch_loc = pres.switch_location;
 		}
-		m_switch_loc = pres.switch_location;
-	}
 
 	// Profile and session-command visibility. profile_position and
 	// commands_position are the authoritative hide signals; the legacy
@@ -3354,7 +3396,7 @@ void WhiskerMenu::Window::update_layout()
 
 	// Top/Bottom strip ordering is driven by the sidebar position itself, not by
 	// m_layout_categories_alternate (which encodes left/right) nor by the
-	// search-bar position (FR-017/018, research R7). The pure helper resolves the
+	// search-bar position. The pure helper resolves the
 	// stacking order; vertical (left/right) layouts keep the legacy mapping for
 	// the hidden strip container.
 	const StripGeometry strip_geom = meow_compute_strip_geometry(
@@ -3546,16 +3588,14 @@ void WhiskerMenu::Window::update_layout()
 	// hiding a cluster only blanks that child, it never re-flows the geometry.
 	if (eff)
 	{
-		const int sidebar_w = (m_workarea.width > 0) ? m_workarea.width / 6 : 0;
-		const int col_gap = 6; // m_contents_box column-spacing in vertical-sidebar mode
-		// Fix the *cluster* width (entry + optional trailing switch) to the grid
-		// width so the pair stays centred and the entry shrinks to make room for
-		// the switch rather than the row growing past the Places-off width
-		// (FR-019). The entry itself hexpands inside the cluster, so it owns all
-		// the width when Places is off and yields the switch's share when it is on.
+		// Fix the *cluster* width (entry + optional trailing switch) to the same
+		// main-column width used by the Top/Bottom strip and results box. The
+		// entry hexpands inside the cluster, so Places consumes space within that
+		// width rather than making either the search row or strip wider.
+		const FullscreenMainColumn column =
+				meow_fullscreen_main_column(m_workarea.width);
 		gtk_widget_set_size_request(GTK_WIDGET(m_search_entry), -1, -1);
-		gtk_widget_set_size_request(m_search_cluster,
-				m_workarea.width - 2 * sidebar_w - col_gap, -1);
+		gtk_widget_set_size_request(m_search_cluster, column.width, -1);
 	}
 
 	// Move commands_box to the right edge of the unified bar on every layout pass.

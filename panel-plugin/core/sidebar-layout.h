@@ -125,17 +125,23 @@ enum class StripAnchor
  *
  * The render-time geometry of a docked Top/Bottom category strip: where it sits
  * relative to the results box, where its two groups anchor on the single row,
- * and that its width tracks the search box. The Apps/Places toggle anchors to
- * the leading edge and the category-icon group to the trailing edge, with the
- * slack between them; width_from_search_box is an invariant (always true). The
- * fields are surfaced so the unit test pins them against drift.
+ * and that its width tracks the Full Screen main column. The Apps/Places toggle
+ * anchors to the leading edge and the category-icon group to the trailing edge,
+ * with the slack between them; width_from_main_column is an invariant (always
+ * true). The fields are surfaced so the unit test pins them against drift.
  */
 struct StripGeometry
 {
 	StripOrder order;
 	StripAnchor toggle_anchor;      // always Leading — toggle pinned to the row's leading edge
 	StripAnchor categories_anchor;  // always Trailing — categories pinned to the trailing edge
-	bool width_from_search_box;     // always true — width source is the search box
+	bool width_from_main_column;    // always true — results/application column
+};
+
+struct FullscreenMainColumn
+{
+	int width;
+	int margin;
 };
 
 /* meow_compute_strip_geometry:
@@ -151,9 +157,22 @@ struct StripGeometry
  * them).
  *
  * Returns: the resolved StripGeometry; toggle_anchor is always Leading,
- * categories_anchor always Trailing, and width_from_search_box always true.
+ * categories_anchor always Trailing, and width_from_main_column always true.
  */
 StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr);
+
+/* meow_fullscreen_main_column:
+ * @workarea_width: current monitor workarea width in pixels.
+ *
+ * Computes the shared Full Screen main-column metrics used by the search bar,
+ * Top/Bottom horizontal sidebar strip, and results/application grid. The
+ * results grid is the width authority; the other rows reuse these metrics so
+ * they do not drift wider or narrower than it.
+ *
+ * Returns: width and symmetric side margin in pixels; both 0 for non-positive
+ *          workarea widths.
+ */
+FullscreenMainColumn meow_fullscreen_main_column(int workarea_width);
 
 /* meow_toggle_icon_px:
  * @location: where the Apps/Places toggle is rendered this pass.
@@ -170,6 +189,42 @@ StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr);
  * toggle is hidden (SwitchLocation::None), meaning no size is applied.
  */
 int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px);
+
+/* meow_toggle_button_height_px:
+ * @location: where the Apps/Places toggle is rendered this pass.
+ * @categories_horizontal: true for the top/bottom icon-only sidebar strip.
+ * @category_px: the configured category icon pixel size.
+ *
+ * Pure decision for an explicit switch-button height. Only the horizontal
+ * sidebar strip pins the buttons to the sidebar icon size; other placements keep
+ * their theme/natural button allocation. Width is deliberately not constrained.
+ *
+ * Returns: button height in pixels, or -1 to clear the height request.
+ */
+int meow_toggle_button_height_px(SwitchLocation location, bool categories_horizontal,
+		int category_px);
+
+/* meow_strip_spacer_order:
+ * @categories_horizontal: true when the category box is the top/bottom strip.
+ *
+ * The horizontal strip keeps one expanding spacer before all category buttons.
+ * Reapplying this order on every layout pass keeps built-in category buttons
+ * grouped with dynamic categories after hover, mode switches, close, and reopen.
+ *
+ * Returns: child index for the spacer, or -1 when no strip spacer is active.
+ */
+int meow_strip_spacer_order(bool categories_horizontal);
+
+/* meow_default_category_order_base:
+ * @strip_spacer_visible: true when the horizontal strip spacer is visible.
+ *
+ * Default-category reordering must leave the strip spacer ahead of the built-in
+ * category buttons, otherwise close/reopen can move All/Recent/Favorites to the
+ * leading side of the strip.
+ *
+ * Returns: the first child index available for default-category buttons.
+ */
+int meow_default_category_order_base(bool strip_spacer_visible);
 
 /* meow_category_label_visible:
  * @category_show_name: the stored "show category names" intent.

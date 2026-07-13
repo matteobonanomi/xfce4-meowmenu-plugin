@@ -18,6 +18,7 @@
 #include "launcher-tree-view.h"
 
 #include "launcher/category.h"
+#include "launcher/launcher-safety.h"
 #include "icon-renderer.h"
 #include "settings.h"
 #include "slot.h"
@@ -110,7 +111,10 @@ LauncherTreeView::LauncherTreeView(Settings* settings) :
 		{
 			Element* element = nullptr;
 			GtkTreeIter iter;
-			gtk_tree_model_get_iter(m_model, &iter, path);
+			if (!launcher_model_get_iter(m_model, path, &iter))
+			{
+				return;
+			}
 			gtk_tree_model_get(m_model, &iter, COLUMN_LAUNCHER, &element, -1);
 			if (element && !dynamic_cast<Category*>(element))
 			{

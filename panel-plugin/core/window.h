@@ -294,7 +294,7 @@ private:
 
 	GtkEntry* m_search_entry;
 
-	// Three void bands for FullScreen unified-bar mode (FR-008, FR-017, FR-018).
+	// Three void bands for FullScreen unified-bar mode.
 	GtkWidget* m_void_top;
 	GtkWidget* m_void_middle;
 	GtkWidget* m_void_bottom;
@@ -322,6 +322,7 @@ private:
 	// activation completes. Mirrors the m_mode_switch_in_progress idiom above.
 	bool m_keyboard_category_nav;
 	gulong m_places_property_slot;
+	gulong m_live_settings_property_slot;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
 	// The dynamically-loaded application-category buttons, kept alongside their

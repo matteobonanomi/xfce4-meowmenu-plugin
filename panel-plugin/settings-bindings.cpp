@@ -609,34 +609,97 @@ bool SearchActionList::load(const gchar* property, const GValue* value)
 		return true;
 	}
 
-	int index = 0;
-	char field[16];
-	if (std::sscanf(property, "/search-actions/action-%d/%14s", &index, field) != 2)
+	int index = -1;
+	SearchActionPropertyField field = SearchActionPropertyField::Invalid;
+	if (!parse_search_action_property(property, size(), &index, &field))
 	{
 		return false;
 	}
 
-	if (index >= size())
+	if (field == SearchActionPropertyField::Invalid)
 	{
 		return true;
 	}
 	SearchAction* action = m_data[index];
 
-	if ((g_strcmp0(field, "name") == 0) && G_VALUE_HOLDS_STRING(value))
+	if ((field == SearchActionPropertyField::Name) && G_VALUE_HOLDS_STRING(value))
 	{
 		action->set_name(g_value_get_string(value));
 	}
-	else if ((g_strcmp0(field, "pattern") == 0) && G_VALUE_HOLDS_STRING(value))
+	else if ((field == SearchActionPropertyField::Pattern) && G_VALUE_HOLDS_STRING(value))
 	{
 		action->set_pattern(g_value_get_string(value));
 	}
-	else if ((g_strcmp0(field, "command") == 0) && G_VALUE_HOLDS_STRING(value))
+	else if ((field == SearchActionPropertyField::Command) && G_VALUE_HOLDS_STRING(value))
 	{
 		action->set_command(g_value_get_string(value));
 	}
-	else if ((g_strcmp0(field, "regex") == 0) && G_VALUE_HOLDS_BOOLEAN(value))
+	else if ((field == SearchActionPropertyField::Regex) && G_VALUE_HOLDS_BOOLEAN(value))
 	{
 		action->set_is_regex(g_value_get_boolean (value));
+	}
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+bool WhiskerMenu::parse_search_action_property(const gchar* property, int size,
+		int* index, SearchActionPropertyField* field)
+{
+	if (index)
+	{
+		*index = -1;
+	}
+	if (field)
+	{
+		*field = SearchActionPropertyField::Invalid;
+	}
+
+	int parsed_index = -1;
+	char parsed_field[16];
+	char trailing = '\0';
+	if (std::sscanf(property, "/search-actions/action-%d/%15[^/ ]%c",
+				&parsed_index, parsed_field, &trailing) != 2)
+	{
+		return false;
+	}
+
+	if ((parsed_index < 0) || (parsed_index >= size))
+	{
+		return true;
+	}
+
+	SearchActionPropertyField parsed = SearchActionPropertyField::Invalid;
+	if (g_strcmp0(parsed_field, "name") == 0)
+	{
+		parsed = SearchActionPropertyField::Name;
+	}
+	else if (g_strcmp0(parsed_field, "pattern") == 0)
+	{
+		parsed = SearchActionPropertyField::Pattern;
+	}
+	else if (g_strcmp0(parsed_field, "command") == 0)
+	{
+		parsed = SearchActionPropertyField::Command;
+	}
+	else if (g_strcmp0(parsed_field, "regex") == 0)
+	{
+		parsed = SearchActionPropertyField::Regex;
+	}
+
+	if (parsed == SearchActionPropertyField::Invalid)
+	{
+		return true;
+	}
+
+	if (index)
+	{
+		*index = parsed_index;
+	}
+	if (field)
+	{
+		*field = parsed;
 	}
 
 	return true;

@@ -128,6 +128,7 @@ const Row kPlacementGrid[] = {
 	{ "launcher-show-name",        Tab::AppGrid,     EnableWhen::Always,        false, Column::C1 },
 	{ "launcher-show-tooltip",     Tab::AppGrid,     EnableWhen::Always,        false, Column::C2 },
 	{ "launcher-show-description", Tab::AppGrid,     EnableWhen::ViewModeList,  false, Column::C1 },
+	{ "transparent-grid",          Tab::AppGrid,     EnableWhen::ViewModeIcons, false, Column::C2 },
 
 	// Sidebar — column per contracts/tab-placement.md. The unchanged
 	// Default-category radio group spans the section (Full); the rest split across
@@ -182,6 +183,7 @@ const char* const kRequiredKeys[] = {
 	"view-mode", "grid-density",
 	"launcher-icon-size", "launcher-show-name",
 	"launcher-show-tooltip", "launcher-show-description",
+	"transparent-grid",
 	"category-show-name", "category-icon-size",
 	"sidebar-position",
 	"category-hover-activate", "sort-categories",
@@ -339,6 +341,7 @@ const ColumnExpectation kColumnContract[] = {
 	{ "launcher-show-name",        Column::C1 },
 	{ "launcher-show-tooltip",     Column::C2 },
 	{ "launcher-show-description", Column::C1 },
+	{ "transparent-grid",          Column::C2 },
 
 	// Sidebar — Default-category radios are whole-row (Full); the rest split
 	// across C1/C2. The former opacity slider was removed.
@@ -402,7 +405,7 @@ static void test_columns_match_contract()
 }
 
 // T013: synced_keys() must cover exactly governed_keys() — order-independent.
-void test_synced_keys_cover_governed_keys()
+static void test_synced_keys_cover_governed_keys()
 {
 	std::set<std::string> governed(WhiskerMenu::governed_keys().begin(),
 		WhiskerMenu::governed_keys().end());

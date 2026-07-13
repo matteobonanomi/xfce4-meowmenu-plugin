@@ -289,6 +289,7 @@ bool ApplicationsPage::load()
 						page->m_load_job == load_job))
 			{
 				page->m_load_job = nullptr;
+				page->populate_garcon_menus();
 				page->load_contents();
 			}
 			delete load_job;
@@ -301,7 +302,10 @@ bool ApplicationsPage::load()
 			LoadJob* load_job = static_cast<LoadJob*>(task_data);
 			if (!load_job->is_cancelled() && load_job->page)
 			{
-				load_job->page->load_garcon_menu();
+				// Garcon file discovery/loading is worker-safe. Signal wiring,
+				// Launcher construction, and UI publication remain in the main
+				// context completion callback.
+				load_job->page->load_garcon_menus();
 			}
 			load_job->mark_worker_done();
 			g_task_return_boolean(thread_task, true);
@@ -398,7 +402,13 @@ void ApplicationsPage::clear()
 
 //-----------------------------------------------------------------------------
 
-void ApplicationsPage::load_garcon_menu()
+/* ApplicationsPage::load_garcon_menus:
+ *
+ * Performs only Garcon menu creation and file loading on the worker thread.
+ * The owner waits for this state transition during teardown, and the guarded
+ * main-context completion owns all signal wiring and object publication.
+ */
+void ApplicationsPage::load_garcon_menus()
 {
 	// Create menu
 	if (m_settings->custom_menu_file.empty())
@@ -422,6 +432,34 @@ void ApplicationsPage::load_garcon_menu()
 		return;
 	}
 
+	// Create settings menu
+	gchar* path = xfce_resource_lookup(XFCE_RESOURCE_CONFIG, "menus/xfce-settings-manager.menu");
+	m_garcon_settings_menu = garcon_menu_new_for_path(path ? path : SETTINGS_MENUFILE);
+	g_free(path);
+
+	// Load settings menu
+	if (m_garcon_settings_menu
+			&& !garcon_menu_load(m_garcon_settings_menu, nullptr, nullptr))
+	{
+		g_object_unref(m_garcon_settings_menu);
+		m_garcon_settings_menu = nullptr;
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* ApplicationsPage::populate_garcon_menus:
+ *
+ * Connects Garcon change signals and constructs the Launcher/category object
+ * graph on the main context after generation and cancellation checks pass.
+ */
+void ApplicationsPage::populate_garcon_menus()
+{
+	if (!m_garcon_menu)
+	{
+		return;
+	}
+
 	connect(m_garcon_menu, "reload-required",
 		[this](GarconMenu*)
 		{
@@ -430,11 +468,6 @@ void ApplicationsPage::load_garcon_menu()
 
 	load_menu(m_garcon_menu, nullptr, m_settings->view_mode == Settings::ViewAsTree);
 
-	// Create settings menu
-	gchar* path = xfce_resource_lookup(XFCE_RESOURCE_CONFIG, "menus/xfce-settings-manager.menu");
-	m_garcon_settings_menu = garcon_menu_new_for_path(path ? path : SETTINGS_MENUFILE);
-	g_free(path);
-
 	if (m_garcon_settings_menu)
 	{
 		connect(m_garcon_settings_menu, "reload-required",
@@ -442,11 +475,7 @@ void ApplicationsPage::load_garcon_menu()
 			{
 				invalidate();
 			});
-	}
 
-	// Load settings menu
-	if (m_garcon_settings_menu && garcon_menu_load(m_garcon_settings_menu, nullptr, nullptr))
-	{
 		Category* category = new Category(m_settings, nullptr);
 		load_menu(m_garcon_settings_menu, category, false);
 		delete category;

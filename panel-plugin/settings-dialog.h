@@ -143,6 +143,7 @@ private:
 	GtkWidget* m_show_category_names = nullptr;
 	GtkWidget* m_show_descriptions = nullptr;
 	GtkWidget* m_show_tooltips = nullptr;
+	GtkWidget* m_transparent_grid = nullptr;
 	GtkWidget* m_category_icon_size = nullptr;
 	GtkWidget* m_item_icon_size = nullptr;
 
@@ -236,6 +237,7 @@ private:
 	// Held for preset sync and for the forced-ON greying applied when the
 	// sidebar is on Top/Bottom or disabled.
 	GtkWidget* m_places_switch_show_icons = nullptr;
+	GtkWidget* m_places_switch_button_shape = nullptr;
 
 	// Behavior
 	GtkWidget* m_hover_switch_category = nullptr;

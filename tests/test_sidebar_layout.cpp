@@ -180,14 +180,44 @@ void strip_geometry_ordering()
 		CHECK(top.order == StripOrder::StripAboveResults);
 		CHECK(top.toggle_anchor == StripAnchor::Leading);
 		CHECK(top.categories_anchor == StripAnchor::Trailing);
-		CHECK(top.width_from_search_box);
+		CHECK(top.width_from_main_column);
 
 		StripGeometry bottom = meow_compute_strip_geometry(SidebarPosition::Bottom, ltr);
 		CHECK(bottom.order == StripOrder::StripBelowResults);
 		CHECK(bottom.toggle_anchor == StripAnchor::Leading);
 		CHECK(bottom.categories_anchor == StripAnchor::Trailing);
-		CHECK(bottom.width_from_search_box);
+		CHECK(bottom.width_from_main_column);
 	}
+}
+
+void fullscreen_main_column_metrics()
+{
+	FullscreenMainColumn zero = meow_fullscreen_main_column(0);
+	CHECK(zero.width == 0);
+	CHECK(zero.margin == 0);
+
+	FullscreenMainColumn even = meow_fullscreen_main_column(1920);
+	CHECK(even.width == 1280);
+	CHECK(even.margin == 320);
+	CHECK(even.margin * 2 + even.width == 1920);
+
+	FullscreenMainColumn odd = meow_fullscreen_main_column(1919);
+	CHECK(odd.width == 1281);
+	CHECK(odd.margin == 319);
+	CHECK(odd.margin * 2 + odd.width == 1919);
+}
+
+void fullscreen_places_disabled_strip_centers_categories()
+{
+	auto p = meow_compute_sidebar_layout(
+			make_state(true, SidebarPosition::Top, true, false, false));
+	CHECK(p.categories_horizontal);
+	CHECK(p.switch_location == SwitchLocation::None);
+	CHECK(p.effective_show_category_names == false);
+
+	StripGeometry top = meow_compute_strip_geometry(SidebarPosition::Top, true);
+	CHECK(top.width_from_main_column);
+	CHECK(top.categories_anchor == StripAnchor::Trailing);
 }
 
 // Toggle icon-size source (ui-contract §1, FR-001/002/003/012/013): the toggle
@@ -204,6 +234,32 @@ void toggle_icon_size_source()
 			== search_bar_px);
 	CHECK(meow_toggle_icon_px(SwitchLocation::None, category_px, search_bar_px)
 			== 0);   // hidden — no size applied
+}
+
+void horizontal_switch_button_height_source()
+{
+	const int category_px = 32;
+
+	CHECK(meow_toggle_button_height_px(SwitchLocation::InSidebar, true, category_px)
+			== category_px);
+	CHECK(meow_toggle_button_height_px(SwitchLocation::InSidebar, false, category_px)
+			== -1);
+	CHECK(meow_toggle_button_height_px(SwitchLocation::InSearchBar, true, category_px)
+			== -1);
+	CHECK(meow_toggle_button_height_px(SwitchLocation::None, true, category_px)
+			== -1);
+}
+
+void strip_spacer_order_decision()
+{
+	CHECK(meow_strip_spacer_order(true) == 0);
+	CHECK(meow_strip_spacer_order(false) == -1);
+}
+
+void default_category_order_base_decision()
+{
+	CHECK(meow_default_category_order_base(true) == 1);
+	CHECK(meow_default_category_order_base(false) == 0);
 }
 
 // Embedded Apps/Places switch ordering in the standard (non-unified) search-bar
@@ -301,7 +357,12 @@ int main()
 	fr029_reversion();
 	parse_positions();
 	strip_geometry_ordering();
+	fullscreen_main_column_metrics();
+	fullscreen_places_disabled_strip_centers_categories();
 	toggle_icon_size_source();
+	horizontal_switch_button_height_source();
+	strip_spacer_order_decision();
+	default_category_order_base_decision();
 	label_visibility_decision();
 	label_cap_decision();
 	sidebar_max_label_width_decision();

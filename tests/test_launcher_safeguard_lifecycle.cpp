@@ -39,6 +39,8 @@
  */
 
 #include "ui/launcher-view.h"
+#include "launcher/command-timeout.h"
+#include "launcher/launcher-safety.h"
 
 #include <glib.h>
 #include <gtk/gtk.h>
@@ -131,6 +133,56 @@ private:
 
 int main()
 {
+	GtkAdjustment* signal_owner = GTK_ADJUSTMENT(
+			gtk_adjustment_new(0, 0, 10, 1, 1, 0));
+	int signal_calls = 0;
+	gulong signal_id = connect(signal_owner, "value-changed",
+		[&signal_calls](GtkAdjustment*)
+		{
+			++signal_calls;
+		});
+	disconnect_signal(signal_owner, signal_id);
+	g_signal_emit_by_name(signal_owner, "value-changed");
+	CHECK(signal_calls == 0);
+	CHECK(signal_id == 0);
+	g_object_unref(signal_owner);
+
+	CHECK(command_timeout_source_is_active(60));
+	CHECK(command_timeout_source_is_active(0));
+	CHECK(!command_timeout_source_is_active(-1));
+
+	gchar** argv = launcher_editor_argv("xfce-desktop-item-edit",
+			"file:///tmp/app '$(touch nope)'.desktop");
+	CHECK(argv != nullptr);
+	CHECK(g_strcmp0(argv[0], "xfce-desktop-item-edit") == 0);
+	CHECK(g_strcmp0(argv[1], "file:///tmp/app '$(touch nope)'.desktop") == 0);
+	CHECK(argv[2] == nullptr);
+	g_strfreev(argv);
+
+	gchar* relpath = launcher_hide_relpath_for_uri(
+			"file:///usr/share/applications/app%20name.desktop",
+			"/usr/share/applications");
+	CHECK(g_strcmp0(relpath, "applications/app name.desktop") == 0);
+	g_free(relpath);
+	CHECK(launcher_hide_relpath_for_uri(
+			"https://example.invalid/app.desktop",
+			"/usr/share/applications") == nullptr);
+	CHECK(launcher_hide_relpath_for_uri(
+			"file:///opt/apps/app.desktop",
+			"/usr/share/applications") == nullptr);
+
+	GtkListStore* store = gtk_list_store_new(1, G_TYPE_STRING);
+	gtk_list_store_insert_with_values(store, nullptr, -1, 0, "row", -1);
+	GtkTreeIter iter;
+	GtkTreePath* valid_path = gtk_tree_path_new_from_indices(0, -1);
+	GtkTreePath* stale_path = gtk_tree_path_new_from_indices(9, -1);
+	CHECK(launcher_model_get_iter(GTK_TREE_MODEL(store), valid_path, &iter));
+	CHECK(!launcher_model_get_iter(GTK_TREE_MODEL(store), stale_path, &iter));
+	CHECK(!launcher_model_get_iter(GTK_TREE_MODEL(store), nullptr, &iter));
+	gtk_tree_path_free(valid_path);
+	gtk_tree_path_free(stale_path);
+	g_object_unref(store);
+
 	// Constructing the widgets below builds their style contexts, which GTK 3
 	// cannot do without a display connection. Skip cleanly on a headless host
 	// instead of aborting; CI supplies a virtual display so the safeguard

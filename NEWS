@@ -1,4 +1,17 @@
 MEOW MENU DEVELOPMENT
+0.7.2 (2026-07-13)
+=====
+- Bugfix: make grid size consistent when switching Apps/Places
+- Bugfix: harden menu callbacks and application reload lifecycles
+- Bugfix: make Places/Apps switch button size consistent with sidebar icon size in horizontal mode
+- Bugfix: make sidebar width equal to search bar width in horizontal mode
+- Security: handle launcher paths and malformed search actions safely
+- Search: make fuzzy matching Unicode-aware
+- Release: align package metadata and installation examples with 0.7.2
+- Properties: add "grid transparency" option for grid layout in result box
+- Properties: add GTK theme/rounded shape option for the Apps/Places switch
+- Presets: make the new "GTK theme" and "grid transparency" default option for Modern and FullScreen presets
+
 0.7.1 (2026-07-07)
 =====
 - Arch: simplify test book when installing from AUR
@@ -168,7 +181,7 @@ MEOW MENU DEVELOPMENT
 - language support covers new Property and Places
 - update readme
 
-0.3.0 (2026-06-15)
+0.3.0 (2026-05-15)
 =====
 - Places brand new features to explore files and folders
 - update readme and installation guide

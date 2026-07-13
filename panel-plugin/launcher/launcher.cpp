@@ -17,6 +17,7 @@
 
 #include "launcher.h"
 
+#include "launcher-safety.h"
 #include "search/query.h"
 #include "settings.h"
 
@@ -181,17 +182,20 @@ bool Launcher::has_auto_start() const
 void Launcher::hide()
 {
 	// Look up the correct relative path
-	const gchar* relpath = nullptr;
+	gchar* relpath = nullptr;
 	gchar* uri = get_uri();
 	if (uri)
 	{
 		gchar** dirs = xfce_resource_lookup_all(XFCE_RESOURCE_DATA, "applications/");
-		for (size_t i = 0; dirs[i]; ++i)
+		if (dirs)
 		{
-			if (g_str_has_prefix(uri + 7, dirs[i]))
+			for (size_t i = 0; dirs[i]; ++i)
 			{
-				relpath = uri + 7 + strlen(dirs[i]) - 13;
-				break;
+				relpath = launcher_hide_relpath_for_uri(uri, dirs[i]);
+				if (relpath)
+				{
+					break;
+				}
 			}
 		}
 		g_strfreev(dirs);
@@ -203,6 +207,12 @@ void Launcher::hide()
 	}
 
 	gchar* path = xfce_resource_save_location(XFCE_RESOURCE_DATA, relpath, false);
+	if (!path)
+	{
+		g_free(relpath);
+		g_free(uri);
+		return;
+	}
 	// I18N: the first %s will be replaced with desktop file path, the second with Hidden=true
 	gchar* message = g_strdup_printf(_("To unhide it you have to manually "
 			"remove the file \"%s\" or open the file and "
@@ -213,21 +223,31 @@ void Launcher::hide()
 	{
 		GFile* source = garcon_menu_item_get_file(m_item);
 		GFile* dest = g_file_new_for_path(path);
-		if (!g_file_equal(source, dest))
+		if (source && dest && !g_file_equal(source, dest))
 		{
 			g_file_copy(source, dest, G_FILE_COPY_NONE, nullptr, nullptr, nullptr, nullptr);
 		}
-		g_object_unref(source);
-		g_object_unref(dest);
+		if (source)
+		{
+			g_object_unref(source);
+		}
+		if (dest)
+		{
+			g_object_unref(dest);
+		}
 
 		XfceRc* rc = xfce_rc_config_open(XFCE_RESOURCE_DATA, relpath, false);
-		xfce_rc_set_group(rc, G_KEY_FILE_DESKTOP_GROUP);
-		xfce_rc_write_bool_entry(rc, G_KEY_FILE_DESKTOP_KEY_HIDDEN, true);
-		xfce_rc_close(rc);
+		if (rc)
+		{
+			xfce_rc_set_group(rc, G_KEY_FILE_DESKTOP_GROUP);
+			xfce_rc_write_bool_entry(rc, G_KEY_FILE_DESKTOP_KEY_HIDDEN, true);
+			xfce_rc_close(rc);
+		}
 	}
 
 	g_free(message);
 	g_free(path);
+	g_free(relpath);
 	g_free(uri);
 }
 

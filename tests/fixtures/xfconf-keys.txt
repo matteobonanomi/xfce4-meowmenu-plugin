@@ -1,2 +1,4 @@
 "/plugins/meowmenu-7"
 "/plugins/whiskermenu-7"
+"/transparent-grid"
+"/places/switch-button-shape"

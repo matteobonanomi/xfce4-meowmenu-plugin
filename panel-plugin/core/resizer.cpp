@@ -49,7 +49,7 @@ Resizer::Resizer(Edge edge, Window* window) :
 			GdkEventButton* event_button = reinterpret_cast<GdkEventButton*>(event);
 			if (event_button->button != 1)
 			{
-				return GDK_EVENT_STOP;
+				return GDK_EVENT_PROPAGATE;
 			}
 			m_pressed = true;
 
@@ -67,7 +67,7 @@ Resizer::Resizer(Edge edge, Window* window) :
 			GdkEventButton* event_button = reinterpret_cast<GdkEventButton*>(event);
 			if (event_button->button != 1)
 			{
-				return GDK_EVENT_STOP;
+				return GDK_EVENT_PROPAGATE;
 			}
 			m_pressed = false;
 
@@ -81,18 +81,18 @@ Resizer::Resizer(Edge edge, Window* window) :
 		{
 			if (!m_pressed)
 			{
-				return GDK_EVENT_STOP;
+				return GDK_EVENT_PROPAGATE;
 			}
 
-			GdkEventButton* event_button = reinterpret_cast<GdkEventButton*>(event);
-			const int delta_x = event_button->x - m_x;
-			const int delta_y = event_button->y - m_y;
+			GdkEventMotion* event_motion = reinterpret_cast<GdkEventMotion*>(event);
+			const int delta_x = event_motion->x - m_x;
+			const int delta_y = event_motion->y - m_y;
 
 			m_window->resize(delta_x * m_delta_x, delta_y * m_delta_y, delta_x * m_delta_width, delta_y * m_delta_height);
 
 			// Update anchor so next event gives an incremental delta, not cumulative.
-			m_x = event_button->x;
-			m_y = event_button->y;
+			m_x = event_motion->x;
+			m_y = event_motion->y;
 
 			return GDK_EVENT_STOP;
 		});

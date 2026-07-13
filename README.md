@@ -52,7 +52,7 @@ source builds are best-effort and not exercised by CI.
 
 After install or uninstall, restart the panel with `xfce4-panel -r`, then
 right-click the panel → **Add New Items** → **MeowMenu**. Replace `<version>`
-with the actual release (e.g. `0.4.0`).
+with the actual release (e.g. `0.7.2`).
 
 <details>
 <summary><strong>Ubuntu 26.04</strong></summary>

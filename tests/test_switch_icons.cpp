@@ -8,6 +8,7 @@
  */
 
 #include "ui/switch-icons.h"
+#include "settings.h"
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -135,6 +136,18 @@ int main()
 		CHECK(g_strcmp0(places_text.visible_text, "Places") == 0);
 		CHECK(places_text.tooltip_text == nullptr);
 	}
+
+	// Switch-shape storage domain: only gtk-theme and rounded are meaningful;
+	// unknown values fall back to the theme-native shape.
+	CHECK(places_switch_shape_is_valid(PLACES_SWITCH_SHAPE_GTK_THEME));
+	CHECK(places_switch_shape_is_valid(PLACES_SWITCH_SHAPE_ROUNDED));
+	CHECK(!places_switch_shape_is_valid("pill"));
+	CHECK(g_strcmp0(places_switch_shape_or_default(nullptr),
+			PLACES_SWITCH_SHAPE_GTK_THEME) == 0);
+	CHECK(g_strcmp0(places_switch_shape_or_default("pill"),
+			PLACES_SWITCH_SHAPE_GTK_THEME) == 0);
+	CHECK(!places_switch_shape_is_rounded(PLACES_SWITCH_SHAPE_GTK_THEME));
+	CHECK(places_switch_shape_is_rounded(PLACES_SWITCH_SHAPE_ROUNDED));
 
 	// Clean up the synthetic theme tree (best effort).
 	gchar* rm = g_strdup_printf("rm -rf '%s'", root);

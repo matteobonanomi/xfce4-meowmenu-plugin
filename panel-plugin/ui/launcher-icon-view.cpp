@@ -30,7 +30,10 @@ using namespace WhiskerMenu;
 LauncherIconView::LauncherIconView(Settings* settings) :
 	m_settings(settings),
 	m_icon_renderer(nullptr),
-	m_icon_size(-1)
+	m_icon_size(-1),
+	m_grid_density(),
+	m_layout_mode(),
+	m_transparent_grid(false)
 {
 	// Create the view
 	m_view = GTK_ICON_VIEW(gtk_icon_view_new());
@@ -68,6 +71,7 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	g_object_ref_sink(m_view);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_view)), "launchers");
+	sync_transparent_grid_style();
 
 	// Handle hover selection
 	enable_hover_selection(GTK_WIDGET(m_view));
@@ -262,12 +266,23 @@ void LauncherIconView::unset_drag_dest()
 
 void LauncherIconView::reload_icon_size()
 {
+	sync_transparent_grid_style();
+
 	// Fetch icon size
-	if (m_icon_size == m_settings->launcher_icon_size.get_size())
+	const int icon_size = m_settings->launcher_icon_size.get_size();
+	const char* density = m_settings->grid_density;
+	const std::string density_value = density ? density : "";
+	const char* layout = m_settings->layout_mode;
+	const std::string layout_value = layout ? layout : "";
+	if ((m_icon_size == icon_size)
+			&& (m_grid_density == density_value)
+			&& (m_layout_mode == layout_value))
 	{
 		return;
 	}
-	m_icon_size = m_settings->launcher_icon_size.get_size();
+	m_icon_size = icon_size;
+	m_grid_density = density_value;
+	m_layout_mode = layout_value;
 
 	// Configure icon renderer
 	if (m_icon_size > 1)
@@ -308,7 +323,6 @@ void LauncherIconView::reload_icon_size()
 
 	// T043: adjust padding/spacing from grid-density (low/medium/high)
 	int padding = base_padding;
-	const char* density = m_settings->grid_density;
 	if (g_strcmp0(density, "low") == 0)
 	{
 		padding = base_padding + 4;
@@ -327,9 +341,42 @@ void LauncherIconView::reload_icon_size()
 		gtk_icon_view_set_row_spacing(m_view, base_padding);
 	}
 	gtk_icon_view_set_item_padding(m_view, padding);
+	g_object_set(m_icon_renderer,
+			"spacing", gtk_icon_view_get_row_spacing(m_view),
+			"label-lines", 2,
+			nullptr);
 
 	// Let GtkIconView adapt the number of columns to the available width.
 	gtk_icon_view_set_columns(m_view, -1);
+}
+
+//-----------------------------------------------------------------------------
+
+/* sync_transparent_grid_style:
+ *
+ * Mirrors the live /transparent-grid setting onto the icon view's CSS class.
+ * The class is used only by the window-scoped CSS provider, keeping list/tree
+ * views and non-resting interaction states outside this visual preference.
+ */
+void LauncherIconView::sync_transparent_grid_style()
+{
+	const bool transparent_grid = m_settings->transparent_grid;
+	if (m_transparent_grid == transparent_grid)
+	{
+		return;
+	}
+	m_transparent_grid = transparent_grid;
+
+	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_view));
+	if (transparent_grid)
+	{
+		gtk_style_context_add_class(context, "transparent-grid");
+	}
+	else
+	{
+		gtk_style_context_remove_class(context, "transparent-grid");
+	}
+	gtk_widget_queue_draw(GTK_WIDGET(m_view));
 }
 
 //-----------------------------------------------------------------------------

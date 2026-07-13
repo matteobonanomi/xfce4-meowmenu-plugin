@@ -32,6 +32,8 @@ struct _WhiskerMenuIconRenderer
 	gpointer launcher;
 	GIcon* gicon;
 	gint size;
+	gint spacing;
+	gint label_lines;
 	bool stretch;
 };
 
@@ -46,6 +48,8 @@ enum
 	PROP_LAUNCHER,
 	PROP_GICON,
 	PROP_SIZE,
+	PROP_SPACING,
+	PROP_LABEL_LINES,
 	PROP_STRETCH
 };
 
@@ -60,15 +64,19 @@ static void whiskermenu_icon_renderer_get_preferred_width(GtkCellRenderer* rende
 
 	// Cell width is label-independent (icon size + padding only), so it is
 	// identical for an Applications item and a Places item at the same settings.
-	const GridCellWidth cell = meow_grid_cell_width(pad, icon_renderer->size, icon_renderer->stretch);
+	const GridCellMetrics cell = meow_grid_cell_metrics(pad,
+			icon_renderer->size,
+			icon_renderer->spacing,
+			icon_renderer->stretch,
+			icon_renderer->label_lines);
 
 	if (minimum)
 	{
-		*minimum = cell.minimum;
+		*minimum = cell.minimum_width;
 	}
 	if (natural)
 	{
-		*natural = cell.natural;
+		*natural = cell.natural_width;
 	}
 }
 
@@ -80,15 +88,19 @@ static void whiskermenu_icon_renderer_get_preferred_height(GtkCellRenderer* rend
 
 	gint pad;
 	gtk_cell_renderer_get_padding(renderer, nullptr, &pad);
-	gint height = (pad * 2) + icon_renderer->size;
+	const GridCellMetrics cell = meow_grid_cell_metrics(pad,
+			icon_renderer->size,
+			icon_renderer->spacing,
+			icon_renderer->stretch,
+			icon_renderer->label_lines);
 
 	if (minimum)
 	{
-		*minimum = height;
+		*minimum = cell.minimum_height;
 	}
 	if (natural)
 	{
-		*natural = height;
+		*natural = cell.natural_height;
 	}
 }
 
@@ -183,6 +195,14 @@ static void whiskermenu_icon_renderer_get_property(GObject* object, guint prop_i
 		g_value_set_int(value, icon_renderer->size);
 		break;
 
+	case PROP_SPACING:
+		g_value_set_int(value, icon_renderer->spacing);
+		break;
+
+	case PROP_LABEL_LINES:
+		g_value_set_int(value, icon_renderer->label_lines);
+		break;
+
 	case PROP_STRETCH:
 		g_value_set_boolean(value, icon_renderer->stretch);
 		break;
@@ -215,6 +235,14 @@ static void whiskermenu_icon_renderer_set_property(GObject* object, guint prop_i
 
 	case PROP_SIZE:
 		icon_renderer->size = g_value_get_int(value);
+		break;
+
+	case PROP_SPACING:
+		icon_renderer->spacing = g_value_get_int(value);
+		break;
+
+	case PROP_LABEL_LINES:
+		icon_renderer->label_lines = g_value_get_int(value);
 		break;
 
 	case PROP_STRETCH:
@@ -270,6 +298,18 @@ static void whiskermenu_icon_renderer_class_init(WhiskerMenuIconRendererClass* k
 			PROP_SIZE,
 			g_param_spec_int("size", "size", "size",
 					1, G_MAXINT, 48,
+					GParamFlags(G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+	g_object_class_install_property(gobject_class,
+			PROP_SPACING,
+			g_param_spec_int("spacing", "spacing", "spacing",
+					0, G_MAXINT, 0,
+					GParamFlags(G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+	g_object_class_install_property(gobject_class,
+			PROP_LABEL_LINES,
+			g_param_spec_int("label-lines", "label-lines", "label-lines",
+					1, G_MAXINT, 2,
 					GParamFlags(G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
 	g_object_class_install_property(gobject_class,

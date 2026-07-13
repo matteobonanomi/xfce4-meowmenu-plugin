@@ -107,8 +107,15 @@ test_search_action_edit_sources = ['test_search_action_edit.cpp']
 
 test_search_action_edit = executable(
   'test_search_action_edit',
-  test_search_action_edit_sources,
-  dependencies: [],
+  test_search_action_edit_sources + [
+    '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
+    '..' / 'panel-plugin' / 'search' / 'search-action.cpp',
+    '..' / 'panel-plugin' / 'settings-bindings.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  dependencies: [glib, gtk, libxfce4ui, xfconf],
 )
 
 test('search_action_edit', test_search_action_edit)
@@ -394,10 +401,10 @@ test_sidebar_layout = executable(
 
 test('sidebar_layout', test_sidebar_layout)
 
-# test_grid_cell_metrics: headless coverage of the pure icon-grid cell-width
+# test_grid_cell_metrics: headless coverage of the pure icon-grid cell metric
 # arithmetic in panel-plugin/ui/grid-cell-metrics.cpp (minimum/natural width
-# from padding + icon size + stretch, with no label-text input). GTK-free
-# helper; no display.
+# and height from geometry inputs, with no label-text input). GTK-free helper;
+# no display.
 test_grid_cell_metrics_sources = [
   'test_grid_cell_metrics.cpp',
   '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
@@ -464,7 +471,7 @@ test_switch_icons = executable(
   'test_switch_icons',
   test_switch_icons_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
+  dependencies: [glib, gtk, libxfce4util, xfconf],
 )
 
 test('switch_icons', test_switch_icons, timeout: 30)
@@ -485,7 +492,7 @@ test_properties_switch = executable(
   'test_properties_switch',
   test_properties_switch_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
+  dependencies: [glib, gtk, libxfce4util, xfconf],
 )
 
 test('properties_switch', test_properties_switch, timeout: 30)
@@ -579,7 +586,10 @@ test('application_load_generation', test_application_load_generation)
 # view (the SC-005a crash; also caught by the sanitizer CI). Constructing the
 # widgets needs a display, so it skips cleanly when none is present and CI runs
 # it under a virtual display so the sanitizers still exercise the freed-view path.
-test_launcher_safeguard_lifecycle_sources = ['test_launcher_safeguard_lifecycle.cpp']
+test_launcher_safeguard_lifecycle_sources = [
+  'test_launcher_safeguard_lifecycle.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'launcher-safety.cpp',
+]
 
 test_launcher_safeguard_lifecycle = executable(
   'test_launcher_safeguard_lifecycle',

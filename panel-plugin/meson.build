@@ -19,6 +19,7 @@ plugin_sources = [
   'ui/icon-size.cpp',
   'ui/image-menu-item.h',
   'launcher/launcher.cpp',
+  'launcher/launcher-safety.cpp',
   'ui/launcher-icon-view.cpp',
   'ui/launcher-tree-view.cpp',
   'migration.cpp',

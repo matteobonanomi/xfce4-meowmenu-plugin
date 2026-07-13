@@ -13,8 +13,12 @@
  * shadow struct that mirrors the four fields the modal reads and writes.
  */
 
+#include "../panel-plugin/settings-bindings.h"
+
 #include <cassert>
 #include <string>
+
+using namespace WhiskerMenu;
 
 // ---------------------------------------------------------------------------
 // Shadow SearchAction — mirrors the four fields the modal edits.
@@ -113,6 +117,46 @@ static void test_special_characters_preserved()
 	assert(action.command == "xdg-open %s");
 }
 
+static void test_search_action_property_parser_accepts_valid_fields()
+{
+	int index = -1;
+	SearchActionPropertyField field = SearchActionPropertyField::Invalid;
+
+	assert(parse_search_action_property("/search-actions/action-1/command",
+			3, &index, &field));
+	assert(index == 1);
+	assert(field == SearchActionPropertyField::Command);
+
+	assert(parse_search_action_property("/search-actions/action-0/regex",
+			3, &index, &field));
+	assert(index == 0);
+	assert(field == SearchActionPropertyField::Regex);
+}
+
+static void test_search_action_property_parser_ignores_invalid_inputs()
+{
+	int index = 99;
+	SearchActionPropertyField field = SearchActionPropertyField::Name;
+
+	assert(parse_search_action_property("/search-actions/action--1/name",
+			2, &index, &field));
+	assert(index == -1);
+	assert(field == SearchActionPropertyField::Invalid);
+
+	assert(parse_search_action_property("/search-actions/action-9/name",
+			2, &index, &field));
+	assert(index == -1);
+	assert(field == SearchActionPropertyField::Invalid);
+
+	assert(parse_search_action_property("/search-actions/action-0/unknown",
+			2, &index, &field));
+	assert(index == -1);
+	assert(field == SearchActionPropertyField::Invalid);
+
+	assert(parse_search_action_property("/search-actions/action-0/name/trailing",
+			2, &index, &field) == false);
+}
+
 int main()
 {
 	test_ok_round_trip_persists();
@@ -120,5 +164,7 @@ int main()
 	test_regex_flag_survives_roundtrip();
 	test_empty_strings_accepted();
 	test_special_characters_preserved();
+	test_search_action_property_parser_accepts_valid_fields();
+	test_search_action_property_parser_ignores_invalid_inputs();
 	return 0;
 }

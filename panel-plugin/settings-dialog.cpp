@@ -601,6 +601,10 @@ void SettingsDialog::update_grid_controls_state()
 
 	const bool icons_view = (static_cast<int>(m_settings->view_mode) == Settings::ViewAsIcons);
 	gtk_widget_set_sensitive(m_grid_density_combo, icons_view);
+	if (m_item_icon_size)
+		gtk_widget_set_sensitive(m_item_icon_size, icons_view);
+	if (m_transparent_grid)
+		gtk_widget_set_sensitive(m_transparent_grid, icons_view);
 }
 
 void SettingsDialog::sync_preset_widgets()
@@ -663,6 +667,9 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_grid_density_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 			static_cast<const gchar*>(m_settings->grid_density));
+	if (m_transparent_grid)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_transparent_grid),
+			static_cast<bool>(m_settings->transparent_grid));
 
 	if (m_places_enabled_switch)
 		gtk_switch_set_active(GTK_SWITCH(m_places_enabled_switch),
@@ -670,6 +677,9 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_places_switch_show_icons)
 		gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
 			static_cast<bool>(m_settings->places_switch_show_icons));
+	if (m_places_switch_button_shape)
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_places_switch_button_shape),
+			places_switch_shape_or_default(m_settings->places_switch_button_shape));
 
 	if (m_hover_switch_category)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),

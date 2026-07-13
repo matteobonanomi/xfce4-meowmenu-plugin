@@ -14,10 +14,19 @@ CLAUDE.md
 # Meson build artifacts
 build/
 _build/
+bin/
+obj/
+out/
 *.o
 *.so
 *.a
 *.dll
 *.exe
+*.log
+.env*
+.idea/
 .DS_Store
+Thumbs.db
+*.tmp
+*.swp
 dist/arch/.SRCINFO

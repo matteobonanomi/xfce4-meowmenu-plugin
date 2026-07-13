@@ -196,6 +196,19 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			m_plugin->reload_menu();
 		});
 
+	m_transparent_grid = gtk_check_button_new_with_mnemonic(_("Transparent grid"));
+	add_form_row(layout_grid, COLUMN_C2, 2, nullptr, m_transparent_grid, false, nullptr);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_transparent_grid), m_settings->transparent_grid);
+
+	connect(m_transparent_grid, "toggled",
+		[this](GtkToggleButton* button)
+		{
+			if (m_programmatic_update)
+				return;
+			m_settings->transparent_grid = gtk_toggle_button_get_active(button);
+			m_plugin->refresh_layout();
+		});
+
 	// Apply the view-mode sub-enables now and on every toggle.
 	auto apply_view_mode_sub_enables = [this, density_label, icon_size_label]()
 	{
@@ -205,6 +218,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		gtk_widget_set_sensitive(density_label, is_icons);
 		gtk_widget_set_sensitive(m_item_icon_size, is_icons);
 		gtk_widget_set_sensitive(icon_size_label, is_icons);
+		gtk_widget_set_sensitive(m_transparent_grid, is_icons);
 		gtk_widget_set_sensitive(m_show_descriptions, is_list);
 	};
 	apply_view_mode_sub_enables();

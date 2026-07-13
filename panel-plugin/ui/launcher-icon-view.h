@@ -20,6 +20,8 @@
 
 #include "launcher-view.h"
 
+#include <string>
+
 namespace WhiskerMenu
 {
 
@@ -65,10 +67,16 @@ public:
 	void reload_icon_size() override;
 
 private:
+	void sync_transparent_grid_style();
+
+private:
 	Settings* const m_settings;
 	GtkIconView* m_view;
 	GtkCellRenderer* m_icon_renderer;
 	int m_icon_size;
+	std::string m_grid_density;
+	std::string m_layout_mode;
+	bool m_transparent_grid;
 };
 
 }

@@ -103,6 +103,15 @@ to the nearest coherent edge (the element stays visible — only its edge moves)
 | Favorites boost level | Strength of the boost: low, medium, or high. |
 | Search actions | Custom keyword-triggered commands (e.g. type `!` to run a shell command). |
 
+Search-action command templates are split into arguments using shell-style
+quoting, but they are launched directly rather than through a shell. In a
+non-regex action, `%s` inserts the query text after the matched prefix, `%S`
+inserts the complete query, `%u` inserts a URI-escaped form of the text after
+the prefix, and `%%` inserts a literal percent sign. Use `%u` when arbitrary
+text must remain one command argument. `%s` and `%S` preserve spaces and quote
+characters, so they should be used only where the command template deliberately
+expects argument splitting.
+
 ### Results View
 
 | Option | Description |
@@ -123,7 +132,7 @@ to the nearest coherent edge (the element stays visible — only its edge moves)
 | Option | Description |
 |--------|-------------|
 | Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch moves to the right end of the search bar, and the results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
-| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom turn the categories into a horizontal, icon-only strip. The strip is centred, as wide as the search box, and surrounded by equal gaps above and below; **Top** places it just below the search bar and above the results, **Bottom** places it below the results. It scrolls sideways when it has more icons than fit, and "Show category name" is unavailable there. The same geometry holds in Full Screen, where the centred results box keeps its symmetric side margins. |
+| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom turn the categories into a horizontal, icon-only strip. In Full Screen, the strip and search bar use the same left and right edges as the results/application grid; with Places enabled the Apps/Places switch stays on the leading edge with icon height matching the sidebar categories, category icons align to the trailing edge, and with Places disabled the categories are centred in that width. **Top** places it just below the search bar and above the results, **Bottom** places it below the results. It scrolls sideways when it has more icons than fit, and "Show category name" is unavailable there. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (-2 = inherit from theme). |
 | Sort categories | Sort the category list alphabetically. |
@@ -137,6 +146,7 @@ to the nearest coherent edge (the element stays visible — only its edge moves)
 |--------|-------------|
 | Enable Places | Show a file/folder browser pane in the menu. |
 | Show icons | Render the Apps/Places switch as two icon buttons (an app-grid icon and a folder icon, with tooltips) instead of text labels. Forced on, and shown greyed in Preferences, when the sidebar is on top/bottom or disabled. |
+| Switch button shape | Choose whether the Apps/Places switch uses the active GTK theme's normal button shape or MeowMenu's rounded segmented shape. |
 | Show recent files | Include recently opened files in the Places view. |
 | Show bookmarks | Include user bookmarks (from Thunar or GTK bookmarks). |
 | Bookmark sync | Keep the Places bookmarks in sync with **MeowMenu** or **Thunar**. |
@@ -200,6 +210,12 @@ Replace `<id>` with the numeric plugin ID shown by
 | `launcher-show-tooltip` | bool | true | Show a hover tooltip. |
 | `launcher-icon-size` | int | -1 | Icon size (-1 = theme default). |
 | `grid-density` | string | `medium` | `low`, `medium`, or `high` columns in grid mode. |
+| `transparent-grid` | bool | false | In grid mode, make resting result tiles blend into the results area while keeping icons, labels, and interaction states visible. |
+
+When results are shown as an icon grid, application tiles and Places file or
+folder tiles use the same application-style tile height. This keeps switching
+between Applications and Places visually stable across docked, centered, and
+full-screen layouts.
 
 ### Sidebar
 
@@ -230,6 +246,7 @@ Replace `<id>` with the numeric plugin ID shown by
 |-----|------|---------|-------------|
 | `places/enabled` | bool | false | Enable the Places pane. |
 | `places/switch-show-icons` | bool | false | Render the Apps/Places switch as icon buttons instead of text. Forced on (render-time only) when the sidebar is on top/bottom or disabled. |
+| `places/switch-button-shape` | string | `gtk-theme` | Apps/Places switch shape: `gtk-theme` uses normal GTK theme button radii, `rounded` uses MeowMenu's rounded segmented shape. |
 | `places/history-enabled` | bool | true | Show recently opened files. |
 | `places/favourites-enabled` | bool | true | Show bookmarks. |
 | `places/favourite-sync` | string | `meowmenu` | Keep bookmarks in sync with `meowmenu` or `thunar`. |
