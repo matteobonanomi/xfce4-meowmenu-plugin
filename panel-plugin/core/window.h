@@ -256,6 +256,18 @@ private:
 	 * state only — the stored switch/sidebar intent is never written.
 	 */
 	void apply_switch_presentation(const SwitchPresentation& pres);
+	void update_favourite_drop_targets();
+	bool application_favourites_drop_available() const;
+	bool places_favourites_drop_available() const;
+	gboolean on_application_favourites_drag_motion(GdkDragContext* context,
+			guint time);
+	gboolean on_places_favourites_drag_motion(GdkDragContext* context,
+			guint time);
+	void on_favourite_drag_leave(GtkWidget* widget);
+	void on_application_favourites_drag_data_received(GdkDragContext* context,
+			GtkSelectionData* data, guint info, guint time);
+	void on_places_favourites_drag_data_received(GdkDragContext* context,
+			GtkSelectionData* data, guint info, guint time);
 
 private:
 	Settings* const m_settings;

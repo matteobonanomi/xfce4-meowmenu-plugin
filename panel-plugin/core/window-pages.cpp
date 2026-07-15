@@ -323,6 +323,7 @@ void WhiskerMenu::Window::switch_mode(bool to_places)
 
 	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 	m_mode_switch_in_progress = false;
+	update_favourite_drop_targets();
 }
 
 //-----------------------------------------------------------------------------

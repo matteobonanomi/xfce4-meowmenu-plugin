@@ -23,6 +23,19 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+static bool favourite_uri_exists(const std::string& uri)
+{
+	GFile* file = g_file_new_for_uri(uri.c_str());
+	const bool exists = file && g_file_query_exists(file, nullptr);
+	if (file)
+	{
+		g_object_unref(file);
+	}
+	return exists;
+}
+
+//-----------------------------------------------------------------------------
+
 FavouritesSection::FavouritesSection(Settings* settings) :
 	m_settings(settings),
 	m_mode(MeowMenuOnly),
@@ -180,32 +193,48 @@ void FavouritesSection::remove_favourite(const char* uri)
 /* FavouritesSection::get_items:
  *
  * Reads the active sync source (Xfconf StringList or ~/.config/gtk-3.0/bookmarks),
- * caps at @max, and builds a PlacesItem per URI. Missing items are kept (exists()
- * returns false) so they can be rendered greyed-out per FR-022.
+ * hides missing URIs before row construction, caps at @max, and builds a
+ * PlacesItem per visible URI. MeowMenu-owned stale URIs are removed from
+ * Xfconf; Thunar bookmarks remain read-only and are only omitted from the
+ * visible model.
  */
 std::vector<PlacesItem*> FavouritesSection::get_items(int max)
 {
-	// Like the history section, build fresh PlacesItem objects every call so
-	// each favourite's exists() — and its muted markup/"missing" tooltip — is
-	// re-evaluated at each rebuild (FR-007); no filesystem watch is added.
 	clear_items();
 
 	std::vector<std::string> uris;
 	if (m_mode == MeowMenuOnly && m_settings)
 	{
-		for (const auto& u : m_settings->places_favourites)
+		for (int i = 0; i < m_settings->places_favourites.size(); ++i)
 		{
-			uris.push_back(u);
+			const std::string uri = m_settings->places_favourites[i];
+			if (!favourite_uri_exists(uri))
+			{
+				m_settings->places_favourites.erase(i);
+				--i;
+				continue;
+			}
+
+			if (max <= 0 || (int) uris.size() < max)
+			{
+				uris.push_back(uri);
+			}
 		}
 	}
 	else
 	{
-		uris = read_thunar_bookmarks();
-	}
-
-	if (max > 0 && (int) uris.size() > max)
-	{
-		uris.resize((size_t) max);
+		for (const auto& uri : read_thunar_bookmarks())
+		{
+			if (!favourite_uri_exists(uri))
+			{
+				continue;
+			}
+			if (max > 0 && (int) uris.size() >= max)
+			{
+				break;
+			}
+			uris.push_back(uri);
+		}
 	}
 
 	for (const auto& uri : uris)

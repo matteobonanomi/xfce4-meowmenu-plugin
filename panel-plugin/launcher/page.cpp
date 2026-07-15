@@ -17,6 +17,7 @@
 
 #include "page.h"
 
+#include "core/drag-to-favourites.h"
 #include "launcher/category-button.h"
 #include "favorites-page.h"
 #include "ui/image-menu-item.h"
@@ -30,6 +31,8 @@
 #include "ui/slot.h"
 #include "core/window.h"
 #include "core/window-keyboard.h"
+
+#include <cstring>
 
 #include <libxfce4ui/libxfce4ui.h>
 
@@ -81,6 +84,7 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	m_selected_launcher(nullptr),
 	m_drag_enabled(true),
 	m_launcher_dragged(false),
+	m_favourite_drag_payload_delivered(false),
 	m_reorderable(false)
 {
 	// Create button
@@ -179,11 +183,13 @@ void Page::set_reorderable(bool reorderable)
 	{
 		const GtkTargetEntry row_targets[] = {
 			{ g_strdup("GTK_TREE_MODEL_ROW"), GTK_TARGET_SAME_WIDGET, 0 },
-			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP, 1 }
+			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP, 1 },
+			{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
 		};
 
 		m_view->set_drag_source(GDK_BUTTON1_MASK,
-				row_targets, 2,
+				row_targets, 3,
 				GdkDragAction(GDK_ACTION_MOVE | GDK_ACTION_COPY));
 
 		m_view->set_drag_dest(row_targets, 1,
@@ -191,20 +197,24 @@ void Page::set_reorderable(bool reorderable)
 
 		g_free(row_targets[0].target);
 		g_free(row_targets[1].target);
+		g_free(row_targets[2].target);
 	}
 	else
 	{
 		const GtkTargetEntry row_targets[] = {
-			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP, 1 }
+			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP, 1 },
+			{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
 		};
 
 		m_view->set_drag_source(GDK_BUTTON1_MASK,
-				row_targets, 1,
+				row_targets, 2,
 				GDK_ACTION_COPY);
 
 		m_view->unset_drag_dest();
 
 		g_free(row_targets[0].target);
+		g_free(row_targets[1].target);
 	}
 }
 
@@ -248,6 +258,13 @@ void Page::create_view()
 		{
 			view_drag_data_get(data, info);
 		});
+
+	connect(m_view->get_widget(), "drag-begin",
+		[this](GtkWidget*, GdkDragContext* context)
+		{
+			view_drag_begin(context);
+		},
+		Connect::After);
 
 	connect(m_view->get_widget(), "drag-end",
 		[this](GtkWidget*, GdkDragContext*)
@@ -416,8 +433,13 @@ gboolean Page::view_button_release_event(GdkEvent* event)
 
 	if (m_launcher_dragged)
 	{
-		m_window->hide();
+		if (launcher_drag_should_hide_menu_after_end(
+				m_favourite_drag_payload_delivered))
+		{
+			m_window->hide();
+		}
 		m_launcher_dragged = false;
+		m_favourite_drag_payload_delivered = false;
 	}
 
 	return GDK_EVENT_PROPAGATE;
@@ -425,18 +447,56 @@ gboolean Page::view_button_release_event(GdkEvent* event)
 
 //-----------------------------------------------------------------------------
 
+void Page::view_drag_begin(GdkDragContext* context)
+{
+	m_favourite_drag_payload_delivered = false;
+
+	GtkTreePath* path = m_view->get_selected_path();
+	if (!path)
+	{
+		path = m_view->get_cursor();
+	}
+	m_view->set_drag_icon(path, context, favourite_drag_preview_size());
+	if (path)
+	{
+		gtk_tree_path_free(path);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void Page::view_drag_data_get(GtkSelectionData* data, guint info)
 {
-	if ((info != 1) || !m_selected_launcher)
+	if (!m_selected_launcher)
 	{
 		return;
 	}
 
-	gchar* uris[2] = { m_selected_launcher->get_uri(), nullptr };
-	if (uris[0])
+	if (info == WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO)
 	{
-		gtk_selection_data_set_uris(data, uris);
-		g_free(uris[0]);
+		const gchar* desktop_id = m_selected_launcher->get_desktop_id();
+		if (!xfce_str_is_empty(desktop_id))
+		{
+			gtk_selection_data_set(data,
+					gdk_atom_intern(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET, FALSE),
+					8,
+					reinterpret_cast<const guchar*>(desktop_id),
+					strlen(desktop_id));
+			m_favourite_drag_payload_delivered = true;
+		}
+	}
+	else if (info == 1)
+	{
+		gchar* uris[2] = { m_selected_launcher->get_uri(), nullptr };
+		if (uris[0])
+		{
+			gtk_selection_data_set_uris(data, uris);
+			g_free(uris[0]);
+		}
+	}
+	else
+	{
+		return;
 	}
 
 	m_launcher_dragged = true;
@@ -448,8 +508,13 @@ void Page::view_drag_end()
 {
 	if (m_launcher_dragged)
 	{
-		m_window->hide();
+		if (launcher_drag_should_hide_menu_after_end(
+				m_favourite_drag_payload_delivered))
+		{
+			m_window->hide();
+		}
 		m_launcher_dragged = false;
+		m_favourite_drag_payload_delivered = false;
 	}
 }
 

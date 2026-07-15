@@ -130,6 +130,20 @@ test_places = executable(
 
 test('places', test_places)
 
+test_drag_to_favourites_sources = [
+  'test_drag_to_favourites.cpp',
+  '..' / 'panel-plugin' / 'core' / 'drag-to-favourites.cpp',
+]
+
+test_drag_to_favourites = executable(
+  'test_drag_to_favourites',
+  test_drag_to_favourites_sources,
+  include_directories: include_directories('..'),
+  dependencies: [],
+)
+
+test('drag_to_favourites', test_drag_to_favourites)
+
 test_home_search_sources = ['test_home_search.cpp']
 
 test_home_search = executable(

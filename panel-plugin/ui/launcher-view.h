@@ -68,6 +68,55 @@ public:
 	virtual void unset_drag_source()=0;
 	virtual void unset_drag_dest()=0;
 
+	/* set_drag_icon:
+	 * @path: source model row currently being dragged.
+	 * @context: GTK drag context for the active drag operation.
+	 * @icon_size: requested preview icon size in pixels.
+	 *
+	 * Renders the row icon at a caller-chosen size and installs it as the GTK
+	 * drag preview. Falls back to GTK's GIcon preview if the theme lookup fails.
+	 */
+	void set_drag_icon(GtkTreePath* path, GdkDragContext* context, int icon_size) const
+	{
+		if (!path || !context || !m_model || icon_size <= 0)
+		{
+			return;
+		}
+
+		GtkTreeIter iter;
+		if (!gtk_tree_model_get_iter(m_model, &iter, path))
+		{
+			return;
+		}
+
+		GIcon* icon = nullptr;
+		gtk_tree_model_get(m_model, &iter, COLUMN_ICON, &icon, -1);
+		if (!icon)
+		{
+			return;
+		}
+
+		GtkIconTheme* theme = gtk_icon_theme_get_for_screen(
+				gtk_widget_get_screen(get_widget()));
+		GtkIconInfo* info = gtk_icon_theme_lookup_by_gicon(
+				theme, icon, icon_size, GTK_ICON_LOOKUP_FORCE_SIZE);
+		GdkPixbuf* pixbuf = info ? gtk_icon_info_load_icon(info, nullptr) : nullptr;
+		if (pixbuf)
+		{
+			gtk_drag_set_icon_pixbuf(context, pixbuf, icon_size / 2, icon_size / 2);
+			g_object_unref(pixbuf);
+		}
+		else
+		{
+			gtk_drag_set_icon_gicon(context, icon, icon_size / 2, icon_size / 2);
+		}
+		if (info)
+		{
+			g_object_unref(info);
+		}
+		g_object_unref(icon);
+	}
+
 	virtual void reload_icon_size()=0;
 
 	/* set_background_translucent:

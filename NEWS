@@ -1,4 +1,10 @@
 MEOW MENU DEVELOPMENT
+0.8.0 (2026-07-xx)
+=====
+- Favorites: add drag-to-favourite support for applications and Places
+- Places: hide stale favourites without modifying external bookmark sources
+- Drag and drop: keep the menu open and use small previews after favourite drops
+
 0.7.2 (2026-07-13)
 =====
 - Bugfix: make grid size consistent when switching Apps/Places

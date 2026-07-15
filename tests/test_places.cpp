@@ -57,6 +57,61 @@ static std::vector<std::string> filter_existing_dirs(
 }
 
 // ---------------------------------------------------------------------------
+// Stand-in for FavouritesSection::get_items() in MeowMenuOnly mode: remove
+// missing/unreachable URIs before visible item construction.
+// ---------------------------------------------------------------------------
+static std::vector<std::string> prune_existing_favourite_uris(
+		std::vector<std::string>& uris)
+{
+	std::vector<std::string> visible;
+	for (auto it = uris.begin(); it != uris.end(); )
+	{
+		GFile* file = g_file_new_for_uri(it->c_str());
+		const bool exists = file && g_file_query_exists(file, nullptr);
+		if (file)
+		{
+			g_object_unref(file);
+		}
+
+		if (!exists)
+		{
+			it = uris.erase(it);
+			continue;
+		}
+
+		visible.push_back(*it);
+		++it;
+	}
+	return visible;
+}
+
+// ---------------------------------------------------------------------------
+// Stand-in for FavouritesSection::get_items() in read-only/external mode:
+// hide missing/unreachable URIs from MeowMenu's visible model without changing
+// the externally managed source list.
+// ---------------------------------------------------------------------------
+static std::vector<std::string> hide_missing_external_favourite_uris(
+		const std::vector<std::string>& uris)
+{
+	std::vector<std::string> visible;
+	for (const auto& uri : uris)
+	{
+		GFile* file = g_file_new_for_uri(uri.c_str());
+		const bool exists = file && g_file_query_exists(file, nullptr);
+		if (file)
+		{
+			g_object_unref(file);
+		}
+
+		if (exists)
+		{
+			visible.push_back(uri);
+		}
+	}
+	return visible;
+}
+
+// ---------------------------------------------------------------------------
 // Stand-in for PlacesItem's availability-driven presentation (places-item.cpp):
 // an available item keeps its plain display name; a missing item is wrapped in
 // muted Pango markup with the name escaped, and its tooltip names the target and
@@ -225,6 +280,64 @@ static void test_home_filter_existing_dirs()
 	g_free(tmpdir);
 }
 
+static void test_meowmenu_favourites_prune_missing_uris()
+{
+	gchar* tmpdir = g_dir_make_tmp("meowmenu-fav-prune-XXXXXX", nullptr);
+	assert(tmpdir);
+
+	gchar* kept_path = g_build_filename(tmpdir, "kept.txt", nullptr);
+	assert(g_file_set_contents(kept_path, "kept", -1, nullptr));
+
+	gchar* kept_uri = g_filename_to_uri(kept_path, nullptr, nullptr);
+	assert(kept_uri);
+
+	std::vector<std::string> stored = {
+		kept_uri,
+		std::string("file://") + tmpdir + "/missing.txt",
+	};
+
+	const auto visible = prune_existing_favourite_uris(stored);
+	assert(visible.size() == 1);
+	assert(visible[0] == kept_uri);
+	assert(stored.size() == 1);
+	assert(stored[0] == kept_uri);
+
+	g_remove(kept_path);
+	g_rmdir(tmpdir);
+	g_free(kept_uri);
+	g_free(kept_path);
+	g_free(tmpdir);
+}
+
+static void test_external_favourites_hide_missing_uris_without_pruning_source()
+{
+	gchar* tmpdir = g_dir_make_tmp("meowmenu-fav-hide-XXXXXX", nullptr);
+	assert(tmpdir);
+
+	gchar* kept_path = g_build_filename(tmpdir, "kept.txt", nullptr);
+	assert(g_file_set_contents(kept_path, "kept", -1, nullptr));
+
+	gchar* kept_uri = g_filename_to_uri(kept_path, nullptr, nullptr);
+	assert(kept_uri);
+
+	const std::vector<std::string> external_source = {
+		kept_uri,
+		std::string("file://") + tmpdir + "/missing.txt",
+	};
+
+	const auto visible = hide_missing_external_favourite_uris(external_source);
+	assert(visible.size() == 1);
+	assert(visible[0] == kept_uri);
+	assert(external_source.size() == 2);
+	assert(external_source[1].find("missing.txt") != std::string::npos);
+
+	g_remove(kept_path);
+	g_rmdir(tmpdir);
+	g_free(kept_uri);
+	g_free(kept_path);
+	g_free(tmpdir);
+}
+
 int main()
 {
 	test_missing_item_markup_is_muted_and_escaped();
@@ -236,5 +349,7 @@ int main()
 	test_search_utf8();
 	test_search_empty_name();
 	test_home_filter_existing_dirs();
+	test_meowmenu_favourites_prune_missing_uris();
+	test_external_favourites_hide_missing_uris_without_pruning_source();
 	return 0;
 }

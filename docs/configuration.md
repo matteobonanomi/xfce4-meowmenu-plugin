@@ -140,6 +140,13 @@ expects argument splitting.
 | Include favorites in recent | Also show favorited apps in the Recent category. |
 | Unified bar | Render profile, search, and session controls on one horizontal row (FullScreen mode only). |
 
+Application results can be dragged onto the visible **Favorites** sidebar item
+to add them to Favorites. The item is appended once, duplicates are ignored, and
+the same gesture works from list and icon-grid results. MeowMenu stays open
+after the drop, and the drag preview uses the standard small icon size even in
+large grid layouts. If the sidebar is disabled, or the **Favorites** sidebar
+item is not visible, there is no drop target.
+
 ### Places
 
 | Option | Description |
@@ -153,14 +160,23 @@ expects argument splitting.
 | Max items | Maximum number of items shown in the Places view. |
 | Remember last mode | Reopen MeowMenu showing the last-used Places sub-section. |
 
+Files and folders in Places can be dragged onto the visible Places
+**Favourites** sidebar item when **Bookmark sync** is set to **MeowMenu**. The
+entry is appended once, duplicates are ignored, and MeowMenu stays open after
+the drop. The drag preview uses the standard small icon size in list and grid
+views. When Places, the sidebar, or Places **Favourites** are disabled, or when
+sync is set to **Thunar**, the drop target is unavailable and external
+bookmarks are not modified.
+
 #### Missing recent files and bookmarks
 
 When a recent item or bookmark points to a file or folder that has been deleted
-or renamed, MeowMenu shows it greyed-out and its tooltip notes that the target
-is missing. A greyed-out entry cannot be opened directly — clicking it does
-nothing — but its right-click menu still offers **Open Containing Folder**,
-which opens the parent directory so a renamed file can be located. Missing
-bookmarks can also be removed with **Remove from Favourites**.
+or renamed, MeowMenu-owned Places favourites are removed from the visible
+Favourites list the next time it is rebuilt. Externally managed Places
+favourites are hidden from MeowMenu's visible Favourites list without changing
+the external source. Recent items remain read-only; unavailable entries can
+appear greyed-out, cannot be opened directly, and still offer **Open Containing
+Folder** when a parent directory can be located.
 
 ## Xfconf reference
 
