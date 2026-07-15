@@ -27,6 +27,7 @@ plugin_sources = [
   'places/places-item.cpp',
   'places/places-page.cpp',
   'core/category-lifetime.cpp',
+  'core/desktop-drag.cpp',
   'core/drag-to-favourites.cpp',
   'core/opacity-model.cpp',
   'core/plugin.cpp',

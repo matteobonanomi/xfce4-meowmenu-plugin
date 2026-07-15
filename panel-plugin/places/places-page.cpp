@@ -9,11 +9,11 @@
 
 #include "places-page.h"
 
+#include "core/desktop-drag.h"
 #include "favourites-section.h"
 #include "history-section.h"
 #include "home-section.h"
 #include "ui/image-menu-item.h"
-#include "core/drag-to-favourites.h"
 #include "ui/launcher-icon-view.h"
 #include "ui/launcher-tree-view.h"
 #include "ui/launcher-view.h"
@@ -31,6 +31,11 @@
 
 using namespace WhiskerMenu;
 
+namespace
+{
+constexpr guint FOLDER_DRAG_ARTIFACT_CLEANUP_DELAY_MS = 5 * 60 * 1000;
+}
+
 //-----------------------------------------------------------------------------
 
 PlacesPage::PlacesPage(Settings* settings, Window* window) :
@@ -45,6 +50,8 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_empty_message(nullptr),
 	m_model(nullptr),
 	m_item_dragged(false),
+	m_pressed_drag_item(nullptr),
+	m_pressed_drag_info(0),
 	m_debounce_id(0),
 	m_home_search_active(false)
 {
@@ -77,6 +84,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 
 PlacesPage::~PlacesPage()
 {
+	clear_drag_state();
 	cancel_home_search();
 	clear_home_search_items();
 	delete m_view;
@@ -148,12 +156,27 @@ void PlacesPage::create_view()
 			on_drag_end();
 		});
 
-	const GtkTargetEntry targets[] = {
-		{ g_strdup(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET),
-			GTK_TARGET_SAME_APP, WHISKERMENU_PLACES_FAVOURITE_DND_INFO }
-	};
-	m_view->set_drag_source(GDK_BUTTON1_MASK, targets, 1, GDK_ACTION_COPY);
-	g_free(targets[0].target);
+	if (desktop_drag_external_uri_enabled(m_settings->layout_mode))
+	{
+		const GtkTargetEntry targets[] = {
+			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP,
+				WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO },
+			{ g_strdup(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_PLACES_FAVOURITE_DND_INFO }
+		};
+		m_view->set_drag_source(GDK_BUTTON1_MASK, targets, 2, GDK_ACTION_COPY);
+		g_free(targets[0].target);
+		g_free(targets[1].target);
+	}
+	else
+	{
+		const GtkTargetEntry targets[] = {
+			{ g_strdup(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_PLACES_FAVOURITE_DND_INFO }
+		};
+		m_view->set_drag_source(GDK_BUTTON1_MASK, targets, 1, GDK_ACTION_COPY);
+		g_free(targets[0].target);
+	}
 
 	m_view->set_model(GTK_TREE_MODEL(m_model));
 }
@@ -451,7 +474,15 @@ void PlacesPage::on_button_press(GdkEventButton* event)
 	if (!gdk_event_triggers_context_menu(reinterpret_cast<GdkEvent*>(event))
 			&& event->button == GDK_BUTTON_PRIMARY)
 	{
-		m_item_dragged = false;
+		clear_drag_state();
+		GtkTreeIter iter;
+		Element* element = nullptr;
+		if (gtk_tree_model_get_iter(GTK_TREE_MODEL(m_model), &iter, path))
+		{
+			gtk_tree_model_get(GTK_TREE_MODEL(m_model), &iter,
+					LauncherView::COLUMN_LAUNCHER, &element, -1);
+		}
+		m_pressed_drag_item = dynamic_cast<PlacesItem*>(element);
 		m_view->set_cursor(path);
 		m_view->select_path(path);
 		gtk_tree_path_free(path);
@@ -484,13 +515,19 @@ void PlacesPage::on_button_press(GdkEventButton* event)
 
 gboolean PlacesPage::on_button_release(GdkEventButton* event)
 {
-	if (!event || event->button != GDK_BUTTON_PRIMARY || !m_item_dragged)
+	if (!event || event->button != GDK_BUTTON_PRIMARY)
 	{
 		return GDK_EVENT_PROPAGATE;
 	}
 
-	m_item_dragged = false;
-	return GDK_EVENT_STOP;
+	if (m_item_dragged)
+	{
+		clear_drag_state(true);
+		return GDK_EVENT_STOP;
+	}
+
+	clear_drag_state();
+	return GDK_EVENT_PROPAGATE;
 }
 
 //-----------------------------------------------------------------------------
@@ -502,7 +539,7 @@ void PlacesPage::on_drag_begin(GdkDragContext* context)
 	{
 		path = m_view->get_cursor();
 	}
-	m_view->set_drag_icon(path, context, favourite_drag_preview_size());
+	m_view->set_drag_icon(path, context, desktop_drag_preview_size());
 	if (path)
 	{
 		gtk_tree_path_free(path);
@@ -515,51 +552,101 @@ void PlacesPage::on_drag_begin(GdkDragContext* context)
  * @data: GTK selection data to populate.
  * @info: target info requested by the destination.
  *
- * Exports the selected Places item URI for in-menu favourite drops. Missing
- * items deliberately export no payload so stale rows cannot be re-added by
- * dragging them.
+ * Exports the pressed Places item URI for same-app favourite drops or external
+ * desktop drops. Missing items deliberately export no payload so stale rows
+ * cannot be re-added or sent to the desktop.
  */
 void PlacesPage::on_drag_data_get(GtkSelectionData* data, guint info)
 {
-	if (info != WHISKERMENU_PLACES_FAVOURITE_DND_INFO)
+	auto* item = m_pressed_drag_item;
+	if (!item)
 	{
 		return;
 	}
+	m_pressed_drag_info = info;
 
-	GtkTreePath* path = m_view->get_selected_path();
-	if (!path)
+	if (info == WHISKERMENU_PLACES_FAVOURITE_DND_INFO)
 	{
-		return;
+		if (!item->exists() || xfce_str_is_empty(item->get_uri()))
+		{
+			return;
+		}
+		gtk_selection_data_set(data,
+				gdk_atom_intern(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET, FALSE),
+				8,
+				reinterpret_cast<const guchar*>(item->get_uri()),
+				strlen(item->get_uri()));
+		m_item_dragged = true;
 	}
-
-	GtkTreeIter iter;
-	Element* element = nullptr;
-	if (gtk_tree_model_get_iter(GTK_TREE_MODEL(m_model), &iter, path))
+	else if (info == WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO)
 	{
-		gtk_tree_model_get(GTK_TREE_MODEL(m_model), &iter,
-				LauncherView::COLUMN_LAUNCHER, &element, -1);
-	}
-	gtk_tree_path_free(path);
+		if (!desktop_drag_places_uri_available(
+				m_settings->layout_mode, item->exists(), item->get_uri()))
+		{
+			return;
+		}
+		const char* drag_uri = item->get_uri();
+		gchar* folder_launcher_uri = nullptr;
+		if (item->is_directory())
+		{
+			if (m_folder_drag_artifact_uri.empty())
+			{
+				folder_launcher_uri = desktop_drag_create_folder_launcher_uri(
+						item->get_file(), item->get_text());
+				if (!folder_launcher_uri)
+				{
+					return;
+				}
+				m_folder_drag_artifact_uri = folder_launcher_uri;
+			}
+			if (m_folder_drag_artifact_uri.empty())
+			{
+				return;
+			}
+			drag_uri = m_folder_drag_artifact_uri.c_str();
+		}
 
-	auto* item = dynamic_cast<PlacesItem*>(element);
-	if (!item || !item->exists() || xfce_str_is_empty(item->get_uri()))
-	{
-		return;
+		gchar* uris[2] = { g_strdup(drag_uri), nullptr };
+		gtk_selection_data_set_uris(data, uris);
+		g_free(uris[0]);
+		g_free(folder_launcher_uri);
+		m_item_dragged = true;
 	}
-
-	gtk_selection_data_set(data,
-			gdk_atom_intern(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET, FALSE),
-			8,
-			reinterpret_cast<const guchar*>(item->get_uri()),
-			strlen(item->get_uri()));
-	m_item_dragged = true;
 }
 
 //-----------------------------------------------------------------------------
 
 void PlacesPage::on_drag_end()
 {
+	clear_drag_state(true);
+}
+
+//-----------------------------------------------------------------------------
+
+/* clear_drag_state:
+ *
+ * Resets transient Places drag state. Folder launcher cleanup is optionally
+ * deferred because external destinations may still need to copy the artifact
+ * after GTK emits drag-end. It deliberately does not hide the menu; focus loss
+ * remains the only close authority after drag completion or cancellation.
+ */
+void PlacesPage::clear_drag_state(bool defer_folder_cleanup)
+{
 	m_item_dragged = false;
+	m_pressed_drag_item = nullptr;
+	m_pressed_drag_info = 0;
+	if (defer_folder_cleanup)
+	{
+		desktop_drag_schedule_folder_launcher_cleanup(
+				m_folder_drag_artifact_uri.c_str(),
+				FOLDER_DRAG_ARTIFACT_CLEANUP_DELAY_MS);
+	}
+	else
+	{
+		desktop_drag_cleanup_folder_launcher_uri(
+				m_folder_drag_artifact_uri.c_str());
+	}
+	m_folder_drag_artifact_uri.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -656,6 +743,11 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 				item->open_in_terminal(s, m_widget);
 				m_window->hide();
 			});
+		append(mi);
+
+		mi = whiskermenu_image_menu_item_new("list-add", _("Add Desktop Link"));
+		connect(mi, "activate",
+			[this, item](GtkMenuItem*) { item->add_desktop_link(m_widget); });
 		append(mi);
 	}
 	else

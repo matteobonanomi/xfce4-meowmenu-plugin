@@ -27,6 +27,12 @@ X11 and Wayland.
 | `Esc`                | Steps back one level (see below).                                       |
 | `Shift+F10` or `Menu`| Opens the context menu for the highlighted item.                        |
 
+The context menu is also the non-drag route for desktop entries. Highlight an
+application and open its context menu to use **Add to Desktop**. In Places,
+highlight a file or folder and open its context menu to use **Add Desktop
+Link**. These actions are available in FullScreen as the supported alternative
+to dragging to the desktop.
+
 ## Switching Applications and Places
 
 `Tab` and `Shift+Tab` switch between **Applications** and **Places** from

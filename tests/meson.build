@@ -133,16 +133,39 @@ test('places', test_places)
 test_drag_to_favourites_sources = [
   'test_drag_to_favourites.cpp',
   '..' / 'panel-plugin' / 'core' / 'drag-to-favourites.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
 ]
 
 test_drag_to_favourites = executable(
   'test_drag_to_favourites',
   test_drag_to_favourites_sources,
-  include_directories: include_directories('..'),
-  dependencies: [],
+  include_directories: [
+    include_directories('..'),
+    include_directories('..' / 'panel-plugin'),
+  ],
+  dependencies: [glib, gio, libxfce4util, xfconf],
 )
 
 test('drag_to_favourites', test_drag_to_favourites)
+
+test_desktop_drag_sources = [
+  'test_desktop_drag.cpp',
+  '..' / 'panel-plugin' / 'core' / 'desktop-drag.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
+]
+
+test_desktop_drag = executable(
+  'test_desktop_drag',
+  test_desktop_drag_sources,
+  include_directories: [
+    include_directories('..'),
+    include_directories('..' / 'panel-plugin'),
+  ],
+  dependencies: [glib, libxfce4util, xfconf],
+)
+
+test('desktop_drag', test_desktop_drag)
 
 test_home_search_sources = ['test_home_search.cpp']
 

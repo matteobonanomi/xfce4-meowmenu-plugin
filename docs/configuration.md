@@ -147,6 +147,17 @@ after the drop, and the drag preview uses the standard small icon size even in
 large grid layouts. If the sidebar is disabled, or the **Favorites** sidebar
 item is not visible, there is no drop target.
 
+Application results, including visible Favorites, can also be dragged out of
+MeowMenu to the desktop or to a file manager window in **Docked** and
+**Centered** layouts. MeowMenu exports one launcher URI and the destination
+decides whether to accept it, where to place it, and how to handle any existing
+file with the same name. The drag itself does not close MeowMenu; only the
+normal focus-loss setting can do that. In **FullScreen**, desktop drag is
+unavailable, but the context-menu **Add to Desktop** action remains available.
+The drag preview is always the dragged application's icon only at the standard
+small size, regardless of list or grid view and regardless of the configured
+result icon size.
+
 ### Places
 
 | Option | Description |
@@ -167,6 +178,18 @@ the drop. The drag preview uses the standard small icon size in list and grid
 views. When Places, the sidebar, or Places **Favourites** are disabled, or when
 sync is set to **Thunar**, the drop target is unavailable and external
 bookmarks are not modified.
+
+Existing files and folders in Places can be dragged to the desktop or an
+accepting file manager window in **Docked** and **Centered** layouts. Files
+export one URI for the original file. Folders export a temporary desktop link
+launcher that opens the original folder, so the destination creates a
+launcher/link instead of copying the folder contents. The destination owns
+placement, materialisation, and collision handling. Missing or unreachable
+Places items do not provide a desktop-drag payload, and drag completion does
+not close MeowMenu by itself. In **FullScreen**, desktop drag is unavailable;
+use the context-menu **Add Desktop Link** action for files or folders instead.
+Places desktop drags use the same icon-only standard small drag preview in
+list and grid views.
 
 #### Missing recent files and bookmarks
 

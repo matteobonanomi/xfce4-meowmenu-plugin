@@ -17,7 +17,7 @@
 
 #include "page.h"
 
-#include "core/drag-to-favourites.h"
+#include "core/desktop-drag.h"
 #include "launcher/category-button.h"
 #include "favorites-page.h"
 #include "ui/image-menu-item.h"
@@ -181,40 +181,81 @@ void Page::set_reorderable(bool reorderable)
 	m_reorderable = reorderable;
 	if (m_reorderable)
 	{
-		const GtkTargetEntry row_targets[] = {
-			{ g_strdup("GTK_TREE_MODEL_ROW"), GTK_TARGET_SAME_WIDGET, 0 },
-			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP, 1 },
-			{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
-				GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
-		};
+		if (desktop_drag_external_uri_enabled(m_settings->layout_mode))
+		{
+			const GtkTargetEntry row_targets[] = {
+				{ g_strdup("GTK_TREE_MODEL_ROW"), GTK_TARGET_SAME_WIDGET, 0 },
+				{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP,
+					WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO },
+				{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+					GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
+			};
 
-		m_view->set_drag_source(GDK_BUTTON1_MASK,
-				row_targets, 3,
-				GdkDragAction(GDK_ACTION_MOVE | GDK_ACTION_COPY));
+			m_view->set_drag_source(GDK_BUTTON1_MASK,
+					row_targets, 3,
+					GdkDragAction(GDK_ACTION_MOVE | GDK_ACTION_COPY));
 
-		m_view->set_drag_dest(row_targets, 1,
-				GDK_ACTION_MOVE);
+			m_view->set_drag_dest(row_targets, 1,
+					GDK_ACTION_MOVE);
 
-		g_free(row_targets[0].target);
-		g_free(row_targets[1].target);
-		g_free(row_targets[2].target);
+			g_free(row_targets[0].target);
+			g_free(row_targets[1].target);
+			g_free(row_targets[2].target);
+		}
+		else
+		{
+			const GtkTargetEntry row_targets[] = {
+				{ g_strdup("GTK_TREE_MODEL_ROW"), GTK_TARGET_SAME_WIDGET, 0 },
+				{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+					GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
+			};
+
+			m_view->set_drag_source(GDK_BUTTON1_MASK,
+					row_targets, 2,
+					GdkDragAction(GDK_ACTION_MOVE | GDK_ACTION_COPY));
+
+			m_view->set_drag_dest(row_targets, 1,
+					GDK_ACTION_MOVE);
+
+			g_free(row_targets[0].target);
+			g_free(row_targets[1].target);
+		}
 	}
 	else
 	{
-		const GtkTargetEntry row_targets[] = {
-			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP, 1 },
-			{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
-				GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
-		};
+		if (desktop_drag_external_uri_enabled(m_settings->layout_mode))
+		{
+			const GtkTargetEntry row_targets[] = {
+				{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP,
+					WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO },
+				{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+					GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
+			};
 
-		m_view->set_drag_source(GDK_BUTTON1_MASK,
-				row_targets, 2,
-				GDK_ACTION_COPY);
+			m_view->set_drag_source(GDK_BUTTON1_MASK,
+					row_targets, 2,
+					GDK_ACTION_COPY);
 
-		m_view->unset_drag_dest();
+			m_view->unset_drag_dest();
 
-		g_free(row_targets[0].target);
-		g_free(row_targets[1].target);
+			g_free(row_targets[0].target);
+			g_free(row_targets[1].target);
+		}
+		else
+		{
+			const GtkTargetEntry row_targets[] = {
+				{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+					GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
+			};
+
+			m_view->set_drag_source(GDK_BUTTON1_MASK,
+					row_targets, 1,
+					GDK_ACTION_COPY);
+
+			m_view->unset_drag_dest();
+
+			g_free(row_targets[0].target);
+		}
 	}
 }
 
@@ -433,11 +474,6 @@ gboolean Page::view_button_release_event(GdkEvent* event)
 
 	if (m_launcher_dragged)
 	{
-		if (launcher_drag_should_hide_menu_after_end(
-				m_favourite_drag_payload_delivered))
-		{
-			m_window->hide();
-		}
 		m_launcher_dragged = false;
 		m_favourite_drag_payload_delivered = false;
 	}
@@ -456,7 +492,7 @@ void Page::view_drag_begin(GdkDragContext* context)
 	{
 		path = m_view->get_cursor();
 	}
-	m_view->set_drag_icon(path, context, favourite_drag_preview_size());
+	m_view->set_drag_icon(path, context, desktop_drag_preview_size());
 	if (path)
 	{
 		gtk_tree_path_free(path);
@@ -472,6 +508,7 @@ void Page::view_drag_data_get(GtkSelectionData* data, guint info)
 		return;
 	}
 
+	bool payload_delivered = false;
 	if (info == WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO)
 	{
 		const gchar* desktop_id = m_selected_launcher->get_desktop_id();
@@ -483,23 +520,29 @@ void Page::view_drag_data_get(GtkSelectionData* data, guint info)
 					reinterpret_cast<const guchar*>(desktop_id),
 					strlen(desktop_id));
 			m_favourite_drag_payload_delivered = true;
+			payload_delivered = true;
 		}
 	}
-	else if (info == 1)
+	else if (info == WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO)
 	{
 		gchar* uris[2] = { m_selected_launcher->get_uri(), nullptr };
-		if (uris[0])
+		if (desktop_drag_application_uri_available(
+				m_settings->layout_mode, uris[0]))
 		{
 			gtk_selection_data_set_uris(data, uris);
-			g_free(uris[0]);
+			payload_delivered = true;
 		}
+		g_free(uris[0]);
 	}
 	else
 	{
 		return;
 	}
 
-	m_launcher_dragged = true;
+	if (payload_delivered)
+	{
+		m_launcher_dragged = true;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -508,11 +551,6 @@ void Page::view_drag_end()
 {
 	if (m_launcher_dragged)
 	{
-		if (launcher_drag_should_hide_menu_after_end(
-				m_favourite_drag_payload_delivered))
-		{
-			m_window->hide();
-		}
 		m_launcher_dragged = false;
 		m_favourite_drag_payload_delivered = false;
 	}

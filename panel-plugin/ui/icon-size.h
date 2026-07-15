@@ -51,6 +51,7 @@ public:
 	IconSize(Settings* settings, const gchar* property, const int size);
 
 	int get_size() const;
+	static int pixels_for(Size size);
 
 	static std::vector<std::string> get_strings();
 

@@ -7,6 +7,7 @@
  */
 
 #include "panel-plugin/core/drag-to-favourites.h"
+#include "panel-plugin/ui/icon-size.h"
 
 #include <cassert>
 #include <string>
@@ -154,15 +155,15 @@ static void test_drops_do_not_activate_sources()
 
 static void test_favourite_drags_keep_menu_open()
 {
-	assert(!launcher_drag_should_hide_menu_after_end(
-			/*favourite_payload_delivered*/ true));
-	assert(launcher_drag_should_hide_menu_after_end(
-			/*favourite_payload_delivered*/ false));
+	assert(favourite_drop_accepts(FavouriteDragPayload::Application,
+			FavouriteDropTarget::ApplicationFavorites));
+	assert(favourite_drop_accepts(FavouriteDragPayload::Places,
+			FavouriteDropTarget::PlacesFavourites));
 }
 
 static void test_favourite_drag_uses_small_preview()
 {
-	assert(favourite_drag_preview_size() == 32);
+	assert(favourite_drag_preview_size() == IconSize::pixels_for(IconSize::Small));
 }
 
 static void test_missing_application_favourites_are_pruned()

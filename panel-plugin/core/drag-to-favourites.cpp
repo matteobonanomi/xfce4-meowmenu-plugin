@@ -9,6 +9,8 @@
 
 #include "drag-to-favourites.h"
 
+#include "ui/icon-size.h"
+
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
@@ -47,15 +49,7 @@ bool WhiskerMenu::places_favourites_drop_available(bool sidebar_enabled,
 
 int WhiskerMenu::favourite_drag_preview_size()
 {
-	return 32;
-}
-
-//-----------------------------------------------------------------------------
-
-bool WhiskerMenu::launcher_drag_should_hide_menu_after_end(
-		bool favourite_payload_delivered)
-{
-	return !favourite_payload_delivered;
+	return IconSize::pixels_for(IconSize::Small);
 }
 
 //-----------------------------------------------------------------------------

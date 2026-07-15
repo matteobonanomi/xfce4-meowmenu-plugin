@@ -32,7 +32,6 @@ bool application_favourites_drop_available(bool sidebar_enabled,
 bool places_favourites_drop_available(bool sidebar_enabled, bool places_enabled,
 		bool places_active, bool favourites_visible, bool meowmenu_only);
 int favourite_drag_preview_size();
-bool launcher_drag_should_hide_menu_after_end(bool favourite_payload_delivered);
 
 }
 
