@@ -44,6 +44,7 @@ public:
 	void scroll_to_path(GtkTreePath* path) override;
 	void select_path(GtkTreePath* path) override;
 	void set_cursor(GtkTreePath* path) override;
+	bool is_first_visual_row(GtkTreePath* path) const override;
 
 	void set_fixed_height_mode(bool fixed_height) override;
 	void set_selection_mode(GtkSelectionMode mode) override;
@@ -63,6 +64,9 @@ public:
 	void unset_drag_dest() override;
 
 	void reload_icon_size() override;
+	int get_item_height() const override;
+	int get_icon_size() const override { return m_icon_size; }
+	bool is_grid_view() const override { return false; }
 
 private:
 	void create_column();

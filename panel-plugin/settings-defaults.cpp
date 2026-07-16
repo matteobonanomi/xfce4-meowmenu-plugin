@@ -405,6 +405,21 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		schema_version = 10;
 	}
 
+	if (schema_version < 11)
+	{
+		const char* id = current_preset_id;
+		const bool known_nonclassic = g_strcmp0(id, "modern") == 0
+			|| g_strcmp0(id, "fullscreen") == 0 || g_strcmp0(id, "minimal") == 0;
+		if (!xfconf_channel_has_property(channel, "/extras/calculator-engine"))
+			xfconf_channel_set_string(channel, "/extras/calculator-engine",
+					known_nonclassic ? "bc" : "none");
+		if (!xfconf_channel_has_property(channel, "/extras/calculator-result-font-size"))
+			xfconf_channel_set_int(channel, "/extras/calculator-result-font-size", -1);
+		if (!xfconf_channel_has_property(channel, "/extras/calculator-max-decimal-places"))
+			xfconf_channel_set_int(channel, "/extras/calculator-max-decimal-places", 4);
+		schema_version = 11;
+	}
+
 	// Back-fill the marker on every path (fresh, upgrade, or already-current
 	// schema) so the next load is unambiguously an upgrade and the user's
 	// layout is never reset again. Written inside the active begin/end batch.

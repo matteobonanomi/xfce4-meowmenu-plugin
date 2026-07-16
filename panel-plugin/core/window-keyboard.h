@@ -75,6 +75,26 @@ enum class TabAction : unsigned
  */
 TabAction tab_action(bool places_available);
 
+enum class CalculatorFocus : unsigned
+{
+	None,
+	Search,
+	Banner,
+	Results,
+};
+
+/* calculator_vertical_target:
+ * @banner_visible: whether a Calculator row currently exists.
+ * @origin: logical focus location before the arrow press.
+ * @up: true for Up, false for Down.
+ * @first_result_row: whether Results focus is on its first visual row.
+ *
+ * Defines the bridge around the Calculator row without changing ordinary
+ * result selection. CalculatorFocus::None means normal GTK routing continues.
+ */
+CalculatorFocus calculator_vertical_target(bool banner_visible,
+	CalculatorFocus origin, bool up, bool first_result_row);
+
 /* Per-zone visibility mask folded from the existing m_layout_* flags
  * and the preset's per-zone "hidden" positions. Search and Results
  * are forced visible per FR-030. */

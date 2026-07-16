@@ -41,6 +41,7 @@ BuildRequires:  pkgconfig(gtk-layer-shell-0)
 
 Requires:       xfce4-panel
 Recommends:     accountsservice
+Recommends:     bc
 Recommends:     gtk-layer-shell
 
 %description

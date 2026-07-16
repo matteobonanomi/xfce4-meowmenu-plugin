@@ -117,6 +117,12 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.places_switch_show_icons = val.b;
 		else if (prop == "places-switch-button-shape" && val.kind == PresetValue::Str)
 			settings.places_switch_button_shape = places_switch_shape_or_default(val.s.c_str());
+		else if (prop == "calculator-engine" && val.kind == PresetValue::Str)
+			settings.calculator_engine = val.s;
+		else if (prop == "calculator-result-font-size" && val.kind == PresetValue::Int)
+			settings.calculator_result_font_size = val.i;
+		else if (prop == "calculator-max-decimal-places" && val.kind == PresetValue::Int)
+			settings.calculator_max_decimal_places = val.i;
 	}
 
 	settings.current_preset_id = preset.id;
@@ -354,6 +360,24 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 						== places_switch_shape_or_default(val.s.c_str())))
 				return true;
 		}
+		else if (prop == "calculator-engine")
+		{
+			if (val.kind == PresetValue::Str
+					&& !(settings.calculator_engine == val.s.c_str()))
+				return true;
+		}
+		else if (prop == "calculator-result-font-size")
+		{
+			if (val.kind == PresetValue::Int
+					&& static_cast<int>(settings.calculator_result_font_size) != val.i)
+				return true;
+		}
+		else if (prop == "calculator-max-decimal-places")
+		{
+			if (val.kind == PresetValue::Int
+					&& static_cast<int>(settings.calculator_max_decimal_places) != val.i)
+				return true;
+		}
 	}
 	return false;
 }
@@ -555,6 +579,12 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 		static_cast<bool>(settings.places_switch_show_icons));
 	xfconf_channel_set_string(ch, (prefix + "places-switch-button-shape").c_str(),
 		places_switch_shape_or_default(settings.places_switch_button_shape));
+	xfconf_channel_set_string(ch, (prefix + "calculator-engine").c_str(),
+		settings.calculator_engine);
+	xfconf_channel_set_int(ch, (prefix + "calculator-result-font-size").c_str(),
+		settings.calculator_result_font_size);
+	xfconf_channel_set_int(ch, (prefix + "calculator-max-decimal-places").c_str(),
+		settings.calculator_max_decimal_places);
 
 	settings.current_preset_id = uuid;
 	enumerate_user_presets(ch);

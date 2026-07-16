@@ -1,10 +1,13 @@
 MEOW MENU DEVELOPMENT
 0.8.0 (2026-07-xx)
 =====
-- Favorites: add drag-to-favourite support for applications and Places
-- Places: hide stale favourites without modifying external bookmark sources
+- Drag and drop: add drag-to-favourite support for applications and Places
 - Drag and drop: add desktop drag support for applications, favourites, and Places items
 - Drag and drop: keep fullscreen fallback actions available and avoid copying folder contents
+- Places: hide stale favourites without modifying external bookmark sources
+- Calculator: add optional inline calculation with bc, Qalculate, and GNOME Calculator
+- Properties: add Calculator settings for engine, result size, and decimal precision
+- Packaging: recommend bc on Debian, Ubuntu, and Fedora while keeping Arch dependencies unchanged
 
 0.7.2 (2026-07-13)
 =====

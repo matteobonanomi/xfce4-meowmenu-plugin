@@ -32,6 +32,7 @@ Depends:
  xfce4-panel
 Recommends:
  accountsservice,
+ bc,
  gtk-layer-shell
 Description: modern menu launcher plugin for the Xfce panel
  MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a

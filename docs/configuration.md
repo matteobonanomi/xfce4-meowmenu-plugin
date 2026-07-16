@@ -201,6 +201,32 @@ the external source. Recent items remain read-only; unavailable entries can
 appear greyed-out, cannot be opened directly, and still offer **Open Containing
 Folder** when a parent directory can be located.
 
+### Extras
+
+**Extras → Calculator** controls the optional inline calculator. Select an
+installed engine, then type an expression such as `2 + 2`; prefix a lone number
+with `=` to force calculation. Calculator results appear above ordinary search
+results and activating one copies its complete value to the clipboard.
+
+Choose **None** to disable calculation. Missing engines remain identifiable in
+the list. If `bc` is selected but unavailable, the result area shows **bc
+package required**; that guidance does not copy or launch anything. Result font
+size can follow the theme automatically or use one of the semantic sizes, and
+maximum decimal places limits output from 0 through 10 without adding zeroes.
+Values are rounded half away from zero when the next digit is exactly five.
+Long values remain one line; hover or accessibility tools expose the complete
+value even when the visible text is shortened. Engine, font size, and decimal
+limit persist across restarts, participate in saved/imported presets, and are
+restored by applying or resetting to the active preset.
+
+The Calculator result matches the height and icon scale of ordinary results.
+It occupies one full-width row in list and tree views; in grid view, it keeps
+one ordinary tile height while spanning every current grid column. With **Auto**
+font size, the engine name remains smaller than the answer. A successful answer
+also hides custom search actions and the Run fallback, but never matching
+applications. Pending, failed, timed-out, and missing-engine states keep those
+fallbacks available.
+
 ## Xfconf reference
 
 For scripting or headless configuration, read and write settings directly
@@ -255,6 +281,19 @@ When results are shown as an icon grid, application tiles and Places file or
 folder tiles use the same application-style tile height. This keeps switching
 between Applications and Places visually stable across docked, centered, and
 full-screen layouts.
+
+### Calculator
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `extras/calculator-engine` | string | `none` | `none`, `bc`, `qalc`, or `gcalccmd`. |
+| `extras/calculator-result-font-size` | int | -1 | -1 = Auto; 0 through 6 select Very Small through Very Large. |
+| `extras/calculator-max-decimal-places` | int | 4 | Maximum fractional digits, from 0 through 10. |
+
+The effective built-in defaults differ by preset: Classic disables Calculator;
+Modern, Full Screen, and Minimal select `bc`. All use Auto and four decimal
+places. Invalid stored values recover to the safe defaults instead of selecting
+an arbitrary command or clamping to a different preference.
 
 ### Sidebar
 

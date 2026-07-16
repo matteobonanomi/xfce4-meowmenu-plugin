@@ -85,6 +85,9 @@ static TestPresetDef make_classic()
 			{ "menu-width",            PV::from_int(450)     },
 			{ "menu-height",           PV::from_int(500)     },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("none") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -113,6 +116,9 @@ static TestPresetDef make_modern()
 			{ "menu-width",            PV::from_int(450)      },
 			{ "menu-height",           PV::from_int(500)      },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("bc") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -139,6 +145,9 @@ static TestPresetDef make_fullscreen()
 			{ "default-category",      PV::from_str("all")          },
 			{ "stay-on-focus-out",     PV::from_bool(false)         },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("bc") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -166,6 +175,9 @@ static TestPresetDef make_minimal()
 			{ "menu-width",            PV::from_int(450)      },
 			{ "menu-height",           PV::from_int(306)      },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("bc") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -195,6 +207,9 @@ struct SettingsShadow
 	int menu_width = 450;
 	int menu_height = 500;
 	std::string places_switch_button_shape = "gtk-theme";
+	std::string calculator_engine = "none";
+	int calculator_result_font_size = -1;
+	int calculator_max_decimal_places = 4;
 	std::string current_preset_id;
 };
 
@@ -222,6 +237,12 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		else if (prop == "menu-height" && val.kind == PV::I)          s.menu_height = val.i;
 		else if (prop == "places-switch-button-shape" && val.kind == PV::S)
 			s.places_switch_button_shape = val.s;
+		else if (prop == "calculator-engine" && val.kind == PV::S)
+			s.calculator_engine = val.s;
+		else if (prop == "calculator-result-font-size" && val.kind == PV::I)
+			s.calculator_result_font_size = val.i;
+		else if (prop == "calculator-max-decimal-places" && val.kind == PV::I)
+			s.calculator_max_decimal_places = val.i;
 		else if (prop == "view-mode-default" && val.kind == PV::S)
 		{
 			if (val.s == "icons") s.view_mode = 0;
@@ -279,6 +300,12 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 		if (prop == "stay-on-focus-out" && val.kind == PV::B && s.stay_on_focus_out != val.b) return true;
 		if (prop == "places-switch-button-shape" && val.kind == PV::S
 				&& s.places_switch_button_shape != val.s) return true;
+		if (prop == "calculator-engine" && val.kind == PV::S
+				&& s.calculator_engine != val.s) return true;
+		if (prop == "calculator-result-font-size" && val.kind == PV::I
+				&& s.calculator_result_font_size != val.i) return true;
+		if (prop == "calculator-max-decimal-places" && val.kind == PV::I
+				&& s.calculator_max_decimal_places != val.i) return true;
 	}
 	return false;
 }
@@ -290,19 +317,19 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 static void test_classic_property_count()
 {
 	auto c = make_classic();
-	assert(c.values.size() == 17);
+	assert(c.values.size() == 20);
 }
 
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	assert(m.values.size() == 19);
+	assert(m.values.size() == 22);
 }
 
 static void test_fullscreen_property_count()
 {
 	auto f = make_fullscreen();
-	assert(f.values.size() == 17);
+	assert(f.values.size() == 20);
 }
 
 static void test_apply_then_no_diff()
@@ -614,6 +641,22 @@ static void test_user_preset_save_then_enumerate()
 	assert(store.find(uuid) != nullptr);
 }
 
+static void test_user_preset_saves_calculator_values()
+{
+	UserPresetStore store;
+	PVMap values = {
+		{ "calculator-engine", PV::from_str("qalc") },
+		{ "calculator-result-font-size", PV::from_int(3) },
+		{ "calculator-max-decimal-places", PV::from_int(9) },
+	};
+	const std::string uuid = store.save("Calculator settings", values);
+	const UserPresetShadow* saved = store.find(uuid);
+	assert(saved);
+	assert(saved->values.at("calculator-engine").s == "qalc");
+	assert(saved->values.at("calculator-result-font-size").i == 3);
+	assert(saved->values.at("calculator-max-decimal-places").i == 9);
+}
+
 static void test_user_preset_rename_updates_name()
 {
 	UserPresetStore store;
@@ -863,6 +906,9 @@ static TestPresetDef make_classic_from_file_equivalent()
 			{ "stay-on-focus-out",    PV::from_bool(false)        },
 			{ "default-category",     PV::from_str("favorites")   },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("none") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -891,6 +937,9 @@ static TestPresetDef make_modern_from_file_equivalent()
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("bc") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -917,6 +966,9 @@ static TestPresetDef make_fullscreen_from_file_equivalent()
 			{ "stay-on-focus-out",    PV::from_bool(false)       },
 			{ "default-category",     PV::from_str("all")        },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("bc") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -998,6 +1050,9 @@ static TestPresetDef make_minimal_from_file_equivalent()
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
 			{ "default-category",     PV::from_str("recent")    },
 			{ "places-switch-button-shape", PV::from_str("gtk-theme") },
+			{ "calculator-engine", PV::from_str("bc") },
+			{ "calculator-result-font-size", PV::from_int(-1) },
+			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
 }
@@ -1171,6 +1226,7 @@ int main()
 	test_preset_label_resolution();
 	// T084: user preset CRUD
 	test_user_preset_save_then_enumerate();
+	test_user_preset_saves_calculator_values();
 	test_user_preset_rename_updates_name();
 	test_user_preset_delete_clears_current_id();
 	test_user_preset_name_conflict_rejected();

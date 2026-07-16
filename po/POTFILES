@@ -25,8 +25,10 @@ panel-plugin/core/resizer.cpp
 panel-plugin/search/run-action.cpp
 panel-plugin/search/search-action.cpp
 panel-plugin/search/search-page.cpp
+panel-plugin/search/calculator-result.cpp
 panel-plugin/settings-dialog.cpp
 panel-plugin/ui/properties/general.cpp
+panel-plugin/ui/properties/extras.cpp
 panel-plugin/ui/properties/places.cpp
 panel-plugin/ui/properties/results-view.cpp
 panel-plugin/ui/properties/search-bar.cpp
@@ -36,6 +38,7 @@ panel-plugin/ui/properties/sidebar.cpp
 panel-plugin/ui/properties/user-session.cpp
 panel-plugin/settings.cpp
 panel-plugin/settings-defaults.cpp
+panel-plugin/calculator/calculator-engine.cpp
 panel-plugin/core/window.cpp
 panel-plugin/core/window-pages.cpp
 panel-plugin/core/xfce4-popup-meowmenu.cpp

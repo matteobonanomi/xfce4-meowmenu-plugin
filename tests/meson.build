@@ -8,6 +8,80 @@ test_smoke = executable(
 
 test('smoke', test_smoke)
 
+test_calculator_engine = executable(
+  'test_calculator_engine',
+  ['test_calculator_engine.cpp', '..' / 'panel-plugin' / 'calculator' / 'calculator-engine.cpp'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+test('calculator_engine', test_calculator_engine)
+
+test_calculator_output = executable(
+  'test_calculator_output',
+  ['test_calculator_output.cpp', '..' / 'panel-plugin' / 'calculator' / 'calculator-output.cpp'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+test('calculator_output', test_calculator_output)
+
+calculator_engine_stub = executable(
+  'calculator-engine-stub',
+  'calculator-engine-stub.cpp',
+  dependencies: [glib],
+)
+
+test_calculator_evaluator = executable(
+  'test_calculator_evaluator',
+  [
+    'test_calculator_evaluator.cpp',
+    '..' / 'panel-plugin' / 'calculator' / 'calculator-engine.cpp',
+    '..' / 'panel-plugin' / 'calculator' / 'calculator-evaluator.cpp',
+    '..' / 'panel-plugin' / 'calculator' / 'calculator-output.cpp',
+  ],
+  cpp_args: [
+    '-DMEOWMENU_CALCULATOR_STUB_PATH="' + calculator_engine_stub.full_path() + '"',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gio],
+)
+test('calculator_evaluator', test_calculator_evaluator,
+  depends: calculator_engine_stub,
+  timeout: 15,
+)
+
+test_calculator_result = executable(
+  'test_calculator_result',
+  [
+    'test_calculator_result.cpp',
+    '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+test('calculator_result', test_calculator_result)
+
+test_calculator_search_results = executable(
+  'test_calculator_search_results',
+  [
+    'test_calculator_search_results.cpp',
+    '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+test('calculator_search_results', test_calculator_search_results)
+
+test_calculator_packaging = executable(
+  'test_calculator_packaging',
+  'test_calculator_packaging.cpp',
+  cpp_args: [
+    '-DMEOWMENU_DEBIAN_CONTROL="' + meson.current_source_dir() / '..' / 'debian' / 'control' + '"',
+    '-DMEOWMENU_RPM_SPEC="' + meson.current_source_dir() / '..' / 'dist' / 'rpm' / 'xfce4-meowmenu-plugin.spec' + '"',
+    '-DMEOWMENU_ARCH_PKGBUILD="' + meson.current_source_dir() / '..' / 'dist' / 'arch' / 'PKGBUILD' + '"',
+  ],
+)
+test('calculator_packaging', test_calculator_packaging)
+
 test_schema_migration_sources = ['test_schema_migration.cpp']
 
 test_schema_migration = executable(

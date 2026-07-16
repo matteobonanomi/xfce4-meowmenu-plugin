@@ -366,6 +366,19 @@ void test_snapshot_contains_places_switch_shape_key(const std::vector<std::strin
 	assert(found && "snapshot is missing /places/switch-button-shape");
 }
 
+void test_snapshot_contains_calculator_keys(const std::vector<std::string>& snapshot)
+{
+	for (const char* expected : { "/extras/calculator-engine",
+			"/extras/calculator-result-font-size",
+			"/extras/calculator-max-decimal-places" })
+	{
+		bool found = false;
+		for (const std::string& key : snapshot)
+			found = found || key == expected;
+		assert(found && "snapshot is missing a calculator Xfconf key");
+	}
+}
+
 void test_production_migration_pairs_match_snapshot(const BasePair& pair)
 {
 	// Use a unique channel so successive pairs cannot collide on the bus.
@@ -427,6 +440,7 @@ int main(int argc, char** argv)
 	test_snapshot_well_formed(pairs);
 	test_snapshot_contains_transparent_grid_key(snapshot);
 	test_snapshot_contains_places_switch_shape_key(snapshot);
+	test_snapshot_contains_calculator_keys(snapshot);
 
 	if (!fixture_up())
 	{

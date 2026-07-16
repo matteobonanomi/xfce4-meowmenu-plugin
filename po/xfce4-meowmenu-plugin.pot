@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-09 23:06+0200\n"
+"POT-Creation-Date: 2026-07-16 16:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -43,8 +43,8 @@ msgstr ""
 msgid "Select Command"
 msgstr ""
 
-#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
-#: panel-plugin/settings-dialog.cpp:394
+#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:222
+#: panel-plugin/settings-dialog.cpp:395
 #: panel-plugin/ui/properties/general.cpp:203
 #: panel-plugin/ui/properties/general.cpp:262
 #: panel-plugin/ui/properties/general.cpp:352
@@ -55,8 +55,8 @@ msgstr ""
 msgid "_Cancel"
 msgstr ""
 
-#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:222
-#: panel-plugin/settings-dialog.cpp:395
+#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:223
+#: panel-plugin/settings-dialog.cpp:396
 msgid "_OK"
 msgstr ""
 
@@ -86,7 +86,7 @@ msgstr ""
 msgid "Sort Alphabetically Z-A"
 msgstr ""
 
-#: panel-plugin/places/favourites-section.cpp:44
+#: panel-plugin/places/favourites-section.cpp:57
 msgid "Favourites"
 msgstr ""
 
@@ -98,35 +98,36 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:61
+#: panel-plugin/ui/icon-size.cpp:68 panel-plugin/ui/properties/extras.cpp:91
+#: panel-plugin/calculator/calculator-engine.cpp:24
 msgid "None"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:62
+#: panel-plugin/ui/icon-size.cpp:69 panel-plugin/ui/properties/extras.cpp:109
 msgid "Very Small"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:63
+#: panel-plugin/ui/icon-size.cpp:70 panel-plugin/ui/properties/extras.cpp:109
 msgid "Smaller"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:64
+#: panel-plugin/ui/icon-size.cpp:71 panel-plugin/ui/properties/extras.cpp:109
 msgid "Small"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:65
+#: panel-plugin/ui/icon-size.cpp:72 panel-plugin/ui/properties/extras.cpp:110
 msgid "Normal"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:66
+#: panel-plugin/ui/icon-size.cpp:73 panel-plugin/ui/properties/extras.cpp:110
 msgid "Large"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:67
+#: panel-plugin/ui/icon-size.cpp:74 panel-plugin/ui/properties/extras.cpp:110
 msgid "Larger"
 msgstr ""
 
-#: panel-plugin/ui/icon-size.cpp:68
+#: panel-plugin/ui/icon-size.cpp:75 panel-plugin/ui/properties/extras.cpp:110
 msgid "Very Large"
 msgstr ""
 
@@ -138,7 +139,7 @@ msgid ""
 "and remove the line \"%s\"."
 msgstr ""
 
-#: panel-plugin/launcher/launcher.cpp:221 panel-plugin/launcher/page.cpp:590
+#: panel-plugin/launcher/launcher.cpp:221 panel-plugin/launcher/page.cpp:693
 msgid "Hide Application"
 msgstr ""
 
@@ -147,43 +148,43 @@ msgstr ""
 msgid "Are you sure you want to hide \"%s\"?"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:519
+#: panel-plugin/launcher/page.cpp:622
 msgid "Add to Favorites"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:530
+#: panel-plugin/launcher/page.cpp:633
 msgid "Remove from Favorites"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:540
+#: panel-plugin/launcher/page.cpp:643
 msgid "Add to Desktop"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:548
+#: panel-plugin/launcher/page.cpp:651
 msgid "Add to Panel"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:558
+#: panel-plugin/launcher/page.cpp:661
 msgid "Add to Autostart"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:569
+#: panel-plugin/launcher/page.cpp:672
 msgid "Remove from Autostart"
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:582
+#: panel-plugin/launcher/page.cpp:685
 msgid "Edit Application..."
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:653
+#: panel-plugin/launcher/page.cpp:756
 msgid "Unable to add launcher to desktop."
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:693 panel-plugin/launcher/page.cpp:706
+#: panel-plugin/launcher/page.cpp:796 panel-plugin/launcher/page.cpp:809
 msgid "Unable to add launcher to panel."
 msgstr ""
 
-#: panel-plugin/launcher/page.cpp:740
+#: panel-plugin/launcher/page.cpp:843
 msgid "Unable to edit launcher."
 msgstr ""
 
@@ -211,22 +212,19 @@ msgstr ""
 msgid "Unable to open \"%s\": %s"
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:64
+#: panel-plugin/places/places-page.cpp:77
 msgid "No items to show."
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:441
+#: panel-plugin/places/places-page.cpp:671
 msgid "_Open"
 msgstr ""
 
-#. Left enabled for missing favourites (not gated on exists()) so a
-#. stale favourite can always be removed even though "Open" above is
-#. greyed — this is the greyed-out-favourite behaviour from 005.
-#: panel-plugin/places/places-page.cpp:466
+#: panel-plugin/places/places-page.cpp:693
 msgid "Remove from Favourites"
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:477
+#: panel-plugin/places/places-page.cpp:704
 msgid "Add to Favourites"
 msgstr ""
 
@@ -234,24 +232,25 @@ msgstr ""
 #. enabled even when the target is missing so a renamed file can be located
 #. from its parent folder. PlacesItem::open_containing() fails silently (no
 #. dialog) when the parent is also gone.
-#: panel-plugin/places/places-page.cpp:492
+#: panel-plugin/places/places-page.cpp:719
 msgid "Open Containing Folder"
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:503
+#: panel-plugin/places/places-page.cpp:730
 msgid "Copy Path"
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:510
+#: panel-plugin/places/places-page.cpp:737
 msgid "Open in Terminal"
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:523
-msgid "Open With…"
+#: panel-plugin/places/places-page.cpp:748
+#: panel-plugin/places/places-page.cpp:760
+msgid "Add Desktop Link"
 msgstr ""
 
-#: panel-plugin/places/places-page.cpp:528
-msgid "Add Desktop Link"
+#: panel-plugin/places/places-page.cpp:755
+msgid "Open With…"
 msgstr ""
 
 #: panel-plugin/core/plugin.cpp:473
@@ -294,8 +293,18 @@ msgstr ""
 msgid "Search Action"
 msgstr ""
 
-#: panel-plugin/search/search-page.cpp:85
+#: panel-plugin/search/search-page.cpp:103
 msgid "No applications found"
+msgstr ""
+
+#: panel-plugin/search/calculator-result.cpp:147
+#: panel-plugin/search/calculator-result.cpp:148
+#: panel-plugin/search/calculator-result.cpp:153
+msgid "bc package required"
+msgstr ""
+
+#: panel-plugin/search/calculator-result.cpp:152
+msgid "bc: bc package required"
 msgstr ""
 
 #. Create dialog window
@@ -332,85 +341,89 @@ msgstr ""
 msgid "Sidebar"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:606
-#: panel-plugin/core/window.cpp:2918
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:669
+#: panel-plugin/core/window.cpp:3208
 msgid "Places"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:216 panel-plugin/settings-dialog.cpp:218
+#: panel-plugin/settings-dialog.cpp:106
+msgid "Extras"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:217 panel-plugin/settings-dialog.cpp:219
 msgid "Select an Icon"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:315
+#: panel-plugin/settings-dialog.cpp:316
 #: panel-plugin/ui/properties/general.cpp:300
 #: panel-plugin/ui/properties/general.cpp:315
 msgid "_Delete"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:316
+#: panel-plugin/settings-dialog.cpp:317
 msgid "The action will be deleted permanently."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:317
+#: panel-plugin/settings-dialog.cpp:318
 #, c-format
 msgid "Remove action \"%s\"?"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:391
+#: panel-plugin/settings-dialog.cpp:392
 msgid "Edit search action"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:406
+#: panel-plugin/settings-dialog.cpp:407
 msgid "Nam_e:"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:416
+#: panel-plugin/settings-dialog.cpp:417
 msgid "_Pattern:"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:426
+#: panel-plugin/settings-dialog.cpp:427
 msgid "C_ommand:"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:436
+#: panel-plugin/settings-dialog.cpp:437
 msgid "Is _regular expression"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:480
+#: panel-plugin/settings-dialog.cpp:481
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:566
+#: panel-plugin/settings-dialog.cpp:567
 msgid "Unsaved custom"
 msgstr ""
 
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:809
+#: panel-plugin/settings-dialog.cpp:827
 msgid "Classic"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:810
+#: panel-plugin/settings-dialog.cpp:828
 msgid "Modern"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:811
+#: panel-plugin/settings-dialog.cpp:829
 msgid "Full Screen"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:812
+#: panel-plugin/settings-dialog.cpp:830
 msgid "Minimal"
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:907
+#: panel-plugin/settings-dialog.cpp:925
 msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:909
+#: panel-plugin/settings-dialog.cpp:927
 msgid "This option requires the FullScreen layout."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:911
+#: panel-plugin/settings-dialog.cpp:929
 msgid ""
 "This option requires profile, search and session to be on the same end (all "
 "top or all bottom)."
@@ -665,6 +678,30 @@ msgstr ""
 #. Row 3 C2: Stay visible when focus is lost (control-only).
 #: panel-plugin/ui/properties/general.cpp:812
 msgid "Stay _visible when focus is lost"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:54
+msgid "(not installed)"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:78
+msgid "Calculator"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:80
+msgid "_Engine:"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:107
+msgid "Result font _size:"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:109
+msgid "Auto"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:119
+msgid "Maximum decimal _places:"
 msgstr ""
 
 #: panel-plugin/ui/properties/places.cpp:52
@@ -1019,7 +1056,7 @@ msgstr ""
 msgid "Session commands"
 msgstr ""
 
-#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:2916
+#: panel-plugin/settings.cpp:39 panel-plugin/core/window.cpp:3206
 msgid "Applications"
 msgstr ""
 
@@ -1047,132 +1084,132 @@ msgstr ""
 msgid "Open URI"
 msgstr ""
 
-#: panel-plugin/settings.cpp:149
+#: panel-plugin/settings.cpp:153
 msgid "_Settings Manager"
 msgstr ""
 
-#: panel-plugin/settings.cpp:151
+#: panel-plugin/settings.cpp:155
 msgid "Failed to open settings manager."
 msgstr ""
 
-#: panel-plugin/settings.cpp:154
+#: panel-plugin/settings.cpp:158
 msgid "_Lock Screen"
 msgstr ""
 
-#: panel-plugin/settings.cpp:156
+#: panel-plugin/settings.cpp:160
 msgid "Failed to lock screen."
 msgstr ""
 
-#: panel-plugin/settings.cpp:159
+#: panel-plugin/settings.cpp:163
 msgid "Switch _User"
 msgstr ""
 
-#: panel-plugin/settings.cpp:161
+#: panel-plugin/settings.cpp:165
 msgid "Failed to switch user."
 msgstr ""
 
-#: panel-plugin/settings.cpp:164
+#: panel-plugin/settings.cpp:168
 msgid "Log _Out"
 msgstr ""
 
-#: panel-plugin/settings.cpp:166 panel-plugin/settings.cpp:201
+#: panel-plugin/settings.cpp:170 panel-plugin/settings.cpp:205
 msgid "Failed to log out."
 msgstr ""
 
-#: panel-plugin/settings.cpp:167
+#: panel-plugin/settings.cpp:171
 msgid "Are you sure you want to log out?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:168
+#: panel-plugin/settings.cpp:172
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:171
+#: panel-plugin/settings.cpp:175
 msgid "_Restart"
 msgstr ""
 
-#: panel-plugin/settings.cpp:173
+#: panel-plugin/settings.cpp:177
 msgid "Failed to restart."
 msgstr ""
 
-#: panel-plugin/settings.cpp:174
+#: panel-plugin/settings.cpp:178
 msgid "Are you sure you want to restart?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:175
+#: panel-plugin/settings.cpp:179
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:178
+#: panel-plugin/settings.cpp:182
 msgid "Shut _Down"
 msgstr ""
 
-#: panel-plugin/settings.cpp:180
+#: panel-plugin/settings.cpp:184
 msgid "Failed to shut down."
 msgstr ""
 
-#: panel-plugin/settings.cpp:181
+#: panel-plugin/settings.cpp:185
 msgid "Are you sure you want to shut down?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:182
+#: panel-plugin/settings.cpp:186
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:185
+#: panel-plugin/settings.cpp:189
 msgid "Suspe_nd"
 msgstr ""
 
-#: panel-plugin/settings.cpp:187
+#: panel-plugin/settings.cpp:191
 msgid "Failed to suspend."
 msgstr ""
 
-#: panel-plugin/settings.cpp:188
+#: panel-plugin/settings.cpp:192
 msgid "Do you want to suspend to RAM?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:189
+#: panel-plugin/settings.cpp:193
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:192
+#: panel-plugin/settings.cpp:196
 msgid "_Hibernate"
 msgstr ""
 
-#: panel-plugin/settings.cpp:194
+#: panel-plugin/settings.cpp:198
 msgid "Failed to hibernate."
 msgstr ""
 
-#: panel-plugin/settings.cpp:195
+#: panel-plugin/settings.cpp:199
 msgid "Do you want to suspend to disk?"
 msgstr ""
 
-#: panel-plugin/settings.cpp:196
+#: panel-plugin/settings.cpp:200
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr ""
 
-#: panel-plugin/settings.cpp:199
+#: panel-plugin/settings.cpp:203
 msgid "Log Ou_t..."
 msgstr ""
 
-#: panel-plugin/settings.cpp:204
+#: panel-plugin/settings.cpp:208
 msgid "_Edit Applications"
 msgstr ""
 
-#: panel-plugin/settings.cpp:206
+#: panel-plugin/settings.cpp:210
 msgid "Failed to launch menu editor."
 msgstr ""
 
-#: panel-plugin/settings.cpp:209
+#: panel-plugin/settings.cpp:213
 msgid "Edit _Profile"
 msgstr ""
 
-#: panel-plugin/settings.cpp:211
+#: panel-plugin/settings.cpp:215
 msgid "Failed to edit profile."
 msgstr ""
 
@@ -1180,19 +1217,27 @@ msgstr ""
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings.cpp:411 panel-plugin/settings-defaults.cpp:300
+#: panel-plugin/settings.cpp:415 panel-plugin/settings-defaults.cpp:300
 msgid "Custom"
 msgstr ""
 
-#: panel-plugin/core/window.cpp:605 panel-plugin/core/window.cpp:2916
+#: panel-plugin/calculator/calculator-engine.cpp:28
+msgid "Qalculate"
+msgstr ""
+
+#: panel-plugin/calculator/calculator-engine.cpp:30
+msgid "GNOME Calculator"
+msgstr ""
+
+#: panel-plugin/core/window.cpp:668 panel-plugin/core/window.cpp:3206
 msgid "Apps"
 msgstr ""
 
-#: panel-plugin/core/window-pages.cpp:277
+#: panel-plugin/core/window-pages.cpp:303
 msgid "Search places…"
 msgstr ""
 
-#: panel-plugin/core/window-pages.cpp:278
+#: panel-plugin/core/window-pages.cpp:304
 msgid "Search applications…"
 msgstr ""
 

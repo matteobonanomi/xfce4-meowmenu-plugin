@@ -103,6 +103,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	add_page(init_app_grid_tab(),      "app-grid", _("Results View"));
 	add_page(init_sidebar_tab(),       "sidebar", _("Sidebar"));
 	add_page(init_places_tab(),        "places",  _("Places"));
+	add_page(init_extras_tab(),        "extras",  _("Extras"));
 
 	GtkStackSidebar* sidebar = GTK_STACK_SIDEBAR(gtk_stack_sidebar_new());
 	gtk_stack_sidebar_set_stack(sidebar, stack);
@@ -680,6 +681,23 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_places_switch_button_shape)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_places_switch_button_shape),
 			places_switch_shape_or_default(m_settings->places_switch_button_shape));
+	if (m_calculator_engine)
+		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_calculator_engine),
+			static_cast<const gchar*>(m_settings->calculator_engine));
+	if (m_calculator_result_font_size)
+		gtk_combo_box_set_active(GTK_COMBO_BOX(m_calculator_result_font_size),
+			static_cast<int>(m_settings->calculator_result_font_size) + 1);
+	if (m_calculator_max_decimal_places)
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_calculator_max_decimal_places),
+			static_cast<int>(m_settings->calculator_max_decimal_places));
+	if (m_calculator_engine)
+	{
+		const bool enabled = g_strcmp0(m_settings->calculator_engine, "none") != 0;
+		gtk_widget_set_sensitive(m_calculator_result_font_size, enabled);
+		gtk_widget_set_sensitive(m_calculator_max_decimal_places, enabled);
+		gtk_widget_set_sensitive(m_calculator_result_font_size_label, enabled);
+		gtk_widget_set_sensitive(m_calculator_max_decimal_places_label, enabled);
+	}
 
 	if (m_hover_switch_category)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),

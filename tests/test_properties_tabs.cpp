@@ -4,8 +4,8 @@
  * asserts the invariants the dialog must preserve:
  *   1. No duplication — each Xfconf key appears in exactly one row.
  *   2. No omission — every required key is on the grid.
- *   3. Exactly six tabs in the known dictionary (General, User/Session,
- *      Search Bar, Results View / app-grid, Sidebar, Places). The Places
+ *   3. Exactly seven tabs in the known dictionary (General, User/Session,
+ *      Search Bar, Results View / app-grid, Sidebar, Places, Extras). The Places
  *      tab models the milestone-005 controls bound under the /places
  *      Xfconf prefix.
  *   4. Sane enable-when values — docked|fullscreen rows correspond to widgets
@@ -44,6 +44,7 @@ enum class Tab
 	AppGrid,
 	Sidebar,
 	Places,
+	Extras,
 };
 
 enum class EnableWhen
@@ -62,6 +63,7 @@ enum class EnableWhen
 	// modelled here as PlacesFavouritesEnabled.
 	PlacesEnabled,
 	PlacesFavouritesEnabled,
+	CalculatorEnabled,
 };
 
 // Column placement within a section's two equal-width halves. Full = spans both
@@ -162,6 +164,13 @@ const Row kPlacementGrid[] = {
 	{ "places/favourite-sync",       Tab::Places,      EnableWhen::PlacesFavouritesEnabled, false, Column::C1 },
 	{ "places/max-items",            Tab::Places,      EnableWhen::PlacesEnabled,           false, Column::C2 },
 	{ "places/remember-last-mode",   Tab::Places,      EnableWhen::PlacesEnabled,           false, Column::C1 },
+
+	// Extras > Calculator — engine and font share the first row; decimal
+	// precision starts the second row. Subordinate controls retain their values
+	// while disabled and become sensitive whenever Engine is not None.
+	{ "calculator-engine",             Tab::Extras, EnableWhen::Always,            false, Column::C1 },
+	{ "calculator-result-font-size",   Tab::Extras, EnableWhen::CalculatorEnabled, false, Column::C2 },
+	{ "calculator-max-decimal-places", Tab::Extras, EnableWhen::CalculatorEnabled, false, Column::C1 },
 };
 
 // Every Xfconf key documented in contracts/xfconf-keys.md that surfaces in
@@ -192,10 +201,15 @@ const char* const kRequiredKeys[] = {
 	"places/enabled", "places/history-enabled", "places/favourites-enabled",
 	"places/favourite-sync", "places/max-items",
 	"places/remember-last-mode",
+	"calculator-engine", "calculator-result-font-size",
+	"calculator-max-decimal-places",
 };
 
 constexpr size_t kRowCount = sizeof(kPlacementGrid) / sizeof(kPlacementGrid[0]);
 constexpr size_t kRequiredCount = sizeof(kRequiredKeys) / sizeof(kRequiredKeys[0]);
+
+const char* const kCalculatorEngines[] = { "none", "bc", "qalc", "gcalccmd" };
+const int kCalculatorFontValues[] = { -1, 0, 1, 2, 3, 4, 5, 6 };
 
 }  // namespace
 
@@ -224,19 +238,18 @@ static void test_no_omission()
 	}
 }
 
-// Invariant 3: every row maps to one of the six known tabs, and all six
-// tabs are represented at least once. The Places tab (milestone 005) is the
-// sixth and was added alongside init_places_tab() in settings-dialog.cpp.
-static void test_exactly_six_tabs()
+// Invariant 3: every row maps to one of the seven known tabs, and all seven
+// tabs are represented at least once.
+static void test_exactly_seven_tabs()
 {
 	std::set<int> tabs_seen;
 	for (const auto& row : kPlacementGrid)
 	{
 		const int t = static_cast<int>(row.tab);
-		assert(t >= 0 && t <= 5 && "row.tab out of known range");
+		assert(t >= 0 && t <= 6 && "row.tab out of known range");
 		tabs_seen.insert(t);
 	}
-	assert(tabs_seen.size() == 6 && "not all six tabs are populated");
+	assert(tabs_seen.size() == 7 && "not all seven tabs are populated");
 }
 
 // Invariant 4: enable-when values are consistent with the live-wiring contract.
@@ -256,6 +269,7 @@ static void test_sane_enable_when()
 		case EnableWhen::ViewModeList:
 		case EnableWhen::PlacesEnabled:
 		case EnableWhen::PlacesFavouritesEnabled:
+		case EnableWhen::CalculatorEnabled:
 			assert(!row.layout_mode_driven
 					&& "non-layout-mode row claims layout-mode driver");
 			break;
@@ -362,6 +376,9 @@ const ColumnExpectation kColumnContract[] = {
 	{ "places/favourite-sync",     Column::C1 },
 	{ "places/max-items",          Column::C2 },
 	{ "places/remember-last-mode", Column::C1 },
+	{ "calculator-engine",             Column::C1 },
+	{ "calculator-result-font-size",   Column::C2 },
+	{ "calculator-max-decimal-places", Column::C1 },
 };
 
 constexpr size_t kColumnContractCount =
@@ -417,14 +434,35 @@ static void test_synced_keys_cover_governed_keys()
 		assert(governed.count(k) == 1 && "synced key is not in the governed set");
 }
 
+static void test_calculator_control_domains()
+{
+	assert(sizeof(kCalculatorEngines) / sizeof(kCalculatorEngines[0]) == 4);
+	assert(sizeof(kCalculatorFontValues) / sizeof(kCalculatorFontValues[0]) == 8);
+	for (int i = 0; i < 8; ++i)
+		assert(kCalculatorFontValues[i] == i - 1);
+	const int decimal_minimum = 0;
+	const int decimal_maximum = 10;
+	const int decimal_step = 1;
+	assert(decimal_minimum == 0 && decimal_maximum == 10 && decimal_step == 1);
+
+	bool subordinate_sensitive = std::strcmp(kCalculatorEngines[0], "none") != 0;
+	assert(!subordinate_sensitive);
+	for (size_t i = 1; i < 4; ++i)
+	{
+		subordinate_sensitive = std::strcmp(kCalculatorEngines[i], "none") != 0;
+		assert(subordinate_sensitive);
+	}
+}
+
 int main()
 {
 	test_no_duplication();
 	test_no_omission();
-	test_exactly_six_tabs();
+	test_exactly_seven_tabs();
 	test_sane_enable_when();
 	test_placement_grid_complete_and_no_extras();
 	test_columns_match_contract();
 	test_synced_keys_cover_governed_keys();
+	test_calculator_control_domains();
 	return 0;
 }

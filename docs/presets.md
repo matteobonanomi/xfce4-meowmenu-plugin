@@ -43,6 +43,8 @@ Traditional Whisker Menu look. Compact docked window, apps as a list,
 sidebar on the right, no rounded corners, fully solid (menu opacity 100%). The
 Apps/Places switch uses text labels.
 
+Calculator default: **None / Auto / 4 decimal places**.
+
 ### Modern
 
 ![Modern preset](assets/images/preset-modern.png)
@@ -51,6 +53,8 @@ Contemporary layout with rounded corners, a fully solid background (menu
 opacity 100%), hover-to-switch-category, and Places search enabled. The
 Apps/Places switch uses icon buttons.
 
+Calculator default: **bc / Auto / 4 decimal places**.
+
 ### Full Screen
 
 ![Full Screen preset](assets/images/preset-fullscreen.png)
@@ -58,6 +62,8 @@ Apps/Places switch uses icon buttons.
 Launcher fills the entire screen over a translucent backdrop (menu opacity
 80%). Ideal for touch or keyboard-first workflows. Places search enabled. The
 Apps/Places switch uses text labels.
+
+Calculator default: **bc / Auto / 4 decimal places**.
 
 ### Minimal
 
@@ -68,6 +74,8 @@ sidebar, no profile area, and no command buttons. Opens centred on screen in a
 short window with a lightly translucent background (menu opacity 60%), Places
 enabled with icons, opening on the Recent category. Switch to any other built-in
 to bring the sidebar, profile, and commands back.
+
+Calculator default: **bc / Auto / 4 decimal places**.
 
 Each preset sets its own default for the Apps/Places **Show icons** option
 (Modern and Minimal on; Classic and Full Screen off). Switching presets updates

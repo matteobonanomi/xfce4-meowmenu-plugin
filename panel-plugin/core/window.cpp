@@ -720,6 +720,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_search_results = new SearchPage(m_settings, this);
 
 	GtkBox* search_results = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+	gtk_box_pack_start(search_results, m_search_results->get_calculator_result(), false, false, 0);
 	gtk_box_pack_start(search_results, m_search_results->get_message(), false, false, 0);
 	gtk_box_pack_start(search_results, m_search_results->get_widget(), true, true, 0);
 	gtk_container_set_border_width(GTK_CONTAINER(search_results), 0);
@@ -2008,7 +2009,9 @@ bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 			Page* page = const_cast<Window*>(this)->get_active_page();
 			if (page)
 			{
-				target = page->get_view()->get_widget();
+				target = page == m_search_results
+						? m_search_results->get_preferred_focus_widget()
+						: page->get_view()->get_widget();
 				results_page = page;
 			}
 		}
@@ -2475,6 +2478,32 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	case GDK_KEY_Down:
 	case GDK_KEY_KP_Down:
 	{
+		const bool up = key_event->keyval == GDK_KEY_Up
+				|| key_event->keyval == GDK_KEY_KP_Up;
+		if (!m_places_active && page == m_search_results
+				&& m_search_results->has_calculator_result())
+		{
+			GtkWidget* calculator_focused = gtk_window_get_focus(m_window);
+			Keyboard::CalculatorFocus origin = Keyboard::CalculatorFocus::None;
+			bool first_row = false;
+			if (widget == search || calculator_focused == search)
+				origin = Keyboard::CalculatorFocus::Search;
+			else if (calculator_focused == view)
+			{
+				GtkTreePath* selected = page->get_view()->get_selected_path();
+				first_row = selected
+						&& page->get_view()->is_first_visual_row(selected);
+				if (selected)
+					gtk_tree_path_free(selected);
+				origin = Keyboard::CalculatorFocus::Results;
+			}
+			if (Keyboard::calculator_vertical_target(true, origin, up, first_row)
+					== Keyboard::CalculatorFocus::Banner)
+			{
+				gtk_widget_grab_focus(m_search_results->get_preferred_focus_widget());
+				return GDK_EVENT_STOP;
+			}
+		}
 		// Determine if there is a selected item
 		LauncherView* results_view = m_places_active
 			? m_places->get_view() : page->get_view();

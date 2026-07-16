@@ -102,7 +102,8 @@ private:
 class Integer
 {
 public:
-	Integer(Settings* settings, const gchar* property, int data, int min, int max);
+	Integer(Settings* settings, const gchar* property, int data, int min, int max,
+			bool reject_to_default = false);
 
 	operator int() const
 	{
@@ -126,6 +127,7 @@ private:
 	const gchar* const m_property;
 	const int m_min;
 	const int m_max;
+	const bool m_reject_to_default;
 	int m_default;
 	int m_data;
 };
@@ -487,6 +489,12 @@ public:
 	// Outer shape of the Apps/Places switch. Unknown stored values fall back to
 	// PLACES_SWITCH_SHAPE_GTK_THEME in prevent_invalid().
 	String places_switch_button_shape;
+
+	// Optional calculator settings. Engine is a closed identifier; numeric
+	// values reject malformed/out-of-range persisted input to safe defaults.
+	String calculator_engine;
+	Integer calculator_result_font_size;
+	Integer calculator_max_decimal_places;
 
 	void migrate_schema(bool marker, bool empty_channel);
 

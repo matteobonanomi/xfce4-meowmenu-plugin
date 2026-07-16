@@ -11,6 +11,7 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
 
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -18,6 +19,7 @@
 using WhiskerMenu::Keyboard::classify_key;
 using WhiskerMenu::Keyboard::is_printable_for_search;
 using WhiskerMenu::Keyboard::KeyClass;
+using WhiskerMenu::Keyboard::ActivationDebounce;
 
 namespace
 {
@@ -206,6 +208,25 @@ void convenience_predicate_matches()
 	}
 }
 
+void calculator_navigation_keys_remain_utility()
+{
+	for (guint keyval : { GDK_KEY_Up, GDK_KEY_Down, GDK_KEY_Tab,
+			GDK_KEY_Return, GDK_KEY_KP_Enter })
+	{
+		GdkEventKey event = make_event(keyval);
+		EQC(classify_key(&event), KeyClass::FunctionUtility);
+	}
+}
+
+void held_enter_activates_once_per_debounce_window()
+{
+	ActivationDebounce debounce;
+	assert(debounce.accept(300000));
+	assert(!debounce.accept(310000));
+	assert(!debounce.accept(549999));
+	assert(debounce.accept(550000));
+}
+
 } // namespace
 
 int main()
@@ -226,6 +247,8 @@ int main()
 	non_latin_printable();
 	null_event_safe();
 	convenience_predicate_matches();
+	calculator_navigation_keys_remain_utility();
+	held_enter_activates_once_per_debounce_window();
 
 	if (g_failures != 0)
 	{

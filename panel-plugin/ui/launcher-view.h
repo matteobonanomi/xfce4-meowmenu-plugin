@@ -45,6 +45,7 @@ public:
 	virtual void scroll_to_path(GtkTreePath* path)=0;
 	virtual void select_path(GtkTreePath* path)=0;
 	virtual void set_cursor(GtkTreePath* path)=0;
+	virtual bool is_first_visual_row(GtkTreePath* path) const=0;
 
 	virtual void set_fixed_height_mode(bool fixed_height)=0;
 	virtual void set_selection_mode(GtkSelectionMode mode)=0;
@@ -118,6 +119,10 @@ public:
 	}
 
 	virtual void reload_icon_size()=0;
+
+	virtual int get_item_height() const { return 32; }
+	virtual int get_icon_size() const { return 0; }
+	virtual bool is_grid_view() const { return false; }
 
 	/* set_background_translucent:
 	 * @translucent: whether the menu background is currently see-through

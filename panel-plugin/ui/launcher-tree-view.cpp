@@ -26,6 +26,8 @@
 #include <libxfce4ui/libxfce4ui.h>
 #include <gdk/gdkkeysyms.h>
 
+#include <algorithm>
+
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
@@ -216,6 +218,14 @@ void LauncherTreeView::set_cursor(GtkTreePath* path)
 
 //-----------------------------------------------------------------------------
 
+bool LauncherTreeView::is_first_visual_row(GtkTreePath* path) const
+{
+	return path && gtk_tree_path_get_depth(path) == 1
+			&& gtk_tree_path_get_indices(path)[0] == 0;
+}
+
+//-----------------------------------------------------------------------------
+
 void LauncherTreeView::set_fixed_height_mode(bool fixed_height)
 {
 	gtk_tree_view_set_fixed_height_mode(m_view, fixed_height);
@@ -313,6 +323,28 @@ void LauncherTreeView::reload_icon_size()
 		gtk_tree_view_remove_column(m_view, m_column);
 		create_column();
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* get_item_height:
+ *
+ * Returns the current ordinary row height. A configured fallback is used while
+ * the view has no model row, which keeps the external Calculator banner stable
+ * even for a query with no application matches.
+ */
+int LauncherTreeView::get_item_height() const
+{
+	if (m_model)
+	{
+		GtkTreePath* path = gtk_tree_path_new_first();
+		GdkRectangle rect;
+		gtk_tree_view_get_background_area(m_view, path, m_column, &rect);
+		gtk_tree_path_free(path);
+		if (rect.height > 0)
+			return rect.height;
+	}
+	return std::max(24, std::max(0, m_icon_size) + 6);
 }
 
 //-----------------------------------------------------------------------------
