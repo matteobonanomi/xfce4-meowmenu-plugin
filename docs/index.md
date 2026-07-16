@@ -11,9 +11,8 @@ has_children: false
 
 MeowMenu is a panel-plugin launcher for XFCE4. It originated as a fork of
 [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
-and brings saved layout presets, file search, a full-screen launcher mode,
-and deeper visual customization — while staying native to Xfce and light
-on resources.
+and adds saved presets, file search, a full-screen mode, an optional inline
+Calculator, and deeper visual customization while staying native to Xfce.
 
 ## Quick Install
 
@@ -47,6 +46,7 @@ ranking.
 |---|:---:|:---:|
 | Saved layout presets | ✗ | ✓ |
 | Places / file search | ✗ | ✓ |
+| Inline Calculator | ✗ | ✓ |
 | Full-screen launcher mode | ✗ | ✓ |
 | Corner radius / opacity | ✗ | ✓ |
 | Icon-grid app view | ✗ | ✓ |

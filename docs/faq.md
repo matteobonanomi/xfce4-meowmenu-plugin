@@ -36,8 +36,6 @@ panel with `xfce4-panel -r` after placing the file.
 
 ### Can I contribute a translation?
 
-Yes — edit the relevant `po/<lang>.po` file in the repository, run
-`msgfmt --check po/<lang>.po` to validate it, and open a Pull Request against
-the `development` branch. Only Italian has been validated by a native speaker
-so far; all other languages were extended via LLM-assisted translation and
-are warmly awaiting review.
+Yes — edit the relevant `po/<lang>.po` file, run `msgfmt --check`, and open a
+pull request against the `development` branch. Only Italian has been validated
+by a native speaker, so reviews for other languages are especially welcome.

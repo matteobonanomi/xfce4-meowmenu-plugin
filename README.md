@@ -11,10 +11,10 @@
 
 ![MeowMenu demo](docs/assets/images/demo.gif)
 
-MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a standalone
-project that originated as a fork of [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
-and keeps the familiar panel-launcher feel while bringing a cleaner modern
-look and more customization options.
+MeowMenu is a native Xfce panel launcher and a standalone fork of
+[Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin).
+It adds saved presets, Places integration, flexible layouts, and an optional
+inline Calculator while keeping the familiar launcher workflow.
 
 **Fully keyboard-driven** — **Tab** switches Applications/Places,
 **Ctrl+Tab** moves between areas, and the arrows move within them. See
@@ -27,101 +27,28 @@ look and more customization options.
 
 ## Table of contents
 
-1. [Installation / uninstallation](#installation--uninstallation)
+1. [Installation](#installation)
 2. [Tested distributions](#tested-distributions)
 3. [Build from source](#build-from-source)
 4. [Presets](#presets)
 5. [Properties window](#properties-window)
-6. [Configuration file (for power users)](#configuration-file-for-power-users)
+6. [Configuration](#configuration)
 7. [Localization](#localization)
 8. [License and credits](#license-and-credits)
 
 ---
 
-## Installation / uninstallation
+## Installation
 
-Prebuilt `.deb` / `.rpm` packages for the three officially supported
-distributions — Ubuntu 26.04, Debian 13, and Fedora 44 —
-are built and smoke-tested in CI and attached to every
-[GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
-Arch and Arch-based distributions (CachyOS, EndeavourOS, Manjaro) can install
-the maintainer-published [AUR package](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin)
-with `yay -S xfce4-meowmenu-plugin` — see the Arch entry below. On any other
-distribution build from source (see next section); the AUR package and
-source builds are best-effort and not exercised by CI.
+Release packages are available for Ubuntu 26.04, Debian 13, and Fedora 44.
+Arch and Arch-based distributions can use the maintainer-published
+[AUR package](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin):
+`yay -S xfce4-meowmenu-plugin`.
 
-After install or uninstall, restart the panel with `xfce4-panel -r`, then
-right-click the panel → **Add New Items** → **MeowMenu**. Replace `<version>`
-with the actual release (e.g. `0.7.2`).
-
-<details>
-<summary><strong>Ubuntu 26.04</strong></summary>
-
-```bash
-sudo apt install ./xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
-```
-
-Uninstall: `sudo apt purge xfce4-meowmenu-plugin`
-
-</details>
-
-<details>
-<summary><strong>Debian 13</strong></summary>
-
-```bash
-sudo apt install ./xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
-```
-
-Uninstall: `sudo apt purge xfce4-meowmenu-plugin`
-
-</details>
-
-<details>
-<summary><strong>Fedora 44</strong></summary>
-
-```bash
-sudo dnf install ./xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
-```
-
-Uninstall: `sudo dnf remove xfce4-meowmenu-plugin`
-
-</details>
-
-<details>
-<summary><strong>Arch Linux (AUR) — CachyOS, EndeavourOS, Manjaro</strong></summary>
-
-Install the AUR package with an AUR helper:
-
-```bash
-yay -S xfce4-meowmenu-plugin
-```
-
-This covers Arch and Arch-based distributions including CachyOS,
-EndeavourOS, and Manjaro. The package
-([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
-is maintainer-published and distributed through the AUR; unlike the three
-packages above it is not built or smoke-tested in CI.
-
-Uninstall: `yay -R xfce4-meowmenu-plugin`
-
-</details>
-
-<details>
-<summary><strong>Other distros</strong></summary>
-
-No prebuilt package — see [Build from source](#build-from-source).
-Uninstall: `sudo ninja -C build uninstall`.
-
-</details>
-
-### Remove user configuration
-
-Any uninstall leaves user data behind. After removing the panel button:
-
-```bash
-rm -rf ~/.local/share/meowmenu/
-rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
-```
+After installing or removing MeowMenu, run `xfce4-panel -r`. Then add
+**MeowMenu** from the panel's **Add New Items** menu. The
+[installation guide](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/installation)
+has package commands, dependencies, and cleanup instructions.
 
 [↑ Back to top](#table-of-contents)
 
@@ -129,17 +56,15 @@ rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
 
 ## Tested distributions
 
-These distributions have been verified by the author. The list grows over
-time — reports for other distributions are very welcome.
-
-| Distribution  | Tested  | Notes           |
-| ------------- | ------- | --------------- |
+| Distribution | Tested | Notes |
+|---|---|---|
 | Xubuntu 26.04 | 2026-06 | author-verified |
-| Debian 13     | 2026-06 | author-verified |
-| Arch Linux    | 2026-06 | author-verified |
+| Debian 13 | 2026-06 | author-verified |
+| Arch Linux | 2026-06 | author-verified |
 
-Running MeowMenu on something not listed here? Please open an issue or a Pull
-Request with your distribution and version so it can be added.
+Using MeowMenu on another distribution? Please
+[open an issue](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues)
+with its name and version, and help test future releases.
 
 [↑ Back to top](#table-of-contents)
 
@@ -155,12 +80,10 @@ meson compile -C build
 sudo meson install -C build
 ```
 
-Uninstall: `sudo ninja -C build uninstall`.
-
-Install the build dependencies for your distribution first. The complete
-per-distribution dependency lists (Ubuntu/Debian, Fedora, Arch) live on the
-documentation site:
-**[Installation → Build from source](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/installation#build-from-source)**.
+Install the required dependencies first. See
+[Build from source](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/installation#build-from-source)
+for the distribution-specific lists. Remove a source install with
+`sudo ninja -C build uninstall`.
 
 [↑ Back to top](#table-of-contents)
 
@@ -168,41 +91,21 @@ documentation site:
 
 ## Presets
 
-A preset is a snapshot of all visual and layout settings saved as a plain
-`.meowpreset` file. Switching presets reshapes the menu instantly — size,
-corner radius, icon style, sidebar position, and more — without touching
-individual options.
+A preset saves the visual and layout settings as a `.meowpreset` file.
+Switching one changes the menu immediately.
 
 Four built-in presets ship with MeowMenu:
 
-| Preset          | Description                                                                                                     |
-| -----------------| -----------------------------------------------------------------------------------------------------------------|
-| **Classic**     | Traditional Whisker Menu look. Compact docked window, apps as a list, sidebar on the right, no rounded corners. |
-| **Modern**      | Contemporary layout (rounded corners, fully opaque surfaces, change category by hovering, etc). Places search enabled. |
-| **Full Screen** | Launcher fills the entire screen over an 80% translucent backdrop. Ideal for touch or keyboard-first workflows. Places search enabled. |
-| **Minimal**     | Compact, distraction-free launcher: a centred window with a search bar over an app list and lightly translucent surfaces; no sidebar, profile, or command buttons. |
+| Preset | Description |
+|---|---|
+| **Classic** | Traditional docked list with a right sidebar. |
+| **Modern** | Rounded layout with Places search and hover category switching. |
+| **Full Screen** | Full-screen launcher for touch or keyboard-first use. |
+| **Minimal** | Centered, compact app list without sidebar, profile, or commands. |
 
-Drop any `.meowpreset` file into `~/.local/share/meowmenu/presets/` to make
-it appear in **Properties → General → Preset** after a panel restart. A file
-with the same `Id` as a built-in preset overrides the system version.
-
-File format:
-
-```ini
-[Preset]
-Name=My Custom Preset
-SchemaVersion=1
-Id=my-custom           # optional; must match the filename stem
-Description=My preset  # optional
-
-[Settings]
-layout-mode=docked
-corner-radius=8
-# ... any key from the Properties dialog
-```
-
-Unknown keys are silently ignored. Malformed files are skipped without
-crashing the panel.
+Open **Properties → General** to select, save, import, or export presets. See
+the [preset guide](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/presets)
+for defaults and custom files.
 
 [↑ Back to top](#table-of-contents)
 
@@ -214,33 +117,23 @@ Right-click the MeowMenu panel button → **Properties**.
 
 | Section | What you configure |
 |---|---|
-| **General** | Preset selector, layout mode (docked / full screen), window size, corner radius, panel gap, panel button appearance (icon, label, style). |
-| **User / Session** | Profile picture visibility, username display, session command buttons (lock, logout, suspend, etc.). |
-| **Search Bar** | Position (top / bottom), placeholder text, search action shortcuts. |
-| **App Grid** | Default view (list or icon grid), icon size, grid density, default category on open, hover-to-switch-category. |
-| **Sidebar** | Position (left / right), visible category buttons, commands bar position. |
-| **Places** | Enable file/folder search, navigation, and quick actions in MeowMenu. |
+| **General** | Presets, layout, size, appearance, and panel button. |
+| **User / Session** | Profile and session-command placement. |
+| **Search Bar** | Position, matching, ranking, and search actions. |
+| **Results View** | List, tree, or grid results and their icons. |
+| **Sidebar** | Categories, Favorites, and the unified bar. |
+| **Places** | File search, bookmarks, and Apps/Places switch style. |
+| **Extras** | Optional Calculator engine, result size, and precision. |
 
 [↑ Back to top](#table-of-contents)
 
 ---
 
-## Configuration file (for power users)
+## Configuration
 
-All settings live in Xfconf. Read and write them without the GUI:
-
-```bash
-# List all MeowMenu properties for a panel plugin instance
-xfconf-query -c xfce4-panel -lv | grep meowmenu
-
-# Change a single property
-xfconf-query -c xfce4-panel -p /plugins/<id>/corner-radius -s 8
-```
-
-Built-in `.meowpreset` files are installed under
-`/usr/local/share/xfce4-meowmenu-plugin/` (or `/usr/share/...` from a
-distribution package); copy one to `~/.local/share/meowmenu/presets/` to
-customise it.
+Settings are stored in Xfconf and available through **Properties**. The
+[configuration guide](https://matteobonanomi.github.io/xfce4-meowmenu-plugin/configuration)
+includes every setting and its Xfconf key.
 
 [↑ Back to top](#table-of-contents)
 
@@ -248,14 +141,9 @@ customise it.
 
 ## Localization
 
-MeowMenu ships translations for **54 languages**, just like WhiskerMenu does. All upstream Whisker Menu
-translations are preserved; MeowMenu-specific strings (Places, Presets,
-FullScreen mode, Sidebar, Favourites, fuzzy-search controls, and more) have
-been extended across all locales via LLM-assisted translation. MeowMenu has been develop in English and only Italian has been validated so far by native spokers
-
-Native speakers are warmly invited to review and improve any translation.
-The PO files live in `po/` — pick your language, edit `msgstr` entries, run
-`msgfmt --check po/<lang>.po`, and open a Pull Request.
+MeowMenu ships 54 language catalogs inherited from Whisker Menu. Only Italian
+has been checked by a native speaker, so translation reviews are welcome. Edit
+the relevant `po/<lang>.po` file, run `msgfmt --check`, and open a pull request.
 
 [↑ Back to top](#table-of-contents)
 
@@ -266,8 +154,7 @@ The PO files live in `po/` — pick your language, edit `msgstr` entries, run
 MeowMenu is distributed under the [GNU General Public License v2](COPYING)
 (or any later version), the same license as the original project.
 
-Original Whisker Menu was created by **Graeme Gott** — thank you for
-building such a solid foundation.
+Original Whisker Menu was created by **Graeme Gott**.
 
 - Whisker Menu source: <https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin>
 - Graeme Gott's site: <https://gottcode.org>
