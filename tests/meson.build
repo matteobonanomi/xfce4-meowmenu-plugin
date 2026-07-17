@@ -8,9 +8,14 @@ test_smoke = executable(
 
 test('smoke', test_smoke)
 
+# GLib refuses to run g_test assertions when Meson's release build enables
+# G_DISABLE_ASSERT. Keep Calculator tests assert-enabled in every build type.
+calculator_test_cpp_args = ['-UG_DISABLE_ASSERT']
+
 test_calculator_engine = executable(
   'test_calculator_engine',
   ['test_calculator_engine.cpp', '..' / 'panel-plugin' / 'calculator' / 'calculator-engine.cpp'],
+  cpp_args: calculator_test_cpp_args,
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib],
 )
@@ -19,6 +24,7 @@ test('calculator_engine', test_calculator_engine)
 test_calculator_output = executable(
   'test_calculator_output',
   ['test_calculator_output.cpp', '..' / 'panel-plugin' / 'calculator' / 'calculator-output.cpp'],
+  cpp_args: calculator_test_cpp_args,
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib],
 )
@@ -38,7 +44,7 @@ test_calculator_evaluator = executable(
     '..' / 'panel-plugin' / 'calculator' / 'calculator-evaluator.cpp',
     '..' / 'panel-plugin' / 'calculator' / 'calculator-output.cpp',
   ],
-  cpp_args: [
+  cpp_args: calculator_test_cpp_args + [
     '-DMEOWMENU_CALCULATOR_STUB_PATH="' + calculator_engine_stub.full_path() + '"',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
@@ -55,6 +61,7 @@ test_calculator_result = executable(
     'test_calculator_result.cpp',
     '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
   ],
+  cpp_args: calculator_test_cpp_args,
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gtk, dependency('pangoft2')],
 )
@@ -66,6 +73,7 @@ test_calculator_search_results = executable(
     'test_calculator_search_results.cpp',
     '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
   ],
+  cpp_args: calculator_test_cpp_args,
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gtk],
 )

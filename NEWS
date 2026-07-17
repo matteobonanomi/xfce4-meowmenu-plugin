@@ -8,6 +8,7 @@ MEOW MENU DEVELOPMENT
 - Calculator: add optional inline calculation with bc, Qalculate, and GNOME Calculator
 - Properties: add Calculator settings for engine, result size, and decimal precision
 - Packaging: recommend bc on Debian, Ubuntu, and Fedora while keeping Arch dependencies unchanged
+- CI: remove identity-grep job and add calculator tests
 
 0.7.2 (2026-07-13)
 =====
