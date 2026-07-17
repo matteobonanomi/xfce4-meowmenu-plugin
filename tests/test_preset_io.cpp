@@ -55,6 +55,9 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "menu-height",           PropKind::Int,  200, 2000, {} },
 	{ "default-category",      PropKind::Str,  0,   0,    {"favorites","recent","all"} },
 	{ "places-switch-button-shape", PropKind::Str, 0, 0,  {"gtk-theme","rounded"} },
+	{ "calculator-engine",      PropKind::Str,  0,   0,    {"none","bc","qalc","gcalccmd"} },
+	{ "calculator-result-font-size", PropKind::Int, -1, 6, {} },
+	{ "calculator-max-decimal-places", PropKind::Int, 0, 10, {} },
 };
 
 static const ShadowPropDef* find_shadow_prop(const std::string& name)
@@ -202,7 +205,32 @@ static RawSettings make_valid_modern_raw()
 	r.put("transparent-grid",   "true");
 	r.put("view-mode-default",  "icons");
 	r.put("places-switch-button-shape", "gtk-theme");
+	r.put("calculator-engine", "bc");
+	r.put("calculator-result-font-size", "-1");
+	r.put("calculator-max-decimal-places", "4");
 	return r;
+}
+
+static void test_calculator_domains_and_bounds()
+{
+	RawSettings raw;
+	raw.put("calculator-engine", "qalc");
+	raw.put("calculator-result-font-size", "6");
+	raw.put("calculator-max-decimal-places", "10");
+	std::vector<std::string> skipped;
+	ShadowValueMap result = validate_settings(raw, skipped);
+	assert(skipped.empty());
+	assert(result.at("calculator-engine").s == "qalc");
+	assert(result.at("calculator-result-font-size").i == 6);
+	assert(result.at("calculator-max-decimal-places").i == 10);
+
+	raw.put("calculator-engine", "shell");
+	raw.put("calculator-result-font-size", "7");
+	raw.put("calculator-max-decimal-places", "11");
+	skipped.clear();
+	result = validate_settings(raw, skipped);
+	assert(result.empty());
+	assert(skipped.size() == 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -667,6 +695,7 @@ int main()
 {
 	test_round_trip_all_valid();
 	test_profile_aliases_rewritten_to_canonical_domain();
+	test_calculator_domains_and_bounds();
 	test_unknown_keys_skipped();
 	test_out_of_range_int_skipped_others_survive();
 	test_invalid_str_domain_skipped_others_survive();

@@ -21,6 +21,8 @@ using WhiskerMenu::Keyboard::TabAction;
 using WhiskerMenu::Keyboard::VisibilityMask;
 using WhiskerMenu::Keyboard::Zone;
 using WhiskerMenu::Keyboard::zone_active;
+using WhiskerMenu::Keyboard::CalculatorFocus;
+using WhiskerMenu::Keyboard::calculator_vertical_target;
 
 namespace
 {
@@ -326,6 +328,22 @@ void zone_active_basic()
 	CHECK(zone_active(Zone::Results, mask, MenuState::Searching));
 }
 
+void calculator_banner_bridges()
+{
+	CHECK(calculator_vertical_target(true, CalculatorFocus::Search, false, false)
+		== CalculatorFocus::Banner);
+	CHECK(calculator_vertical_target(true, CalculatorFocus::Banner, true, false)
+		== CalculatorFocus::Search);
+	CHECK(calculator_vertical_target(true, CalculatorFocus::Banner, false, false)
+		== CalculatorFocus::Results);
+	CHECK(calculator_vertical_target(true, CalculatorFocus::Results, true, true)
+		== CalculatorFocus::Banner);
+	CHECK(calculator_vertical_target(true, CalculatorFocus::Results, true, false)
+		== CalculatorFocus::None);
+	CHECK(calculator_vertical_target(false, CalculatorFocus::Search, false, false)
+		== CalculatorFocus::None);
+}
+
 } // namespace
 
 int main()
@@ -349,6 +367,7 @@ int main()
 	pointer_origin_handoff_absent_from_router();
 	sidebar_exit_paths_unchanged_by_guard();
 	zone_active_basic();
+	calculator_banner_bridges();
 
 	if (g_failures != 0)
 	{

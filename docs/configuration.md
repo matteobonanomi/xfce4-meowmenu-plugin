@@ -11,9 +11,7 @@ All MeowMenu settings are exposed in the **Properties** dialog
 
 ## Properties dialog
 
-Each tab arranges its settings into two equal-width columns, so related options
-sit side by side. The dialog has no published screenshots, so the option tables
-below remain the authoritative reference.
+Each tab uses two equal-width columns. The tables below list every option.
 
 ### General
 
@@ -28,11 +26,9 @@ below remain the authoritative reference.
 | Menu opacity | Opacity of the whole menu background, applied uniformly in every layout mode (0–100, where 0 is fully transparent and 100 fully solid), applied live. Foreground content (labels, icons, the selected row) always stays fully opaque. Requires a compositor; without one the menu is always solid and the control is disabled. |
 | Stay visible when focus is lost | Keep the menu open when another window receives focus. |
 
-**Centered** opens the launcher as a floating window at the exact centre of the
-monitor holding the panel button, at your configured width and height. It stays
-centred while open: drag any edge to resize and the window grows or shrinks
-around its fixed centre, and the new size is remembered. The panel gap does not
-apply (the window never touches a panel edge).
+**Centered** opens on the panel's monitor at the configured size. Resize it
+from any edge; it stays centred and remembers the new size. Panel gap does not
+apply.
 
 The Layout mode selected controls which other options are available. Disabled
 options are greyed out and switch live as you change the mode:
@@ -132,13 +128,23 @@ expects argument splitting.
 | Option | Description |
 |--------|-------------|
 | Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch moves to the right end of the search bar, and the results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
-| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom turn the categories into a horizontal, icon-only strip. In Full Screen, the strip and search bar use the same left and right edges as the results/application grid; with Places enabled the Apps/Places switch stays on the leading edge with icon height matching the sidebar categories, category icons align to the trailing edge, and with Places disabled the categories are centred in that width. **Top** places it just below the search bar and above the results, **Bottom** places it below the results. It scrolls sideways when it has more icons than fit, and "Show category name" is unavailable there. |
+| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom use a horizontal, icon-only strip. In Full Screen, the strip, search bar, and results/application grid share the same width. Top sits below the search bar; Bottom sits below results. The strip scrolls when needed, and **Show category name** is unavailable. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (-2 = inherit from theme). |
 | Sort categories | Sort the category list alphabetically. |
 | Recent items max | Maximum number of recently-used apps to track. |
 | Include favorites in recent | Also show favorited apps in the Recent category. |
 | Unified bar | Render profile, search, and session controls on one horizontal row (FullScreen mode only). |
+
+Drag an application onto the visible **Favorites** sidebar item to add it once.
+The target is unavailable when the sidebar or item is hidden. The menu stays
+open and uses a small icon-only preview.
+
+In **Docked** and **Centered** layouts, drag applications to the desktop or an
+accepting file manager. The destination decides placement and collisions. In
+**FullScreen**, use the context-menu **Add to Desktop** action instead. Dragging
+applications or Places does not close MeowMenu; every drag uses a small
+icon-only preview.
 
 ### Places
 
@@ -153,14 +159,43 @@ expects argument splitting.
 | Max items | Maximum number of items shown in the Places view. |
 | Remember last mode | Reopen MeowMenu showing the last-used Places sub-section. |
 
+Drag a Places file or folder onto **Favourites** when **Bookmark sync** is
+**MeowMenu**. The target is unavailable for disabled Places, sidebar, or
+Favourites, and when sync is **Thunar**. The menu stays open and uses a small
+icon-only preview.
+
+In **Docked** and **Centered** layouts, drag Places items to the desktop or an
+accepting file manager. Files keep their URI; folders create a link rather than
+copying their contents. The destination handles placement and collisions. In
+**FullScreen**, use **Add Desktop Link** from the context menu instead.
+
 #### Missing recent files and bookmarks
 
 When a recent item or bookmark points to a file or folder that has been deleted
-or renamed, MeowMenu shows it greyed-out and its tooltip notes that the target
-is missing. A greyed-out entry cannot be opened directly — clicking it does
-nothing — but its right-click menu still offers **Open Containing Folder**,
-which opens the parent directory so a renamed file can be located. Missing
-bookmarks can also be removed with **Remove from Favourites**.
+or renamed, MeowMenu-owned Places favourites are removed from the visible
+Favourites list the next time it is rebuilt. Externally managed Places
+favourites are hidden from MeowMenu's visible Favourites list without changing
+the external source. Recent items remain read-only; unavailable entries can
+appear greyed-out, cannot be opened directly, and still offer **Open Containing
+Folder** when a parent directory can be located.
+
+### Extras
+
+**Extras → Calculator** enables an optional inline calculator. Select an
+installed engine and enter an expression such as `2 + 2`; use `=` to force a
+lone number to calculate. Activating a result copies its full value.
+
+Choose **None** to disable it. Missing engines are marked in the list; a missing
+selected `bc` shows **bc package required**. Choose Auto or a semantic result
+size, and set 0–10 decimal places. Display values round half away from zero;
+available precision can differ by engine. These settings persist and are
+included in presets. Long answers stay on one line, with the full value
+available to hover and accessibility tools.
+
+Calculator results use the normal result height and icon scale. They take one
+full-width row in list and tree views, and span the grid at one tile high. A
+successful result hides custom search actions and the Run fallback, while
+application matches remain visible. Other states keep those fallbacks available.
 
 ## Xfconf reference
 
@@ -216,6 +251,19 @@ When results are shown as an icon grid, application tiles and Places file or
 folder tiles use the same application-style tile height. This keeps switching
 between Applications and Places visually stable across docked, centered, and
 full-screen layouts.
+
+### Calculator
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `extras/calculator-engine` | string | `none` | `none`, `bc`, `qalc`, or `gcalccmd`. |
+| `extras/calculator-result-font-size` | int | -1 | -1 = Auto; 0 through 6 select Very Small through Very Large. |
+| `extras/calculator-max-decimal-places` | int | 4 | Maximum fractional digits, from 0 through 10. |
+
+The effective built-in defaults differ by preset: Classic disables Calculator;
+Modern, Full Screen, and Minimal select `bc`. All use Auto and four decimal
+places. Invalid stored values recover to the safe defaults instead of selecting
+an arbitrary command or clamping to a different preference.
 
 ### Sidebar
 

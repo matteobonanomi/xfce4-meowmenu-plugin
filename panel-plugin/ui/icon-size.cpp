@@ -37,20 +37,27 @@ IconSize::IconSize(Settings* settings, const gchar* property, const int size) :
 
 int IconSize::get_size() const
 {
-	int size = 0;
-	switch (m_size)
+	return pixels_for(static_cast<Size>(m_size));
+}
+
+//-----------------------------------------------------------------------------
+
+int IconSize::pixels_for(Size alias)
+{
+	int pixels = 0;
+	switch (alias)
 	{
-		case NONE:     size =   1; break;
-		case Smallest: size =  16; break;
-		case Smaller:  size =  24; break;
-		case Small:    size =  32; break;
-		case Normal:   size =  48; break;
-		case Large:    size =  64; break;
-		case Larger:   size =  96; break;
-		case Largest:  size = 128; break;
-		default:       size =   0; break;
+		case NONE:     pixels =   1; break;
+		case Smallest: pixels =  16; break;
+		case Smaller:  pixels =  24; break;
+		case Small:    pixels =  32; break;
+		case Normal:   pixels =  48; break;
+		case Large:    pixels =  64; break;
+		case Larger:   pixels =  96; break;
+		case Largest:  pixels = 128; break;
+		default:       pixels =   0; break;
 	}
-	return size;
+	return pixels;
 }
 
 //-----------------------------------------------------------------------------

@@ -73,6 +73,7 @@ private:
 	GtkWidget* init_app_grid_tab();
 	GtkWidget* init_sidebar_tab();
 	GtkWidget* init_places_tab();
+	GtkWidget* init_extras_tab();
 
 	// Sub-section helpers used by init_search_bar_tab(); each appends one
 	// frame to @page. Split out of the tab builder to keep its translation
@@ -238,6 +239,11 @@ private:
 	// sidebar is on Top/Bottom or disabled.
 	GtkWidget* m_places_switch_show_icons = nullptr;
 	GtkWidget* m_places_switch_button_shape = nullptr;
+	GtkWidget* m_calculator_engine = nullptr;
+	GtkWidget* m_calculator_result_font_size = nullptr;
+	GtkWidget* m_calculator_max_decimal_places = nullptr;
+	GtkWidget* m_calculator_result_font_size_label = nullptr;
+	GtkWidget* m_calculator_max_decimal_places_label = nullptr;
 
 	// Behavior
 	GtkWidget* m_hover_switch_category = nullptr;

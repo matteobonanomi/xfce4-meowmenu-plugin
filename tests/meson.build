@@ -8,6 +8,88 @@ test_smoke = executable(
 
 test('smoke', test_smoke)
 
+# GLib refuses to run g_test assertions when Meson's release build enables
+# G_DISABLE_ASSERT. Keep Calculator tests assert-enabled in every build type.
+calculator_test_cpp_args = ['-UG_DISABLE_ASSERT']
+
+test_calculator_engine = executable(
+  'test_calculator_engine',
+  ['test_calculator_engine.cpp', '..' / 'panel-plugin' / 'calculator' / 'calculator-engine.cpp'],
+  cpp_args: calculator_test_cpp_args,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+test('calculator_engine', test_calculator_engine)
+
+test_calculator_output = executable(
+  'test_calculator_output',
+  ['test_calculator_output.cpp', '..' / 'panel-plugin' / 'calculator' / 'calculator-output.cpp'],
+  cpp_args: calculator_test_cpp_args,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+test('calculator_output', test_calculator_output)
+
+calculator_engine_stub = executable(
+  'calculator-engine-stub',
+  'calculator-engine-stub.cpp',
+  dependencies: [glib],
+)
+
+test_calculator_evaluator = executable(
+  'test_calculator_evaluator',
+  [
+    'test_calculator_evaluator.cpp',
+    '..' / 'panel-plugin' / 'calculator' / 'calculator-engine.cpp',
+    '..' / 'panel-plugin' / 'calculator' / 'calculator-evaluator.cpp',
+    '..' / 'panel-plugin' / 'calculator' / 'calculator-output.cpp',
+  ],
+  cpp_args: calculator_test_cpp_args + [
+    '-DMEOWMENU_CALCULATOR_STUB_PATH="' + calculator_engine_stub.full_path() + '"',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gio],
+)
+test('calculator_evaluator', test_calculator_evaluator,
+  depends: calculator_engine_stub,
+  timeout: 15,
+)
+
+test_calculator_result = executable(
+  'test_calculator_result',
+  [
+    'test_calculator_result.cpp',
+    '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
+  ],
+  cpp_args: calculator_test_cpp_args,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk, dependency('pangoft2')],
+)
+test('calculator_result', test_calculator_result)
+
+test_calculator_search_results = executable(
+  'test_calculator_search_results',
+  [
+    'test_calculator_search_results.cpp',
+    '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
+  ],
+  cpp_args: calculator_test_cpp_args,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+test('calculator_search_results', test_calculator_search_results)
+
+test_calculator_packaging = executable(
+  'test_calculator_packaging',
+  'test_calculator_packaging.cpp',
+  cpp_args: [
+    '-DMEOWMENU_DEBIAN_CONTROL="' + meson.current_source_dir() / '..' / 'debian' / 'control' + '"',
+    '-DMEOWMENU_RPM_SPEC="' + meson.current_source_dir() / '..' / 'dist' / 'rpm' / 'xfce4-meowmenu-plugin.spec' + '"',
+    '-DMEOWMENU_ARCH_PKGBUILD="' + meson.current_source_dir() / '..' / 'dist' / 'arch' / 'PKGBUILD' + '"',
+  ],
+)
+test('calculator_packaging', test_calculator_packaging)
+
 test_schema_migration_sources = ['test_schema_migration.cpp']
 
 test_schema_migration = executable(
@@ -129,6 +211,43 @@ test_places = executable(
 )
 
 test('places', test_places)
+
+test_drag_to_favourites_sources = [
+  'test_drag_to_favourites.cpp',
+  '..' / 'panel-plugin' / 'core' / 'drag-to-favourites.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
+]
+
+test_drag_to_favourites = executable(
+  'test_drag_to_favourites',
+  test_drag_to_favourites_sources,
+  include_directories: [
+    include_directories('..'),
+    include_directories('..' / 'panel-plugin'),
+  ],
+  dependencies: [glib, gio, libxfce4util, xfconf],
+)
+
+test('drag_to_favourites', test_drag_to_favourites)
+
+test_desktop_drag_sources = [
+  'test_desktop_drag.cpp',
+  '..' / 'panel-plugin' / 'core' / 'desktop-drag.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
+]
+
+test_desktop_drag = executable(
+  'test_desktop_drag',
+  test_desktop_drag_sources,
+  include_directories: [
+    include_directories('..'),
+    include_directories('..' / 'panel-plugin'),
+  ],
+  dependencies: [glib, libxfce4util, xfconf],
+)
+
+test('desktop_drag', test_desktop_drag)
 
 test_home_search_sources = ['test_home_search.cpp']
 

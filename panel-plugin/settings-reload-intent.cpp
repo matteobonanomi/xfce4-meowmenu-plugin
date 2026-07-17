@@ -75,6 +75,9 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 		"/sort-categories",
 		"/view-mode",
 		"/favorites-in-recent",
+		"/extras/calculator-engine",
+		"/extras/calculator-result-font-size",
+		"/extras/calculator-max-decimal-places",
 		nullptr
 	};
 	static const char* const layout_properties[] = {

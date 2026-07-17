@@ -180,6 +180,13 @@ void LauncherIconView::set_cursor(GtkTreePath* path)
 
 //-----------------------------------------------------------------------------
 
+bool LauncherIconView::is_first_visual_row(GtkTreePath* path) const
+{
+	return path && gtk_icon_view_get_item_row(m_view, path) == 0;
+}
+
+//-----------------------------------------------------------------------------
+
 void LauncherIconView::set_fixed_height_mode(bool)
 {
 }
@@ -348,6 +355,29 @@ void LauncherIconView::reload_icon_size()
 
 	// Let GtkIconView adapt the number of columns to the available width.
 	gtk_icon_view_set_columns(m_view, -1);
+}
+
+//-----------------------------------------------------------------------------
+
+/* get_item_height:
+ *
+ * Returns the live grid tile height when GTK has laid out an item. The fallback
+ * mirrors the configured icon and density spacing so a Calculator result can
+ * still reserve a stable tile before ordinary matches are available.
+ */
+int LauncherIconView::get_item_height() const
+{
+	if (m_model)
+	{
+		GtkTreePath* path = gtk_tree_path_new_first();
+		GdkRectangle rect;
+		const bool has_rect = gtk_icon_view_get_cell_rect(m_view, path,
+				m_icon_renderer, &rect);
+		gtk_tree_path_free(path);
+		if (has_rect && rect.height > 0)
+			return rect.height;
+	}
+	return std::max(32, std::max(0, m_icon_size) + 40);
 }
 
 //-----------------------------------------------------------------------------

@@ -142,7 +142,11 @@ Settings::Settings(Plugin* plugin) :
 	places_last_mode(this, "/places/last-mode", "apps"),
 	places_favourites(this, "/places/favourites", { }),
 	places_switch_show_icons(this, "/places/switch-show-icons", false),
-	places_switch_button_shape(this, "/places/switch-button-shape", PLACES_SWITCH_SHAPE_GTK_THEME)
+	places_switch_button_shape(this, "/places/switch-button-shape", PLACES_SWITCH_SHAPE_GTK_THEME),
+
+	calculator_engine(this, "/extras/calculator-engine", "none"),
+	calculator_result_font_size(this, "/extras/calculator-result-font-size", -1, -1, 6, true),
+	calculator_max_decimal_places(this, "/extras/calculator-max-decimal-places", 4, 0, 10, true)
 {
 	command[CommandSettings] = new Command(this, "/command-settings", "/show-command-settings",
 			"org.xfce.settings.manager", "preferences-desktop",
@@ -470,6 +474,13 @@ void Settings::prevent_invalid()
 	{
 		places_switch_button_shape = PLACES_SWITCH_SHAPE_GTK_THEME;
 	}
+
+	const char* engine = calculator_engine;
+	if (g_strcmp0(engine, "none") != 0 && g_strcmp0(engine, "bc") != 0
+			&& g_strcmp0(engine, "qalc") != 0 && g_strcmp0(engine, "gcalccmd") != 0)
+	{
+		calculator_engine = "none";
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -546,7 +557,10 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| places_last_mode.load(property, value)
 			|| places_favourites.load(property, value, reload)
 			|| places_switch_show_icons.load(property, value)
-			|| places_switch_button_shape.load(property, value))
+			|| places_switch_button_shape.load(property, value)
+			|| calculator_engine.load(property, value)
+			|| calculator_result_font_size.load(property, value)
+			|| calculator_max_decimal_places.load(property, value))
 	{
 		changed = true;
 	}

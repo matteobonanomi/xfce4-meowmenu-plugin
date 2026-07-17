@@ -9,6 +9,7 @@
 
 #include "places-page.h"
 
+#include "core/desktop-drag.h"
 #include "favourites-section.h"
 #include "history-section.h"
 #include "home-section.h"
@@ -22,9 +23,18 @@
 #include "ui/slot.h"
 #include "core/window.h"
 
+#include <cstring>
+
+#include <libxfce4ui/libxfce4ui.h>
+
 #include <glib/gi18n-lib.h>
 
 using namespace WhiskerMenu;
+
+namespace
+{
+constexpr guint FOLDER_DRAG_ARTIFACT_CLEANUP_DELAY_MS = 5 * 60 * 1000;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -39,6 +49,9 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_widget(nullptr),
 	m_empty_message(nullptr),
 	m_model(nullptr),
+	m_item_dragged(false),
+	m_pressed_drag_item(nullptr),
+	m_pressed_drag_info(0),
 	m_debounce_id(0),
 	m_home_search_active(false)
 {
@@ -71,6 +84,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 
 PlacesPage::~PlacesPage()
 {
+	clear_drag_state();
 	cancel_home_search();
 	clear_home_search_items();
 	delete m_view;
@@ -116,6 +130,53 @@ void PlacesPage::create_view()
 			on_button_press(reinterpret_cast<GdkEventButton*>(event));
 			return GDK_EVENT_PROPAGATE;
 		});
+
+	connect(m_view->get_widget(), "button-release-event",
+		[this](GtkWidget*, GdkEvent* event) -> gboolean
+		{
+			return on_button_release(reinterpret_cast<GdkEventButton*>(event));
+		});
+
+	connect(m_view->get_widget(), "drag-data-get",
+		[this](GtkWidget*, GdkDragContext*, GtkSelectionData* data, guint info, guint)
+		{
+			on_drag_data_get(data, info);
+		});
+
+	connect(m_view->get_widget(), "drag-begin",
+		[this](GtkWidget*, GdkDragContext* context)
+		{
+			on_drag_begin(context);
+		},
+		Connect::After);
+
+	connect(m_view->get_widget(), "drag-end",
+		[this](GtkWidget*, GdkDragContext*)
+		{
+			on_drag_end();
+		});
+
+	if (desktop_drag_external_uri_enabled(m_settings->layout_mode))
+	{
+		const GtkTargetEntry targets[] = {
+			{ g_strdup("text/uri-list"), GTK_TARGET_OTHER_APP,
+				WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO },
+			{ g_strdup(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_PLACES_FAVOURITE_DND_INFO }
+		};
+		m_view->set_drag_source(GDK_BUTTON1_MASK, targets, 2, GDK_ACTION_COPY);
+		g_free(targets[0].target);
+		g_free(targets[1].target);
+	}
+	else
+	{
+		const GtkTargetEntry targets[] = {
+			{ g_strdup(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_PLACES_FAVOURITE_DND_INFO }
+		};
+		m_view->set_drag_source(GDK_BUTTON1_MASK, targets, 1, GDK_ACTION_COPY);
+		g_free(targets[0].target);
+	}
 
 	m_view->set_model(GTK_TREE_MODEL(m_model));
 }
@@ -360,6 +421,11 @@ void PlacesPage::rebuild_model()
 
 void PlacesPage::on_row_activated(GtkTreePath* path)
 {
+	if (m_item_dragged)
+	{
+		return;
+	}
+
 	GtkTreeIter iter;
 	if (!gtk_tree_model_get_iter(GTK_TREE_MODEL(m_model), &iter, path))
 	{
@@ -394,15 +460,41 @@ void PlacesPage::on_row_activated(GtkTreePath* path)
 
 void PlacesPage::on_button_press(GdkEventButton* event)
 {
-	if (!event || !gdk_event_triggers_context_menu(reinterpret_cast<GdkEvent*>(event)))
+	if (!event)
 	{
 		return;
 	}
+
 	GtkTreePath* path = m_view->get_path_at_pos(event->x, event->y);
 	if (!path)
 	{
 		return;
 	}
+
+	if (!gdk_event_triggers_context_menu(reinterpret_cast<GdkEvent*>(event))
+			&& event->button == GDK_BUTTON_PRIMARY)
+	{
+		clear_drag_state();
+		GtkTreeIter iter;
+		Element* element = nullptr;
+		if (gtk_tree_model_get_iter(GTK_TREE_MODEL(m_model), &iter, path))
+		{
+			gtk_tree_model_get(GTK_TREE_MODEL(m_model), &iter,
+					LauncherView::COLUMN_LAUNCHER, &element, -1);
+		}
+		m_pressed_drag_item = dynamic_cast<PlacesItem*>(element);
+		m_view->set_cursor(path);
+		m_view->select_path(path);
+		gtk_tree_path_free(path);
+		return;
+	}
+
+	if (!gdk_event_triggers_context_menu(reinterpret_cast<GdkEvent*>(event)))
+	{
+		gtk_tree_path_free(path);
+		return;
+	}
+
 	GtkTreeIter iter;
 	Element* element = nullptr;
 	if (gtk_tree_model_get_iter(GTK_TREE_MODEL(m_model), &iter, path))
@@ -417,6 +509,144 @@ void PlacesPage::on_button_press(GdkEventButton* event)
 	{
 		show_context_menu(item, reinterpret_cast<GdkEvent*>(event));
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+gboolean PlacesPage::on_button_release(GdkEventButton* event)
+{
+	if (!event || event->button != GDK_BUTTON_PRIMARY)
+	{
+		return GDK_EVENT_PROPAGATE;
+	}
+
+	if (m_item_dragged)
+	{
+		clear_drag_state(true);
+		return GDK_EVENT_STOP;
+	}
+
+	clear_drag_state();
+	return GDK_EVENT_PROPAGATE;
+}
+
+//-----------------------------------------------------------------------------
+
+void PlacesPage::on_drag_begin(GdkDragContext* context)
+{
+	GtkTreePath* path = m_view->get_selected_path();
+	if (!path)
+	{
+		path = m_view->get_cursor();
+	}
+	m_view->set_drag_icon(path, context, desktop_drag_preview_size());
+	if (path)
+	{
+		gtk_tree_path_free(path);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* on_drag_data_get:
+ * @data: GTK selection data to populate.
+ * @info: target info requested by the destination.
+ *
+ * Exports the pressed Places item URI for same-app favourite drops or external
+ * desktop drops. Missing items deliberately export no payload so stale rows
+ * cannot be re-added or sent to the desktop.
+ */
+void PlacesPage::on_drag_data_get(GtkSelectionData* data, guint info)
+{
+	auto* item = m_pressed_drag_item;
+	if (!item)
+	{
+		return;
+	}
+	m_pressed_drag_info = info;
+
+	if (info == WHISKERMENU_PLACES_FAVOURITE_DND_INFO)
+	{
+		if (!item->exists() || xfce_str_is_empty(item->get_uri()))
+		{
+			return;
+		}
+		gtk_selection_data_set(data,
+				gdk_atom_intern(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET, FALSE),
+				8,
+				reinterpret_cast<const guchar*>(item->get_uri()),
+				strlen(item->get_uri()));
+		m_item_dragged = true;
+	}
+	else if (info == WHISKERMENU_DESKTOP_DRAG_URI_LIST_INFO)
+	{
+		if (!desktop_drag_places_uri_available(
+				m_settings->layout_mode, item->exists(), item->get_uri()))
+		{
+			return;
+		}
+		const char* drag_uri = item->get_uri();
+		gchar* folder_launcher_uri = nullptr;
+		if (item->is_directory())
+		{
+			if (m_folder_drag_artifact_uri.empty())
+			{
+				folder_launcher_uri = desktop_drag_create_folder_launcher_uri(
+						item->get_file(), item->get_text());
+				if (!folder_launcher_uri)
+				{
+					return;
+				}
+				m_folder_drag_artifact_uri = folder_launcher_uri;
+			}
+			if (m_folder_drag_artifact_uri.empty())
+			{
+				return;
+			}
+			drag_uri = m_folder_drag_artifact_uri.c_str();
+		}
+
+		gchar* uris[2] = { g_strdup(drag_uri), nullptr };
+		gtk_selection_data_set_uris(data, uris);
+		g_free(uris[0]);
+		g_free(folder_launcher_uri);
+		m_item_dragged = true;
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+void PlacesPage::on_drag_end()
+{
+	clear_drag_state(true);
+}
+
+//-----------------------------------------------------------------------------
+
+/* clear_drag_state:
+ *
+ * Resets transient Places drag state. Folder launcher cleanup is optionally
+ * deferred because external destinations may still need to copy the artifact
+ * after GTK emits drag-end. It deliberately does not hide the menu; focus loss
+ * remains the only close authority after drag completion or cancellation.
+ */
+void PlacesPage::clear_drag_state(bool defer_folder_cleanup)
+{
+	m_item_dragged = false;
+	m_pressed_drag_item = nullptr;
+	m_pressed_drag_info = 0;
+	if (defer_folder_cleanup)
+	{
+		desktop_drag_schedule_folder_launcher_cleanup(
+				m_folder_drag_artifact_uri.c_str(),
+				FOLDER_DRAG_ARTIFACT_CLEANUP_DELAY_MS);
+	}
+	else
+	{
+		desktop_drag_cleanup_folder_launcher_uri(
+				m_folder_drag_artifact_uri.c_str());
+	}
+	m_folder_drag_artifact_uri.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -460,9 +690,6 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 	{
 		if (item->is_favourite())
 		{
-			// Left enabled for missing favourites (not gated on exists()) so a
-			// stale favourite can always be removed even though "Open" above is
-			// greyed — this is the greyed-out-favourite behaviour from 005.
 			mi = whiskermenu_image_menu_item_new("list-remove", _("Remove from Favourites"));
 			connect(mi, "activate",
 				[this, item](GtkMenuItem*)
@@ -516,6 +743,11 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 				item->open_in_terminal(s, m_widget);
 				m_window->hide();
 			});
+		append(mi);
+
+		mi = whiskermenu_image_menu_item_new("list-add", _("Add Desktop Link"));
+		connect(mi, "activate",
+			[this, item](GtkMenuItem*) { item->add_desktop_link(m_widget); });
 		append(mi);
 	}
 	else

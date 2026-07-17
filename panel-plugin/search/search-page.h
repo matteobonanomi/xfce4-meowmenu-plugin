@@ -21,6 +21,7 @@
 #include "launcher/page.h"
 #include "query.h"
 #include "run-action.h"
+#include "calculator/calculator-evaluator.h"
 
 #include <string>
 #include <vector>
@@ -38,6 +39,10 @@ public:
 	{
 		return m_message;
 	}
+	GtkWidget* get_calculator_result() const;
+	GtkWidget* get_preferred_focus_widget() const;
+	bool has_calculator_result() const;
+	bool activate_first();
 
 	void set_filter(const gchar* filter);
 	void set_menu_items();
@@ -46,13 +51,20 @@ public:
 private:
 	unsigned int move_launcher(const std::string& desktop_id, unsigned int pos);
 	void update_search_order();
+	void populate_search_results();
+	void update_calculator_presentation();
 	void view_created() override;
+	bool activate_calculator_result();
 
 private:
 	Query m_query;
 	std::vector<Launcher*> m_launchers;
 	RunAction m_run_action;
 	GtkWidget* m_message;
+	class CalculatorResult* m_calculator_result;
+	CalculatorEvaluator m_calculator_evaluator;
+	unsigned int m_calculator_generation;
+	gint64 m_last_calculator_activation;
 
 	class Match
 	{
@@ -104,6 +116,7 @@ private:
 		double       m_boost;
 	};
 	std::vector<Match> m_matches;
+	std::vector<Match> m_search_action_matches;
 };
 
 }

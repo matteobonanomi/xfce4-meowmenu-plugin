@@ -44,6 +44,23 @@ prebuilt packages above, it is **not** built or smoke-tested in CI.
 
 Uninstall with `yay -R xfce4-meowmenu-plugin`.
 
+## Optional calculator engine
+
+Ubuntu, Debian, and Fedora packages recommend `bc` for the optional
+Calculator. It is never required. Arch package metadata has no Calculator
+dependency or optional dependency.
+
+To deliberately omit the recommendation, install a downloaded package with:
+
+```bash
+sudo apt install --no-install-recommends ./xfce4-meowmenu-plugin_*.deb
+sudo dnf install --setopt=install_weak_deps=False ./xfce4-meowmenu-plugin-*.rpm
+```
+
+If selected `bc` is missing, Calculator shows **bc package required** and
+ordinary search continues to work. Qalculate and GNOME Calculator engines are
+also available when installed; none is a build or hard runtime dependency.
+
 ## After install
 
 1. Run `xfce4-panel -r` to restart the panel.

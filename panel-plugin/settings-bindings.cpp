@@ -83,11 +83,13 @@ void Boolean::set(bool data, bool store)
 
 //-----------------------------------------------------------------------------
 
-Integer::Integer(WhiskerMenu::Settings* settings, const gchar* property, int data, int min, int max) :
+Integer::Integer(WhiskerMenu::Settings* settings, const gchar* property, int data, int min, int max,
+		bool reject_to_default) :
 	m_settings(settings),
 	m_property(property),
 	m_min(min),
 	m_max(max),
+	m_reject_to_default(reject_to_default),
 	m_default(CLAMP(data, min, max)),
 	m_data(m_default)
 {
@@ -123,7 +125,8 @@ bool Integer::load(const gchar* property, const GValue* value)
 
 void Integer::set(int data, bool store)
 {
-	data = CLAMP(data, m_min, m_max);
+	data = (m_reject_to_default && (data < m_min || data > m_max))
+			? m_default : CLAMP(data, m_min, m_max);
 	if (m_data == data)
 	{
 		return;

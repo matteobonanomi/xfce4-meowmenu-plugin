@@ -23,6 +23,10 @@
 namespace WhiskerMenu
 {
 
+static const char WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET[] =
+		"application/x-meowmenu-application-favourite";
+static const guint WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO = 2;
+
 class CategoryButton;
 class DesktopAction;
 class Launcher;
@@ -99,6 +103,7 @@ private:
 	void launcher_action_activated(GtkMenuItem* menuitem, DesktopAction* action);
 	gboolean view_button_press_event(GdkEvent* event);
 	gboolean view_button_release_event(GdkEvent* event);
+	void view_drag_begin(GdkDragContext* context);
 	void view_drag_data_get(GtkSelectionData* data, guint info);
 	void view_drag_end();
 	gboolean view_popup_menu_event();
@@ -116,6 +121,7 @@ private:
 	Launcher* m_selected_launcher;
 	bool m_drag_enabled;
 	bool m_launcher_dragged;
+	bool m_favourite_drag_payload_delivered;
 	bool m_reorderable;
 };
 

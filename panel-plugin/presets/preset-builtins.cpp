@@ -87,6 +87,9 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "places-enabled",       PresetValue::from_bool(false)         },
 			{ "places-show-icons",    PresetValue::from_bool(false)         },
 			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
+			{ "calculator-engine", PresetValue::from_str("none") },
+			{ "calculator-result-font-size", PresetValue::from_int(-1) },
+			{ "calculator-max-decimal-places", PresetValue::from_int(4) },
 		})
 	},
 	// PRESET_MODERN
@@ -125,6 +128,9 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "places-enabled",       PresetValue::from_bool(true)         },
 			{ "places-show-icons",    PresetValue::from_bool(true)         },
 			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
+			{ "calculator-engine", PresetValue::from_str("bc") },
+			{ "calculator-result-font-size", PresetValue::from_int(-1) },
+			{ "calculator-max-decimal-places", PresetValue::from_int(4) },
 		})
 	},
 	// PRESET_FULLSCREEN
@@ -161,6 +167,9 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "places-enabled",       PresetValue::from_bool(true)          },
 			{ "places-show-icons",    PresetValue::from_bool(false)         },
 			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
+			{ "calculator-engine", PresetValue::from_str("bc") },
+			{ "calculator-result-font-size", PresetValue::from_int(-1) },
+			{ "calculator-max-decimal-places", PresetValue::from_int(4) },
 		})
 	},
 	// PRESET_MINIMAL
@@ -198,6 +207,9 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "places-enabled",       PresetValue::from_bool(true)          },
 			{ "places-show-icons",    PresetValue::from_bool(true)          },
 			{ "places-switch-button-shape", PresetValue::from_str("gtk-theme") },
+			{ "calculator-engine", PresetValue::from_str("bc") },
+			{ "calculator-result-font-size", PresetValue::from_int(-1) },
+			{ "calculator-max-decimal-places", PresetValue::from_int(4) },
 		})
 	},
 };
@@ -242,6 +254,9 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 		"places-enabled",
 		"places-show-icons",
 		"places-switch-button-shape",
+		"calculator-engine",
+		"calculator-result-font-size",
+		"calculator-max-decimal-places",
 	};
 	return keys;
 }

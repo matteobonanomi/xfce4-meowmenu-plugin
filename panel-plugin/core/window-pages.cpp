@@ -239,7 +239,12 @@ void WhiskerMenu::Window::search()
 		// via the on_key_press_event_after catch-all (FR-012).
 		GtkTreeModel* model = m_search_results->get_view()->get_model();
 		GtkTreeIter iter;
-		if (model && gtk_tree_model_get_iter_first(model, &iter))
+		if (m_search_results->has_calculator_result())
+		{
+			gtk_widget_grab_focus(
+					m_search_results->get_preferred_focus_widget());
+		}
+		else if (model && gtk_tree_model_get_iter_first(model, &iter))
 		{
 			gtk_widget_grab_focus(m_search_results->get_view()->get_widget());
 			m_search_results->select_first();
@@ -323,6 +328,7 @@ void WhiskerMenu::Window::switch_mode(bool to_places)
 
 	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 	m_mode_switch_in_progress = false;
+	update_favourite_drop_targets();
 }
 
 //-----------------------------------------------------------------------------

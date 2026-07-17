@@ -336,6 +336,15 @@ jobs:
           apt-get update
           apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
           dpkg -s xfce4-meowmenu-plugin
+          dpkg -s bc
+
+      - name: Verify calculator-free install without recommendations (Ubuntu 26.04)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get remove -y xfce4-meowmenu-plugin bc
+          apt-get install -y --no-install-recommends ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
+          dpkg -s xfce4-meowmenu-plugin
+          ! dpkg -s bc >/dev/null 2>&1
 
   verify-install-deb-debian:
     name: verify-install-deb (debian-13)
@@ -362,6 +371,15 @@ jobs:
           apt-get update
           apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
           dpkg -s xfce4-meowmenu-plugin
+          dpkg -s bc
+
+      - name: Verify calculator-free install without recommendations (Debian 13)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get remove -y xfce4-meowmenu-plugin bc
+          apt-get install -y --no-install-recommends ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
+          dpkg -s xfce4-meowmenu-plugin
+          ! dpkg -s bc >/dev/null 2>&1
 
   verify-install-rpm:
     name: verify-install-rpm
@@ -380,6 +398,14 @@ jobs:
         run: |
           dnf install -y ./artifacts/xfce4-meowmenu-plugin-*.rpm
           rpm -qi xfce4-meowmenu-plugin
+          rpm -q bc
+
+      - name: Verify calculator-free install with weak dependencies disabled
+        run: |
+          dnf remove -y xfce4-meowmenu-plugin bc
+          dnf install -y --setopt=install_weak_deps=False ./artifacts/xfce4-meowmenu-plugin-*.rpm
+          rpm -qi xfce4-meowmenu-plugin
+          ! rpm -q bc >/dev/null 2>&1
 
   # ===========================================================================
   # Feature 010 — Whisker coexistence gates

@@ -105,6 +105,7 @@ public:
 	void scroll_to_path(GtkTreePath*) override {}
 	void select_path(GtkTreePath*) override {}
 	void set_cursor(GtkTreePath*) override {}
+	bool is_first_visual_row(GtkTreePath*) const override { return false; }
 
 	void set_fixed_height_mode(bool) override {}
 	void set_selection_mode(GtkSelectionMode) override {}

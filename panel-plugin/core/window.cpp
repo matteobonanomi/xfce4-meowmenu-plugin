@@ -18,13 +18,17 @@
 #include "window.h"
 
 #include "category-lifetime.h"
+#include "drag-to-favourites.h"
 #include "launcher/applications-page.h"
 #include "launcher/category-button.h"
 #include "launcher/command.h"
 #include "launcher/favorites-page.h"
+#include "launcher/launcher.h"
+#include "launcher/page.h"
 #include "places/favourites-section.h"
 #include "places/history-section.h"
 #include "places/home-section.h"
+#include "places/places-item.h"
 #include "ui/launcher-view.h"
 #include "places/places-page.h"
 #include "plugin.h"
@@ -54,12 +58,39 @@
 #include <algorithm>
 #include <ctime>
 #include <iterator>
+#include <string>
 #include <vector>
 
 using namespace WhiskerMenu;
 
 namespace
 {
+
+/* selection_data_to_string:
+ * @data: GTK selection data from an in-process favourite drop.
+ *
+ * Copies the payload bytes into a std::string without assuming GTK supplied a
+ * trailing NUL. The custom drag targets send either a desktop ID or a URI, both
+ * treated as opaque UTF-8 identifiers by the drop handler.
+ *
+ * Returns: copied payload text, or an empty string when no payload is present.
+ */
+static std::string selection_data_to_string(GtkSelectionData* data)
+{
+	if (!data || gtk_selection_data_get_length(data) <= 0)
+	{
+		return {};
+	}
+
+	const guchar* raw = gtk_selection_data_get_data(data);
+	if (!raw)
+	{
+		return {};
+	}
+
+	return std::string(reinterpret_cast<const char*>(raw),
+			gtk_selection_data_get_length(data));
+}
 
 /* vertical_end_of:
  * @value: a position string ("top", "top-right", "bottom", "bottom-right",
@@ -517,6 +548,22 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		{
 			favorites_toggled();
 		});
+	connect(favorites_button->get_widget(), "drag-motion",
+		[this](GtkWidget*, GdkDragContext* context, gint, gint, guint time) -> gboolean
+		{
+			return on_application_favourites_drag_motion(context, time);
+		});
+	connect(favorites_button->get_widget(), "drag-leave",
+		[this](GtkWidget* widget, GdkDragContext*, guint)
+		{
+			on_favourite_drag_leave(widget);
+		});
+	connect(favorites_button->get_widget(), "drag-data-received",
+		[this](GtkWidget*, GdkDragContext* context, gint, gint, GtkSelectionData* data,
+				guint info, guint time)
+		{
+			on_application_favourites_drag_data_received(context, data, info, time);
+		});
 
 	// Create recent
 	m_recent = new RecentPage(m_settings, this);
@@ -597,6 +644,22 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			if (!m_keyboard_category_nav)
 				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		});
+	connect(m_places_fav_btn->get_widget(), "drag-motion",
+		[this](GtkWidget*, GdkDragContext* context, gint, gint, guint time) -> gboolean
+		{
+			return on_places_favourites_drag_motion(context, time);
+		});
+	connect(m_places_fav_btn->get_widget(), "drag-leave",
+		[this](GtkWidget* widget, GdkDragContext*, guint)
+		{
+			on_favourite_drag_leave(widget);
+		});
+	connect(m_places_fav_btn->get_widget(), "drag-data-received",
+		[this](GtkWidget*, GdkDragContext* context, gint, gint, GtkSelectionData* data,
+				guint info, guint time)
+		{
+			on_places_favourites_drag_data_received(context, data, info, time);
+		});
 
 	// Mode selector: two toggle buttons forming a manual radio group.
 	m_mode_selector_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0));
@@ -657,6 +720,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_search_results = new SearchPage(m_settings, this);
 
 	GtkBox* search_results = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+	gtk_box_pack_start(search_results, m_search_results->get_calculator_result(), false, false, 0);
 	gtk_box_pack_start(search_results, m_search_results->get_message(), false, false, 0);
 	gtk_box_pack_start(search_results, m_search_results->get_widget(), true, true, 0);
 	gtk_container_set_border_width(GTK_CONTAINER(search_results), 0);
@@ -916,17 +980,20 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 					{
 						self->switch_mode(false);
 					}
+					self->update_favourite_drop_targets();
 				}
 				else if (g_strcmp0(property, "/places/history-enabled") == 0
 						|| g_strcmp0(property, "/places/favourites-enabled") == 0)
 				{
 					self->update_layout();
+					self->update_favourite_drop_targets();
 				}
 				else if (g_strcmp0(property, "/places/favourite-sync") == 0)
 				{
 					self->m_places->get_favourites_section()->refresh_mode();
 					if (self->m_places_active)
 						self->m_places->refresh_active();
+					self->update_favourite_drop_targets();
 				}
 			}), this);
 	}
@@ -954,8 +1021,196 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 
 	// Load applications
 	m_applications->load();
+	update_favourite_drop_targets();
 
 	g_object_ref_sink(m_window);
+}
+
+//-----------------------------------------------------------------------------
+
+/* update_favourite_drop_targets:
+ *
+ * Reconciles the transient GTK drag destinations with the currently visible
+ * sidebar state. Hidden or read-only favourite buttons expose no destination,
+ * so wrong-mode and disabled-item drags never discover an invisible target.
+ */
+void WhiskerMenu::Window::update_favourite_drop_targets()
+{
+	GtkWidget* app_target = m_favorites->get_button()->get_widget();
+	if (application_favourites_drop_available())
+	{
+		const GtkTargetEntry targets[] = {
+			{ g_strdup(WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO }
+		};
+		gtk_drag_dest_set(app_target, GTK_DEST_DEFAULT_ALL, targets, 1,
+				GDK_ACTION_COPY);
+		g_free(targets[0].target);
+	}
+	else
+	{
+		gtk_drag_dest_unset(app_target);
+		gtk_drag_unhighlight(app_target);
+	}
+
+	GtkWidget* places_target = m_places_fav_btn->get_widget();
+	if (places_favourites_drop_available())
+	{
+		const GtkTargetEntry targets[] = {
+			{ g_strdup(WHISKERMENU_PLACES_FAVOURITE_DND_TARGET),
+				GTK_TARGET_SAME_APP, WHISKERMENU_PLACES_FAVOURITE_DND_INFO }
+		};
+		gtk_drag_dest_set(places_target, GTK_DEST_DEFAULT_ALL, targets, 1,
+				GDK_ACTION_COPY);
+		g_free(targets[0].target);
+	}
+	else
+	{
+		gtk_drag_dest_unset(places_target);
+		gtk_drag_unhighlight(places_target);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+bool WhiskerMenu::Window::application_favourites_drop_available() const
+{
+	GtkWidget* target = m_favorites->get_button()->get_widget();
+	return WhiskerMenu::application_favourites_drop_available(
+			m_settings->sidebar_enabled,
+			m_places_active,
+			gtk_widget_get_visible(target));
+}
+
+//-----------------------------------------------------------------------------
+
+bool WhiskerMenu::Window::places_favourites_drop_available() const
+{
+	GtkWidget* target = m_places_fav_btn->get_widget();
+	FavouritesSection* favourites = m_places->get_favourites_section();
+	return WhiskerMenu::places_favourites_drop_available(
+			m_settings->sidebar_enabled,
+			m_settings->places_enabled,
+			m_places_active,
+			gtk_widget_get_visible(target),
+			favourites && (favourites->get_mode() == FavouritesSection::MeowMenuOnly));
+}
+
+//-----------------------------------------------------------------------------
+
+gboolean WhiskerMenu::Window::on_application_favourites_drag_motion(
+		GdkDragContext* context, guint time)
+{
+	if (!application_favourites_drop_available())
+	{
+		gdk_drag_status(context, GdkDragAction(0), time);
+		return GDK_EVENT_STOP;
+	}
+
+	gtk_drag_highlight(m_favorites->get_button()->get_widget());
+	gdk_drag_status(context, GDK_ACTION_COPY, time);
+	return GDK_EVENT_STOP;
+}
+
+//-----------------------------------------------------------------------------
+
+gboolean WhiskerMenu::Window::on_places_favourites_drag_motion(
+		GdkDragContext* context, guint time)
+{
+	if (!places_favourites_drop_available())
+	{
+		gdk_drag_status(context, GdkDragAction(0), time);
+		return GDK_EVENT_STOP;
+	}
+
+	gtk_drag_highlight(m_places_fav_btn->get_widget());
+	gdk_drag_status(context, GDK_ACTION_COPY, time);
+	return GDK_EVENT_STOP;
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::on_favourite_drag_leave(GtkWidget* widget)
+{
+	gtk_drag_unhighlight(widget);
+}
+
+//-----------------------------------------------------------------------------
+
+/* on_application_favourites_drag_data_received:
+ * @context: active GTK drag context to finish.
+ * @data: selected desktop ID payload.
+ * @info: target info emitted by the source.
+ * @time: GTK event timestamp for gtk_drag_finish().
+ *
+ * Resolves the dropped desktop ID through the current application model and
+ * appends it via FavoritesPage so duplicate prevention and Xfconf sync stay on
+ * the existing favourite path.
+ */
+void WhiskerMenu::Window::on_application_favourites_drag_data_received(
+		GdkDragContext* context, GtkSelectionData* data, guint info, guint time)
+{
+	GtkWidget* target = m_favorites->get_button()->get_widget();
+	gtk_drag_unhighlight(target);
+
+	bool success = false;
+	if ((info == WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO)
+			&& application_favourites_drop_available()
+			&& favourite_drop_accepts(FavouriteDragPayload::Application,
+				FavouriteDropTarget::ApplicationFavorites))
+	{
+		const std::string desktop_id = selection_data_to_string(data);
+		Launcher* launcher = m_applications->find(desktop_id);
+		if (launcher)
+		{
+			m_favorites->add(launcher);
+			success = true;
+		}
+	}
+
+	gtk_drag_finish(context, success, FALSE, time);
+}
+
+//-----------------------------------------------------------------------------
+
+/* on_places_favourites_drag_data_received:
+ * @context: active GTK drag context to finish.
+ * @data: selected file/folder URI payload.
+ * @info: target info emitted by the source.
+ * @time: GTK event timestamp for gtk_drag_finish().
+ *
+ * Revalidates the dropped URI before appending it to MeowMenu-owned Places
+ * favourites. Thunar-synced bookmarks never reach this path as writable
+ * destinations because target registration is disabled for that mode.
+ */
+void WhiskerMenu::Window::on_places_favourites_drag_data_received(
+		GdkDragContext* context, GtkSelectionData* data, guint info, guint time)
+{
+	GtkWidget* target = m_places_fav_btn->get_widget();
+	gtk_drag_unhighlight(target);
+
+	bool success = false;
+	if ((info == WHISKERMENU_PLACES_FAVOURITE_DND_INFO)
+			&& places_favourites_drop_available()
+			&& favourite_drop_accepts(FavouriteDragPayload::Places,
+				FavouriteDropTarget::PlacesFavourites))
+	{
+		const std::string uri = selection_data_to_string(data);
+		GFile* file = uri.empty() ? nullptr : g_file_new_for_uri(uri.c_str());
+		const bool exists = file && g_file_query_exists(file, nullptr);
+		if (exists)
+		{
+			m_places->get_favourites_section()->add_favourite(uri.c_str());
+			m_places->refresh_active();
+			success = true;
+		}
+		if (file)
+		{
+			g_object_unref(file);
+		}
+	}
+
+	gtk_drag_finish(context, success, FALSE, time);
 }
 
 //-----------------------------------------------------------------------------
@@ -1028,7 +1283,11 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 
 	// Save settings
 	m_settings->favorites.save();
+	m_settings->places_favourites.save();
 	m_settings->recent.save();
+
+	gtk_drag_unhighlight(m_favorites->get_button()->get_widget());
+	gtk_drag_unhighlight(m_places_fav_btn->get_widget());
 
 	// Scroll categories to top
 	GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(m_sidebar);
@@ -1750,7 +2009,9 @@ bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 			Page* page = const_cast<Window*>(this)->get_active_page();
 			if (page)
 			{
-				target = page->get_view()->get_widget();
+				target = page == m_search_results
+						? m_search_results->get_preferred_focus_widget()
+						: page->get_view()->get_widget();
 				results_page = page;
 			}
 		}
@@ -2217,6 +2478,32 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	case GDK_KEY_Down:
 	case GDK_KEY_KP_Down:
 	{
+		const bool up = key_event->keyval == GDK_KEY_Up
+				|| key_event->keyval == GDK_KEY_KP_Up;
+		if (!m_places_active && page == m_search_results
+				&& m_search_results->has_calculator_result())
+		{
+			GtkWidget* calculator_focused = gtk_window_get_focus(m_window);
+			Keyboard::CalculatorFocus origin = Keyboard::CalculatorFocus::None;
+			bool first_row = false;
+			if (widget == search || calculator_focused == search)
+				origin = Keyboard::CalculatorFocus::Search;
+			else if (calculator_focused == view)
+			{
+				GtkTreePath* selected = page->get_view()->get_selected_path();
+				first_row = selected
+						&& page->get_view()->is_first_visual_row(selected);
+				if (selected)
+					gtk_tree_path_free(selected);
+				origin = Keyboard::CalculatorFocus::Results;
+			}
+			if (Keyboard::calculator_vertical_target(true, origin, up, first_row)
+					== Keyboard::CalculatorFocus::Banner)
+			{
+				gtk_widget_grab_focus(m_search_results->get_preferred_focus_widget());
+				return GDK_EVENT_STOP;
+			}
+		}
 		// Determine if there is a selected item
 		LauncherView* results_view = m_places_active
 			? m_places->get_view() : page->get_view();
@@ -3654,6 +3941,7 @@ void WhiskerMenu::Window::update_layout()
 		}
 	}
 
+	update_favourite_drop_targets();
 	m_layout_unified_bar = eff;
 }
 

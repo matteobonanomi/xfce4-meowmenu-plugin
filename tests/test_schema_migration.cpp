@@ -23,7 +23,7 @@
 
 static int target_schema_version()
 {
-	return 10;
+	return 11;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -74,6 +74,60 @@ static bool needs_v9_block(int current_schema_version)
 static bool needs_v10_block(int current_schema_version)
 {
 	return current_schema_version < 10;
+}
+
+static bool needs_v11_block(int current_schema_version)
+{
+	return current_schema_version < 11;
+}
+
+/* calculator_engine_seed:
+ * @preset_id: stored built-in identity, custom id, or nullptr.
+ *
+ * Mirrors schema v11: recognized modern layouts opt into bc, Classic and
+ * unknown/custom identities retain the safe disabled default.
+ */
+static const char* calculator_engine_seed(const char* preset_id)
+{
+	return preset_id && (std::strcmp(preset_id, "modern") == 0
+		|| std::strcmp(preset_id, "fullscreen") == 0
+		|| std::strcmp(preset_id, "minimal") == 0) ? "bc" : "none";
+}
+
+static bool calculator_engine_valid(const char* id)
+{
+	return id && (std::strcmp(id, "none") == 0 || std::strcmp(id, "bc") == 0
+		|| std::strcmp(id, "qalc") == 0 || std::strcmp(id, "gcalccmd") == 0);
+}
+
+static int calculator_int_recover(bool is_integer, int value,
+	int minimum, int maximum, int default_value)
+{
+	return is_integer && value >= minimum && value <= maximum
+		? value : default_value;
+}
+
+static void test_calculator_v11_migration()
+{
+	assert(needs_v11_block(10));
+	assert(!needs_v11_block(11));
+	assert(std::strcmp(calculator_engine_seed("classic"), "none") == 0);
+	assert(std::strcmp(calculator_engine_seed("modern"), "bc") == 0);
+	assert(std::strcmp(calculator_engine_seed("fullscreen"), "bc") == 0);
+	assert(std::strcmp(calculator_engine_seed("minimal"), "bc") == 0);
+	assert(std::strcmp(calculator_engine_seed("custom-uuid"), "none") == 0);
+	assert(std::strcmp(calculator_engine_seed(nullptr), "none") == 0);
+	assert(calculator_engine_valid("none"));
+	assert(calculator_engine_valid("bc"));
+	assert(calculator_engine_valid("qalc"));
+	assert(calculator_engine_valid("gcalccmd"));
+	assert(!calculator_engine_valid("/bin/sh"));
+	assert(calculator_int_recover(true, 6, -1, 6, -1) == 6);
+	assert(calculator_int_recover(true, 7, -1, 6, -1) == -1);
+	assert(calculator_int_recover(false, 3, -1, 6, -1) == -1);
+	assert(calculator_int_recover(true, 10, 0, 10, 4) == 10);
+	assert(calculator_int_recover(true, 11, 0, 10, 4) == 4);
+	assert(calculator_int_recover(false, 8, 0, 10, 4) == 4);
 }
 
 /* fresh_install_preset_id:
@@ -332,7 +386,7 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 10);
+	assert(target_schema_version() == 11);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
@@ -343,7 +397,8 @@ static void test_schema_version_guard()
 	assert(needs_migration(7) == true);
 	assert(needs_migration(8) == true);
 	assert(needs_migration(9) == true);
-	assert(needs_migration(10) == false);
+	assert(needs_migration(10) == true);
+	assert(needs_migration(11) == false);
 
 	// v0 → v10 walks through every block
 	assert(needs_v1_block(0) == true);
@@ -749,5 +804,6 @@ int main()
 	test_v7_resets_retired_keys();
 	test_v7_idempotent_one_shot();
 	test_v7_fresh_install_lands_on_100_no_old_keys();
+	test_calculator_v11_migration();
 	return 0;
 }

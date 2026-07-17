@@ -18,6 +18,10 @@
 namespace WhiskerMenu
 {
 
+static const char WHISKERMENU_PLACES_FAVOURITE_DND_TARGET[] =
+		"application/x-meowmenu-places-favourite";
+static const guint WHISKERMENU_PLACES_FAVOURITE_DND_INFO = 3;
+
 class FavouritesSection;
 class HistorySection;
 class HomeSection;
@@ -55,6 +59,11 @@ private:
 	void create_view();
 	void on_row_activated(GtkTreePath* path);
 	void on_button_press(GdkEventButton* event);
+	gboolean on_button_release(GdkEventButton* event);
+	void on_drag_begin(GdkDragContext* context);
+	void on_drag_data_get(GtkSelectionData* data, guint info);
+	void on_drag_end();
+	void clear_drag_state(bool defer_folder_cleanup = false);
 	void show_context_menu(PlacesItem* item, GdkEvent* event);
 	void rebuild_model();
 
@@ -80,6 +89,10 @@ private:
 	GtkWidget* m_widget;        // GtkScrolledWindow wrapping the view
 	GtkWidget* m_empty_message; // GtkLabel shown when model has zero rows
 	GtkListStore* m_model;
+	bool m_item_dragged;
+	PlacesItem* m_pressed_drag_item;
+	guint m_pressed_drag_info;
+	std::string m_folder_drag_artifact_uri;
 
 	std::string m_filter; // case-folded text or empty for no-filter
 

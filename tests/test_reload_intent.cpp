@@ -45,6 +45,9 @@ int main()
 	expect_intent("/launcher-show-name", ReloadIntent::Content);
 	expect_intent("/launcher-show-description", ReloadIntent::Content);
 	expect_intent("/favorites-in-recent", ReloadIntent::Content);
+	expect_intent("/extras/calculator-engine", ReloadIntent::Content);
+	expect_intent("/extras/calculator-result-font-size", ReloadIntent::Content);
+	expect_intent("/extras/calculator-max-decimal-places", ReloadIntent::Content);
 
 	expect_intent("/search/fuzzy-enabled", ReloadIntent::None);
 	expect_intent("/current-preset-id", ReloadIntent::None);

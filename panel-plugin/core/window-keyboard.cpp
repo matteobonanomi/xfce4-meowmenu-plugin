@@ -97,6 +97,20 @@ TabAction tab_action(bool places_available)
 	return places_available ? TabAction::ToggleMode : TabAction::Inert;
 }
 
+CalculatorFocus calculator_vertical_target(bool banner_visible,
+	CalculatorFocus origin, bool up, bool first_result_row)
+{
+	if (!banner_visible)
+		return CalculatorFocus::None;
+	if (origin == CalculatorFocus::Search && !up)
+		return CalculatorFocus::Banner;
+	if (origin == CalculatorFocus::Banner)
+		return up ? CalculatorFocus::Search : CalculatorFocus::Results;
+	if (origin == CalculatorFocus::Results && up && first_result_row)
+		return CalculatorFocus::Banner;
+	return CalculatorFocus::None;
+}
+
 EscState classify_esc_state(bool context_menu_open,
                             bool resize_in_progress,
                             bool query_non_empty)
