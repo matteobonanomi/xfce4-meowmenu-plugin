@@ -2,6 +2,8 @@
 
 #include <atk/atk.h>
 #include <gtk/gtk.h>
+#include <pango/pangocairo.h>
+#include <pango/pangofc-fontmap.h>
 
 using namespace WhiskerMenu;
 
@@ -37,97 +39,125 @@ void flush_events()
 
 void test_states_and_activation()
 {
-	CalculatorResult result;
-	g_assert_cmpint(static_cast<int>(result.state()), ==,
-			static_cast<int>(CalculatorResultState::Hidden));
-	g_assert_false(result.is_visible());
+	GtkWidget* widget = nullptr;
+	{
+		CalculatorResult result;
+		widget = result.get_widget();
+		g_object_ref_sink(widget);
+		g_assert_cmpint(static_cast<int>(result.state()), ==,
+				static_cast<int>(CalculatorResultState::Hidden));
+		g_assert_false(result.is_visible());
 
-	result.set_pending();
-	g_assert_cmpint(static_cast<int>(result.state()), ==,
-			static_cast<int>(CalculatorResultState::Pending));
-	g_assert_false(result.is_visible());
+		result.set_pending();
+		g_assert_cmpint(static_cast<int>(result.state()), ==,
+				static_cast<int>(CalculatorResultState::Pending));
+		g_assert_false(result.is_visible());
 
-	int activations = 0;
-	result.set_activate_callback([&]() { ++activations; });
-	result.set_result("bc", "accessories-calculator", "accessories-calculator",
-			"1234567890.1234", -1);
-	g_assert_true(result.is_visible());
-	g_assert_true(result.is_activatable());
-	g_assert_cmpstr(result.value().c_str(), ==, "1234567890.1234");
-	g_assert_cmpstr(gtk_widget_get_tooltip_text(result.get_widget()), ==,
-			"1234567890.1234");
-	AtkObject* accessible = gtk_widget_get_accessible(result.get_focus_widget());
-	g_assert_cmpstr(atk_object_get_name(accessible), ==, "bc: 1234567890.1234");
-	g_assert_cmpstr(atk_object_get_description(accessible), ==, "1234567890.1234");
-	result.activate();
-	g_assert_cmpint(activations, ==, 1);
+		int activations = 0;
+		result.set_activate_callback([&]() { ++activations; });
+		result.set_result("bc", "accessories-calculator", "accessories-calculator",
+				"1234567890.1234", -1);
+		g_assert_true(result.is_visible());
+		g_assert_true(result.is_activatable());
+		g_assert_cmpstr(result.value().c_str(), ==, "1234567890.1234");
+		gchar* tooltip = gtk_widget_get_tooltip_text(result.get_widget());
+		g_assert_cmpstr(tooltip, ==, "1234567890.1234");
+		g_free(tooltip);
+		AtkObject* accessible = gtk_widget_get_accessible(result.get_focus_widget());
+		g_assert_cmpstr(atk_object_get_name(accessible), ==, "bc: 1234567890.1234");
+		g_assert_cmpstr(atk_object_get_description(accessible), ==, "1234567890.1234");
+		result.activate();
+		g_assert_cmpint(activations, ==, 1);
 
-	result.set_missing_bc();
-	g_assert_true(result.is_visible());
-	g_assert_false(result.is_activatable());
-	g_assert_cmpstr(result.value().c_str(), ==, "");
-	result.activate();
-	g_assert_cmpint(activations, ==, 1);
+		result.set_missing_bc();
+		g_assert_true(result.is_visible());
+		g_assert_false(result.is_activatable());
+		g_assert_cmpstr(result.value().c_str(), ==, "");
+		result.activate();
+		g_assert_cmpint(activations, ==, 1);
 
-	result.clear();
-	g_assert_false(result.is_visible());
+		result.clear();
+		g_assert_false(result.is_visible());
+	}
+	gtk_widget_destroy(widget);
+	g_object_unref(widget);
 }
 
 void test_one_line_typography()
 {
-	CalculatorResult result;
-	for (int size = -1; size <= 6; ++size)
+	GtkWidget* widget = nullptr;
 	{
-		result.set_result("Qalculate", "qalculate", "accessories-calculator",
-				"12345678901234567890.1234567890 m/s", size);
-		GtkWidget* label = value_label(result);
-		g_assert_cmpint(gtk_label_get_ellipsize(GTK_LABEL(label)), ==,
-				PANGO_ELLIPSIZE_MIDDLE);
-		g_assert_cmpint(gtk_label_get_lines(GTK_LABEL(label)), ==, 1);
-		if (size < 0)
-			g_assert_null(gtk_label_get_attributes(GTK_LABEL(label)));
-		else
-			g_assert_nonnull(gtk_label_get_attributes(GTK_LABEL(label)));
+		CalculatorResult result;
+		widget = result.get_widget();
+		g_object_ref_sink(widget);
+		for (int size = -1; size <= 6; ++size)
+		{
+			result.set_result("Qalculate", "qalculate", "accessories-calculator",
+					"12345678901234567890.1234567890 m/s", size);
+			GtkWidget* label = value_label(result);
+			g_assert_cmpint(gtk_label_get_ellipsize(GTK_LABEL(label)), ==,
+					PANGO_ELLIPSIZE_MIDDLE);
+			g_assert_cmpint(gtk_label_get_lines(GTK_LABEL(label)), ==, 1);
+			if (size < 0)
+				g_assert_null(gtk_label_get_attributes(GTK_LABEL(label)));
+			else
+				g_assert_nonnull(gtk_label_get_attributes(GTK_LABEL(label)));
+		}
 	}
+	gtk_widget_destroy(widget);
+	g_object_unref(widget);
 }
 
 void test_banner_ordering()
 {
 	GtkWidget* container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-	CalculatorResult result;
-	GtkWidget* message = gtk_label_new("No applications found");
-	GtkWidget* ordinary = gtk_tree_view_new();
-	gtk_box_pack_start(GTK_BOX(container), result.get_widget(), FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(container), message, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(container), ordinary, TRUE, TRUE, 0);
-	GList* children = gtk_container_get_children(GTK_CONTAINER(container));
-	g_assert_true(children->data == result.get_widget());
-	g_assert_true(children->next->data == message);
-	g_assert_true(children->next->next->data == ordinary);
-	g_list_free(children);
+	g_object_ref_sink(container);
+	{
+		CalculatorResult result;
+		GtkWidget* message = gtk_label_new("No applications found");
+		GtkWidget* ordinary = gtk_tree_view_new();
+		gtk_box_pack_start(GTK_BOX(container), result.get_widget(), FALSE, FALSE, 0);
+		gtk_box_pack_start(GTK_BOX(container), message, FALSE, FALSE, 0);
+		gtk_box_pack_start(GTK_BOX(container), ordinary, TRUE, TRUE, 0);
+		GList* children = gtk_container_get_children(GTK_CONTAINER(container));
+		g_assert_true(children->data == result.get_widget());
+		g_assert_true(children->next->data == message);
+		g_assert_true(children->next->next->data == ordinary);
+		g_list_free(children);
+	}
+	gtk_widget_destroy(container);
+	g_object_unref(container);
 }
 
 void test_presentation_metrics()
 {
-	CalculatorResult result;
-	result.set_result("bc", "accessories-calculator", "accessories-calculator",
-			"4", -1);
-	result.set_presentation_metrics(37, 24, false);
-	int minimum = 0;
-	int natural = 0;
-	gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);
-	g_assert_cmpint(minimum, ==, 37);
-	g_assert_cmpint(natural, ==, 37);
+	GtkWidget* widget = nullptr;
+	{
+		CalculatorResult result;
+		widget = result.get_widget();
+		g_object_ref_sink(widget);
+		result.set_result("bc", "accessories-calculator", "accessories-calculator",
+				"4", -1);
+		result.set_presentation_metrics(37, 24, false);
+		int minimum = 0;
+		int natural = 0;
+		gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);
+		g_assert_cmpint(minimum, ==, 37);
+		g_assert_cmpint(natural, ==, 37);
 
-	result.set_presentation_metrics(64, 48, true);
-	gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);
-	g_assert_cmpint(minimum, ==, 64);
-	g_assert_cmpint(natural, ==, 64);
+		result.set_presentation_metrics(64, 48, true);
+		gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);
+		g_assert_cmpint(minimum, ==, 64);
+		g_assert_cmpint(natural, ==, 64);
+	}
+	gtk_widget_destroy(widget);
+	g_object_unref(widget);
 }
 
 void test_auto_typography_waits_for_banner_allocation()
 {
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	g_object_ref_sink(window);
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 80);
 	GtkWidget* container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_container_add(GTK_CONTAINER(window), container);
@@ -160,6 +190,7 @@ void test_auto_typography_waits_for_banner_allocation()
 	}
 
 	gtk_widget_destroy(window);
+	g_object_unref(window);
 	flush_events();
 }
 
@@ -179,5 +210,9 @@ int main(int argc, char** argv)
 	g_test_add_func("/calculator/result/presentation-metrics", test_presentation_metrics);
 	g_test_add_func("/calculator/result/auto-typography-allocation",
 			test_auto_typography_waits_for_banner_allocation);
-	return g_test_run();
+	const int status = g_test_run();
+	// Release Pango's process-global Fontconfig map after all GTK test objects.
+	PangoFontMap* font_map = pango_cairo_font_map_get_default();
+	pango_fc_font_map_shutdown(PANGO_FC_FONT_MAP(font_map));
+	return status;
 }

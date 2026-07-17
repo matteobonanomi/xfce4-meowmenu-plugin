@@ -56,7 +56,7 @@ test_calculator_result = executable(
     '..' / 'panel-plugin' / 'search' / 'calculator-result.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
+  dependencies: [glib, gtk, dependency('pangoft2')],
 )
 test('calculator_result', test_calculator_result)
 

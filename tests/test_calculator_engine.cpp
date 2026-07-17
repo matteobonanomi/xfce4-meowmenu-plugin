@@ -54,16 +54,18 @@ static void test_adapters()
 	g_assert_cmpstr(bc[0].c_str(), ==, "/tmp/bc");
 	g_assert_cmpstr(bc[1].c_str(), ==, "-q");
 	g_assert_cmpstr(bc[2].c_str(), ==, "-l");
-	g_assert_cmpstr(calculator_engine_stdin(CalculatorEngine::Bc, "2+2", 4).c_str(),
-			==, "scale=20\n2+2\n");
+	const std::string bc_stdin = calculator_engine_stdin(CalculatorEngine::Bc,
+			"2+2", 4);
+	g_assert_cmpstr(bc_stdin.c_str(), ==, "scale=20\n2+2\n");
 
 	const std::vector<std::string> qalc = calculator_engine_argv(
 			CalculatorEngine::Qalculate, "/tmp/qalc", "2+2", 10);
 	g_assert_cmpstr(qalc.front().c_str(), ==, "/tmp/qalc");
 	g_assert_cmpstr(qalc[qalc.size() - 2].c_str(), ==, "--");
 	g_assert_cmpstr(qalc.back().c_str(), ==, "2+2");
-	g_assert_cmpstr(calculator_engine_stdin(CalculatorEngine::Qalculate, "2+2", 4).c_str(),
-			==, "");
+	const std::string qalc_stdin = calculator_engine_stdin(
+			CalculatorEngine::Qalculate, "2+2", 4);
+	g_assert_cmpstr(qalc_stdin.c_str(), ==, "");
 }
 
 int main(int argc, char** argv)
