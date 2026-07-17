@@ -344,7 +344,12 @@ jobs:
           apt-get remove -y xfce4-meowmenu-plugin bc
           apt-get install -y --no-install-recommends ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
           dpkg -s xfce4-meowmenu-plugin
-          ! dpkg -s bc >/dev/null 2>&1
+          # apt-get remove preserves dpkg's "config-files" state, for which
+          # dpkg -s still succeeds. Only an installed package is a failure.
+          if dpkg-query -W -f='${db:Status-Status}\n' bc 2>/dev/null | grep -qx 'installed'; then
+            echo "::error::bc was installed despite --no-install-recommends"
+            exit 1
+          fi
 
   verify-install-deb-debian:
     name: verify-install-deb (debian-13)
@@ -379,7 +384,12 @@ jobs:
           apt-get remove -y xfce4-meowmenu-plugin bc
           apt-get install -y --no-install-recommends ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
           dpkg -s xfce4-meowmenu-plugin
-          ! dpkg -s bc >/dev/null 2>&1
+          # apt-get remove preserves dpkg's "config-files" state, for which
+          # dpkg -s still succeeds. Only an installed package is a failure.
+          if dpkg-query -W -f='${db:Status-Status}\n' bc 2>/dev/null | grep -qx 'installed'; then
+            echo "::error::bc was installed despite --no-install-recommends"
+            exit 1
+          fi
 
   verify-install-rpm:
     name: verify-install-rpm
