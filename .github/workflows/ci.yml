@@ -222,7 +222,7 @@ jobs:
       - name: Meson setup (optional deps disabled)
         run: |
           meson setup build \
-              --buildtype=release \
+              --buildtype=debugoptimized \
               -Daccountsservice=disabled \
               -Dgtk-layer-shell=disabled
 
