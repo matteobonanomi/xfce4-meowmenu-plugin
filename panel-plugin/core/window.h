@@ -335,6 +335,9 @@ private:
 	bool m_keyboard_category_nav;
 	gulong m_places_property_slot;
 	gulong m_live_settings_property_slot;
+	// Contextual Modern divider immediately above the Apps/Places selector.
+	// It is hidden in every other presentation and therefore owns no spacing.
+	GtkWidget* m_mode_selector_upper_separator;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
 	// The dynamically-loaded application-category buttons, kept alongside their

@@ -243,6 +243,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
 	m_live_settings_property_slot(0),
+	m_mode_selector_upper_separator(nullptr),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
@@ -831,6 +832,11 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+	m_mode_selector_upper_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	// Keep the line itself at the results-row origin, then add the same small
+	// breathing space the lower boundary gives the selector on its other side.
+	gtk_widget_set_margin_bottom(m_mode_selector_upper_separator, 4);
+	gtk_box_pack_start(m_category_buttons, m_mode_selector_upper_separator, false, false, 0);
 	gtk_box_pack_start(m_category_buttons, GTK_WIDGET(m_mode_selector_box), false, false, 0);
 	m_mode_selector_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_box_pack_start(m_category_buttons, m_mode_selector_separator, false, false, 4);
@@ -946,6 +952,12 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	{
 		gtk_widget_set_visible(m_mode_selector_separator,
 			m_settings->places_enabled);
+	}
+	if (m_mode_selector_upper_separator)
+	{
+		// update_layout() resolves the full Modern predicate after live command
+		// availability is known. Keep this hidden until that pass runs.
+		gtk_widget_set_visible(m_mode_selector_upper_separator, false);
 	}
 
 	m_default_button->set_active(true);
@@ -1760,6 +1772,7 @@ void WhiskerMenu::Window::detach_categories()
 void WhiskerMenu::Window::refresh_layout()
 {
 	update_background_css();
+	m_search_results->refresh_calculator_presentation();
 
 	if (gtk_widget_get_visible(GTK_WIDGET(m_window)))
 	{
@@ -3581,6 +3594,46 @@ void WhiskerMenu::Window::update_layout()
 	// does not keep the title row alive on its own — only commands that share the
 	// title row count toward its visibility.
 	const bool commands_in_title_row = !commands_hidden && !m_layout_commands_alternate;
+
+	ModernDividerState divider_state;
+	divider_state.modern_preset = (g_strcmp0(m_settings->current_preset_id, "modern") == 0);
+	divider_state.docked_or_centered = (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0);
+	divider_state.vertical_sidebar_switch = switch_visible
+			&& pres.switch_location == SwitchLocation::InSidebar
+			&& !pres.categories_horizontal;
+	divider_state.profile_visible = !profile_hidden;
+	divider_state.visible_command_count = 0;
+	if (!commands_hidden)
+	{
+		for (int i = 0; i < 9; ++i)
+		{
+			// Command::check() resolves availability before the derived divider
+			// decides whether a command supplies upper-region content.
+			m_settings->command[i]->check();
+			if (gtk_widget_get_visible(m_commands_button[i])
+					&& gtk_widget_get_sensitive(m_commands_button[i]))
+			{
+				++divider_state.visible_command_count;
+			}
+		}
+	}
+	if (m_mode_selector_upper_separator)
+	{
+		gtk_widget_set_visible(m_mode_selector_upper_separator,
+				meow_modern_divider_visible(divider_state));
+	}
+
+	// Reparenting the selector during a layout transition can move it ahead of
+	// the divider. Restore the stable vertical-sidebar order on every pass.
+	if (want_vertical)
+	{
+		gtk_box_reorder_child(m_category_buttons,
+				m_mode_selector_upper_separator, 0);
+		gtk_box_reorder_child(m_category_buttons,
+				GTK_WIDGET(m_mode_selector_box), 1);
+		gtk_box_reorder_child(m_category_buttons,
+				m_mode_selector_separator, 2);
+	}
 
 	// Collapse the user/session row only when nothing remains in it (FR-003);
 	// keep it in unified-bar / full-screen where it carries the shared search row

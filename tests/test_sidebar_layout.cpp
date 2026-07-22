@@ -258,8 +258,11 @@ void strip_spacer_order_decision()
 
 void default_category_order_base_decision()
 {
-	CHECK(meow_default_category_order_base(true) == 1);
-	CHECK(meow_default_category_order_base(false) == 0);
+	CHECK(meow_default_category_order_base(true, false) == 1);
+	CHECK(meow_default_category_order_base(false, false) == 0);
+	// A vertical sidebar keeps the upper divider, selector, and lower divider
+	// ahead of every reorderable built-in category.
+	CHECK(meow_default_category_order_base(false, true) == 3);
 }
 
 // Embedded Apps/Places switch ordering in the standard (non-unified) search-bar
@@ -344,6 +347,43 @@ void sidebar_max_label_width_decision()
 	CHECK(meow_sidebar_max_label_width(a, 3) == meow_sidebar_max_label_width(b, 3));
 }
 
+// The Modern upper divider is derived from the resolved presentation, never
+// from stored layout values alone. Both vertical sidebar sides are positive;
+// strips and the search-bar switch are deliberately excluded.
+void modern_divider_visibility_truth_table()
+{
+	struct Case
+	{
+		bool modern;
+		bool docked_or_centered;
+		bool vertical_sidebar_switch;
+		bool profile_visible;
+		unsigned int visible_commands;
+		bool expected;
+	};
+
+	const Case cases[] = {
+		{ true,  true,  true,  true,  0, true  }, // profile keeps upper region alive
+		{ true,  true,  true,  false, 1, true  }, // a live command is sufficient
+		{ true,  true,  true,  false, 9, true  }, // every command may be visible
+		{ true,  true,  true,  false, 0, false }, // no upper-region content
+		{ true,  true,  false, true,  9, false }, // top/bottom strip or search bar
+		{ true,  false, true,  true,  9, false }, // Full Screen
+		{ false, true,  true,  true,  9, false }, // another built-in or custom
+	};
+
+	for (const auto& c : cases)
+	{
+		ModernDividerState state;
+		state.modern_preset = c.modern;
+		state.docked_or_centered = c.docked_or_centered;
+		state.vertical_sidebar_switch = c.vertical_sidebar_switch;
+		state.profile_visible = c.profile_visible;
+		state.visible_command_count = c.visible_commands;
+		CHECK(meow_modern_divider_visible(state) == c.expected);
+	}
+}
+
 } // namespace
 
 int main()
@@ -366,6 +406,7 @@ int main()
 	label_visibility_decision();
 	label_cap_decision();
 	sidebar_max_label_width_decision();
+	modern_divider_visibility_truth_table();
 	embedded_switch_slot_decision();
 
 	if (g_failures != 0)

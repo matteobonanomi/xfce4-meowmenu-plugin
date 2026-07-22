@@ -108,6 +108,7 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 		"/commands-position",
 		"/grid-density",
 		"/layout-mode",
+		"/current-preset-id",
 		"/places/enabled",
 		"/places/history-enabled",
 		"/places/favourites-enabled",

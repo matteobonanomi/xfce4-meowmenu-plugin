@@ -130,7 +130,7 @@ expects argument splitting.
 | Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch moves to the right end of the search bar, and the results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
 | Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom use a horizontal, icon-only strip. In Full Screen, the strip, search bar, and results/application grid share the same width. Top sits below the search bar; Bottom sits below results. The strip scrolls when needed, and **Show category name** is unavailable. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
-| Category icon size | Size of category icons (-2 = inherit from theme). |
+| Category icon size | Size of category icons (`-1` through `6`; `-1` inherits the theme size). |
 | Sort categories | Sort the category list alphabetically. |
 | Recent items max | Maximum number of recently-used apps to track. |
 | Include favorites in recent | Also show favorited apps in the Recent category. |
@@ -191,6 +191,13 @@ size, and set 0–10 decimal places. Display values round half away from zero;
 available precision can differ by engine. These settings persist and are
 included in presets. Long answers stay on one line, with the full value
 available to hover and accessibility tools.
+
+With Auto selected, MeowMenu follows the active preset: Minimal and custom or
+unknown presets use Normal, Modern and Calculator-enabled Classic use Large,
+and Full Screen uses Larger. Named choices stay exactly as selected. This only
+changes presentation: Auto remains stored as Auto, long values keep the normal
+result height, and the complete value remains available when the visible label
+is shortened.
 
 Calculator results use the normal result height and icon scale. They take one
 full-width row in list and tree views, and span the grid at one tile high. A
@@ -271,7 +278,7 @@ an arbitrary command or clamping to a different preference.
 |-----|------|---------|-------------|
 | `sidebar-enabled` | bool | true | Show the category sidebar. When false the sidebar is removed and, with Places on, the Apps/Places switch moves into the search-bar row. |
 | `category-show-name` | bool | true | Show category label text. |
-| `category-icon-size` | int | -2 | Category icon size (-2 = theme default). |
+| `category-icon-size` | int | -1 | Category icon size: `-1` uses the theme size; `0` through `6` select named sizes. |
 | `hover-switch-category` | bool | false | Switch category on hover instead of click. |
 | `sort-categories` | bool | true | Sort categories alphabetically. |
 | `default-category` | int | 0 | 0 = favorites, 1 = recent, 2 = all. |

@@ -15,6 +15,25 @@
 #ifndef WHISKERMENU_SETTINGS_DEFAULTS_H
 #define WHISKERMENU_SETTINGS_DEFAULTS_H
 
+namespace WhiskerMenu
+{
+
+/* should_apply_fresh_preset:
+ * @marker: true when the profile has previously completed initialization.
+ * @empty_channel: true when no plugin settings existed at load time.
+ *
+ * Keeps first-install preset application separate from upgrade migration. An
+ * existing profile is never reset merely because its marker needs backfilling.
+ *
+ * Returns: true only for a genuinely new profile.
+ */
+inline bool should_apply_fresh_preset(bool marker, bool empty_channel)
+{
+	return !marker && empty_channel;
+}
+
+}
+
 /* settings-defaults: private translation unit for the schema-version
  * defaults table and the forward schema migration that seeds it. The
  * declarations live alongside Settings (settings.h) because they are

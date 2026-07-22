@@ -22,6 +22,17 @@
 namespace WhiskerMenu
 {
 
+bool meow_modern_divider_visible(const ModernDividerState& state)
+{
+	// The separator marks a live vertical sidebar boundary. A horizontal strip,
+	// embedded switch, inactive Modern identity, or empty upper region has no
+	// matching boundary and must not receive an empty visual allocation.
+	return state.modern_preset
+			&& state.docked_or_centered
+			&& state.vertical_sidebar_switch
+			&& (state.profile_visible || state.visible_command_count > 0);
+}
+
 SidebarPosition meow_parse_sidebar_position(const char* value)
 {
 	if (value)
@@ -149,9 +160,12 @@ int meow_strip_spacer_order(bool categories_horizontal)
 	return categories_horizontal ? 0 : -1;
 }
 
-int meow_default_category_order_base(bool strip_spacer_visible)
+int meow_default_category_order_base(bool strip_spacer_visible,
+		bool vertical_switch_controls)
 {
-	return strip_spacer_visible ? 1 : 0;
+	if (strip_spacer_visible)
+		return 1;
+	return vertical_switch_controls ? 3 : 0;
 }
 
 EmbeddedSwitchSlot meow_embedded_switch_slot(bool commands_in_row)

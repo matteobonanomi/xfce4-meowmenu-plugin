@@ -155,7 +155,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "profile-position",     PresetValue::from_str("top-left")     },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
-			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
+			{ "category-icon-size",   PresetValue::from_int(2)              }, // Small
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
 			{ "unified-bar",          PresetValue::from_bool(true)          },

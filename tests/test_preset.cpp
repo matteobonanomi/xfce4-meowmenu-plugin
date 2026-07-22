@@ -1134,6 +1134,32 @@ static void test_builtin_layout_modes()
 	}
 }
 
+// The category-icon default is a governed preset value, so the installed
+// preset and C++ fallback must keep the four built-ins in exact agreement.
+static void test_builtin_category_icon_sizes()
+{
+	struct Expected { const char* id; const char* file; int size; } expected[] = {
+		{ "classic",    "classic.meowpreset",    1 },
+		{ "modern",     "modern.meowpreset",     1 },
+		{ "fullscreen", "fullscreen.meowpreset", 2 },
+		{ "minimal",    "minimal.meowpreset",    1 },
+	};
+	for (const auto& e : expected)
+	{
+		const WhiskerMenu::LayoutPreset* preset = find_builtin(e.id);
+		assert(preset);
+		auto value = preset->values.find("category-icon-size");
+		assert(value != preset->values.end());
+		assert(value->second.kind == WhiskerMenu::PresetValue::Int);
+		assert(value->second.i == e.size);
+
+		GKeyFile* file = load_meowpreset(e.file);
+		assert(g_key_file_get_integer(file, "Settings", "category-icon-size",
+			nullptr) == e.size);
+		g_key_file_free(file);
+	}
+}
+
 static void test_governed_keys_completeness_table()
 {
 	const auto& keys = WhiskerMenu::governed_keys();
@@ -1251,6 +1277,7 @@ int main()
 	test_parity_minimal_cpp_vs_file();
 	// T008: real-table governed-key completeness + file↔table agreement
 	test_builtin_layout_modes();
+	test_builtin_category_icon_sizes();
 	test_governed_keys_completeness_table();
 	test_governed_keys_completeness_files();
 	test_file_table_agreement();

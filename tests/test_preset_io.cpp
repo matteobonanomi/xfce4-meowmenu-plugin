@@ -48,6 +48,7 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "transparent-grid",      PropKind::Bool, 0,   0,    {} },
 	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },
 	{ "launcher-icon-size",    PropKind::Int,  -1,  6,    {} },
+	{ "category-icon-size",    PropKind::Int,  -1,  6,    {} },
 	{ "view-mode-default",     PropKind::Str,  0,   0,    {"icons","list","tree"} },
 	{ "hover-switch-category", PropKind::Bool, 0,   0,    {} },
 	{ "stay-on-focus-out",     PropKind::Bool, 0,   0,    {} },
@@ -200,6 +201,7 @@ static RawSettings make_valid_modern_raw()
 	r.put("commands-position",  "top-right");
 	r.put("layout-mode",        "docked");
 	r.put("launcher-icon-size", "3");
+	r.put("category-icon-size", "2");
 	r.put("grid-density",       "medium");
 	r.put("hover-switch-category", "true");
 	r.put("transparent-grid",   "true");
@@ -371,6 +373,19 @@ static void test_int_boundary_values()
 		std::vector<std::string> s;
 		auto r = validate_settings(raw, s);
 		assert(r.find("corner-radius") == r.end());
+	}
+}
+
+static void test_category_icon_size_round_trip()
+{
+	for (int size : { -1, 0, 2, 6 })
+	{
+		RawSettings raw;
+		raw.put("category-icon-size", std::to_string(size));
+		std::vector<std::string> skipped;
+		ShadowValueMap imported = validate_settings(raw, skipped);
+		assert(skipped.empty());
+		assert(imported.at("category-icon-size").i == size);
 	}
 }
 
@@ -703,6 +718,7 @@ int main()
 	test_builtin_name_conflict_rejected();
 	test_empty_settings_section();
 	test_int_boundary_values();
+	test_category_icon_size_round_trip();
 	// T043: enumeration logic
 	test_enumerate_system_only();
 	test_enumerate_user_wins_on_duplicate_id();

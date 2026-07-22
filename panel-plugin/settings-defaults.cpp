@@ -60,7 +60,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	// Marker is authoritative: only a never-initialized, genuinely empty
 	// channel is a fresh install. Everything else is an upgrade.
-	const bool is_fresh_install = !marker && empty_channel;
+	const bool is_fresh_install = should_apply_fresh_preset(marker, empty_channel);
 
 	begin_property_update();
 

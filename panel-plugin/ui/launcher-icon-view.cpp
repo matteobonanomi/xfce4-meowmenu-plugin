@@ -17,6 +17,7 @@
 
 #include "launcher-icon-view.h"
 
+#include "grid-cell-metrics.h"
 #include "icon-renderer.h"
 #include "settings.h"
 #include "slot.h"
@@ -361,23 +362,18 @@ void LauncherIconView::reload_icon_size()
 
 /* get_item_height:
  *
- * Returns the live grid tile height when GTK has laid out an item. The fallback
- * mirrors the configured icon and density spacing so a Calculator result can
- * still reserve a stable tile before ordinary matches are available.
+ * Returns one deterministic grid-row height from the renderer's configured
+ * icon, padding, spacing, and label allowance. Live cell rectangles are not
+ * used because a transient single-item model can stretch them across the
+ * results area, which would incorrectly move external rows such as Calculator.
  */
 int LauncherIconView::get_item_height() const
 {
-	if (m_model)
-	{
-		GtkTreePath* path = gtk_tree_path_new_first();
-		GdkRectangle rect;
-		const bool has_rect = gtk_icon_view_get_cell_rect(m_view, path,
-				m_icon_renderer, &rect);
-		gtk_tree_path_free(path);
-		if (has_rect && rect.height > 0)
-			return rect.height;
-	}
-	return std::max(32, std::max(0, m_icon_size) + 40);
+	const int padding = gtk_icon_view_get_item_padding(m_view);
+	const int spacing = gtk_icon_view_get_row_spacing(m_view);
+	const GridCellMetrics cell = meow_grid_cell_metrics(padding,
+			std::max(0, m_icon_size), spacing, true, 2);
+	return std::max(32, cell.natural_height);
 }
 
 //-----------------------------------------------------------------------------
