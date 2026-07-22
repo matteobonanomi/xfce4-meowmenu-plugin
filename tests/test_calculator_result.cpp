@@ -183,6 +183,8 @@ void test_presentation_metrics()
 		result.set_result("bc", "accessories-calculator", "accessories-calculator",
 				"4", -1);
 		result.set_presentation_metrics(37, 24, false);
+		g_assert_false(gtk_widget_compute_expand(result.get_widget(),
+				GTK_ORIENTATION_VERTICAL));
 		int minimum = 0;
 		int natural = 0;
 		gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);

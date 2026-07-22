@@ -85,19 +85,26 @@ CalculatorResult::CalculatorResult() :
 {
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget),
 			"calculator-result");
+	// The banner owns exactly one result row. Explicitly stop descendant expand
+	// flags from propagating through the surrounding GtkStack and consuming the
+	// spare results-pane height.
+	gtk_widget_set_vexpand(m_widget, FALSE);
 	gtk_container_add(GTK_CONTAINER(m_widget), m_row);
 	gtk_widget_set_can_focus(m_row, TRUE);
+	gtk_widget_set_vexpand(m_row, FALSE);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(m_clip), GTK_SHADOW_NONE);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_clip),
 			GTK_POLICY_NEVER, GTK_POLICY_NEVER);
 	gtk_scrolled_window_set_propagate_natural_height(
 			GTK_SCROLLED_WINDOW(m_clip), FALSE);
+	gtk_widget_set_vexpand(m_clip, FALSE);
 	gtk_container_add(GTK_CONTAINER(m_row), m_clip);
 
 	m_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	gtk_widget_set_margin_start(m_content, 8);
 	gtk_widget_set_margin_end(m_content, 8);
 	gtk_widget_set_valign(m_content, GTK_ALIGN_CENTER);
+	gtk_widget_set_vexpand(m_content, FALSE);
 	gtk_container_add(GTK_CONTAINER(m_clip), m_content);
 	gtk_box_pack_start(GTK_BOX(m_content), m_icon, false, false, 0);
 	gtk_widget_set_halign(m_engine, GTK_ALIGN_START);
@@ -117,8 +124,9 @@ CalculatorResult::CalculatorResult() :
 	// scale must clip inside the launcher row instead of increasing its request.
 	gtk_widget_set_size_request(m_value_label, 1, 1);
 	gtk_widget_set_hexpand(m_value_allocation, TRUE);
+	gtk_widget_set_vexpand(m_value_allocation, FALSE);
 	gtk_widget_set_hexpand(m_value_label, TRUE);
-	gtk_widget_set_vexpand(m_value_label, TRUE);
+	gtk_widget_set_vexpand(m_value_label, FALSE);
 	gtk_box_pack_end(GTK_BOX(m_content), m_value_allocation, true, true, 0);
 
 	g_signal_connect(m_row, "button-release-event",
