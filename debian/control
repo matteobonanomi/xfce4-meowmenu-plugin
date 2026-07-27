@@ -38,7 +38,4 @@ Description: modern menu launcher plugin for the Xfce panel
  MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a
  standalone project that originated as a fork of Xfce's Whisker Menu
  and keeps the familiar panel-launcher feel while bringing a cleaner
- modern look and a more capable search bar. MeowMenu coexists with
- Whisker Menu and does not replace it.
- .
- Built for Xubuntu 26.04 with Xfce 4.20.x.
+ modern look and a more capable search bar.

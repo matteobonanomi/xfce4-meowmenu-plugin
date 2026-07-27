@@ -5,8 +5,8 @@
  *
  * No display is required: GdkRectangle is a plain integer struct and neither
  * helper touches a widget or Xfconf. Covers the classifier contract (C-1,
- * FR-013), exact-centre placement (SC-001), oversize clamp-and-centre
- * (FR-012), and the no-drift invariant across a resize (SC-003).
+ * the documented behavior), exact-centre placement (the documented behavior), oversize clamp-and-centre
+ * (the documented behavior), and the no-drift invariant across a resize (the documented behavior).
  */
 
 #include "core/user-session-layout.h"
@@ -33,7 +33,7 @@ int g_failures = 0;
 		} \
 	} while (0)
 
-// The centre drift the X11 placement guarantee allows (SC-001/SC-003). Integer
+// The centre drift the X11 placement guarantee allows (the documented behavior). Integer
 // halving can shift the computed centre by at most 1px per axis.
 const int kTolerance = 2;
 
@@ -60,7 +60,7 @@ void classifier_known_values()
 	CHECK(layout_mode_from_key("fullscreen") == LayoutMode::FullScreen);
 }
 
-// C-1 / FR-013: unknown, empty, and NULL values all classify as Docked and the
+// C-1 / the documented behavior: unknown, empty, and NULL values all classify as Docked and the
 // classifier never mutates anything (it is a pure read-time mapping).
 void classifier_unknown_is_docked()
 {
@@ -70,7 +70,7 @@ void classifier_unknown_is_docked()
 	CHECK(layout_mode_from_key(nullptr)       == LayoutMode::Docked);
 }
 
-// SC-001: on a monitor whose origin is NOT (0,0), the window centre coincides
+// the documented behavior: on a monitor whose origin is NOT (0,0), the window centre coincides
 // with the monitor centre within tolerance — i.e. the origin offset is honored.
 void centered_on_offset_monitor()
 {
@@ -90,7 +90,7 @@ void centered_on_offset_monitor()
 	CHECK(y + 600 <= m.y + m.height);
 }
 
-// FR-012: a window larger than the monitor is clamped to fit and stays centred
+// the documented behavior: a window larger than the monitor is clamped to fit and stays centred
 // and fully on-screen (no negative origin, no overflow past the far edge).
 void oversize_clamps_and_stays_on_screen()
 {
@@ -107,7 +107,7 @@ void oversize_clamps_and_stays_on_screen()
 	CHECK(y == m.y);
 }
 
-// SC-003: the centre is a pure function of size + monitor. Sweeping the size up
+// the documented behavior: the centre is a pure function of size + monitor. Sweeping the size up
 // and down (as an interactive resize would) never moves the centre off the
 // monitor centre — there is no accumulation of drag deltas, hence no drift.
 void no_drift_across_resize()

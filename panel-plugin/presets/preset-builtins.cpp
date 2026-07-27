@@ -266,7 +266,7 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
  * The governed keys that sync_preset_widgets() drives onto Properties widgets
  * after a preset switch. This list MUST equal governed_keys() (a unit test
  * enforces it): every key a preset governs must also be re-synced into the
- * dialog so no control is left stale (FR-001/003). It is declared here, away
+ * dialog so no control is left stale (the documented behavior). It is declared here, away
  * from the GTK widget-driving code, so the coverage set is inspectable without
  * a display.
  *

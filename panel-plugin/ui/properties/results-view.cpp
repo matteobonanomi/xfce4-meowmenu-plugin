@@ -33,12 +33,12 @@ using namespace WhiskerMenu;
 /* init_app_grid_tab:
  *
  * Builds the App Grid tab in the 003-properties-refactor 5-tab dictionary.
- * Sections (top-to-bottom, FR-040):
+ * Sections (top-to-bottom, the documented behavior):
  *   1. View              — Show applications as (Icons / List / Tree) icon-radios.
  *   2. Layout            — Grid density, application icon size, show flags.
  *   3. Opacity           — App box opacity (enable-when-docked).
  *
- * Sub-enable rules per view-mode (FR-041 / FR-042): grid-density and
+ * Sub-enable rules per view-mode (the documented behavior / the documented behavior): grid-density and
  * launcher-icon-size are sensitive only when view-mode == icons;
  * launcher-show-description only when view-mode == list.
  *
@@ -50,7 +50,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
 	// =========================================================================
-	// 1. View section — three exclusive icon-buttons (FR-040).
+	// 1. View section — three exclusive icon-buttons (the documented behavior).
 	// =========================================================================
 	GtkGrid* view_table = GTK_GRID(gtk_grid_new());
 	gtk_grid_set_column_spacing(view_table, 12);
@@ -111,7 +111,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_list), true);
 
 	// =========================================================================
-	// 2. Layout section — grid density, icon size, show flags (FR-016…FR-018).
+	// 2. Layout section — grid density, icon size, show flags (the documented behavior).
 	// =========================================================================
 	// density C1 / icon-size C2; generic-names C1 / tooltips C2; descriptions C1
 	// with C2 left empty.
@@ -184,7 +184,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			m_plugin->refresh_layout();
 		});
 
-	// Show descriptions — list-only sub-enable. C1 with C2 left empty (FR-018).
+	// Show descriptions — list-only sub-enable. C1 with C2 left empty (the documented behavior).
 	m_show_descriptions = gtk_check_button_new_with_mnemonic(_("Show application _descriptions"));
 	add_form_row(layout_grid, COLUMN_C1, 2, nullptr, m_show_descriptions, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_descriptions), m_settings->launcher_show_description);

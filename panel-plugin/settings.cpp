@@ -446,7 +446,7 @@ void Settings::prevent_invalid()
 	// (the Profile edge when docked, the search-bar edge when full-screen) and
 	// persist any snapped value. The pure helper is the single authority shared
 	// with the renderer and the Preferences combos, so a stored or live-edited
-	// disallowed combination resolves the same way everywhere (FR-014/FR-017).
+	// disallowed combination resolves the same way everywhere (the documented behavior).
 	//
 	// NOTE: the snapped value is written back through the existing
 	// /profile-position and /commands-position keys (no new key) so the stored

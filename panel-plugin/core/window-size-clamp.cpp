@@ -65,7 +65,7 @@ void clamp_default_size(int desired_w, int desired_h,
  * See window-size-clamp.h for the full contract. The position is recomputed
  * from the (clamped) size and the monitor every call — it is never derived
  * from a prior position or a drag delta — which is what guarantees the centre
- * stays fixed during an interactive resize (SC-003).
+ * stays fixed during an interactive resize (the documented behavior).
  */
 void centered_origin(const GdkRectangle& monitor, int win_w, int win_h,
                      int* out_x, int* out_y)

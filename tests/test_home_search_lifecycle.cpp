@@ -9,7 +9,7 @@
  *   - hidden-name skipping (entries starting with '.').
  *   - fixed blocklist skipping (node_modules, __pycache__, target, build, dist).
  *   - symlink-to-directory avoidance.
- *   - cap on dispatched matches (FR-035d).
+ *   - cap on dispatched matches (the documented behavior).
  *   - cancel() prevents further callbacks.
  *   - completion via on_done after natural exit.
  *

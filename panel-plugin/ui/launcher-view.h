@@ -158,7 +158,7 @@ protected:
 			[this](GtkWidget*, GdkEvent*) -> gboolean
 			{
 				// NOTE: clears the hover-owned highlight so no row stays
-				// highlighted once the pointer leaves the list (FR-004). The
+				// highlighted once the pointer leaves the list (the documented behavior). The
 				// selection is the only painted highlight (pointer prelight is
 				// neutralised in the plugin CSS), so unselecting here leaves
 				// zero highlights from hover.
@@ -190,7 +190,7 @@ protected:
 		// own vertical adjustment (notify::vadjustment fires once). Connect that
 		// adjustment's value-changed to the translucent redraw so a pure scroll
 		// that reveals rows — with no selection change — still recomposites the
-		// whole surface (FR-007's "newly revealed rows", the 041 symptom). Gated by
+		// whole surface (the documented behavior's "newly revealed rows", the 041 symptom). Gated by
 		// the translucent flag, so a no-op at opacity 100.
 		//
 		// LIFECYCLE: this is the ONE safeguard connection made on an object the
@@ -200,7 +200,7 @@ protected:
 		// connection is on the view widget and is torn down with it; this one must
 		// be unbound explicitly, or a later value-changed would invoke
 		// queue_translucent_safeguard_redraw() → get_widget() on a freed view
-		// (use-after-free, FR-008a). We therefore track the current adjustment and
+		// (use-after-free, the documented behavior). We therefore track the current adjustment and
 		// our handler id, drop a stale handler whenever GTK swaps the adjustment
 		// (so at most one is ever live), and disconnect on the view widget's own
 		// "destroy" (below) so the handler can never fire after the view is gone.
@@ -224,7 +224,7 @@ protected:
 		// lifetime. "destroy" is emitted on the view (during its concrete
 		// destructor's gtk_widget_destroy, while this LauncherView is still alive),
 		// so its Slot is torn down normally and the disconnect runs at exactly the
-		// right moment — before the view is freed, covering the FR-008a teardown.
+		// right moment — before the view is freed, covering the the documented behavior teardown.
 		connect(view, "destroy",
 			[this](GtkWidget*)
 			{
@@ -260,7 +260,7 @@ private:
 	 * vertical adjustment (if any) and clears the tracking members. Idempotent:
 	 * safe to call when nothing is tracked. Invoked when GTK swaps the adjustment
 	 * (so only one handler is ever live) and from the view widget's "destroy" (so
-	 * the handler never outlives the view it would refresh — FR-008a).
+	 * the handler never outlives the view it would refresh — the documented behavior).
 	 */
 	void disconnect_scroll_safeguard()
 	{
@@ -280,7 +280,7 @@ private:
 	// The scrolled window's vertical adjustment we hold a value-changed handler
 	// on, plus that handler's id. The adjustment is not owned by this view and
 	// outlives it, so the pair lets us disconnect the handler on adjustment swap
-	// and on view destroy (FR-008a). Both stay null/0 while nothing is tracked.
+	// and on view destroy (the documented behavior). Both stay null/0 while nothing is tracked.
 	GtkAdjustment* m_scroll_adjustment = nullptr;
 	gulong m_scroll_handler_id = 0;
 
@@ -294,8 +294,8 @@ private:
 	 * which is safe because the hover path always calls set_cursor() AND
 	 * select_path() together: cursor and selection therefore stay coincident,
 	 * so a subsequent arrow press moves relative to the hovered row rather than
-	 * jumping back to a stale keyboard position (FR-003, FR-005). Called only
-	 * from motion/scroll, so a motionless pointer never re-selects (FR-005).
+	 * jumping back to a stale keyboard position (the documented behavior, the documented behavior). Called only
+	 * from motion/scroll, so a motionless pointer never re-selects (the documented behavior).
 	 */
 	void select_path_at_pos(int x, int y)
 	{

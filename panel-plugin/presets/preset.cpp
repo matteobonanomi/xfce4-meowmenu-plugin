@@ -129,7 +129,7 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 }
 
 // ---------------------------------------------------------------------------
-// initialize_file_presets / get_file_presets — T040
+// initialize_file_presets / get_file_presets — the implementation step
 // ---------------------------------------------------------------------------
 
 /* initialize_file_presets:
@@ -137,7 +137,7 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
  * Loads built-in .meowpreset files from the system data directory and from
  * the user-level drop-in folder. File-loaded entries shadow BUILTIN_PRESETS[]
  * by id; BUILTIN_PRESETS[] remains the fallback when files are absent or all
- * malformed (FR-063).
+ * malformed (the documented behavior).
  *
  * Call once at startup (SettingsDialog constructor) before the preset combo
  * is populated.
@@ -634,7 +634,7 @@ bool WhiskerMenu::rename_user_preset(const std::string& uuid, const std::string&
 	// Update both the legacy display-name label and the stored identity name.
 	// The dropdown and active-preset field surface "name" (falling back to
 	// display-name only for pre-v5 presets), so a rename that touched only
-	// display-name would leave the visible label stale (FR-007).
+	// display-name would leave the visible label stale (the documented behavior).
 	const std::string prefix = "/presets/" + uuid + "/";
 	xfconf_channel_set_string(settings.channel, (prefix + "display-name").c_str(), new_name.c_str());
 	xfconf_channel_set_string(settings.channel, (prefix + "name").c_str(), new_name.c_str());

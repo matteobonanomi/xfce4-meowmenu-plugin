@@ -4,7 +4,7 @@
 # the current checkout (the tagged commit on a release run, HEAD otherwise) and
 # patches ONLY a scratch copy of the PKGBUILD to point at it with a freshly
 # computed checksum and the resolved version. The committed dist/arch/PKGBUILD
-# is never written (FR-013).
+# is never written (the documented behavior).
 #
 # The package version is tag-driven, exactly like the .deb/.rpm jobs: on a
 # release-tag run (push of vX.Y.Z) the tag is authoritative; the committed
@@ -18,35 +18,34 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Read pkgname and the fallback pkgver from the committed recipe without running
-# build logic.
+# Read the package name and fallback versions without running build logic.
 # shellcheck disable=SC1090,SC1091,SC2154
-eval "$(source "${REPO_ROOT}/dist/arch/PKGBUILD"; printf 'pkgname=%q\npkgver=%q\n' "${pkgname}" "${pkgver}")"
+eval "$(source "${REPO_ROOT}/dist/arch/PKGBUILD"; printf 'pkgname=%q\npkgver=%q\nupstream_version=%q\n' "${pkgname}" "${pkgver}" "${_upstream_version}")"
 
-# Tag-driven version: on a release-tag push (vX.Y.Z) the tag wins, mirroring how
-# the .deb/.rpm jobs derive their version. GITHUB_* are provided by the workflow
-# step; absent them (local runs) the committed pkgver fallback stands.
+# Preserve the public tag for the source directory while deriving Arch's
+# hyphen-free pkgver with the shared NEWS mapper.
 ref_name="${GITHUB_REF_NAME:-}"
 if [ "${GITHUB_EVENT_NAME:-}" = "push" ] && [[ "${ref_name}" == v[0-9]* ]]; then
-  pkgver="${ref_name#v}"
+  upstream_version="${ref_name#v}"
+  pkgver="$(python3 "${REPO_ROOT}/build-aux/news-version.py" \
+    --arch-version --news "${REPO_ROOT}/NEWS")"
 fi
 
 work="$(mktemp -d)"
-tarball="${work}/${pkgname}-${pkgver}.tar.gz"
+tarball="${work}/${pkgname}-${upstream_version}.tar.gz"
 
 # Mirror the published tag archive's top-level directory name so the recipe's
 # build()/check()/package() resolve the same source path on both code paths.
 git -C "${REPO_ROOT}" archive --format=tar.gz \
-  --prefix="${pkgname}-${pkgver}/" HEAD > "${tarball}"
+  --prefix="${pkgname}-${upstream_version}/" HEAD > "${tarball}"
 
 cp "${REPO_ROOT}/dist/arch/PKGBUILD" "${work}/PKGBUILD"
 sum="$(sha256sum "${tarball}" | cut -d' ' -f1)"
 
-# Patch ONLY the scratch copy: resolved version + local tarball + its real
-# checksum. pkgver is patched so build()/check()/package() resolve the same
-# ${pkgname}-${pkgver} source directory the tarball prefix above created.
+# Patch only the scratch copy with public/native versions and a real checksum.
+sed -i "s#^_upstream_version=.*#_upstream_version=${upstream_version}#" "${work}/PKGBUILD"
 sed -i "s#^pkgver=.*#pkgver=${pkgver}#" "${work}/PKGBUILD"
-sed -i "s#^source=.*#source=(\"${pkgname}-${pkgver}.tar.gz\")#" "${work}/PKGBUILD"
+sed -i "s#^source=.*#source=(\"${pkgname}-${upstream_version}.tar.gz\")#" "${work}/PKGBUILD"
 sed -i "s#^sha256sums=.*#sha256sums=('${sum}')#" "${work}/PKGBUILD"
 
 chown -R builder "${work}" 2>/dev/null || true

@@ -87,7 +87,7 @@ bool migrate_legacy_xfconf(XfconfChannel* panel_channel, const gchar* current_ba
 
 	// Sentinel path lives under the new MeowMenu base, never under the
 	// legacy/Whisker base, so the legacy namespace stays bit-identical
-	// after migration (FR-012).
+	// after migration (the documented behavior).
 	const std::string sentinel = std::string(current_base) + "/migration/legacy-imported";
 
 	if (xfconf_channel_has_property(panel_channel, sentinel.c_str()))
@@ -109,7 +109,7 @@ bool migrate_legacy_xfconf(XfconfChannel* panel_channel, const gchar* current_ba
 		// the sentinel so we don't re-enter on the next launch.
 		// NOTE: the sentinel write is itself an xfconf set_*() and is
 		// atomic at the property level — if the process crashes here,
-		// the next launch re-enters and writes it then (FR-011).
+		// the next launch re-enters and writes it then (the documented behavior).
 		if (!xfconf_channel_set_bool(panel_channel, sentinel.c_str(), TRUE))
 		{
 			g_warning("meowmenu: failed to write migration sentinel %s", sentinel.c_str());
@@ -154,7 +154,7 @@ bool migrate_legacy_xfconf(XfconfChannel* panel_channel, const gchar* current_ba
 				g_warning("meowmenu: failed to migrate property %s (type %s)",
 						legacy_path,
 						type_name != nullptr ? type_name : "(null)");
-				continue; // FR-014: don't abort, just log.
+				continue; // the documented behavior: don't abort, just log.
 			}
 			++copied;
 		}
@@ -164,7 +164,7 @@ bool migrate_legacy_xfconf(XfconfChannel* panel_channel, const gchar* current_ba
 	// Sentinel write happens after the copy loop completes, so a crash
 	// mid-loop leaves the sentinel unset and the next launch re-runs the
 	// copy. set_*() is last-writer-wins on identical values, so the re-run
-	// is idempotent (FR-010, FR-011).
+	// is idempotent (the documented behavior, the documented behavior).
 	if (!xfconf_channel_set_bool(panel_channel, sentinel.c_str(), TRUE))
 	{
 		g_warning("meowmenu: failed to write migration sentinel %s", sentinel.c_str());

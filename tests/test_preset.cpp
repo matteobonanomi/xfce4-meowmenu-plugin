@@ -369,7 +369,7 @@ static void test_modern_corner_radius()
 static const WhiskerMenu::LayoutPreset* find_builtin(const char* id);
 
 // Each real built-in carries the single governed menu-opacity at its documented
-// value: Classic 100, Modern 100, Full Screen 80, Minimal 60 (FR-011, SC-006).
+// value: Classic 100, Modern 100, Full Screen 80, Minimal 60 (the documented behavior, the documented behavior).
 static void test_builtin_menu_opacity_values()
 {
 	struct { const char* id; int opacity; } expected[] = {
@@ -627,7 +627,7 @@ struct UserPresetStore
 };
 
 // ---------------------------------------------------------------------------
-// T084: User preset CRUD tests
+// the implementation step: User preset CRUD tests
 // ---------------------------------------------------------------------------
 
 static void test_user_preset_save_then_enumerate()
@@ -718,9 +718,9 @@ static void test_user_preset_delete_non_current_preserves_id()
 	assert(store.presets.size() == 1);
 }
 
-// T007: empty and duplicate names are rejected, case-insensitively, against both
-// existing customs and the built-in names; the store is left unchanged (FR-012,
-// SC-006). Mirrors the real preset_name_conflicts() (g_ascii_strcasecmp).
+// the implementation step: empty and duplicate names are rejected, case-insensitively, against both
+// existing customs and the built-in names; the store is left unchanged (the documented behavior,
+// the documented behavior). Mirrors the real preset_name_conflicts() (g_ascii_strcasecmp).
 static void test_user_preset_save_rejects_case_insensitive_duplicate()
 {
 	UserPresetStore store;
@@ -768,8 +768,8 @@ static void test_user_preset_rename_rejects_conflicts()
 	assert(store.find(b)->display_name == "Gamma");
 }
 
-// T015: deleting the active custom clears the current id so the field falls back
-// to the Modern built-in (FR-008/009, SC-005). Mirrors the UI handler, which
+// the implementation step: deleting the active custom clears the current id so the field falls back
+// to the Modern built-in (the documented behavior, the documented behavior). Mirrors the UI handler, which
 // applies BUILTIN_PRESETS[PRESET_MODERN] once current_preset_id is cleared.
 static std::string fallback_preset_id(const std::string& current_id)
 {
@@ -790,11 +790,11 @@ static void test_user_preset_delete_active_falls_back_to_modern()
 }
 
 // ---------------------------------------------------------------------------
-// T011: data-driven dropdown typography. Each preset kind maps to a fixed Pango
+// the implementation step: data-driven dropdown typography. Each preset kind maps to a fixed Pango
 // weight/style: built-in → BOLD/NORMAL, saved custom → NORMAL/NORMAL, the
 // transient "Unsaved custom" placeholder → NORMAL/ITALIC. Classification is
 // keyed on is_builtin, so a future built-in inherits bold with no test change
-// (FR-013/014, SC-004).
+// (the documented behavior, the documented behavior).
 // NOTE: the integer literals equal the Pango constants used by the combo's cell
 // renderer — 700 = PANGO_WEIGHT_BOLD, 400 = PANGO_WEIGHT_NORMAL,
 // 0 = PANGO_STYLE_NORMAL, 2 = PANGO_STYLE_ITALIC.
@@ -821,9 +821,9 @@ static void test_preset_typography_classification()
 	assert(row_style(true) == 2);
 }
 
-// T012: divergence is reversible. compute_preset_diff(applied, settings) is true
+// the implementation step: divergence is reversible. compute_preset_diff(applied, settings) is true
 // on any governed-key divergence and false again once the value is edited back
-// to an exact match (FR-001 snap-back).
+// to an exact match (the documented behavior snap-back).
 static void test_diff_snapback()
 {
 	auto m = make_modern();
@@ -840,7 +840,7 @@ static void test_diff_snapback()
 }
 
 // ---------------------------------------------------------------------------
-// T042: File-seeded preset tests.
+// the implementation step: File-seeded preset tests.
 // These shadow tests verify that if on-disk files were loaded, the resulting
 // LayoutPreset data would match the expected C++ fallback values.
 // ---------------------------------------------------------------------------
@@ -879,7 +879,7 @@ static void test_fallback_to_cpp_table_when_files_absent()
 }
 
 // ---------------------------------------------------------------------------
-// T045: Parity sanity check — applying from the C++ fallback table and from
+// the implementation step: Parity sanity check — applying from the C++ fallback table and from
 // a file-equivalent preset with the same values must yield identical results.
 // This guards against future drift between the .meowpreset files and the table.
 // ---------------------------------------------------------------------------
@@ -1086,13 +1086,13 @@ static void test_parity_minimal_cpp_vs_file()
 }
 
 // ---------------------------------------------------------------------------
-// T008: GOVERNED_KEYS completeness + file↔table agreement for all built-ins.
+// the implementation step: GOVERNED_KEYS completeness + file↔table agreement for all built-ins.
 //
 // These exercise the REAL WhiskerMenu::BUILTIN_PRESETS table and
 // governed_keys() (linked from preset-builtins.cpp), plus the shipped
 // .meowpreset seed files parsed from MEOWMENU_TEST_PRESET_DIR. A missing key
 // or a drifted value fails the build's test stage rather than leaking at
-// runtime (FR-009, research R5).
+// runtime (the documented behavior, research R5).
 // ---------------------------------------------------------------------------
 
 static const WhiskerMenu::LayoutPreset* find_builtin(const char* id)
@@ -1168,7 +1168,7 @@ static void test_governed_keys_completeness_table()
 		const WhiskerMenu::LayoutPreset& p = WhiskerMenu::BUILTIN_PRESETS[i];
 		for (const auto& k : keys)
 			assert(p.values.find(k) != p.values.end());
-		// Every built-in carries a stored identity name (FR-011a).
+		// Every built-in carries a stored identity name (the documented behavior).
 		assert(!p.name.empty());
 		auto profile = p.values.find("profile-position");
 		assert(profile != p.values.end());
@@ -1250,7 +1250,7 @@ int main()
 	test_fullscreen_to_docked_restores_menu_size();
 	test_find_by_id();
 	test_preset_label_resolution();
-	// T084: user preset CRUD
+	// the implementation step: user preset CRUD
 	test_user_preset_save_then_enumerate();
 	test_user_preset_saves_calculator_values();
 	test_user_preset_rename_updates_name();
@@ -1267,15 +1267,15 @@ int main()
 	test_user_preset_delete_active_falls_back_to_modern();
 	test_preset_typography_classification();
 	test_diff_snapback();
-	// T042: file-seeded preset tests
+	// the implementation step: file-seeded preset tests
 	test_file_preset_overrides_cpp_table();
 	test_fallback_to_cpp_table_when_files_absent();
-	// T045: parity — C++ table vs file-equivalent preset
+	// the implementation step: parity — C++ table vs file-equivalent preset
 	test_parity_classic_cpp_vs_file();
 	test_parity_modern_cpp_vs_file();
 	test_parity_fullscreen_cpp_vs_file();
 	test_parity_minimal_cpp_vs_file();
-	// T008: real-table governed-key completeness + file↔table agreement
+	// the implementation step: real-table governed-key completeness + file↔table agreement
 	test_builtin_layout_modes();
 	test_builtin_category_icon_sizes();
 	test_governed_keys_completeness_table();

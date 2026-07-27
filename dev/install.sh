@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-install.sh — build, install, and hot-reload MeowMenu in a running Xfce session.
+# install.sh — build, install, and hot-reload MeowMenu in a running Xfce session.
 #
 # BACKGROUND
 #   MeowMenu runs inside xfce4-panel's `wrapper-2.0` process, not inside the panel
@@ -12,7 +12,7 @@
 #   one you just installed under /usr/local.  The script removes that stale copy.
 #
 # USAGE
-#   ./dev/dev-install.sh [--icons] [--reconfigure] [BUILD_DIR]
+#   ./dev/install.sh [--icons] [--reconfigure] [BUILD_DIR]
 #
 #   --icons        Re-render icons/hi*-app-meowmenu.png from build-aux/art/meowmenu.svg
 #                  before building.  Requires rsvg-convert (preferred) or inkscape.
@@ -25,7 +25,7 @@
 #
 # LOGS
 #   Verbose output from meson and the compiler is redirected to
-#   dev/.logs/dev-install.log (rotated on each run).  Check that file if a step
+#   dev/.logs/dev-install.log (rotated on each run). Check that file if a step
 #   fails.
 
 set -euo pipefail

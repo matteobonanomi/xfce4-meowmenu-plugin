@@ -17,7 +17,10 @@
 
 #include <cassert>
 #include <cstring>
+#include <fstream>
 #include <initializer_list>
+#include <iterator>
+#include <string>
 
 // ---------------------------------------------------------------------------
 // Minimal stand-in for the pure logic extracted from migrate_schema()
@@ -134,7 +137,7 @@ static void test_calculator_v11_migration()
 
 /* fresh_install_preset_id:
  *
- * Fresh installs apply the Modern preset (FR-010). Pure mirror of the v1
+ * Fresh installs apply the Modern preset (the documented behavior). Pure mirror of the v1
  * is_fresh_install branch for the regression guard.
  *
  * Returns: the preset id a fresh install lands on.
@@ -181,7 +184,7 @@ static bool migrate_hidden_sidebar_enabled(const char* stored_position)
  * @stored_position: pre-migration /sidebar-position string, or nullptr.
  *
  * Returns the rewritten position ("left") when the stored value was "hidden",
- * or nullptr to leave a valid position untouched (SC-009).
+ * or nullptr to leave a valid position untouched (the documented behavior).
  */
 static const char* migrate_hidden_sidebar_position(const char* stored_position)
 {
@@ -285,6 +288,34 @@ static void test_upgrade_preserves_stored_presentation_values()
 	}
 }
 
+/* test_080_fixture_preserves_release_baseline:
+ *
+ * Verifies that the representative upgrade snapshot contains the panel-scoped
+ * identity, layout, favourites, Calculator choices, and custom-preset subtree
+ * that the live release walkthrough compares before and after migration.
+ */
+static void test_080_fixture_preserves_release_baseline()
+{
+	std::ifstream input(MEOWMENU_080_XFCONF_FIXTURE);
+	assert(input.good());
+	const std::string xml((std::istreambuf_iterator<char>(input)),
+		std::istreambuf_iterator<char>());
+	for (const char* token : {
+		"plugin-17",
+		"saved-custom",
+		"layout-mode",
+		"centered",
+		"firefox.desktop",
+		"org.xfce.Thunar.desktop",
+		"calculator-engine",
+		"qalc",
+		"calculator-result-size",
+		"calculator-decimal-precision",
+		"rc-upgrade-baseline",
+	})
+		assert(xml.find(token) != std::string::npos);
+}
+
 static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacity)
 {
 	// If categories-opacity is already set, keep it; otherwise use legacy.
@@ -357,7 +388,7 @@ static void test_schema_version_guard()
 
 static void test_fresh_install_lands_on_modern()
 {
-	// FR-010 regression guard: a fresh install applies Modern, not Classic.
+	// the documented behavior regression guard: a fresh install applies Modern, not Classic.
 	assert(std::strcmp(fresh_install_preset_id(), "modern") == 0);
 }
 
@@ -383,7 +414,7 @@ static void test_hidden_sidebar_migration()
 	assert(migrate_hidden_sidebar_enabled("hidden") == false);
 	assert(std::strcmp(migrate_hidden_sidebar_position("hidden"), "left") == 0);
 
-	// Pre-existing left/right/top/bottom configs are untouched (SC-009):
+	// Pre-existing left/right/top/bottom configs are untouched (the documented behavior):
 	// sidebar stays enabled and the position is not rewritten.
 	for (const char* p : { "left", "right", "top", "bottom" })
 	{
@@ -564,7 +595,7 @@ static void test_v6_cleanup()
 	assert(v6_resets_key("/grid-rows") == true);
 	assert(v6_resets_key("/places/show-metadata") == true);
 
-	// Unrelated keys are left untouched (SC-005).
+	// Unrelated keys are left untouched (the documented behavior).
 	assert(v6_resets_key("/categories-opacity") == false);
 	assert(v6_resets_key("/profile-position") == false);
 	assert(v6_resets_key("/full-screen-opacity") == false);
@@ -609,7 +640,7 @@ static void test_v8_profile_position_canonicalization()
  * @preset_menu_opacity: that preset's menu-opacity (ignored when !has_preset).
  *
  * Returns: the value written to /menu-opacity — the preset's value, or 100 when
- * no preset governs opacity (FR-012).
+ * no preset governs opacity (the documented behavior).
  */
 static int derive_menu_opacity_v7(bool has_preset, int preset_menu_opacity)
 {
@@ -687,7 +718,7 @@ static void test_v7_fresh_install_lands_on_100_no_old_keys()
 //
 // TODO-INTEGRATION: test_fresh_install_sets_modern()
 //   Same fixture, but empty channel.
-//   assert: current-preset-id=="modern" (T030 wired: apply_preset(BUILTIN_PRESETS[MODERN])
+//   assert: current-preset-id=="modern" (the implementation step wired: apply_preset(BUILTIN_PRESETS[MODERN])
 //   is now called in migrate_schema when is_fresh_install==true).
 
 int main()
@@ -696,6 +727,7 @@ int main()
 	test_fresh_install_detection();
 	test_marker_decision_table();
 	test_upgrade_preserves_stored_presentation_values();
+	test_080_fixture_preserves_release_baseline();
 	test_legacy_opacity_mapping();
 	test_full_screen_opacity_default();
 	test_position_categories_horizontal_migration();

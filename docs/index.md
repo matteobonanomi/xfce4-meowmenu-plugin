@@ -9,49 +9,32 @@ has_children: false
 
 ![MeowMenu demo](assets/images/demo.gif)
 
-MeowMenu is a panel-plugin launcher for XFCE4. It originated as a fork of
+MeowMenu is a native Xfce panel launcher. It adds saved presets, Places and
+file search, flexible layouts, drag-and-drop actions, deep visual
+customization, and an optional inline Calculator.
+
+## Start here
+
+- [Install MeowMenu](installation)
+- [Choose or create a preset](presets)
+- [Configure behavior and appearance](configuration)
+- [Use keyboard navigation](keyboard-navigation)
+- [Check RC1 support evidence](support)
+- [Read known limitations](known-limitations)
+- [Run the release-candidate checklist](testing)
+- [Review translation status](translations)
+
+The 0.9.0-rc1 release is a prerelease on the path to 1.0.0. Package build and
+installation evidence is distinct from live Xfce testing; the support page
+records both without implying unverified Wayland or architecture coverage.
+
+For feedback, use an
+[ordinary bug report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=bug-report.yml)
+or a
+[compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml).
+Contributors can start with the
+[contribution guide](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/blob/main/CONTRIBUTING.md).
+
+MeowMenu originated as a fork of
 [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin)
-and adds saved presets, file search, a full-screen mode, an optional inline
-Calculator, and deeper visual customization while staying native to Xfce.
-
-## Quick Install
-
-**Ubuntu / Debian** — download the `.deb` from the
-[Releases page](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest)
-and run:
-
-```bash
-sudo apt install ./xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
-xfce4-panel -r
-```
-
-**Build from source (all distros)**
-
-```bash
-git clone https://github.com/matteobonanomi/xfce4-meowmenu-plugin.git
-cd xfce4-meowmenu-plugin
-meson setup build && meson compile -C build && sudo meson install -C build
-xfce4-panel -r
-```
-
-Then right-click the panel → **Add New Items** → **MeowMenu**.
-
-## What's different from Whisker Menu
-
-MeowMenu is a fork of Whisker Menu, so the two share a lot. The table below is
-a feature inventory showing where they differ and where they overlap — not a
-ranking.
-
-| Feature | Whisker Menu | MeowMenu |
-|---|:---:|:---:|
-| Saved layout presets | ✗ | ✓ |
-| Places / file search | ✗ | ✓ |
-| Inline Calculator | ✗ | ✓ |
-| Full-screen launcher mode | ✗ | ✓ |
-| Corner radius / opacity | ✗ | ✓ |
-| Icon-grid app view | ✗ | ✓ |
-| 54 languages | ✓ | ✓ |
-| XFCE panel native | ✓ | ✓ |
-| Keyboard navigation | ✓ | ✓ |
-
-→ [Installation](installation) · [Presets](presets) · [Configuration](configuration) · [Keyboard navigation](keyboard-navigation) · [FAQ](faq)
+and is now maintained as a standalone project.

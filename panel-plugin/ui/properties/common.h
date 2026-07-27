@@ -79,7 +79,7 @@ enum { COLUMN_C1 = 0, COLUMN_C2 = 1 };
  *
  * Builds a section's equal-width two-column container: a single GtkGrid with
  * column_homogeneous = TRUE, so its two columns are always exactly 50/50 and the
- * midpoint coincides across sections of equal content width (FR-001). Cells are
+ * midpoint coincides across sections of equal content width (the documented behavior). Cells are
  * attached with add_form_row() at a (column, row) coordinate. Because both
  * columns share the grid's rows, a populated C1 cell holds the row height even
  * when the paired C2 cell is empty — so paired controls (e.g. Menu width / Menu

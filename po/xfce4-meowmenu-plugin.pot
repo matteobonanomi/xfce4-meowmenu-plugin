@@ -820,7 +820,7 @@ msgstr ""
 msgid "Show application too_ltips"
 msgstr ""
 
-#. Show descriptions — list-only sub-enable. C1 with C2 left empty (FR-018).
+#. Show descriptions — list-only sub-enable. C1 with C2 left empty (the documented behavior).
 #: panel-plugin/ui/properties/results-view.cpp:188
 msgid "Show application _descriptions"
 msgstr ""

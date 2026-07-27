@@ -1,6 +1,12 @@
-MEOW MENU DEVELOPMENT
-0.8.1 (2026-07-xx)
+0.9.0-rc1 (2026-07-23)
 =====
+- Release: prepare the first candidate on the path to MeowMenu 1.0.0
+- Release: add a draft-first publication process with canonical source archives and verified checksums
+- Packaging: validate Debian, Ubuntu, Fedora, and Arch package builds, installation, and version ordering
+- Documentation: add the support matrix, known limitations, testing procedures, and translation status
+- Community: add security reporting, contribution guidance, and structured issue templates
+- Tests: add release identity, artifact contract, documentation, translation, and repository-presentation checks
+- Maintenance: retire obsolete Whisker overlap checks and duplicate release automation
 - Presets: minor UI improvements
 - Calculator: increase auto font size
 
@@ -94,8 +100,8 @@ MEOW MENU DEVELOPMENT
 - Places: shell-quote paths passed to the external file-manager and terminal helper, fixing names with spaces, quotes, or $(...).
 - Preset: fresh installs now reliably land on the Modern preset; the old property-count heuristic was fragile and could misdetect a first run as an upgrade on both dev and packaged installs
 - Preset: Properties → General preset field is never blank; when the active layout matches no preset or the identity is unset, the field shows "Custom"
-- Dev: dev-uninstall.sh now clears the plugin's full Xfconf state (including the new /initialized marker) so a reinstall is always detected as a genuine fresh install
-- Dev: development tooling (dev-install.sh, dev-uninstall.sh, and the maintainer notes) is consolidated under dev/
+- Dev: uninstall.sh now clears the plugin's full Xfconf state (including the new /initialized marker) so a reinstall is always detected as a genuine fresh install
+- Dev: development tooling (install.sh, uninstall.sh, and the maintainer notes) is consolidated under dev/
 - Sidebar: fix weird FullScree behaviour when SideBar is off
 - Sidebar: fix sidebar width when it's horizontal in docked style presets
 
@@ -159,7 +165,7 @@ MEOW MENU DEVELOPMENT
 0.4.3 (2026-05-21)
 =====
 - fix broken dependencies from WhiskerMenu
-- add dev-install.sh and dev-uninstall.sh | only for beta testers
+- add install.sh and uninstall.sh | only for beta testers
 - add uninstall guide to readme depending on installation method
 
 0.4.2 (2026-05-20)
@@ -182,7 +188,7 @@ MEOW MENU DEVELOPMENT
 0.3.3 (2026-05-19)
 =====
 - update readme, last minor update before 0.4.x
-- add --icons param to dev-reload.sh
+- add --icons parameter to the development install helper
 
 0.3.2 (2026-05-17)
 =====
@@ -193,7 +199,7 @@ MEOW MENU DEVELOPMENT
 
 0.3.1 (2026-05-17)
 =====
-- extend language support (using LLMs) to all the languages already supported by WhiskerMenu
+- extend language support with machine-assisted drafts for all languages already supported by Whisker Menu
 - language support covers new Property and Places
 - update readme
 

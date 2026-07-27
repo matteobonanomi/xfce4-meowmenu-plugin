@@ -6,9 +6,9 @@ has_children: false
 
 # Installation
 
-Prebuilt packages for the three officially supported distributions are
-attached to every [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
-Replace `<version>` with the actual release tag (e.g. `0.7.2`).
+Candidate packages are attached to the matching
+[GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases).
+Replace `<version>` with the public release version, such as `0.9.0-rc1`.
 
 ## Ubuntu 26.04
 
@@ -39,8 +39,9 @@ yay -S xfce4-meowmenu-plugin
 
 The package
 ([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
-is maintainer-published and distributed through the AUR. Unlike the three
-prebuilt packages above, it is **not** built or smoke-tested in CI.
+is maintainer-published and distributed through the AUR. The repository recipe
+is built, tested, linted, and smoke-installed before publication, but the AUR
+package is published separately by the maintainer.
 
 Uninstall with `yay -R xfce4-meowmenu-plugin`.
 
@@ -67,7 +68,7 @@ also available when installed; none is a build or hard runtime dependency.
 2. Right-click the panel → **Add New Items** → **MeowMenu**.
 3. Right-click the MeowMenu button → **Properties** to pick a preset.
 
-## Uninstall
+## Remove the package
 
 Remove the package with the appropriate command for your distribution:
 
@@ -75,12 +76,19 @@ Remove the package with the appropriate command for your distribution:
 - **Fedora**: `sudo dnf remove xfce4-meowmenu-plugin`
 - **Source install**: `sudo ninja -C build uninstall`
 
-Then remove any user configuration left behind:
+Package removal keeps user configuration so a later reinstall can restore it.
+
+## Full cleanup
+
+To deliberately delete settings and saved custom presets after removing the
+package:
 
 ```bash
 rm -rf ~/.local/share/meowmenu/
 rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
 ```
+
+This cleanup is optional and cannot be undone without a backup.
 
 ## Build from source
 

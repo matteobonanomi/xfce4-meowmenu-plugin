@@ -37,10 +37,10 @@ namespace WhiskerMenu
  * system (see whisker_present()).
  *
  * Properties are copied with last-writer-wins set semantics; the source
- * namespace is never written or deleted (FR-012). Individual set
+ * namespace is never written or deleted (the documented behavior). Individual set
  * failures are logged via g_warning() and do not abort the loop
- * (FR-014). The sentinel is written only after the copy loop completes,
- * making the migration resumable (FR-011).
+ * (the documented behavior). The sentinel is written only after the copy loop completes,
+ * making the migration resumable (the documented behavior).
  *
  * Returns: true if migration ran to completion (including the trivial
  * "no legacy data" case, which still writes the sentinel) and the

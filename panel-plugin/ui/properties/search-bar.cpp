@@ -46,7 +46,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
 	// =========================================================================
-	// 1. Position section — combo in C1, C2 left empty (FR-014).
+	// 1. Position section — combo in C1, C2 left empty (the documented behavior).
 	// =========================================================================
 	GtkWidget* pos_grid = make_two_column_section();
 	GtkWidget* pos_frame = make_aligned_frame(_("Position"), pos_grid);
@@ -79,7 +79,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	// =========================================================================
 	// The primary switch sits in C1 and its dependent control in C2 of the same
 	// row; the former inline vertical separator is dropped because the column
-	// midpoint now divides the two (FR-012).
+	// midpoint now divides the two (the documented behavior).
 	{
 		GtkWidget* grid = make_two_column_section();
 
@@ -126,7 +126,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	// =========================================================================
 	// Boost switch (C1) / Boost level (C2) share one two-column row; the recency
 	// slider spans the full section width below the grid, packed directly into
-	// the section vbox so it has no phantom empty C2 (FR-013/014).
+	// the section vbox so it has no phantom empty C2 (the documented behavior).
 	{
 		GtkWidget* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 		GtkWidget* grid = make_two_column_section();

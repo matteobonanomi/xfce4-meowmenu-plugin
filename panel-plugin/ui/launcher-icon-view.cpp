@@ -62,7 +62,7 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	// Keyboard cursor moves change the selection without passing through the
 	// hover chokepoint, so recomposite the whole surface on every selection
 	// change while the background is translucent (no-op when opaque). This is the
-	// keyboard half of the single-highlight safeguard (FR-006/FR-007).
+	// keyboard half of the single-highlight safeguard (the documented behavior).
 	connect(m_view, "selection-changed",
 		[this](GtkIconView*)
 		{
@@ -77,7 +77,7 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	// Handle hover selection
 	enable_hover_selection(GTK_WIDGET(m_view));
 
-	// FR-100: keep the focused item visible on programmatic cursor moves
+	// the documented behavior: keep the focused item visible on programmatic cursor moves
 	// (Tab into Results, sidebar arrow exit). use_align=FALSE so an
 	// already-visible item does not jump.
 	connect(m_view, "focus-in-event",
@@ -329,7 +329,7 @@ void LauncherIconView::reload_icon_size()
 		break;
 	}
 
-	// T043: adjust padding/spacing from grid-density (low/medium/high)
+	// the implementation step: adjust padding/spacing from grid-density (low/medium/high)
 	int padding = base_padding;
 	if (g_strcmp0(density, "low") == 0)
 	{

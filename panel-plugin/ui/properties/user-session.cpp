@@ -78,7 +78,7 @@ private:
 /* init_user_session_tab:
  *
  * Builds the User/Session tab in the 003-properties-refactor 5-tab dictionary.
- * Sections (top-to-bottom, FR-020):
+ * Sections (top-to-bottom, the documented behavior):
  *   1. Profile         — profile-position, profile-shape (only when visible).
  *   2. Commands        — commands-position, confirm-session-command toggle.
  *   3. Session commands — per-slot Command editors via CommandEdit, reused
@@ -206,7 +206,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 
 	// Per-row greying of the Profile/Commands position combos and live
 	// reflection of any persisted auto-snap, both driven by the shared coupling
-	// helper (FR-010/FR-017). A sensitivity data func on each combo's text
+	// helper (the documented behavior). A sensitivity data func on each combo's text
 	// renderer greys disallowed options without removing them; the property
 	// signal refreshes both whenever a governing key changes (e.g. a Profile
 	// edge flip snaps Commands, or a layout-mode switch re-couples both).
@@ -340,7 +340,7 @@ void SettingsDialog::on_user_session_cell_data(GtkCellLayout* layout,
  * @iter:   the row being rendered.
  *
  * Greys a single combo row when the current layout coupling disallows that
- * option (FR-010). The decision comes from the shared helper so the dialog can
+ * option (the documented behavior). The decision comes from the shared helper so the dialog can
  * never disagree with the renderer; Hidden is always left selectable.
  */
 void SettingsDialog::apply_user_session_combo_sensitivity(GtkCellLayout* layout,
@@ -387,7 +387,7 @@ void SettingsDialog::apply_user_session_combo_sensitivity(GtkCellLayout* layout,
  * Re-resolves the Profile/Commands coupling for the current layout and reflects
  * the result in the two position combos: their active id is set to the resolved
  * (possibly auto-snapped) value so the dialog matches what was persisted
- * (FR-017), and both are redrawn so the per-row greying re-evaluates. Invoked at
+ * (the documented behavior), and both are redrawn so the per-row greying re-evaluates. Invoked at
  * build time and whenever a governing key changes on the channel.
  */
 void SettingsDialog::apply_user_session_coupling()

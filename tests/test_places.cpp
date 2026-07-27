@@ -7,7 +7,7 @@
  *
  * NOTE: the production code paths still use GTK / GIO; this test exercises
  * the same algorithms in isolation. A future test harness that can host
- * GTK widget construction (FR-046 follow-up) will replace this stand-in.
+ * GTK widget construction (the documented behavior follow-up) will replace this stand-in.
  */
 
 #include <cassert>
@@ -210,7 +210,7 @@ static void test_missing_treatment_is_source_agnostic()
 {
 	// A missing favourite and a missing recent entry pointing at the same
 	// target get an identical muted label and "missing" tooltip — one shared
-	// treatment, regardless of which section produced the item (FR-002).
+	// treatment, regardless of which section produced the item (the documented behavior).
 	const char* name = "Project";
 	const char* target = "/srv/Project";
 

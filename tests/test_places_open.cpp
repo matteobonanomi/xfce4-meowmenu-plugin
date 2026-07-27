@@ -42,7 +42,7 @@ static bool has_control_bytes(const char* s)
 }
 
 // ---------------------------------------------------------------------------
-// FR-006: the reason string maps a GError + display name to a non-empty,
+// the documented behavior: the reason string maps a GError + display name to a non-empty,
 // named, legible message.
 // ---------------------------------------------------------------------------
 
@@ -52,11 +52,11 @@ static void test_error_message_contains_name_and_reason()
 			"No application is registered as handling this file");
 	gchar* msg = PlacesItem::build_open_error_message(error, "report.odt");
 
-	assert(msg && *msg);                                  // non-empty (FR-006c)
-	assert(strstr(msg, "report.odt") != nullptr);         // names the item (FR-006a)
-	assert(strstr(msg, "No application is registered") != nullptr); // reason (FR-006b)
+	assert(msg && *msg);                                  // non-empty (the documented behavior)
+	assert(strstr(msg, "report.odt") != nullptr);         // names the item (the documented behavior)
+	assert(strstr(msg, "No application is registered") != nullptr); // reason (the documented behavior)
 	assert(g_utf8_validate(msg, -1, nullptr));
-	assert(!has_control_bytes(msg));                      // legible (FR-006c)
+	assert(!has_control_bytes(msg));                      // legible (the documented behavior)
 
 	g_free(msg);
 	g_error_free(error);
@@ -87,7 +87,7 @@ static void test_error_message_strips_control_bytes()
 }
 
 // ---------------------------------------------------------------------------
-// FR-007/FR-008: a path quoted with g_shell_quote round-trips through
+// the documented behavior: a path quoted with g_shell_quote round-trips through
 // g_shell_parse_argv (the parse Element::spawn performs) to the exact literal
 // path, so the external helper receives the right target and no embedded
 // command can run.

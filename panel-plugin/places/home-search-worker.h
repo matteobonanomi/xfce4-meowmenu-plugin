@@ -43,7 +43,7 @@ public:
 
 	/* start:
 	 * @casefolded_query: g_utf8_casefold'd query string; must be non-empty.
-	 * @cap: hard upper bound on dispatched matches (FR-035d).
+	 * @cap: hard upper bound on dispatched matches (the documented behavior).
 	 * @on_result: invoked on the main thread for each match; takes ownership.
 	 * @on_done: invoked once on the main thread when the walk exits.
 	 *

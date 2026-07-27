@@ -1,0 +1,57 @@
+name: Compatibility report
+description: Share a release-candidate desktop test result
+title: "[Compatibility] "
+labels: ["compatibility"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: MeowMenu version
+      placeholder: 0.9.0-rc1
+    validations:
+      required: true
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution and version
+    validations:
+      required: true
+  - type: input
+    id: xfce
+    attributes:
+      label: Xfce version
+    validations:
+      required: true
+  - type: input
+    id: architecture
+    attributes:
+      label: Architecture
+      placeholder: x86_64
+    validations:
+      required: true
+  - type: dropdown
+    id: session
+    attributes:
+      label: Session
+      options: [X11, Wayland, Other or unknown]
+    validations:
+      required: true
+  - type: input
+    id: installation
+    attributes:
+      label: Installation method
+      placeholder: Release DEB, RPM, AUR, or source
+    validations:
+      required: true
+  - type: textarea
+    id: core
+    attributes:
+      label: Core load and search result
+      description: Did the panel item load, open, search, launch, navigate, close, and persist?
+    validations:
+      required: true
+  - type: textarea
+    id: optional
+    attributes:
+      label: Optional visual context and diagnostics
+      description: Theme, scale, panel orientation, monitors, logs, or screenshots

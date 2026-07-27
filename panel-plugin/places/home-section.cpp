@@ -76,7 +76,7 @@ void HomeSection::clear_items()
 /* HomeSection::get_items:
  *
  * Builds a PlacesItem for each XDG user directory that exists on disk, in the
- * FR-011 order. Non-existent paths are skipped so the list reflects the user's
+ * the documented behavior order. Non-existent paths are skipped so the list reflects the user's
  * actual home layout.
  */
 std::vector<PlacesItem*> HomeSection::get_items(int /*max*/)

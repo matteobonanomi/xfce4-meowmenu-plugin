@@ -70,7 +70,7 @@ public:
 	 * the model has at least one row. Subject to the same activation
 	 * debounce as a mouse/key activation, so holding Enter on the
 	 * search entry cannot launch the same application twice. Used by
-	 * the search entry's "activate" handler to satisfy FR-021.
+	 * the search entry's "activate" handler to satisfy the documented behavior.
 	 *
 	 * Returns: true iff a row existed and was activated.
 	 */

@@ -87,7 +87,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	gtk_stack_set_transition_type(stack, GTK_STACK_TRANSITION_TYPE_NONE);
 
 	// Load built-in presets from on-disk files before any tab builder calls
-	// refresh_preset_combo (T041 / data-model E-1).
+	// refresh_preset_combo (the implementation step / data-model E-1).
 	initialize_file_presets();
 
 	// New 5-tab dictionary per data-model.md E-3. Each init_*_tab() already
@@ -287,7 +287,7 @@ void SettingsDialog::add_action()
 	// Make sure editing is allowed.
 	gtk_widget_set_sensitive(m_action_remove, true);
 	// Legacy inline-detail widgets only exist when init_search_actions_tab()
-	// is in use (will be removed in T012). When the new modal-based tab owns
+	// is in use (will be removed in the implementation step). When the new modal-based tab owns
 	// the list, these are nullptr and editing happens through the modal.
 	if (m_action_name)    gtk_widget_set_sensitive(m_action_name, true);
 	if (m_action_pattern) gtk_widget_set_sensitive(m_action_pattern, true);
@@ -353,7 +353,7 @@ void SettingsDialog::remove_action()
 	{
 		gtk_widget_set_sensitive(m_action_remove, false);
 		// Null-guarded for the modal-based tab (legacy inline detail widgets
-		// disappear with T012).
+		// disappear with the implementation step).
 		if (m_action_name)
 		{
 			gtk_entry_set_text(GTK_ENTRY(m_action_name), "");
@@ -537,12 +537,12 @@ static void remove_unsaved_row(GtkListStore* model)
 
 void SettingsDialog::refresh_customized_indicator()
 {
-	// Continuous, reversible divergence recompute (FR-001). Every governed-widget
+	// Continuous, reversible divergence recompute (the documented behavior). Every governed-widget
 	// change handler across all tabs calls this, so the active-preset field always
 	// reflects whether the live settings still match the applied preset: it reads
 	// "Unsaved custom" (italic) while diverged and snaps back to the applied
 	// preset's own row the instant the values match again. The field is never
-	// blank (SC-003) — an unset or unknown applied id counts as diverged.
+	// blank (the documented behavior) — an unset or unknown applied id counts as diverged.
 	if (!m_preset_combo || !m_preset_model)
 		return;
 
@@ -614,11 +614,11 @@ void SettingsDialog::sync_preset_widgets()
 	// settings after a preset is applied, then recompute every dependent
 	// control's sensitivity. The whole body runs under m_programmatic_update so
 	// the cascade of set_active calls cannot write a divergent value back into
-	// Settings (FR-004) — each widget handler early-returns while it is set.
+	// Settings (the documented behavior) — each widget handler early-returns while it is set.
 	//
 	// The authoritative set of keys driven here is synced_keys(); a unit test
 	// asserts it equals governed_keys() so no governed control is left stale
-	// (FR-001/003). When adding a governed key, add both its sync call below
+	// (the documented behavior). When adding a governed key, add both its sync call below
 	// and its entry in synced_keys().
 	//
 	// NOTE: each widget is null-guarded because tabs are built independently;
@@ -751,7 +751,7 @@ void SettingsDialog::sync_preset_widgets()
 			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_favorites), true);
 	}
 
-	// Recompute every dependent control's sensitivity across all tabs (FR-002):
+	// Recompute every dependent control's sensitivity across all tabs (the documented behavior):
 	// grid controls, layout-mode-gated widgets, Places dependents, and the
 	// Sidebar sub-enable greying. The Places/Sidebar hooks are owned by their
 	// tab builders and may be empty until those tabs are built.
@@ -774,7 +774,7 @@ void SettingsDialog::sync_preset_widgets()
  * @is_builtin: true → bold (built-in), false → standard weight (saved custom).
  *
  * Appends one concrete preset row with its data-driven typography. Built-ins
- * render bold so a future built-in inherits bold automatically (FR-013/014);
+ * render bold so a future built-in inherits bold automatically (the documented behavior);
  * saved customs render at normal weight. The italic "Unsaved custom" row is not
  * a preset and is added separately by the divergence recompute.
  */
@@ -850,7 +850,7 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 /* install_layout_mode_handler:
  *
  * Subscribes to the Xfconf channel's "property-changed" signal and triggers
- * apply_layout_mode_sensitivity() whenever /layout-mode flips. Per FR-003 the
+ * apply_layout_mode_sensitivity() whenever /layout-mode flips. Per the documented behavior the
  * transition must be instantaneous (no dialog close/reopen).
  */
 void SettingsDialog::install_layout_mode_handler()
@@ -872,7 +872,7 @@ void SettingsDialog::install_layout_mode_handler()
 /* apply_layout_mode_sensitivity:
  *
  * Classifies the current /layout-mode once, then refreshes every layout-driven
- * control. The five FR-006 matrix controls registered in m_layout_controls are
+ * control. The five the documented behavior matrix controls registered in m_layout_controls are
  * driven by the pure control_enabled() table; the remaining out-of-matrix
  * per-region opacity controls keep their windowed-vs-full-screen rule (enabled
  * in Docked and Centered, greyed in Full-Screen). Idempotent and safe to call

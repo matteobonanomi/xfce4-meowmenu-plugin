@@ -61,7 +61,7 @@ GdkRGBA meow_choose_background_fallback(gboolean have_fg, const GdkRGBA* fg,
 		return MEOW_FALLBACK_DARK;
 	}
 
-	// FR-004 safe default: when no signal is usable, keep today's dark grey so
+	// the documented behavior safe default: when no signal is usable, keep today's dark grey so
 	// the menu is always painted with a known-good, opaque colour.
 	return MEOW_FALLBACK_DARK;
 }

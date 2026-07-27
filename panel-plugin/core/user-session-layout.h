@@ -47,7 +47,7 @@ enum class LayoutMode
 LayoutMode layout_mode_from_key(const char* value);
 
 // The Properties "Layout" controls whose enabled/greyed state depends on the
-// selected layout mode (FR-006 matrix). Width/height/corner-radius are windowed
+// selected layout mode (the documented behavior matrix). Width/height/corner-radius are windowed
 // controls; the panel gap only means something flush against a panel edge.
 enum class LayoutControl
 {
@@ -70,7 +70,7 @@ enum class UserSessionRowEdge
  * @control: which Layout-section control is being queried.
  * @mode:    the active layout mode.
  *
- * Pure decision table encoding the FR-006 control-sensitivity matrix. The
+ * Pure decision table encoding the the documented behavior control-sensitivity matrix. The
  * single source of truth for which Layout controls are sensitive in each mode;
  * the Properties dialog calls this per registered widget so the matrix lives in
  * exactly one place.
@@ -149,7 +149,7 @@ struct UserSessionResolution
 	bool profile_visible;
 	bool commands_visible;
 
-	// Per-option combo sensitivity (greyed, not removed — FR-010). The two
+	// Per-option combo sensitivity (greyed, not removed — the documented behavior). The two
 	// *_hidden_enabled masks are always true: visibility is only ever changed
 	// by the user, never forced by coupling.
 	bool profile_top_left_enabled;
@@ -162,7 +162,7 @@ struct UserSessionResolution
 	// True when the resolved value differs from the corresponding input, i.e.
 	// the caller rewrote a legacy alias or snapped a disallowed edge and must
 	// persist the new value so the stored configuration and the rendered row stay
-	// in sync (FR-014/FR-017).
+	// in sync (the documented behavior).
 	bool profile_changed;
 	bool commands_changed;
 };

@@ -1,12 +1,4 @@
-# =============================================================================
-# Job-name contract — NEVER required (FR-010)
-# =============================================================================
-# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2, §6
-#
-# Job names:
-#   analyze (cpp)   — advisory only; MUST NOT appear in any required-checks
-#                     list on either protected branch.
-# =============================================================================
+# CodeQL is advisory and is not a required branch-protection check.
 
 name: codeql
 
@@ -16,7 +8,7 @@ on:
   push:
     branches: [main]
   schedule:
-    # NOTE: Monday 06:00 UTC weekly sweep, per contracts/workflow-jobs.md §6.
+    # Monday 06:00 UTC weekly sweep.
     - cron: '0 6 * * 1'
 
 permissions:
@@ -53,9 +45,6 @@ jobs:
         with:
           languages: cpp
 
-      # NOTE: Autobuild is acceptable per spec; the explicit fallback is the
-      # standard `meson setup && meson compile` sequence below if autobuild
-      # ever fails for this project.
       - name: Build (manual — meson)
         run: |
           meson setup build
@@ -64,8 +53,4 @@ jobs:
       - name: Analyze
         uses: github/codeql-action/analyze@v4
 
-# Action-pinning audit (FR-022, T025):
-#   - actions/checkout@v7
-#   - github/codeql-action/init@v4
-#   - github/codeql-action/analyze@v4
-#   No `@main` / `@master` references.
+# Actions use stable major-version references; no branch references are used.

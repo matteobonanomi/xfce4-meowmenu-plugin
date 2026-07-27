@@ -1,13 +1,13 @@
 /* test_launcher_safeguard_lifecycle:
  *
- * Freezes the FR-008a invariant (render-invariants contract I13): the
+ * Freezes the the documented behavior invariant (render-invariants contract I13): the
  * translucency-only scroll-reveal safeguard in the shared LauncherView base
  * connects a value-changed handler to the scrolled window's vertical
  * GtkAdjustment — the one safeguard connection on an object the view does NOT
  * own and which outlives it across menu rebuilds. That handler MUST stop firing
  * once the view is destroyed, or a later value-changed on the surviving
  * adjustment invokes queue_translucent_safeguard_redraw() -> get_widget() on a
- * freed view: the intermittent plugin crash/restart SC-005a describes (closing,
+ * freed view: the intermittent plugin crash/restart the documented behavior describes (closing,
  * rebuilding, or reloading the menu after scrolling a translucent list).
  *
  * Setup faithful to production: the view is placed in a real GtkScrolledWindow,
@@ -220,7 +220,7 @@ int main()
 	// window performs on child removal) must leave no live safeguard handler.
 	delete view;
 
-	// FR-008a: emitting on the surviving adjustment after teardown must NOT reach
+	// the documented behavior: emitting on the surviving adjustment after teardown must NOT reach
 	// the safeguard — get_widget() is not called and nothing dereferences the
 	// freed view. Against the pre-fix code this emission is a use-after-free.
 	before = g_get_widget_calls;

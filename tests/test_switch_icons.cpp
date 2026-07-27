@@ -116,7 +116,7 @@ int main()
 
 	g_object_unref(theme);
 
-	// Short-vs-long label selection (FR-012/014). Text mode: the visible label
+	// Short-vs-long label selection (the documented behavior). Text mode: the visible label
 	// is the short word, the accessible name is the long descriptive name, no
 	// tooltip (the label already reads it). Icon mode: no visible text, the long
 	// name is both accessible name and tooltip.

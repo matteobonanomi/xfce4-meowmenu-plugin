@@ -1,6 +1,6 @@
 # Modern preset — contemporary layout with rounded corners, icon grid, sidebar on the left.
 # Docked, hover-to-switch categories, search bar at the bottom.
-# Source of truth for all keys: .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+# Settings use the same Xfconf keys as the graphical Preferences window.
 
 [Preset]
 Name=Modern

@@ -67,7 +67,7 @@ void letter_is_printable()
 
 void space_is_printable()
 {
-	// FR-010: Space must extend the query, not toggle Mode.
+	// the documented behavior: Space must extend the query, not toggle Mode.
 	GdkEventKey e = make_event(GDK_KEY_space);
 	EQC(classify_key(&e), KeyClass::Printable);
 }
@@ -154,7 +154,7 @@ void control_keys_not_printable()
 	// through gdk_keyval_to_unicode (0x09, 0x0d, 0x1b, 0x08). They
 	// must NOT be classified Printable — each has a dedicated
 	// dispatch path and routing them into the entry would corrupt
-	// the query (FR-010, FR-013, FR-021, FR-060).
+	// the query (the documented behavior, the documented behavior, the documented behavior, the documented behavior).
 	const guint controls[] = {
 		GDK_KEY_Tab, GDK_KEY_ISO_Left_Tab,
 		GDK_KEY_Return, GDK_KEY_KP_Enter,

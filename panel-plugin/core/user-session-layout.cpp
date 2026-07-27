@@ -133,7 +133,7 @@ WhiskerMenu::layout_mode_from_key(const char* value)
 }
 
 /* control_enabled:
- * See user-session-layout.h. Direct transcription of the FR-006 matrix:
+ * See user-session-layout.h. Direct transcription of the the documented behavior matrix:
  * size/shape controls are enabled in both windowed modes (Docked, Centered)
  * and greyed in Full-Screen; the panel gap is enabled only in Docked.
  */

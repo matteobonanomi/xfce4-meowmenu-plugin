@@ -459,7 +459,7 @@ public:
 
 	// Layout Presets — element positions
 	String sidebar_position;
-	// Whether the category sidebar is shown at all (FR-032/033). OFF relocates
+	// Whether the category sidebar is shown at all (the documented behavior). OFF relocates
 	// the Apps/Places switch into the search-bar row; the legacy "hidden"
 	// sidebar-position migrates to this being false.
 	Boolean sidebar_enabled;
@@ -483,7 +483,7 @@ public:
 	String  places_last_mode;
 	StringList places_favourites;
 	// Render the Apps/Places switch as two themed icon buttons instead of text
-	// (FR-001/006). Stored value is the user's intent; layouts that force
+	// (the documented behavior). Stored value is the user's intent; layouts that force
 	// icon-only mode never overwrite it.
 	Boolean places_switch_show_icons;
 	// Outer shape of the Apps/Places switch. Unknown stored values fall back to

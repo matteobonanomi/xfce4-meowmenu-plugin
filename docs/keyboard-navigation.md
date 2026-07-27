@@ -1,15 +1,15 @@
 ---
 title: Keyboard navigation
 layout: default
-nav_order: 6
+nav_order: 9
 has_children: false
 ---
 
 # Keyboard navigation
 
 MeowMenu can be driven entirely from the keyboard: open it, start typing,
-or use the keys below. These shortcuts work on every preset and on both
-X11 and Wayland.
+or use the keys below. These shortcuts are tested on the primary X11 path.
+Wayland remains experimental and unverified for the current candidate.
 
 ## Quick reference
 
@@ -88,5 +88,6 @@ In-progress input-method (CJK) composition is preserved.
 
 - The area order is identical in right-to-left locales; only the
   sidebar-exit arrow is mirrored visually.
-- On Wayland (layer-shell preset) the menu stays open if focus briefly
-  leaves it — close it with `Esc` or your global shortcut.
+- On Wayland, compositor and optional layer-shell behavior can differ. Close
+  the menu with `Esc` or the configured global shortcut if focus behavior is
+  unexpected.

@@ -661,7 +661,7 @@ msgstr "_Curvatura finestre:"
 msgid "F_ull-screen opacity:"
 msgstr "Opacità schermo _intero:"
 
-#. Stay visible when focus is lost (FR-013: lives only in General).
+#. Stay visible when focus is lost (the documented behavior: lives only in General).
 #: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr "_Menu visibile anche senza focus"

@@ -3,7 +3,7 @@
  * panel-plugin/core/sidebar-layout.h. No GTK types are used.
  *
  * Asserts every row of the layout-decision contract (ui-contract.md §3) plus
- * the "forcing removed ⇒ effective reverts to stored intent" case (FR-029).
+ * the "forcing removed ⇒ effective reverts to stored intent" case (the documented behavior).
  */
 
 #include "core/sidebar-layout.h"
@@ -134,7 +134,7 @@ void row6_disabled_places_off()
 	CHECK(p.show_default_category_heading);
 }
 
-// FR-029: a forced state never overwrites stored intent, so once the forcing
+// the documented behavior: a forced state never overwrites stored intent, so once the forcing
 // layout is removed the effective value reverts to the stored value with no
 // bookkeeping. Stored switch_show_icons=false + stored names=true:
 //   top (forced icons ON, names off) → left (icons OFF, names ON).
@@ -167,7 +167,7 @@ void parse_positions()
 }
 
 // Top/Bottom strip stacking order, row anchoring, and width source
-// (FR-005/006/017/018/020). The toggle anchors leading and the category group
+// (the documented behavior). The toggle anchors leading and the category group
 // trailing on a single row; the order is direction-independent and the anchors
 // are direction-relative, so both LTR and RTL resolve identically here.
 void strip_geometry_ordering()
@@ -220,7 +220,7 @@ void fullscreen_places_disabled_strip_centers_categories()
 	CHECK(top.categories_anchor == StripAnchor::Trailing);
 }
 
-// Toggle icon-size source (ui-contract §1, FR-001/002/003/012/013): the toggle
+// Toggle icon-size source (ui-contract §1, the documented behavior): the toggle
 // inherits the category icon size in a sidebar, the search-bar height in the
 // search-bar row, and is unsized (0 → not applied) when hidden.
 void toggle_icon_size_source()
@@ -266,7 +266,7 @@ void default_category_order_base_decision()
 }
 
 // Embedded Apps/Places switch ordering in the standard (non-unified) search-bar
-// row. FR-004 regression intent: no slot ever places the switch after a present
+// row. the documented behavior regression intent: no slot ever places the switch after a present
 // command box. When commands share the row the switch is anchored before them
 // (commands stay trailing-most); when the switch is alone it is the trailing
 // element. The unified centring cluster is a separate, untested-here path.
@@ -276,9 +276,9 @@ void embedded_switch_slot_decision()
 	CHECK(meow_embedded_switch_slot(false) == EmbeddedSwitchSlot::Trailing);
 }
 
-// T038: the single label-visibility decision is identical for Apps and Places
+// the implementation step: the single label-visibility decision is identical for Apps and Places
 // buttons (both call meow_category_label_visible). Names show only when
-// "show names" is on AND the sidebar is not a horizontal strip (FR-015/016).
+// "show names" is on AND the sidebar is not a horizontal strip (the documented behavior).
 void label_visibility_decision()
 {
 	CHECK(meow_category_label_visible(true,  false) == true);   // names on, vertical

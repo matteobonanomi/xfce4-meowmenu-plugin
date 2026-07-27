@@ -8,6 +8,41 @@ test_smoke = executable(
 
 test('smoke', test_smoke)
 
+test(
+  'release_version',
+  python3,
+  args: [meson.current_source_dir() / 'test_release_version.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'release_contract',
+  python3,
+  args: [meson.current_source_dir() / 'test_release_contract.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'translation_status',
+  python3,
+  args: [meson.current_source_dir() / 'test_translation_status.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'repository_presentation',
+  python3,
+  args: [meson.current_source_dir() / 'test_repository_presentation.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'documentation_links',
+  python3,
+  args: [meson.current_source_dir() / 'test_documentation_links.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
 # GLib refuses to run g_test assertions when Meson's release build enables
 # G_DISABLE_ASSERT. Keep Calculator tests assert-enabled in every build type.
 calculator_test_cpp_args = ['-UG_DISABLE_ASSERT']
@@ -95,6 +130,9 @@ test_schema_migration_sources = ['test_schema_migration.cpp']
 test_schema_migration = executable(
   'test_schema_migration',
   test_schema_migration_sources,
+  cpp_args: [
+    '-DMEOWMENU_080_XFCONF_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-0.8.0.xml' + '"',
+  ],
   dependencies: [],
 )
 
@@ -159,7 +197,7 @@ test_preset_xfconf = executable(
 test('preset_xfconf', test_preset_xfconf, timeout: 60)
 
 # test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
-# coverage gate (T013). preset-builtins.cpp is Settings-free, so it links
+# coverage gate (the implementation step). preset-builtins.cpp is Settings-free, so it links
 # directly to expose governed_keys()/synced_keys() without a GTK display.
 test_properties_tabs_sources = [
   'test_properties_tabs.cpp',
@@ -260,8 +298,8 @@ test_home_search = executable(
 test('home_search', test_home_search)
 
 # test_places_open: GTK-free coverage of the Places open-path hardening —
-# the g_shell_quote round-trip handed to the external helper (FR-007/008) and
-# the open-failure reason string built for the error dialog (FR-006). Compiles
+# the g_shell_quote round-trip handed to the external helper (the documented behavior) and
+# the open-failure reason string built for the error dialog (the documented behavior). Compiles
 # places-item.cpp plus its Element base (element.cpp) directly into the binary,
 # mirroring test_home_search_lifecycle; no display is needed for these pure
 # helpers, so the binary runs headless.
@@ -468,7 +506,7 @@ test_centered_geometry = executable(
 
 test('centered_geometry', test_centered_geometry)
 
-# test_layout_sensitivity: headless coverage of the pure FR-006 control-
+# test_layout_sensitivity: headless coverage of the pure the documented behavior control-
 # sensitivity matrix (control_enabled) in core/user-session-layout.cpp. No
 # display; the helper is GTK-free.
 test_layout_sensitivity_sources = [
@@ -696,13 +734,13 @@ test_application_load_generation = executable(
 
 test('application_load_generation', test_application_load_generation)
 
-# test_launcher_safeguard_lifecycle: headless freeze for the FR-008a safeguard
+# test_launcher_safeguard_lifecycle: headless freeze for the the documented behavior safeguard
 # lifetime (render-invariants I13). The fix lives entirely in the header-only
 # shared base LauncherView, so the binary needs only that header (plus slot.h)
 # and gtk — no production .cpp. It constructs a minimal concrete view, binds the
 # scroll-reveal safeguard to an externally-owned adjustment, destroys the view,
 # and asserts the handler is gone so a later value-changed never fires on a freed
-# view (the SC-005a crash; also caught by the sanitizer CI). Constructing the
+# view (the the documented behavior crash; also caught by the sanitizer CI). Constructing the
 # widgets needs a display, so it skips cleanly when none is present and CI runs
 # it under a virtual display so the sanitizers still exercise the freed-view path.
 test_launcher_safeguard_lifecycle_sources = [

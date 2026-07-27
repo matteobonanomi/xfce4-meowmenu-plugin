@@ -99,7 +99,7 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 	garcon_set_environment_xdg(GARCON_ENVIRONMENT_XFCE);
 
 	// Wrap the base launcher view with a default-category heading shown only
-	// when the sidebar is disabled (FR-020/021). The heading reuses the
+	// when the sidebar is disabled (the documented behavior). The heading reuses the
 	// "meow-default-heading" CSS class registered by the window so the
 	// uppercase/letter-spacing treatment is theme-overridable.
 	m_default_heading = gtk_label_new(nullptr);

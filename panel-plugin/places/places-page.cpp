@@ -251,7 +251,7 @@ void PlacesPage::refresh_active()
 /* set_filter:
  *
  * Section-aware dispatcher. For non-Home sections or queries below the
- * 2-character recursive-search threshold (FR-035, FR-035a), keeps the
+ * 2-character recursive-search threshold (the documented behavior, the documented behavior), keeps the
  * existing visible-items substring filter. For Home with a query of at
  * least 2 characters, cancels any in-flight recursive walk, debounces
  * 150 ms, then kicks off a HomeSearchWorker via HomeSection::start_search.
@@ -451,7 +451,7 @@ void PlacesPage::on_row_activated(GtkTreePath* path)
 	// synchronous dispatch — once it returns, the launch has been handed off —
 	// whereas m_window->hide() clears the search entry, which re-runs the filter
 	// and can delete this very item via clear_home_search_items(). Opening first
-	// guarantees the item stays valid for the whole open (FR-001..FR-003).
+	// guarantees the item stays valid for the whole open (the documented behavior).
 	item->open(screen, m_widget);
 	m_window->hide();
 }
@@ -653,7 +653,7 @@ void PlacesPage::clear_drag_state(bool defer_folder_cleanup)
 
 /* show_context_menu:
  *
- * Builds the per-item context menu fresh on every right-click (FR-031). Action
+ * Builds the per-item context menu fresh on every right-click (the documented behavior). Action
  * visibility depends on item type and active favourite-sync mode. Add/Remove
  * Favourites are omitted in ThunarBookmarks mode (read-only).
  */
@@ -674,7 +674,7 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		{
 			GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
 			// Dispatch before hide — see on_row_activated(): hide() can free the
-			// item mid-open, so the open must complete first (FR-004).
+			// item mid-open, so the open must complete first (the documented behavior).
 			item->open(s, m_widget);
 			m_window->hide();
 		});

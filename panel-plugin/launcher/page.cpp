@@ -363,8 +363,8 @@ bool Page::activate_first()
 
 void Page::launcher_activated(GtkTreePath* path)
 {
-	// NOTE: 250 ms debounce against held-Enter key-repeat bursts (FR-022,
-	// SC-005). The state is process-global across pages because a single
+	// NOTE: 250 ms debounce against held-Enter key-repeat bursts (the documented behavior,
+	// the documented behavior). The state is process-global across pages because a single
 	// user keypress can only target one launcher at a time and a stuck
 	// key must not multi-launch.
 	static Keyboard::ActivationDebounce s_debounce;

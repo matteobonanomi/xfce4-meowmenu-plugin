@@ -34,7 +34,7 @@ void WhiskerMenu::Window::resize(int delta_x, int delta_y, int delta_width, int 
 	{
 		// Centered re-centres continuously: the position is recomputed from the
 		// new size on each motion event instead of being translated by the
-		// drag delta, so the geometric centre stays fixed (no drift, SC-003).
+		// drag delta, so the geometric centre stays fixed (no drift, the documented behavior).
 		// The delta_x/delta_y edge translation is intentionally ignored.
 		// NOTE: if a given compositor shows jitter here, recentring only in
 		// resize_end() (on drag release) is an acceptable fallback — the final

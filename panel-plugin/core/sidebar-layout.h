@@ -264,7 +264,7 @@ int meow_default_category_order_base(bool strip_spacer_visible,
  *
  * The single label-visibility decision shared by every sidebar button — Apps
  * category buttons and Places section buttons alike — so names appear or hide
- * identically in both modes (FR-015/016). A horizontal strip is always
+ * identically in both modes (the documented behavior). A horizontal strip is always
  * icon-only regardless of the stored intent.
  *
  * Returns: true when sidebar buttons should show their text label.

@@ -69,7 +69,7 @@ GtkWidget* WhiskerMenu::Window::get_active_category_button()
 // keyboard focus to the search entry so a pointer selection lets the user type
 // immediately. A keyboard-driven activation sets m_keyboard_category_nav, in
 // which case the handoff is skipped and focus stays on the active category
-// button so arrow navigation can continue (FR-002/005/006; C1/C2). The guard,
+// button so arrow navigation can continue (the documented behavior; C1/C2). The guard,
 // and only the guard, distinguishes the keyboard origin from the pointer origin.
 
 void WhiskerMenu::Window::favorites_toggled()
@@ -217,7 +217,7 @@ void WhiskerMenu::Window::search()
 		// Places mode: stay on the places panel; filter the active section.
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		m_places->set_filter(text);
-		// FR-014: query empty → return focus to the search entry so the
+		// the documented behavior: query empty → return focus to the search entry so the
 		// user is back in Browsing-style entry focus.
 		if (!text)
 		{
@@ -247,11 +247,11 @@ void WhiskerMenu::Window::search()
 
 	if (text)
 	{
-		// FR-011: when the query produced at least one result, move
+		// the documented behavior: when the query produced at least one result, move
 		// keyboard focus to the first result so the user can press
 		// Enter to launch it or use arrows to navigate. Subsequent
 		// printable keystrokes are still routed back into the entry
-		// via the on_key_press_event_after catch-all (FR-012).
+		// via the on_key_press_event_after catch-all (the documented behavior).
 		GtkTreeModel* model = m_search_results->get_view()->get_model();
 		GtkTreeIter iter;
 		if (m_search_results->has_calculator_result())
@@ -267,7 +267,7 @@ void WhiskerMenu::Window::search()
 	}
 	else
 	{
-		// FR-014: query became empty (Backspace-to-empty or Esc-clear);
+		// the documented behavior: query became empty (Backspace-to-empty or Esc-clear);
 		// return focus to the entry so the user is back in Browsing.
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 	}

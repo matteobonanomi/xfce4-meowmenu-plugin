@@ -30,9 +30,11 @@ AUR_REPO="${1:-$(cd "${REPO_ROOT}/.." && pwd)/xfce4-meowmenu-plugin-AUR}"
 # NEWS is authoritative for the version (same source the release CI uses).
 NEWS_VER="$(python3 "${REPO_ROOT}/build-aux/news-version.py" --version)" \
 	|| die "could not read version from NEWS"
+ARCH_VER="$(python3 "${REPO_ROOT}/build-aux/news-version.py" --arch-version)" \
+	|| die "could not derive the Arch version from NEWS"
 OLD_SUM="$(sed -n "s/^sha256sums=('\\([0-9a-f]*\\)').*/\\1/p" "${AUR_REPO}/PKGBUILD" 2>/dev/null || true)"
 
-printf '==> AUR release for version %s (from NEWS)\n' "${NEWS_VER}"
+printf '==> AUR release for %s (pkgver %s)\n' "${NEWS_VER}" "${ARCH_VER}"
 printf '    recipe : %s/PKGBUILD\n' "${DIST_ARCH}"
 printf '    AUR    : %s\n\n' "${AUR_REPO}"
 
@@ -43,12 +45,13 @@ cp "${DIST_ARCH}/PKGBUILD" "${AUR_REPO}/PKGBUILD"
 # Step 2: align pkgver with NEWS. Must precede the download — pkgver builds the
 # tarball URL (v${pkgver}), so a stale value would fetch the wrong release.
 printf '==> Step 2/5: check pkgver against NEWS\n'
+sed -i "s/^_upstream_version=.*/_upstream_version=${NEWS_VER}/" "${AUR_REPO}/PKGBUILD"
 PKG_VER="$(sed -n 's/^pkgver=//p' "${AUR_REPO}/PKGBUILD" | head -n1)"
-if [ "${PKG_VER}" = "${NEWS_VER}" ]; then
-	printf '    OK: pkgver=%s matches NEWS\n' "${PKG_VER}"
+if [ "${PKG_VER}" = "${ARCH_VER}" ]; then
+	printf '    OK: pkgver=%s matches the derived Arch version\n' "${PKG_VER}"
 else
-	printf '    MISMATCH: pkgver=%s, NEWS=%s -> correcting to NEWS\n' "${PKG_VER}" "${NEWS_VER}"
-	sed -i "s/^pkgver=.*/pkgver=${NEWS_VER}/" "${AUR_REPO}/PKGBUILD"
+	printf '    MISMATCH: pkgver=%s, expected=%s -> correcting\n' "${PKG_VER}" "${ARCH_VER}"
+	sed -i "s/^pkgver=.*/pkgver=${ARCH_VER}/" "${AUR_REPO}/PKGBUILD"
 	printf '    NOTE: dist/arch/PKGBUILD pkgver is also stale; fix it at the source too.\n'
 fi
 

@@ -52,7 +52,7 @@ public:
 	GtkWidget* get_outer_widget() const { return m_outer; }
 
 	/* set_default_heading:
-	 * @visible: TRUE to show the heading (sidebar disabled, FR-020/021).
+	 * @visible: TRUE to show the heading (sidebar disabled, the documented behavior).
 	 * @default_category: Settings::DefaultCategory selecting the heading text.
 	 *
 	 * Shows/hides an uppercase heading (FAVORITES / RECENTLY USED / ALL
@@ -78,7 +78,7 @@ private:
 
 private:
 	// Outer container = [default-category heading, base launcher view]. The
-	// heading is hidden unless the sidebar is disabled (FR-021).
+	// heading is hidden unless the sidebar is disabled (the documented behavior).
 	GtkWidget* m_outer;
 	GtkWidget* m_default_heading;
 

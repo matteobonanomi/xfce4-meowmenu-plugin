@@ -9,7 +9,7 @@
  *      tab models the milestone-005 controls bound under the /places
  *      Xfconf prefix.
  *   4. Sane enable-when values — docked|fullscreen rows correspond to widgets
- *      whose live behaviour is driven by /layout-mode (FR-003); sibling sub-
+ *      whose live behaviour is driven by /layout-mode (the documented behavior); sibling sub-
  *      enables (ProfileVisible, ViewModeIcons/List, SidebarLeftRight,
  *      PlacesFavouritesEnabled) must NOT claim layout-mode driving.
  *   5. Placement grid is complete and has no extra rows beyond the required
@@ -18,7 +18,7 @@
  * This is a pure-data test: it does not link against GTK or Xfconf. The
  * placement table mirrors what panel-plugin/settings-dialog.cpp consumes
  * when building the six init_*_tab() functions. Failures (1) or (2) block
- * merge per the no-loss guarantee (SC-001 / SC-002).
+ * merge per the no-loss guarantee (the documented behavior / the documented behavior).
  */
 
 #include <cassert>
@@ -27,9 +27,9 @@
 #include <string>
 #include <vector>
 
-// T013: the display-free synced-keys list (driven by sync_preset_widgets) MUST
+// the implementation step: the display-free synced-keys list (driven by sync_preset_widgets) MUST
 // equal the governed-key set, so a preset switch leaves no governed control
-// stale (FR-001/003). Both lists live in the Settings-free preset-builtins.cpp,
+// stale (the documented behavior). Both lists live in the Settings-free preset-builtins.cpp,
 // linked directly so this assertion needs no GTK display.
 #include "presets/preset.h"
 
@@ -107,7 +107,7 @@ const Row kPlacementGrid[] = {
 	{ "stay-on-focus-out",         Tab::General,     EnableWhen::Always,     false, Column::C2 },
 
 	// User / Session — NOT relaid out into two columns; every keyed row spans
-	// the section (Full), left-aligned (FR-010/011).
+	// the section (Full), left-aligned (the documented behavior).
 	{ "profile-position",          Tab::UserSession, EnableWhen::Always,         false, Column::Full },
 	{ "profile-shape",             Tab::UserSession, EnableWhen::ProfileVisible, false, Column::Full },
 	{ "commands-position",         Tab::UserSession, EnableWhen::Always,         false, Column::Full },
@@ -155,7 +155,7 @@ const Row kPlacementGrid[] = {
 	// are NOT on the placement grid — the first two are Xfconf-backed runtime
 	// state, and switch-show-icons is a dialog control the existing model does
 	// not key (its C2 placement is the visual contract, verified by the relayout
-	// and manually per SC-004, not by a headless column assertion). The test
+	// and manually per the documented behavior, not by a headless column assertion). The test
 	// models the keyed dialog surface, not the full schema. Column per
 	// contracts/tab-placement.md.
 	{ "places/enabled",              Tab::Places,      EnableWhen::Always,                  false, Column::C1 },
@@ -282,7 +282,7 @@ static void test_sane_enable_when()
 	}
 }
 
-// Invariant 5 (T013): the placement grid covers exactly the required keys and
+// Invariant 5 (the implementation step): the placement grid covers exactly the required keys and
 // nothing more — guards against the table silently growing stale.
 static void test_placement_grid_complete_and_no_extras()
 {
@@ -386,8 +386,8 @@ constexpr size_t kColumnContractCount =
 
 // Invariant 6 (US-1 placement map): every keyed Properties control places into
 // the column the contract reference names, and the reference covers exactly the
-// keyed grid — neither table may drift ahead of the other (SC-001 / FR-012…
-// FR-030). General keyed rows additionally must never be Full (only the keyless
+// keyed grid — neither table may drift ahead of the other (the documented behavior / the documented behavior…
+// the documented behavior). General keyed rows additionally must never be Full (only the keyless
 // info-bar spans both halves there).
 static void test_columns_match_contract()
 {
@@ -421,7 +421,7 @@ static void test_columns_match_contract()
 				&& "column contract names a key absent from the placement grid");
 }
 
-// T013: synced_keys() must cover exactly governed_keys() — order-independent.
+// the implementation step: synced_keys() must cover exactly governed_keys() — order-independent.
 static void test_synced_keys_cover_governed_keys()
 {
 	std::set<std::string> governed(WhiskerMenu::governed_keys().begin(),

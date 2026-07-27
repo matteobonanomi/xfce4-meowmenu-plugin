@@ -29,7 +29,7 @@ meowmenu_release_date = run_command(
 ).stdout().strip()
 
 # Generate panel-plugin/version.h from version.h.in. Consumed by plugin.cpp
-# for the About dialog and --version output (FR-003).
+# for the About dialog and --version output (the documented behavior).
 meowmenu_version_h = configure_file(
   input: 'panel-plugin' / 'version.h.in',
   output: 'version.h',
@@ -39,7 +39,6 @@ meowmenu_version_h = configure_file(
   },
 )
 
-project_namespace = 'panel-plugins'
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 copyright_year = '2026'
 
@@ -150,7 +149,7 @@ extra_cflags += [
   '-DPACKAGE_DATADIR="@0@"'.format(pkgdatadir),
   '-DCOPYRIGHT_YEAR="@0@"'.format(copyright_year),
   '-DPACKAGE_LOCALE_DIR="@0@"'.format(get_option('prefix') / get_option('localedir')),
-  '-DPACKAGE_BUGREPORT="https://gitlab.xfce.org/@0@/@1@/-/issues"'.format(project_namespace, meson.project_name()),
+  '-DPACKAGE_BUGREPORT="https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues"',
   '-DGETTEXT_PACKAGE="@0@"'.format(meson.project_name()),
   '-DPREFIX="@0@"'.format(get_option('prefix')),
   '-DBINDIR="@0@"'.format(get_option('prefix') / get_option('bindir')),
@@ -201,15 +200,13 @@ install_data(
   install_dir: pkgdatadir,
 )
 
-# AppStream metainfo (feature 010, FR-018) — installed under the
-# freedesktop-standard $datadir/metainfo location so distros pick it up
-# automatically.
+# Install AppStream metadata under the standard data directory.
 install_data(
-  'data' / 'metainfo' / 'xfce4-meowmenu-plugin.appdata.xml',
+  'data' / 'metainfo' / 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
   install_dir: get_option('prefix') / get_option('datadir') / 'metainfo',
 )
 
-# Asserts meson.build's version stays in sync with NEWS top entry (FR-012).
+# Keep the configured version synchronized with the top NEWS entry.
 test(
   'version-consistency',
   python3,

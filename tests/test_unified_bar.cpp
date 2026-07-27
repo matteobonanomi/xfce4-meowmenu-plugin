@@ -80,7 +80,7 @@ int main()
 	assert(!unified_bar_effective(true,  "docked",     "top", "top-left", "top-right"));
 	assert(!unified_bar_effective(true,  "fullscreen", "top", "bottom-left", "top-right"));
 
-	// Void-band visibility truth table (mirrors T028/T048).
+	// Void-band visibility truth table (mirrors the implementation step).
 	// All three bands (top/middle/bottom) share the same predicate: effective().
 	// FullScreen + unified-on → all three bands visible.
 	assert(unified_bar_effective(true, "fullscreen", "top", "top-left", "top-right"));

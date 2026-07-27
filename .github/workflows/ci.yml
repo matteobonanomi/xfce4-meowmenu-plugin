@@ -5,8 +5,6 @@
 # strings verbatim. Renaming without updating required-checks will silently
 # break merge gating.
 #
-# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2
-#
 # Required on `main`:
 #   build (ubuntu-26.04, debugoptimized)
 #   build (ubuntu-26.04, release)
@@ -18,7 +16,7 @@
 #   translations
 #   no-optional-deps
 #
-# Rename protocol (FR-023): if you rename a required job, the same PR MUST
+# If a required job is renamed, the same change must
 # update branch-protection required-checks. See docs/ci.md "Rename protocol".
 # =============================================================================
 
@@ -232,10 +230,8 @@ jobs:
       - name: Meson test
         run: xvfb-run -a meson test -C build --print-errorlogs
 
-  # Feature 010 — docs-dependency-drift advisory (FR-027, SC-013). Diffs
-  # the dep lists declared in debian/control + packaging spec against the
-  # lists embedded in docs/install-*.md and docs/build-from-source.md.
-  # Emits a workflow warning on drift (not a hard fail).
+  # Keep package dependency names represented in the maintained installation
+  # guide. This check is advisory because package aliases differ by distro.
   docs-dependency-drift:
     name: docs-dependency-drift
     runs-on: ubuntu-latest
@@ -261,18 +257,15 @@ jobs:
           missing_in_docs=()
           for d in $control_deps $spec_requires; do
             if [ -z "$d" ]; then continue; fi
-            if ! grep -RIqF -- "$d" docs/install-*.md docs/build-from-source.md 2>/dev/null; then
+            if ! grep -Fq -- "$d" docs/installation.md 2>/dev/null; then
               missing_in_docs+=("$d")
             fi
           done
           if [ "${#missing_in_docs[@]}" -gt 0 ]; then
-            echo "::warning::docs-dependency-drift: dependencies declared in packaging but not mentioned in docs/install-*.md or docs/build-from-source.md:"
+            echo "::warning::docs-dependency-drift: packaging dependencies missing from docs/installation.md:"
             printf '  - %s\n' "${missing_in_docs[@]}"
           else
             echo "docs dependency lists are consistent with packaging."
           fi
 
-# Action-pinning audit (FR-022, T012/T047):
-#   - actions/checkout@v7  (allowed; major pin)
-#   No `@main` / `@master` references. See
-#   .specify/specs/009-ci-foundation/notes/action-pins.md.
+# Actions use stable major-version references; no branch references are used.

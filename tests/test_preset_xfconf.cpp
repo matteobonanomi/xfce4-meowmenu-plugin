@@ -16,7 +16,7 @@
  *     - the "Save as new… does not surface the new preset" defect: after a
  *       save-style write to /presets/<uuid>/, enumerate_user_presets() and
  *       find_preset_by_id() must surface that uuid (R3 hypotheses H2/H3).
- *     - schema-lenient seeded-file import (FR-018): a .meowpreset with a newer
+ *     - schema-lenient seeded-file import (the documented behavior): a .meowpreset with a newer
  *       SchemaVersion must be accepted best-effort rather than skipped.
  *
  * If xfconfd / dbus-daemon are unavailable the test prints a TAP SKIP and
@@ -206,10 +206,10 @@ const WhiskerMenu::LayoutPreset* find_in(const std::vector<WhiskerMenu::LayoutPr
 }
 
 // ---------------------------------------------------------------------------
-// T006: save-refresh regression lock (read side).
+// the implementation step: save-refresh regression lock (read side).
 // After a save-style write, the enumerated set and find_preset_by_id() must both
 // surface a row whose id equals the saved uuid, with the stored name. This is the
-// behaviour the "Save as new…" dropdown refresh depends on (SC-001).
+// behaviour the "Save as new…" dropdown refresh depends on (the documented behavior).
 // ---------------------------------------------------------------------------
 
 void test_enumerate_surfaces_saved_uuid()
@@ -298,8 +298,33 @@ void test_enumerate_name_falls_back_to_display_name()
 	g_object_unref(ch);
 }
 
+/* test_upgrade_baseline_enumeration_is_idempotent:
+ *
+ * A saved custom preset representing the 0.8.0 upgrade baseline must retain
+ * its identity and values across repeated reads, matching the second-pass
+ * migration check in the release walkthrough.
+ */
+void test_upgrade_baseline_enumeration_is_idempotent()
+{
+	XfconfChannel* ch = fresh_channel();
+	const std::string uuid = "rc-upgrade-baseline";
+	seed_saved_preset(ch, uuid, "RC Upgrade Baseline");
+
+	for (int pass = 0; pass < 2; ++pass)
+	{
+		const auto& presets = WhiskerMenu::enumerate_user_presets(ch);
+		const WhiskerMenu::LayoutPreset* preset = find_in(presets, uuid);
+		assert(preset != nullptr);
+		assert(preset->display_name == "RC Upgrade Baseline");
+		assert(preset->values.at("corner-radius").i == 7);
+		assert(preset->values.at("sidebar-position").s == "right");
+	}
+
+	g_object_unref(ch);
+}
+
 // ---------------------------------------------------------------------------
-// T032: reset-to-defaults scope (FR-019).
+// the implementation step: reset-to-defaults scope (the documented behavior).
 // The "Reset to defaults" control must clear every non-preset property while
 // preserving saved user presets under /presets/<uuid>/. The live plugin's
 // channel is property-base-anchored, and get_properties() returns FULL paths
@@ -327,11 +352,11 @@ void test_reset_preserves_presets_clears_rest()
 	xfconf_channel_set_string(ch, "/favorites/0", "firefox.desktop");
 	xfconf_channel_set_string(ch, "/search-actions/0/name", "Web Search");
 	// A user who opted into Centered must be returned to the docked default by a
-	// reset (FR-015): the stored value is cleared, so a read falls back to the
+	// reset (the documented behavior): the stored value is cleared, so a read falls back to the
 	// "docked" schema default.
 	xfconf_channel_set_string(ch, "/layout-mode", "centered");
 	// A user who reduced the menu opacity must be returned to fully opaque by a
-	// reset (042 FR-013): the stored value is cleared, so a read falls back to
+	// reset (042 the documented behavior): the stored value is cleared, so a read falls back to
 	// the 100 default. This is the only headless guard against a future
 	// default-value or reset-list regression for /menu-opacity.
 	xfconf_channel_set_int(ch, "/menu-opacity", 60);
@@ -378,7 +403,7 @@ void test_reset_preserves_presets_clears_rest()
 }
 
 // ---------------------------------------------------------------------------
-// T022: schema-lenient seeded-file import (FR-018).
+// the implementation step: schema-lenient seeded-file import (the documented behavior).
 // enumerate_preset_files() must accept a .meowpreset carrying a newer
 // SchemaVersion best-effort, while still skipping unparseable/section-missing
 // files. Built-in identity comes from the [Preset].Name key.
@@ -405,7 +430,7 @@ void test_seeded_file_accepts_newer_schema()
 	assert(dir_c != nullptr);
 	std::string dir(dir_c);
 
-	// Newer schema version than we know — must be accepted best-effort (FR-018).
+	// Newer schema version than we know — must be accepted best-effort (the documented behavior).
 	write_meowpreset(dir, "future",
 		"[Preset]\nName=Future\nSchemaVersion=99\n\n"
 		"[Settings]\ncorner-radius=4\nsidebar-position=left\n");
@@ -465,6 +490,7 @@ int main()
 	test_enumerate_with_property_base_channel();
 	test_enumerate_drops_missing_display_name();
 	test_enumerate_name_falls_back_to_display_name();
+	test_upgrade_baseline_enumeration_is_idempotent();
 	test_reset_preserves_presets_clears_rest();
 	test_seeded_file_accepts_newer_schema();
 	test_seeded_file_skips_section_missing();

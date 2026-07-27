@@ -148,7 +148,7 @@ private:
 	 *
 	 * Folds the live layout flags and per-zone "hidden" positions into a
 	 * Keyboard::VisibilityMask. Search and Results are forced visible
-	 * (FR-030); the Sidebar, Mode selector, and Profile bar follow the
+	 * (the documented behavior); the Sidebar, Mode selector, and Profile bar follow the
 	 * preset's per-zone position string and visibility flags.
 	 */
 	Keyboard::VisibilityMask current_visibility_mask() const;
@@ -157,7 +157,7 @@ private:
 	 *
 	 * Returns Searching iff the search entry holds at least one
 	 * character, Browsing otherwise. Used by the focus router to skip
-	 * the inert sidebar while typing (FR-046).
+	 * the inert sidebar while typing (the documented behavior).
 	 */
 	Keyboard::MenuState current_menu_state() const;
 
@@ -172,7 +172,7 @@ private:
 	 *
 	 * Returns: true iff the grab actually landed (the target was
 	 * focusable and took focus). The forward Ctrl+Tab loop uses this to
-	 * advance past a zone whose grab silently fails (FR-010).
+	 * advance past a zone whose grab silently fails (the documented behavior).
 	 */
 	bool grab_focus_in_zone(Keyboard::Zone zone);
 
@@ -347,12 +347,12 @@ private:
 
 	GtkScrolledWindow* m_sidebar;
 	// Horizontally-scrolling container for the Top/Bottom category strip
-	// (FR-012). Created lazily on the first strip layout; the switch is pinned
-	// outside it (FR-014). nullptr until the sidebar is first shown on top/bottom.
+	// (the documented behavior). Created lazily on the first strip layout; the switch is pinned
+	// outside it (the documented behavior). nullptr until the sidebar is first shown on top/bottom.
 	GtkScrolledWindow* m_strip_scroll;
 	// Expanding spacer pinned as the leading child of m_category_buttons in
 	// strip mode so the category icons sit flush-trailing while the slack falls
-	// between them and the leading toggle (FR-005). Hidden (and thus ignored in
+	// between them and the leading toggle (the documented behavior). Hidden (and thus ignored in
 	// allocation) in the vertical sidebar. Created lazily with m_strip_scroll.
 	GtkWidget* m_strip_lead_spacer;
 	// Current structural placement of the category list, so update_layout()
@@ -369,7 +369,7 @@ private:
 	GtkSizeGroup* m_category_width_group;
 	GtkSizeGroup* m_sidebar_size_group;
 	// Forces the two Apps/Places mode buttons to equal width in every layout
-	// and preset, surviving the icon↔text child swap (FR-013).
+	// and preset, surviving the icon↔text child swap (the documented behavior).
 	GtkSizeGroup* m_mode_button_size_group;
 
 	GdkRectangle m_geometry;

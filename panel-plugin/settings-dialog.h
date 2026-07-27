@@ -81,7 +81,7 @@ private:
 	void build_search_bar_aliases_section(GtkBox* page);
 	void build_search_bar_actions_section(GtkBox* page);
 
-	// Layout-mode-driven live sensitivity (FR-006 / data-model E-4).
+	// Layout-mode-driven live sensitivity (the documented behavior / data-model E-4).
 	// The five matrix controls (width/height/gap/corner-radius/full-screen
 	// opacity) register a (widget, LayoutControl) pair in m_layout_controls;
 	// apply_layout_mode_sensitivity() drives them through the pure
@@ -179,23 +179,23 @@ private:
 	// Dialog-wide "programmatic update in progress" guard. Set for the whole
 	// sync_preset_widgets() body (and the combo rebuild) so every widget signal
 	// handler early-returns before writing Settings — the cascade of set_active
-	// calls during a preset switch cannot write a divergent value back (FR-004).
+	// calls during a preset switch cannot write a divergent value back (the documented behavior).
 	bool m_programmatic_update = false;
 
 	// Last preset id applied via the combo. Tracked so re-applying the active
-	// preset behaves as "reset to this preset" (FR-006).
+	// preset behaves as "reset to this preset" (the documented behavior).
 	std::string m_last_applied_preset_id;
 
 	// Live sensitivity recompute hooks owned by the Places / Sidebar tab
 	// builders. Invoked at the end of sync_preset_widgets() so a preset switch
 	// refreshes every dependent control's enabled/greyed state across all tabs
-	// without a dialog reopen (FR-002).
+	// without a dialog reopen (the documented behavior).
 	std::function<void()> m_places_refresh_sensitivity;
 	std::function<void()> m_sidebar_apply_sub_enable;
 
 	// Switches owned by the Places / Sidebar tabs, driven during preset sync so
 	// the "Enable Places" and "Enable sidebar" controls follow the active preset
-	// (FR-001/003).
+	// (the documented behavior).
 	GtkWidget* m_places_enabled_switch = nullptr;
 	GtkWidget* m_enable_sidebar_switch = nullptr;
 
@@ -203,7 +203,7 @@ private:
 	// menu_width/menu_height updates (e.g. drag-resize) into the spin buttons.
 	gulong m_size_change_slot = 0;
 
-	// Appearance customization (T070)
+	// Appearance customization (the implementation step)
 	GtkWidget* m_corner_radius = nullptr;
 	GtkWidget* m_menu_opacity = nullptr;
 	GtkWidget* m_sidebar_position_combo = nullptr;
@@ -211,7 +211,7 @@ private:
 	GtkWidget* m_profile_position_combo = nullptr;
 	GtkWidget* m_commands_position_combo = nullptr;
 
-	// Behavior layout (T071)
+	// Behavior layout (the implementation step)
 	GtkWidget* m_panel_gap = nullptr;
 	GtkWidget* m_layout_mode_combo = nullptr;
 	GtkWidget* m_grid_density_combo = nullptr;
