@@ -20,6 +20,8 @@
 
 #include <gtk/gtk.h>
 
+#include "interactive-resize.h"
+
 namespace WhiskerMenu
 {
 
@@ -62,12 +64,8 @@ private:
 	Window* m_window;
 	GtkWidget* m_drawing;
 	GdkCursor* m_cursor;
-	double m_x;
-	double m_y;
-	int m_delta_x;
-	int m_delta_y;
-	int m_delta_width;
-	int m_delta_height;
+	InteractiveResize::Direction m_direction;
+	InteractiveResize::CoordinateSpace m_coordinate_space;
 	bool m_pressed;
 };
 

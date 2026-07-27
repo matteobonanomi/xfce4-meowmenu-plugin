@@ -22,6 +22,7 @@
 
 #include <gtk/gtk.h>
 
+#include "interactive-resize.h"
 #include "sidebar-layout.h"
 #include "window-keyboard.h"
 
@@ -91,9 +92,15 @@ public:
 
 	void hide(bool lost_focus = false);
 	void show(const Position position);
-	void resize(int delta_x, int delta_y, int delta_width, int delta_height);
-	void resize_start();
-	void resize_end();
+	bool interactive_resize_begin(
+			InteractiveResize::Direction direction,
+			InteractiveResize::BackendPolicy policy,
+			const InteractiveResize::PointerSample& pointer);
+	bool interactive_resize_step(
+			const InteractiveResize::PointerSample& pointer);
+	bool interactive_resize_complete(
+			const InteractiveResize::PointerSample& pointer);
+	bool interactive_resize_cancel();
 	void set_child_has_focus();
 	/* detach_categories:
 	 *
@@ -217,6 +224,15 @@ private:
 	// placement, panel-gap suppression and continuous re-centre-on-resize
 	// paths; classified defensively so an unknown value behaves as Docked.
 	bool centered_layout() const;
+	void clear_resize_handles();
+	InteractiveResize::DisplaySignature resize_display_signature(
+			GdkMonitor* monitor) const;
+	void start_resize_display_watch(GdkMonitor* monitor);
+	void stop_resize_display_watch();
+	void validate_resize_display();
+	void apply_resize_rectangle(
+			const InteractiveResize::Rectangle& rectangle);
+	void settle_resize_position();
 	bool set_size(int width, int height);
 	void reset_default_button();
 	void show_favorites();
@@ -409,6 +425,10 @@ private:
 	bool m_shape_composited = false;
 	bool m_child_has_focus;
 	bool m_resizing;
+	InteractiveResize::Transaction m_resize_transaction;
+	GdkMonitor* m_resize_monitor;
+	gulong m_resize_monitor_notify_slot;
+	gulong m_resize_monitor_removed_slot;
 };
 
 }

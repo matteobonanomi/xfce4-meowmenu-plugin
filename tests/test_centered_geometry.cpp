@@ -124,6 +124,18 @@ void no_drift_across_resize()
 	}
 }
 
+void centered_on_negative_origin_monitor()
+{
+	GdkRectangle monitor = { -2560, -240, 2560, 1440 };
+	int x = 0;
+	int y = 0;
+	centered_origin(monitor, 900, 700, &x, &y);
+	CHECK(abs((x + 450) - (monitor.x + monitor.width / 2))
+			<= kTolerance);
+	CHECK(abs((y + 350) - (monitor.y + monitor.height / 2))
+			<= kTolerance);
+}
+
 } // namespace
 
 int main()
@@ -133,6 +145,7 @@ int main()
 	centered_on_offset_monitor();
 	oversize_clamps_and_stays_on_screen();
 	no_drift_across_resize();
+	centered_on_negative_origin_monitor();
 
 	if (g_failures != 0)
 	{

@@ -30,6 +30,21 @@ Each tab uses two equal-width columns. The tables below list every option.
 from any edge; it stays centred and remembers the new size. Panel gap does not
 apply.
 
+### Resizing the menu
+
+Docked and Centered menus provide handles on all four sides and four corners.
+The selected edge follows the pointer while the relevant opposite edge stays
+anchored; corner handles resize both axes independently. This behavior applies
+to Classic and Modern presets and to list, tree, and icon-grid views, including
+when the contents rearrange during a drag.
+
+On X11, resize geometry is designed to remain independent of compositing and
+rendering speed. A constrained system may display fewer intermediate frames,
+but a single continuous drag still reaches the final pointer-selected size
+without a compensating drag. Releasing the primary button saves the completed
+normal width and height, so closing and reopening restores that size.
+Full-screen dimensions are not saved as the normal menu size.
+
 The Layout mode selected controls which other options are available. Disabled
 options are greyed out and switch live as you change the mode:
 

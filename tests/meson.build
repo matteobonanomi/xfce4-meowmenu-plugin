@@ -506,6 +506,22 @@ test_centered_geometry = executable(
 
 test('centered_geometry', test_centered_geometry)
 
+# Display-free coverage of the interactive resize geometry reducer. The
+# production helper has no GTK dependency and accepts plain logical geometry.
+test_interactive_resize_sources = [
+  'test_interactive_resize.cpp',
+  '..' / 'panel-plugin' / 'core' / 'interactive-resize.cpp',
+]
+
+test_interactive_resize = executable(
+  'test_interactive_resize',
+  test_interactive_resize_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('interactive_resize', test_interactive_resize)
+
 # test_layout_sensitivity: headless coverage of the pure the documented behavior control-
 # sensitivity matrix (control_enabled) in core/user-session-layout.cpp. No
 # display; the helper is GTK-free.

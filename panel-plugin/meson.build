@@ -29,6 +29,7 @@ plugin_sources = [
   'core/category-lifetime.cpp',
   'core/desktop-drag.cpp',
   'core/drag-to-favourites.cpp',
+  'core/interactive-resize.cpp',
   'core/opacity-model.cpp',
   'core/plugin.cpp',
   'core/sidebar-layout.cpp',

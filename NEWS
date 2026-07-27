@@ -1,4 +1,4 @@
-0.9.0-rc1 (2026-07-23)
+0.9.0-rc1 (2026-07-27)
 =====
 - Release: prepare the first candidate on the path to MeowMenu 1.0.0
 - Release: add a draft-first publication process with canonical source archives and verified checksums
@@ -9,6 +9,7 @@
 - Maintenance: retire obsolete Whisker overlap checks and duplicate release automation
 - Presets: minor UI improvements
 - Calculator: increase auto font size
+- Bugfix: make edge and corner resizing reliable across presets and display environments
 
 0.8.0 (2026-07-17)
 =====

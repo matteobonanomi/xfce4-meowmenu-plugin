@@ -9,9 +9,14 @@ nav_order: 6
 These are release boundaries and unverified areas, not automatically confirmed
 defects.
 
-- **Wayland:** experimental and not live-validated for RC1. Optional
-  `gtk-layer-shell` positioning is used when available; otherwise MeowMenu
-  keeps its existing fallback behavior. X11 is the primary quality path.
+- **Wayland:** experimental and not live-validated for RC1. Interactive
+  resizing uses a release-to-apply fallback: the menu stays fixed while the
+  primary button is held, then applies the final constrained size once on
+  release. Cancelling or hiding during the gesture restores the starting
+  geometry and preserves the last completed normal size. This behavior covers
+  both the normal GTK toplevel and optional `gtk-layer-shell`; compositor and
+  layer-shell combinations not listed in the [support matrix](support) remain
+  unvalidated. X11 is the primary live-resize quality path.
 - **Architecture:** published packages and live checks cover
   `x86_64`/`amd64`. Other architectures are unverified source-build candidates.
 - **Xfce versions:** the build floor is 4.16, while current live validation is

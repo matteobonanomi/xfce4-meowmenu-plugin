@@ -19,60 +19,186 @@
 #include "plugin.h"
 #include "settings.h"
 
+#ifdef HAVE_GTK_LAYER_SHELL
+#include <gtk-layer-shell.h>
+#endif
+
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::resize(int delta_x, int delta_y, int delta_width, int delta_height)
+/* Window::interactive_resize_begin:
+ * @direction: selected edge or corner.
+ * @policy: live X11 or release-to-apply fallback behavior.
+ * @pointer: event-time press coordinate in the policy's stable space.
+ *
+ * Captures the exact current rectangle, stable layout anchor, size limits,
+ * saved normal size, and display geometry.
+ *
+ * Returns: true when a new transaction starts.
+ */
+bool WhiskerMenu::Window::interactive_resize_begin(
+		InteractiveResize::Direction direction,
+		InteractiveResize::BackendPolicy policy,
+		const InteractiveResize::PointerSample& pointer)
 {
-	if (set_size(m_geometry.width + delta_width, m_geometry.height + delta_height))
+	using namespace InteractiveResize;
+
+	if (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+		return false;
+
+	GdkDisplay* gdk_display = gtk_widget_get_display(GTK_WIDGET(m_window));
+	GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(m_window));
+	GdkMonitor* gdk_monitor = gdk_window
+			? gdk_display_get_monitor_at_window(gdk_display, gdk_window)
+			: nullptr;
+	if (!gdk_monitor)
 	{
-		check_scrollbar_needed();
+		gdk_monitor = gdk_display_get_monitor_at_point(
+				gdk_display,
+				m_geometry.x + (m_geometry.width / 2),
+				m_geometry.y + (m_geometry.height / 2));
+	}
+	if (!gdk_monitor)
+		return false;
+
+	const DisplaySignature display = resize_display_signature(gdk_monitor);
+	const Rectangle rectangle = {
+		m_geometry.x,
+		m_geometry.y,
+		m_geometry.width,
+		m_geometry.height
+	};
+	const Rectangle monitor = {
+		display.geometry.x,
+		display.geometry.y,
+		display.geometry.width,
+		display.geometry.height
+	};
+	const DirectionAxes axes = direction_axes(direction);
+
+	int maximum_width = monitor.width;
+	int maximum_height = monitor.height;
+	if (!centered_layout())
+	{
+		if (axes.horizontal < 0)
+			maximum_width = rectangle.x + rectangle.width - monitor.x;
+		else if (axes.horizontal > 0)
+			maximum_width = monitor.x + monitor.width - rectangle.x;
+
+		if (axes.vertical < 0)
+			maximum_height = rectangle.y + rectangle.height - monitor.y;
+		else if (axes.vertical > 0)
+			maximum_height = monitor.y + monitor.height - rectangle.y;
+	}
+	int minimum_width = 10;
+	int minimum_height = 10;
+	int content_minimum = 0;
+	gtk_widget_get_preferred_width(
+			GTK_WIDGET(m_frame), &content_minimum, nullptr);
+	minimum_width = CLAMP(content_minimum, 10, maximum_width);
+	gtk_widget_get_preferred_height(
+			GTK_WIDGET(m_frame), &content_minimum, nullptr);
+	minimum_height = CLAMP(content_minimum, 10, maximum_height);
+	const Bounds bounds = {
+		{minimum_width, maximum_width},
+		{minimum_height, maximum_height}
+	};
+	const Anchor anchor = centered_layout()
+			? monitor_center_anchor(monitor)
+			: opposite_edge_anchor(rectangle);
+	const SavedNormalSize saved = {
+		m_settings->menu_width,
+		m_settings->menu_height
+	};
+	if (!m_resize_transaction.begin(
+			direction,
+			policy,
+			rectangle,
+			pointer,
+			bounds,
+			anchor,
+			saved,
+			display,
+			g_strcmp0(m_settings->layout_mode, "fullscreen") != 0))
+	{
+		return false;
 	}
 
-	if (centered_layout())
-	{
-		// Centered re-centres continuously: the position is recomputed from the
-		// new size on each motion event instead of being translated by the
-		// drag delta, so the geometric centre stays fixed (no drift, the documented behavior).
-		// The delta_x/delta_y edge translation is intentionally ignored.
-		// NOTE: if a given compositor shows jitter here, recentring only in
-		// resize_end() (on drag release) is an acceptable fallback — the final
-		// resting position is still centred.
-		center_window();
-		move_window();
-	}
-	else if (delta_x || delta_y)
-	{
-		m_geometry.x += delta_x;
-		m_geometry.y += delta_y;
-		move_window();
-	}
-}
-
-//-----------------------------------------------------------------------------
-
-void WhiskerMenu::Window::resize_start()
-{
+	start_resize_display_watch(gdk_monitor);
 	m_resizing = true;
 	set_child_has_focus();
+	return true;
 }
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::resize_end()
+/* Window::apply_resize_rectangle:
+ * @rectangle: absolute geometry accepted by the resize transaction.
+ *
+ * Applies transaction geometry directly. Panel gaps and monitor clamps are
+ * deliberately absent here because both were already frozen into the
+ * transaction's starting anchor and bounds.
+ */
+void WhiskerMenu::Window::apply_resize_rectangle(
+		const InteractiveResize::Rectangle& rectangle)
 {
-	// Store new size (never persist fullscreen dimensions as the normal menu
-	// size). Centered is windowed, so it reuses the exact Docked persistence
-	// path — the resized width/height are saved to /menu-width and /menu-height.
-	if (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
+	const bool size_changed = set_size(rectangle.width, rectangle.height);
+	m_geometry.x = rectangle.x;
+	m_geometry.y = rectangle.y;
+
+#ifdef HAVE_GTK_LAYER_SHELL
+	if (gtk_layer_is_supported())
 	{
-		m_settings->menu_width = m_geometry.width;
-		m_settings->menu_height = m_geometry.height;
+		gtk_layer_set_margin(m_window, GTK_LAYER_SHELL_EDGE_LEFT,
+				m_geometry.x - m_monitor.x);
+		gtk_layer_set_margin(m_window, GTK_LAYER_SHELL_EDGE_TOP,
+				m_geometry.y - m_monitor.y);
+	}
+	else
+#endif
+	{
+		gtk_window_move(m_window, m_geometry.x, m_geometry.y);
 	}
 
-	// Move window back to panel button or center of screen. Centered always
-	// settles at the monitor centre regardless of the launch trigger.
+	if (size_changed)
+		check_scrollbar_needed();
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::interactive_resize_step:
+ * @pointer: next event-time pointer coordinate.
+ *
+ * Advances the transaction. X11 applies accepted geometry immediately;
+ * release-to-apply policies deliberately leave the GTK window untouched.
+ *
+ * Returns: true when the active transaction accepted the sample.
+ */
+bool WhiskerMenu::Window::interactive_resize_step(
+		const InteractiveResize::PointerSample& pointer)
+{
+	InteractiveResize::Rectangle accepted = {};
+	if (!m_resize_transaction.motion(pointer, &accepted))
+		return false;
+	if (m_resize_transaction.policy()
+			== InteractiveResize::BackendPolicy::X11Live)
+	{
+		apply_resize_rectangle(accepted);
+	}
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::settle_resize_position:
+ *
+ * Resolves the completed rectangle through the established centered or
+ * panel-relative placement path. This applies a configured panel gap once,
+ * from a freshly resolved panel position.
+ */
+void WhiskerMenu::Window::settle_resize_position()
+{
 	if (centered_layout())
 	{
 		center_window();
@@ -86,10 +212,77 @@ void WhiskerMenu::Window::resize_end()
 		center_window();
 	}
 	move_window();
+}
 
-	// Allow menu to hide
+//-----------------------------------------------------------------------------
+
+/* Window::interactive_resize_complete:
+ * @pointer: final primary-button release coordinate.
+ *
+ * Consumes the release, disconnects display watches, applies and settles the
+ * final rectangle, then persists the normal size exactly once.
+ *
+ * Returns: true for a completed transaction, including repeated calls.
+ */
+bool WhiskerMenu::Window::interactive_resize_complete(
+		const InteractiveResize::PointerSample& pointer)
+{
+	if (m_resize_transaction.lifecycle()
+			== InteractiveResize::Lifecycle::Completed)
+	{
+		return true;
+	}
+	if (!m_resize_transaction.active())
+		return false;
+
+	InteractiveResize::Rectangle accepted = {};
+	InteractiveResize::SavedNormalSize saved = {};
+	if (!m_resize_transaction.complete(pointer, &accepted, &saved))
+		return false;
+
+	stop_resize_display_watch();
+	apply_resize_rectangle(accepted);
+	m_settings->menu_width = saved.width;
+	m_settings->menu_height = saved.height;
+	settle_resize_position();
 	m_resizing = false;
 	m_child_has_focus = false;
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::interactive_resize_cancel:
+ *
+ * Clears every handle, disconnects display watches, and restores the exact
+ * pre-drag rectangle without assigning normal-size settings.
+ *
+ * Returns: true for a cancelled transaction, including repeated calls.
+ */
+bool WhiskerMenu::Window::interactive_resize_cancel()
+{
+	clear_resize_handles();
+	if (m_resize_transaction.lifecycle()
+			== InteractiveResize::Lifecycle::Cancelled)
+	{
+		return true;
+	}
+	if (!m_resize_transaction.active())
+		return false;
+
+	InteractiveResize::Rectangle restored = {};
+	InteractiveResize::SavedNormalSize saved = {};
+	if (!m_resize_transaction.cancel(&restored, &saved))
+		return false;
+
+	stop_resize_display_watch();
+	apply_resize_rectangle(restored);
+	// Motion never changes Xfconf. The snapshot is returned for contract
+	// verification, but rollback deliberately performs no settings assignment.
+	(void)saved;
+	m_resizing = false;
+	m_child_has_focus = false;
+	return true;
 }
 
 //-----------------------------------------------------------------------------

@@ -269,7 +269,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
-	m_resizing(false)
+	m_resizing(false),
+	m_resize_monitor(nullptr),
+	m_resize_monitor_notify_slot(0),
+	m_resize_monitor_removed_slot(0)
 {
 	// Create the window
 	m_window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
@@ -327,6 +330,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	connect(m_window, "focus-out-event",
 		[this](GtkWidget* widget, GdkEvent*) -> gboolean
 		{
+			if (m_resizing)
+				interactive_resize_cancel();
+
 			if (m_settings->stay_on_focus_out || m_child_has_focus || !gtk_widget_get_visible(widget))
 			{
 				return GDK_EVENT_PROPAGATE;
@@ -362,6 +368,14 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		[this](GtkWidget*, GdkEvent*) -> gboolean
 		{
 			return on_map_event();
+		});
+
+	connect(m_window, "unmap-event",
+		[this](GtkWidget*, GdkEvent*) -> gboolean
+		{
+			if (m_resizing)
+				interactive_resize_cancel();
+			return GDK_EVENT_PROPAGATE;
 		});
 
 	connect(m_window, "state-flags-changed",
@@ -1229,6 +1243,9 @@ void WhiskerMenu::Window::on_places_favourites_drag_data_received(
 
 WhiskerMenu::Window::~Window()
 {
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	for (int i = 0; i < 9; ++i)
 	{
 		g_signal_handler_disconnect(m_commands_button[i], m_command_slots[i]);
@@ -1285,8 +1302,115 @@ WhiskerMenu::Window::~Window()
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::clear_resize_handles()
+{
+	for (Resizer* resizer : m_resize)
+		resizer->cancel();
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::resize_display_signature:
+ * @monitor: active monitor retained for the transaction; never NULL.
+ *
+ * Captures every display property that defines the transaction's coordinate
+ * system and bounds. Any later difference invalidates the gesture.
+ *
+ * Returns: the current immutable comparison value for @monitor.
+ */
+InteractiveResize::DisplaySignature
+WhiskerMenu::Window::resize_display_signature(GdkMonitor* monitor) const
+{
+	GdkRectangle geometry = {};
+	GdkRectangle workarea = {};
+	gdk_monitor_get_geometry(monitor, &geometry);
+	gdk_monitor_get_workarea(monitor, &workarea);
+	return {
+		reinterpret_cast<std::uintptr_t>(monitor),
+		{geometry.x, geometry.y, geometry.width, geometry.height},
+		{workarea.x, workarea.y, workarea.width, workarea.height},
+		gdk_monitor_get_scale_factor(monitor),
+		reinterpret_cast<std::uintptr_t>(
+				gtk_widget_get_screen(GTK_WIDGET(m_window)))
+	};
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::start_resize_display_watch:
+ * @monitor: monitor captured by the new active transaction; never NULL.
+ *
+ * Retains the monitor and observes its properties plus display removal for
+ * exactly the transaction lifetime.
+ */
+void WhiskerMenu::Window::start_resize_display_watch(GdkMonitor* monitor)
+{
+	stop_resize_display_watch();
+	m_resize_monitor = GDK_MONITOR(g_object_ref(monitor));
+	m_resize_monitor_notify_slot = connect(
+			m_resize_monitor,
+			"notify",
+			[this](GObject*, GParamSpec*)
+			{
+				validate_resize_display();
+			});
+
+	GdkDisplay* display = gdk_monitor_get_display(m_resize_monitor);
+	m_resize_monitor_removed_slot = connect(
+			display,
+			"monitor-removed",
+			[this](GdkDisplay*, GdkMonitor* removed)
+			{
+				if (removed == m_resize_monitor)
+					interactive_resize_cancel();
+			});
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::stop_resize_display_watch:
+ *
+ * Disconnects both active display subscriptions before releasing the retained
+ * monitor. Repeated calls are safe.
+ */
+void WhiskerMenu::Window::stop_resize_display_watch()
+{
+	if (!m_resize_monitor)
+		return;
+
+	GdkDisplay* display = gdk_monitor_get_display(m_resize_monitor);
+	disconnect_signal(display, m_resize_monitor_removed_slot);
+	disconnect_signal(m_resize_monitor, m_resize_monitor_notify_slot);
+	g_object_unref(m_resize_monitor);
+	m_resize_monitor = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::validate_resize_display:
+ *
+ * Compares the retained monitor with the frozen transaction signature and
+ * cancels before more geometry can be accepted when any property changed.
+ */
+void WhiskerMenu::Window::validate_resize_display()
+{
+	if (!m_resizing || !m_resize_monitor)
+		return;
+
+	if (!m_resize_transaction.display_matches(
+			resize_display_signature(m_resize_monitor)))
+	{
+		interactive_resize_cancel();
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::hide(bool lost_focus)
 {
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	// Persist Places last-mode so the next open can resume in the same mode.
 	if (m_settings->places_enabled && m_settings->places_remember_last_mode)
 	{
@@ -1771,6 +1895,11 @@ void WhiskerMenu::Window::detach_categories()
  */
 void WhiskerMenu::Window::refresh_layout()
 {
+	// Layout and presentation define the transaction's anchors and bounds.
+	// Changing either invalidates the active gesture rather than mixing states.
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	update_background_css();
 	m_search_results->refresh_calculator_presentation();
 
@@ -2297,12 +2426,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 			break;
 
 		case Keyboard::EscAction::CancelResize:
-			for (Resizer* resizer : m_resize)
-			{
-				resizer->cancel();
-			}
-			set_size(m_settings->menu_width, m_settings->menu_height);
-			resize_end();
+			interactive_resize_cancel();
 			break;
 
 		case Keyboard::EscAction::ClearQuery:
@@ -2857,6 +2981,9 @@ void WhiskerMenu::Window::update_background_css()
 
 void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 {
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
 	// Always request an RGBA visual when the compositor provides one so that
@@ -3089,29 +3216,42 @@ void WhiskerMenu::Window::center_window()
 
 //-----------------------------------------------------------------------------
 
+/* Window::move_window:
+ *
+ * Applies panel-relative gap and monitor clamping from the caller's current
+ * unadjusted geometry, then moves either the normal toplevel or layer surface.
+ * Resize completion resolves a fresh panel base before entering this path.
+ */
 void WhiskerMenu::Window::move_window()
 {
-	// the implementation step: apply panel-gap offset away from the panel.
-	// Centered placement never sits flush against a panel edge, so the gap is
-	// meaningless there and is suppressed without mutating the stored value
-	// (the Properties dialog also greys the gap control in Centered).
-	const int gap = m_settings->panel_gap;
-	if (gap > 0 && m_position == PositionAtButton && !centered_layout())
+	InteractiveResize::PanelEdge panel_edge =
+			InteractiveResize::PanelEdge::None;
+	if (m_position == PositionAtButton && !centered_layout())
 	{
 		const XfceScreenPosition screen_pos = m_plugin->get_screen_position();
 		if (xfce_screen_position_is_top(screen_pos))
-			m_geometry.y += gap;
+			panel_edge = InteractiveResize::PanelEdge::Top;
 		else if (xfce_screen_position_is_bottom(screen_pos))
-			m_geometry.y -= gap;
+			panel_edge = InteractiveResize::PanelEdge::Bottom;
 		else if (xfce_screen_position_is_left(screen_pos))
-			m_geometry.x += gap;
+			panel_edge = InteractiveResize::PanelEdge::Left;
 		else
-			m_geometry.x -= gap;
+			panel_edge = InteractiveResize::PanelEdge::Right;
 	}
 
-	// Prevent window from leaving screen
-	m_geometry.x = CLAMP(m_geometry.x, m_monitor.x, m_monitor.x + m_monitor.width - m_geometry.width);
-	m_geometry.y = CLAMP(m_geometry.y, m_monitor.y, m_monitor.y + m_monitor.height - m_geometry.height);
+	// Derive the gap and monitor clamp from one unadjusted placement. During a
+	// resize this base is freshly resolved from the panel before settling, so
+	// repeated motion never compounds the configured gap.
+	const InteractiveResize::Rectangle placed =
+			InteractiveResize::place_docked(
+					{m_geometry.x, m_geometry.y,
+						m_geometry.width, m_geometry.height},
+					{m_monitor.x, m_monitor.y,
+						m_monitor.width, m_monitor.height},
+					panel_edge,
+					m_settings->panel_gap);
+	m_geometry.x = placed.x;
+	m_geometry.y = placed.y;
 
 	// Move window
 #ifdef HAVE_GTK_LAYER_SHELL
