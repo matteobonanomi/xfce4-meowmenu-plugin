@@ -1,15 +1,17 @@
-0.9.0-rc1 (2026-07-27)
+1.0.0-rc1 (2026-07-29)
 =====
 - Release: prepare the first candidate on the path to MeowMenu 1.0.0
 - Release: add a draft-first publication process with canonical source archives and verified checksums
 - Packaging: validate Debian, Ubuntu, Fedora, and Arch package builds, installation, and version ordering
+- Packaging: declare required Exo build and runtime helpers across Debian, Fedora, and Arch packages
 - Documentation: add the support matrix, known limitations, testing procedures, and translation status
 - Community: add security reporting, contribution guidance, and structured issue templates
+- Tests: validate dependency declarations, package builds, and legacy/successor Xfce compatibility paths
 - Tests: add release identity, artifact contract, documentation, translation, and repository-presentation checks
-- Maintenance: retire obsolete Whisker overlap checks and duplicate release automation
-- Presets: minor UI improvements
-- Calculator: increase auto font size
+- Tests: retire obsolete Whisker overlap checks and duplicate release automation
+- UI: minor Presets and Calculator improvements
 - Bugfix: make edge and corner resizing reliable across presets and display environments
+- Bugfix: use the correct Xfce helper APIs across the libxfce4ui 4.21 transition while preserving existing search actions
 
 0.8.0 (2026-07-17)
 =====

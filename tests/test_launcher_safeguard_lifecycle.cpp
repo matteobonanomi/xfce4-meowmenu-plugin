@@ -39,6 +39,7 @@
  */
 
 #include "ui/launcher-view.h"
+#include "config/xfce-helpers.h"
 #include "launcher/command-timeout.h"
 #include "launcher/launcher-safety.h"
 
@@ -159,6 +160,11 @@ int main()
 	CHECK(g_strcmp0(argv[1], "file:///tmp/app '$(touch nope)'.desktop") == 0);
 	CHECK(argv[2] == nullptr);
 	g_strfreev(argv);
+
+	CHECK(g_strcmp0(xfce_desktop_item_editor(XfceDependencyRegime::Legacy),
+			"exo-desktop-item-edit") == 0);
+	CHECK(g_strcmp0(xfce_desktop_item_editor(XfceDependencyRegime::Successor),
+			"xfce-desktop-item-edit") == 0);
 
 	gchar* relpath = launcher_hide_relpath_for_uri(
 			"file:///usr/share/applications/app%20name.desktop",

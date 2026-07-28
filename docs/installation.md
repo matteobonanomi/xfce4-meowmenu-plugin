@@ -8,7 +8,7 @@ has_children: false
 
 Candidate packages are attached to the matching
 [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases).
-Replace `<version>` with the public release version, such as `0.9.0-rc1`.
+Replace `<version>` with the public release version, such as `1.0.0-rc1`.
 
 ## Ubuntu 26.04
 
@@ -100,9 +100,11 @@ meson compile -C build
 sudo meson install -C build
 ```
 
-Install the required build dependencies for your distribution first:
+Install the required core build dependencies for the exact distribution
+release first. Optional integrations are listed separately so omitting one
+never blocks the core launcher.
 
-### Ubuntu 26.04 / Debian 13
+### Ubuntu 26.04
 
 ```bash
 sudo apt update
@@ -113,12 +115,34 @@ sudo apt install \
     libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
     libexo-2-dev \
     libxfconf-0-dev \
-    libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
 ```
 
-On Ubuntu 24.04 / Linux Mint 22 / LMDE 6, replace `libgarcon-1-dev` /
-`libgarcon-gtk3-1-dev` with `libgarcon-1-0-dev` / `libgarcon-gtk3-1-0-dev`.
+Optional integrations on Ubuntu 26.04:
+
+```bash
+sudo apt install libaccountsservice-dev libgtk-layer-shell-dev
+```
+
+### Debian 13
+
+```bash
+sudo apt update
+sudo apt install \
+    build-essential meson ninja-build pkg-config \
+    libgtk-3-dev libglib2.0-dev \
+    libgarcon-1-dev libgarcon-gtk3-1-dev \
+    libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libexo-2-dev \
+    libxfconf-0-dev \
+    gettext
+```
+
+Optional integrations on Debian 13:
+
+```bash
+sudo apt install libaccountsservice-dev libgtk-layer-shell-dev
+```
 
 ### Fedora 44+
 
@@ -130,8 +154,13 @@ sudo dnf install \
     xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
     exo-devel \
     xfconf-devel \
-    accountsservice-devel gtk-layer-shell-devel \
     gettext
+```
+
+Optional integrations on Fedora 44:
+
+```bash
+sudo dnf install accountsservice-devel gtk-layer-shell-devel
 ```
 
 ### Arch / Manjaro / EndeavourOS
@@ -144,6 +173,28 @@ sudo pacman -S --needed \
     xfce4-panel libxfce4ui libxfce4util \
     exo \
     xfconf \
-    accountsservice gtk-layer-shell \
     gettext
 ```
+
+Optional integrations on Arch:
+
+```bash
+sudo pacman -S --needed accountsservice gtk-layer-shell
+```
+
+## Xfce dependency boundary
+
+Xfce 4.16, 4.18, and 4.20 builds require Exo development files and helper
+programs. The commands above therefore retain `libexo-2-dev`, `exo-devel`, or
+`exo` for their current repositories. Starting with libxfce4ui 4.21, the
+required chooser, opener, and launcher editor are supplied by libxfce4ui; the
+replacement compatibility build is tested with Exo absent.
+
+Do not remove Exo from a distribution recipe merely because the replacement
+source stack passes. A concrete target may remove it only after that target's
+repository crosses the boundary and its package build, linkage inspection,
+installed actions, and upgraded stored actions all pass without Exo.
+
+`gtk-layer-shell` is optional. If a named release does not provide a suitable
+version, leave it out: MeowMenu still builds and uses its normal
+session-compatible positioning fallback.

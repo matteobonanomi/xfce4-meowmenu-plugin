@@ -34,6 +34,10 @@ run_makepkg env LC_ALL=C makepkg \
 run_makepkg env LC_ALL=C meson test -C "${build_dir}/src/build" \
   --print-errorlogs >&2
 
+"$(dirname "$0")/../compat/assert-dependency-regime.sh" \
+  --regime legacy \
+  --testlog "${build_dir}/src/build/meson-logs/testlog.txt" >&2
+
 shopt -s nullglob
 pkgs=("${build_dir}"/*.pkg.tar.*)
 shopt -u nullglob

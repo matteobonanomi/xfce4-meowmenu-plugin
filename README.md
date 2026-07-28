@@ -31,13 +31,16 @@ After installation, restart the panel with `xfce4-panel -r`, then add
 
 ## Release-candidate support
 
-MeowMenu 0.9.0-rc1 is a prerelease on the path to 1.0.0. The release gate
-builds and installs packages for Ubuntu 26.04, Debian 13, and Fedora 44 and
-validates the Arch recipe. Live desktop evidence is tracked separately.
+MeowMenu 1.0.0-rc1 publishes package candidates for Ubuntu 26.04, Debian 13,
+and Fedora 44. Arch is a separately maintained source recipe rather than a
+prebuilt project package.
 
-The build supports Xfce 4.16 or newer; current live validation targets Xfce
-4.20 on X11 and `x86_64`/`amd64`. Wayland is experimental and unverified, with
-graceful fallback when optional positioning support is unavailable.
+Continuous source builds cover the Xfce 4.16, 4.18, and 4.20 library
+generations. Xfce 4.20 on X11 and `x86_64`/`amd64` remains the primary live
+quality target. The libxfce4ui 4.21-or-newer replacement path is staged and
+tested without Exo, but is not presented as a separately live-validated
+desktop release. Wayland remains unverified live and gracefully disables
+optional positioning support when it is unavailable.
 
 - [Release-specific support and evidence](docs/support.md)
 - [Known limitations](docs/known-limitations.md)

@@ -14,6 +14,7 @@ Build-Depends:
  libxfce4panel-2.0-dev,
  libxfce4ui-2-dev,
  libxfce4util-dev,
+ libexo-2-dev,
  libxfconf-0-dev,
  libaccountsservice-dev,
  libgtk-layer-shell-dev,
@@ -29,6 +30,7 @@ Architecture: any
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
+ exo-utils,
  xfce4-panel
 Recommends:
  accountsservice,

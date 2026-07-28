@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import importlib.util
+import re
 import unittest
 from pathlib import Path
 
@@ -40,6 +41,15 @@ class RepositoryPresentationTest(unittest.TestCase):
         self.assertIn("`v1.0.0`", releasing)
         self.assertIn("`v0.9.0-rc1`", releasing)
         self.assertNotIn("git tag -a v0.9.0-rc1", releasing)
+
+    def test_public_dependency_text_has_no_internal_workflow_ids(self):
+        documents = [ROOT / "README.md", *(ROOT / "docs").glob("*.md")]
+        forbidden = re.compile(r"\.specify/|\b(?:FR|SC|T)\-\d{3}\b|Spec-Kit")
+        for document in documents:
+            self.assertIsNone(
+                forbidden.search(document.read_text(encoding="utf-8")),
+                document,
+            )
 
 
 if __name__ == "__main__":

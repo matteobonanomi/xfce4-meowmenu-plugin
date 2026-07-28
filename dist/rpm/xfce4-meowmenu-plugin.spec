@@ -41,6 +41,7 @@ BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(gtk-layer-shell-0)
 
 Requires:       xfce4-panel
+Requires:       /usr/bin/exo-open
 Recommends:     accountsservice
 Recommends:     bc
 Recommends:     gtk-layer-shell

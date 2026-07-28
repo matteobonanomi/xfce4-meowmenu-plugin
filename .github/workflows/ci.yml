@@ -230,6 +230,87 @@ jobs:
       - name: Meson test
         run: xvfb-run -a meson test -C build --print-errorlogs
 
+  xfce-source-stack:
+    name: source-stack (${{ matrix.cell }})
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ['4.16', '4.18', '4.20', successor]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install source-stack bootstrap dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential meson ninja-build pkg-config python3 \
+            curl bzip2 xz-utils gettext intltool gtk-doc-tools \
+            libglib2.0-dev libgtk-3-dev libdbus-1-dev libudev-dev \
+            libwnck-3-dev libstartup-notification0-dev \
+            libx11-xcb-dev xvfb xauth ca-certificates
+
+      - name: Prepare pinned Xfce source stack
+        env:
+          CELL: ${{ matrix.cell }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          prefix="$RUNNER_TEMP/xfce-${CELL}"
+          build-aux/compat/build-xfce-stack.sh "$CELL" "$prefix" | \
+            tee evidence/stack-environment.sh
+          cat evidence/stack-environment.sh >> "$GITHUB_ENV"
+
+      - name: Configure, compile, and test MeowMenu
+        env:
+          CELL: ${{ matrix.cell }}
+        run: |
+          set -euo pipefail
+          meson setup compatibility-build \
+            -Daccountsservice=disabled \
+            -Dgtk-layer-shell=disabled 2>&1 | tee evidence/setup.log
+          meson compile -C compatibility-build 2>&1 | tee evidence/compile.log
+          xvfb-run -a meson test -C compatibility-build \
+            --print-errorlogs 2>&1 | tee evidence/test-output.log
+          plugin="compatibility-build/panel-plugin/libmeowmenu.so"
+          if test "$CELL" = successor; then
+            regime=successor
+            staged_root="$RUNNER_TEMP/staged-successor"
+            DESTDIR="$staged_root" meson install -C compatibility-build
+            installed_plugin="$(find "$staged_root" \
+              -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
+            build-aux/compat/assert-dependency-regime.sh \
+              --regime "$regime" --plugin "$installed_plugin" \
+              --testlog compatibility-build/meson-logs/testlog.txt | \
+              tee evidence/regime.txt
+            build-aux/compat/installed-action-smoke.sh \
+              --regime "$regime" --staged-root "$staged_root" \
+              --plugin "$installed_plugin" | tee evidence/installed-smoke.log
+          else
+            regime=legacy
+            build-aux/compat/assert-dependency-regime.sh \
+              --regime "$regime" --plugin "$plugin" \
+              --testlog compatibility-build/meson-logs/testlog.txt | \
+              tee evidence/regime.txt
+          fi
+
+      - name: Upload source-stack evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-stack-${{ matrix.cell }}
+          path: |
+            evidence/
+            compatibility-build/meson-logs/
+          if-no-files-found: error
+          retention-days: 30
+
   # Keep package dependency names represented in the maintained installation
   # guide. This check is advisory because package aliases differ by distro.
   docs-dependency-drift:

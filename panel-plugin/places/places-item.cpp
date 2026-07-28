@@ -9,6 +9,8 @@
 
 #include "places-item.h"
 
+#include "config/xfce-helpers.h"
+
 #include <cstring>
 
 #include <gio/gio.h>
@@ -137,10 +139,10 @@ PlacesItem::~PlacesItem()
  *          be nullptr (the dialog is then unparented).
  *
  * Opens the file or folder with the system-default handler via GIO. Folders
- * fall back to "exo-open --launch FileManager <path>" on launch failure, with
- * the path shell-quoted (the documented behavior) so names containing spaces or shell-significant
- * characters open the exact target. On failure exactly one error dialog names
- * the item and states the underlying reason (the documented behavior).
+ * fall back to the active Xfce FileManager helper on launch failure. The
+ * shared builder quotes shell-significant paths so the helper receives the
+ * exact target. On failure exactly one error dialog names the item and states
+ * the underlying reason.
  *
  * NOTE: the caller dispatches this before closing the menu so the item is not
  * freed mid-open; see PlacesPage::on_row_activated().
@@ -170,17 +172,12 @@ void PlacesItem::open(GdkScreen* screen, GtkWidget* parent)
 		gchar* path = g_file_get_path(m_file);
 		if (path)
 		{
-			// the documented behavior: quote the path so the helper receives the exact folder
-			// even with spaces, quotes, '$', backticks, or parentheses. The
-			// command is parsed by g_shell_parse_argv inside Element::spawn().
-			gchar* quoted = g_shell_quote(path);
-			gchar* command = g_strdup_printf("exo-open --launch FileManager %s", quoted);
-			// the documented behavior: Element::spawn() owns the single failure dialog for this
+			std::string command = build_file_manager_command(
+					current_xfce_dependency_regime(), path);
+			// Element::spawn() owns the single failure dialog for this
 			// fallback, so the default-handler error above is dropped here to
 			// avoid stacking a second dialog.
-			spawn(screen, command, nullptr, true, nullptr);
-			g_free(command);
-			g_free(quoted);
+			spawn(screen, command.c_str(), nullptr, true, nullptr);
 			g_free(path);
 			if (error) g_error_free(error);
 			return;
@@ -271,13 +268,9 @@ void PlacesItem::open_in_terminal(GdkScreen* screen, GtkWidget* /*parent*/)
 	}
 	// NOTE: defer to Xfce's TerminalEmulator launch alias; this honors the
 	// user's configured terminal without parsing xfce4-session.xml ourselves.
-	// the documented behavior: quote the working directory so the terminal opens in the exact
-	// folder even when its name contains shell-significant characters.
-	gchar* quoted = g_shell_quote(path);
-	gchar* command = g_strdup_printf("exo-open --launch TerminalEmulator --working-directory %s", quoted);
-	spawn(screen, command, path, true, nullptr);
-	g_free(command);
-	g_free(quoted);
+	std::string command = build_terminal_command(
+			current_xfce_dependency_regime(), path);
+	spawn(screen, command.c_str(), path, true, nullptr);
 	g_free(path);
 }
 

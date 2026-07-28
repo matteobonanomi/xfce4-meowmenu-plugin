@@ -17,6 +17,7 @@
 
 #include "page.h"
 
+#include "config/xfce-helpers.h"
 #include "core/desktop-drag.h"
 #include "launcher/category-button.h"
 #include "favorites-page.h"
@@ -824,11 +825,8 @@ void Page::edit_selected()
 	{
 		return;
 	}
-#if LIBXFCE4UI_CHECK_VERSION(4, 21, 0)
-	const gchar* editor = "xfce-desktop-item-edit";
-#else
-	const gchar* editor = "exo-desktop-item-edit";
-#endif
+	const gchar* editor = xfce_desktop_item_editor(
+			current_xfce_dependency_regime());
 	gchar** argv = launcher_editor_argv(editor, uri);
 	g_free(uri);
 	if (!argv)

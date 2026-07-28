@@ -57,6 +57,45 @@ class DocumentationLinksTest(unittest.TestCase):
             }.issubset(set(navigation.values()))
         )
 
+    def test_current_candidate_and_evidence_terms_are_consistent(self):
+        news = (ROOT / "NEWS").read_text(encoding="utf-8")
+        version = re.match(
+            r"^(\S+) \(\d{4}-\d{2}-\d{2}\)$", news.splitlines()[0]
+        ).group(1)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
+        self.assertIn(version, readme)
+        self.assertIn(version, support)
+        for label in (
+            "Source-build compatible",
+            "Staged-install compatible",
+            "Published package target",
+            "Maintainer-published source recipe",
+            "Live validated",
+        ):
+            self.assertIn(label, support)
+        self.assertRegex(support, r"not a prebuilt\s+project package")
+
+    def test_release_specific_dependency_classes_are_documented(self):
+        installation = (
+            ROOT / "docs/installation.md"
+        ).read_text(encoding="utf-8")
+        required = {
+            "Ubuntu 26.04": "libexo-2-dev",
+            "Debian 13": "libexo-2-dev",
+            "Fedora 44": "exo-devel",
+            "Arch / Manjaro / EndeavourOS": "exo",
+        }
+        for heading, dependency in required.items():
+            section = installation.split(f"### {heading}", maxsplit=1)[1]
+            section = section.split("\n### ", maxsplit=1)[0]
+            self.assertIn(dependency, section)
+        self.assertIn("Optional integrations on Ubuntu 26.04", installation)
+        self.assertIn("Optional integrations on Debian 13", installation)
+        self.assertIn("Optional integrations on Fedora 44", installation)
+        self.assertIn("Optional integrations on Arch", installation)
+        self.assertIn("libxfce4ui 4.21", installation)
+
 
 if __name__ == "__main__":
     unittest.main()

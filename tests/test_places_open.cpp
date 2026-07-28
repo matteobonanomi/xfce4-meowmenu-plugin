@@ -23,8 +23,12 @@
 #include <gio/gio.h>
 
 #include "places/places-item.h"
+#include "config/xfce-helpers.h"
 
 using WhiskerMenu::PlacesItem;
+using WhiskerMenu::XfceDependencyRegime;
+using WhiskerMenu::build_file_manager_command;
+using WhiskerMenu::build_terminal_command;
 
 // Reject the C0 control range (and DEL) — an open-failure message must be
 // legible, so any control byte counts as garbage for this check. Tab/newline
@@ -95,24 +99,24 @@ static void test_error_message_strips_control_bytes()
 
 static void assert_quote_round_trip(const char* path)
 {
-	gchar* quoted = g_shell_quote(path);
-	// Mirror Element::spawn(): the helper command is "exo-open … <quoted>".
-	gchar* command = g_strdup_printf("exo-open --launch FileManager %s", quoted);
-
-	gchar** argv = nullptr;
-	GError* error = nullptr;
-	const gboolean ok = g_shell_parse_argv(command, nullptr, &argv, &error);
-	assert(ok && argv);
-
-	// argv = { "exo-open", "--launch", "FileManager", <path> } — the last token
-	// must equal the original path byte-for-byte.
-	guint n = g_strv_length(argv);
-	assert(n == 4);
-	assert(g_strcmp0(argv[n - 1], path) == 0);
-
-	g_strfreev(argv);
-	g_free(command);
-	g_free(quoted);
+	for (XfceDependencyRegime regime :
+			{XfceDependencyRegime::Legacy, XfceDependencyRegime::Successor})
+	{
+		for (const std::string& command : {
+				build_file_manager_command(regime, path),
+				build_terminal_command(regime, path)})
+		{
+			gchar** argv = nullptr;
+			GError* error = nullptr;
+			const gboolean ok = g_shell_parse_argv(
+					command.c_str(), nullptr, &argv, &error);
+			assert(ok && argv);
+			guint n = g_strv_length(argv);
+			assert(n >= 4);
+			assert(g_strcmp0(argv[n - 1], path) == 0);
+			g_strfreev(argv);
+		}
+	}
 }
 
 static void test_shell_quote_round_trip()

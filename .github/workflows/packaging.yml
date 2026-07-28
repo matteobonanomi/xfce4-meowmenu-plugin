@@ -121,17 +121,13 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
-      - name: Install build, validation, and advisory lint tools
+      - name: Install Debian package bootstrap tools
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential meson ninja-build pkg-config python3 ca-certificates \
-            libgtk-3-dev libglib2.0-dev libgarcon-1-dev libgarcon-gtk3-1-dev \
-            libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
-            libexo-2-dev libxfconf-0-dev libaccountsservice-dev \
-            libgtk-layer-shell-dev gettext debhelper devscripts dpkg-dev \
-            lintian appstream
+            build-essential ca-certificates debhelper devscripts dpkg-dev \
+            equivs python3
 
       - name: Download canonical source
         uses: actions/download-artifact@v8
@@ -147,6 +143,10 @@ jobs:
           set -euo pipefail
           tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
           cd "xfce4-meowmenu-plugin-${VERSION}"
+          if dpkg-query -W libexo-2-dev >/dev/null 2>&1; then
+            echo "::error::libexo-2-dev was installed before manifest resolution"
+            exit 1
+          fi
           date_rfc="$(date -u +'%a, %d %b %Y %H:%M:%S +0000')"
           {
             echo "xfce4-meowmenu-plugin (${DEBIAN_VERSION}) unstable; urgency=medium"
@@ -155,17 +155,31 @@ jobs:
             echo
             echo " -- Matteo Bonanomi <mbonanomi.dev@proton.me>  ${date_rfc}"
           } > debian/changelog
-          appstreamcli validate --no-net \
-            data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
+          mk-build-deps --install --remove \
+            --tool 'apt-get -y --no-install-recommends' debian/control
+          dpkg-checkbuilddeps
           dpkg-buildpackage -us -uc -b
           package="$(find .. -maxdepth 1 -name 'xfce4-meowmenu-plugin_*_amd64.deb' -print -quit)"
           test "$(dpkg-deb -f "$package" Version)" = "$DEBIAN_VERSION"
           dpkg --compare-versions 0.8.0-1 lt "$DEBIAN_VERSION"
           dpkg --compare-versions "$DEBIAN_VERSION" lt 0.9.0~rc2-1
           dpkg --compare-versions "$DEBIAN_VERSION" lt 0.9.0-1
+          apt-get install -y --no-install-recommends appstream lintian
+          appstreamcli validate --no-net \
+            data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
           lintian "$package" | tee ../lintian.log || true
           apt-get install -y "$package"
           test "$(dpkg-query -W -f='${Version}' xfce4-meowmenu-plugin)" = "$DEBIAN_VERSION"
+          dpkg-query -W -f='${Depends}\n' xfce4-meowmenu-plugin | \
+            tr ',' '\n' | grep -Eq '^[[:space:]]*exo-utils([[:space:]]|$)'
+          test "$(dpkg-query -S /usr/bin/exo-open | cut -d: -f1)" = exo-utils
+          test "$(dpkg-query -S /usr/bin/exo-desktop-item-edit | cut -d: -f1)" = exo-utils
+          plugin="$(find /usr/lib -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
+          build-aux/compat/assert-dependency-regime.sh \
+            --regime legacy --plugin "$plugin" \
+            --testlog "$(find . -path '*/meson-logs/testlog.txt' -print -quit)"
+          build-aux/compat/installed-action-smoke.sh \
+            --regime legacy --plugin "$plugin" > ../installed-action-smoke.log
           mkdir -p ../artifacts
           cp "$package" \
             "../artifacts/xfce4-meowmenu-plugin_${VERSION}_${{ matrix.token }}_amd64.deb"
@@ -185,6 +199,56 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  debian-exo-negative:
+    name: debian-exo-negative (${{ matrix.label }}, ${{ matrix.omission }})
+    needs: [validate-tag, source]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: ubuntu-26.04
+            image: ubuntu:26.04
+            omission: libexo-2-dev
+          - label: ubuntu-26.04
+            image: ubuntu:26.04
+            omission: exo-utils
+          - label: debian-13
+            image: debian:13
+            omission: libexo-2-dev
+          - label: debian-13
+            image: debian:13
+            omission: exo-utils
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Install mutation bootstrap tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates python3
+
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-source
+          path: source
+
+      - name: Require the direct-contract mutation to fail closed
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+          OMISSION: ${{ matrix.omission }}
+        run: |
+          set -euo pipefail
+          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+          cd "xfce4-meowmenu-plugin-${VERSION}"
+          sed -i "/^[[:space:]]${OMISSION},$/d" debian/control
+          if python3 tests/test_dependency_contract.py; then
+            echo "::error::direct contract accepted missing ${OMISSION}"
+            exit 1
+          fi
+          printf 'target=%s\nomission=%s\nresult=rejected\n' \
+            '${{ matrix.label }}' "$OMISSION" >> "$GITHUB_STEP_SUMMARY"
+
   build-rpm:
     name: build-rpm (fedora-44)
     needs: [validate-tag, source]
@@ -192,14 +256,10 @@ jobs:
     container:
       image: fedora:44
     steps:
-      - name: Install build, validation, and advisory lint tools
+      - name: Install RPM package bootstrap tools
         run: |
           dnf -y install \
-            gcc gcc-c++ make meson ninja-build pkgconf-pkg-config python3 \
-            gtk3-devel glib2-devel garcon-devel xfce4-panel-devel \
-            libxfce4ui-devel libxfce4util-devel exo-devel xfconf-devel \
-            accountsservice-devel gtk-layer-shell-devel gettext rpm-build \
-            rpmdevtools rpmlint appstream
+            dnf-plugins-core rpm-build rpmdevtools python3 ca-certificates
 
       - name: Download canonical source
         uses: actions/download-artifact@v8
@@ -221,6 +281,11 @@ jobs:
           spec="$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
           sed -i "s/^Version:.*/Version:        ${RPM_VERSION}/" "$spec"
           sed -i "s/^%global upstream_version.*/%global upstream_version ${VERSION}/" "$spec"
+          if rpm -q --whatprovides 'pkgconfig(exo-2)' >/dev/null 2>&1; then
+            echo "::error::Exo development files existed before manifest resolution"
+            exit 1
+          fi
+          dnf -y builddep "$spec"
           rpmbuild -ba "$spec"
           package="$(find "$HOME/rpmbuild/RPMS/x86_64" -name 'xfce4-meowmenu-plugin-*.rpm' -print -quit)"
           test "$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' "$package")" = "${RPM_VERSION}-1.fc44"
@@ -229,10 +294,22 @@ jobs:
             rpm.vercmp('${RPM_VERSION}', '0.9.0~rc2') < 0 or error('RC1 must precede RC2')
             rpm.vercmp('${RPM_VERSION}', '0.9.0') < 0 or error('RC must precede final')
           }"
+          dnf -y install appstream rpmlint
+          appstreamcli validate --no-net \
+            "xfce4-meowmenu-plugin-${VERSION}/data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml"
           rpmlint "$spec" "$package" | tee rpmlint.log || true
           dnf -y install "$package"
           test "$(rpm -q --qf '%{VERSION}-%{RELEASE}\n' xfce4-meowmenu-plugin)" = \
             "${RPM_VERSION}-1.fc44"
+          test "$(rpm -qf /usr/bin/exo-open)" = exo
+          test "$(rpm -qf /usr/bin/exo-desktop-item-edit)" = exo
+          plugin="$(find /usr/lib64 /usr/lib -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
+          testlog="$(find "$HOME/rpmbuild/BUILD" -path '*/meson-logs/testlog.txt' -print -quit)"
+          "xfce4-meowmenu-plugin-${VERSION}/build-aux/compat/assert-dependency-regime.sh" \
+            --regime legacy --plugin "$plugin" \
+            --testlog "$testlog"
+          "xfce4-meowmenu-plugin-${VERSION}/build-aux/compat/installed-action-smoke.sh" \
+            --regime legacy --plugin "$plugin" > installed-action-smoke.log
           mkdir -p artifacts
           cp "$package" \
             "artifacts/xfce4-meowmenu-plugin-${VERSION}-1.fc44.x86_64.rpm"
@@ -251,6 +328,48 @@ jobs:
           path: rpmlint.log
           if-no-files-found: ignore
           retention-days: 7
+
+  fedora-exo-negative:
+    name: fedora-exo-negative (${{ matrix.omission }})
+    needs: [validate-tag, source]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        omission: [build, helper]
+    container:
+      image: fedora:44
+    steps:
+      - name: Install mutation bootstrap tools
+        run: dnf -y install python3
+
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-source
+          path: source
+
+      - name: Require the Fedora direct-contract mutation to fail closed
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+          OMISSION: ${{ matrix.omission }}
+        run: |
+          set -euo pipefail
+          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+          cd "xfce4-meowmenu-plugin-${VERSION}"
+          if test "$OMISSION" = build; then
+            sed -i '/^BuildRequires:[[:space:]]*pkgconfig(exo-2)$/d' \
+              dist/rpm/xfce4-meowmenu-plugin.spec
+          else
+            sed -i '\|^Requires:[[:space:]]*/usr/bin/exo-open$|d' \
+              dist/rpm/xfce4-meowmenu-plugin.spec
+          fi
+          if python3 tests/test_dependency_contract.py; then
+            echo "::error::Fedora direct contract accepted ${OMISSION} omission"
+            exit 1
+          fi
+          printf 'target=fedora-44\nomission=%s\nresult=rejected\n' \
+            "$OMISSION" >> "$GITHUB_STEP_SUMMARY"
 
   arch-pkgbuild-test:
     name: arch-pkgbuild-test
@@ -302,9 +421,35 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  arch-exo-negative:
+    name: arch-exo-negative
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install mutation tools
+        run: pacman -Syu --noconfirm --needed git python
+
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Require the Arch direct-contract mutation to fail closed
+        run: |
+          set -euo pipefail
+          sed -i "s/'exo' //" dist/arch/PKGBUILD
+          if python3 tests/test_dependency_contract.py; then
+            echo "::error::Arch direct contract accepted missing exo"
+            exit 1
+          fi
+          printf 'target=arch-current\nomission=exo\nresult=rejected\n' \
+            >> "$GITHUB_STEP_SUMMARY"
+
   assemble-release:
     name: assemble-private-prerelease
-    needs: [validate-tag, source, build-deb, build-rpm, arch-pkgbuild-test]
+    needs: [validate-tag, source, build-deb, debian-exo-negative, build-rpm, fedora-exo-negative, arch-pkgbuild-test, arch-exo-negative]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout candidate

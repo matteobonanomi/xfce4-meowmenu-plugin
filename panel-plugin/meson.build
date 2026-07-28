@@ -1,4 +1,5 @@
 plugin_sources = [
+  'config/xfce-helpers.cpp',
   'launcher/applications-page.cpp',
   'launcher/application-load-generation.cpp',
   'presets/preset.cpp',
@@ -76,13 +77,19 @@ plugin_sources = [
   meowmenu_version_h,
 ]
 
+if exo.found()
+  xfce_helper_cpp_args = ['-DMEOWMENU_XFCE_SUCCESSOR=0']
+else
+  xfce_helper_cpp_args = ['-DMEOWMENU_XFCE_SUCCESSOR=1']
+endif
+
 plugin_install_subdir = 'xfce4' / 'panel' / 'plugins'
 
 plugin_lib = shared_module(
   'meowmenu',
   plugin_sources,
   gnu_symbol_visibility: 'hidden',
-  cpp_args: [
+  cpp_args: xfce_helper_cpp_args + [
     '-DG_LOG_DOMAIN="@0@"'.format('xfce4-meowmenu-plugin'),
     '-DSETTINGS_MENUFILE="@0@"'.format(get_option('sysconfdir') / 'xdg' / 'menus' / 'xfce-settings-manager.menu'),
   ],

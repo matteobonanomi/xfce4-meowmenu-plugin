@@ -27,6 +27,30 @@ recorded above. File a
 [compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml);
 prefer a durable public issue or release note over a short-lived workflow link.
 
+## Automated dependency evidence
+
+Ubuntu 26.04 and Debian 13 build inputs are resolved from `debian/control`;
+Fedora 44 uses `dnf builddep` on the RPM spec; Arch remains authoritative
+through `makepkg --syncdeps`. Each positive gate records configured, disabled,
+executed, skipped, failed, and timed-out tests, installs its artifact, checks
+helper ownership and linkage, and runs the dependency-sensitive action
+contract.
+
+Fresh isolated mutations remove the Exo build or helper declarations for each
+package format. Every omission must be rejected before an artifact is accepted;
+a positive job's installed dependency closure is never reused.
+
+Source cells cover Xfce 4.16, 4.18, and 4.20 with Exo. A separate
+libxfce4ui-4.21-or-newer cell proves Exo is absent, checks symbols and dynamic
+linkage, installs into an isolated root, and captures all ten interactions.
+This is staged-install evidence, not live desktop evidence.
+
+The ten interactions are the icon chooser, Help, the Man Pages, Web Search,
+Wikipedia, Run in Terminal, and Open URI search actions, launcher editing,
+Places folder fallback, and Places terminal opening. Upgrade coverage repeats
+the five search actions with historical stored defaults and verifies that
+custom and persisted command strings remain byte-for-byte unchanged.
+
 ## Optional five-minute extension
 
 - Switch among the built-in presets.
@@ -42,6 +66,15 @@ prefer a durable public issue or release note over a short-lived workflow link.
 Use Xubuntu 26.04, Xfce 4.20, X11, and `x86_64` with a new profile. Complete
 the core check and record the installed/About versions, Modern default, every
 core result, and the result after login.
+
+Also exercise all ten dependency-sensitive interactions listed above and force
+the Help launch failure once by making its selected helper unavailable. Record
+the visible error, exact Xfce/libxfce4ui/Exo versions, session, architecture,
+and installed artifact identity.
+
+Successor live evidence, Wayland repetition, and the Xfce 4.16 launcher-trust
+check are useful optional cells. Record them as validated or unvalidated; do
+not promote staged or source evidence to a live result.
 
 ## Upgrade from 0.8.0
 

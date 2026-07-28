@@ -43,6 +43,25 @@ test(
   env: ['PYTHONDONTWRITEBYTECODE=1'],
 )
 
+test(
+  'dependency_contract',
+  python3,
+  args: [meson.current_source_dir() / 'test_dependency_contract.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test_xfce_helpers = executable(
+  'test_xfce_helpers',
+  [
+    'test_xfce_helpers.cpp',
+    '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
+  ],
+  cpp_args: xfce_helper_cpp_args,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+test('xfce_helpers', test_xfce_helpers)
+
 # GLib refuses to run g_test assertions when Meson's release build enables
 # G_DISABLE_ASSERT. Keep Calculator tests assert-enabled in every build type.
 calculator_test_cpp_args = ['-UG_DISABLE_ASSERT']
@@ -188,7 +207,7 @@ test_preset_xfconf_sources = [
 test_preset_xfconf = executable(
   'test_preset_xfconf',
   test_preset_xfconf_sources,
-  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  cpp_args: xfce_helper_cpp_args + ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gio, xfconf, libxfce4ui],
@@ -228,6 +247,7 @@ test_search_action_edit_sources = ['test_search_action_edit.cpp']
 test_search_action_edit = executable(
   'test_search_action_edit',
   test_search_action_edit_sources + [
+    '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
     '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
     '..' / 'panel-plugin' / 'search' / 'search-action.cpp',
     '..' / 'panel-plugin' / 'settings-bindings.cpp',
@@ -305,6 +325,7 @@ test('home_search', test_home_search)
 # helpers, so the binary runs headless.
 test_places_open_sources = [
   'test_places_open.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
 ]
@@ -313,6 +334,7 @@ test_places_open = executable(
   'test_places_open',
   test_places_open_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
   dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 
@@ -389,6 +411,7 @@ test('search_ranking', test_search_ranking)
 # Skips cleanly when no display is available.
 test_home_search_lifecycle_sources = [
   'test_home_search_lifecycle.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'home-search-worker.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
@@ -398,6 +421,7 @@ test_home_search_lifecycle = executable(
   'test_home_search_lifecycle',
   test_home_search_lifecycle_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
   dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 
@@ -761,6 +785,7 @@ test('application_load_generation', test_application_load_generation)
 # it under a virtual display so the sanitizers still exercise the freed-view path.
 test_launcher_safeguard_lifecycle_sources = [
   'test_launcher_safeguard_lifecycle.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'launcher-safety.cpp',
 ]
 
@@ -768,6 +793,7 @@ test_launcher_safeguard_lifecycle = executable(
   'test_launcher_safeguard_lifecycle',
   test_launcher_safeguard_lifecycle_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
   dependencies: [glib, gtk],
 )
 

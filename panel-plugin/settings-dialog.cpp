@@ -17,6 +17,7 @@
 
 #include "settings-dialog.h"
 
+#include "config/xfce-helpers.h"
 #include "launcher/applications-page.h"
 #include "launcher/command.h"
 #include "ui/command-edit.h"
@@ -466,19 +467,27 @@ void SettingsDialog::edit_search_action_modal(SearchAction* action)
 
 //-----------------------------------------------------------------------------
 
+/* response:
+ * @response_id: GTK response emitted by the preferences dialog.
+ *
+ * Opens Help through the active Xfce helper and presents spawn failures using
+ * the same visible error pattern as other launcher actions. Other responses
+ * retain the existing settings-save and window-lifecycle behavior.
+ */
 void SettingsDialog::response(int response_id)
 {
 	if (response_id == GTK_RESPONSE_HELP)
 	{
-#if LIBXFCE4UI_CHECK_VERSION(4, 21, 0)
-		bool result = g_spawn_command_line_async("xfce-open --launch WebBrowser " PLUGIN_WEBSITE, nullptr);
-#else
-		bool result = g_spawn_command_line_async("exo-open --launch WebBrowser " PLUGIN_WEBSITE, nullptr);
-#endif
+		std::string command = build_help_command(
+				current_xfce_dependency_regime(), PLUGIN_WEBSITE);
+		GError* error = nullptr;
+		bool result = g_spawn_command_line_async(command.c_str(), &error);
 
 		if (G_UNLIKELY(!result))
 		{
-			g_warning(_("Unable to open the following url: %s"), PLUGIN_WEBSITE);
+			xfce_dialog_show_error(GTK_WINDOW(m_window), error,
+					_("Unable to open the following url: %s"), PLUGIN_WEBSITE);
+			g_clear_error(&error);
 		}
 	}
 	else
