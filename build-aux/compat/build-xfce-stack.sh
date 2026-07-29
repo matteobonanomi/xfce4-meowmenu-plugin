@@ -44,16 +44,19 @@ case "$cell" in
       "libxfce4ui:4.20.2"
       "exo:4.20.0"
       "garcon:4.20.0"
+      "libxfce4windowing:4.20.4"
       "xfce4-panel:4.20.4"
     )
     ;;
   successor)
     versions=(
+      "xfce4-dev-tools:4.20.0"
       "libxfce4util:4.20.1"
       "xfconf:4.20.0"
       "libxfce4ui:4.21.0"
       "garcon:4.20.0"
-      "xfce4-panel:4.20.4"
+      "libxfce4windowing:4.20.4"
+      "xfce4-panel:4.21.0"
     )
     ;;
   *)
@@ -73,15 +76,19 @@ mkdir -p "$prefix" "$source_dir"
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$prefix/lib64/pkgconfig:$prefix/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export PATH="$prefix/bin:$PATH"
 export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export GI_GIR_PATH="$prefix/share/gir-1.0${GI_GIR_PATH:+:$GI_GIR_PATH}"
+export GI_TYPELIB_PATH="$prefix/lib/girepository-1.0:$prefix/lib64/girepository-1.0${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
 
 for entry in "${versions[@]}"; do
   project="${entry%%:*}"
   version="${entry#*:}"
   series="${version%.*}"
   extension=tar.bz2
-  if [[ "$project" == libxfce4ui && "$version" == 4.21.0 ]]; then
-    extension=tar.xz
-  fi
+  case "$project:$version" in
+    libxfce4ui:4.21.0|xfce4-panel:4.21.0)
+      extension=tar.xz
+      ;;
+  esac
   archive="$source_dir/$project-$version.$extension"
   tree="$source_dir/$project-$version"
   url="https://archive.xfce.org/src/xfce/$project/$series/$project-$version.$extension"
@@ -90,6 +97,7 @@ for entry in "${versions[@]}"; do
   if [[ -f "$tree/meson.build" ]]; then
     meson setup "$tree/_build" "$tree" \
       --prefix="$prefix" \
+      --libdir=lib \
       --buildtype=release \
       --wrap-mode=nodownload >&2
     meson compile -C "$tree/_build" >&2
@@ -112,3 +120,5 @@ printf 'MEOWMENU_XFCE_PREFIX=%q\n' "$prefix"
 printf 'PKG_CONFIG_PATH=%q\n' "$PKG_CONFIG_PATH"
 printf 'PATH=%q\n' "$PATH"
 printf 'LD_LIBRARY_PATH=%q\n' "$LD_LIBRARY_PATH"
+printf 'GI_GIR_PATH=%q\n' "$GI_GIR_PATH"
+printf 'GI_TYPELIB_PATH=%q\n' "$GI_TYPELIB_PATH"

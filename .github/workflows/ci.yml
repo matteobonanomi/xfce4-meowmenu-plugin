@@ -246,15 +246,21 @@ jobs:
           fetch-depth: 0
 
       - name: Install source-stack bootstrap dependencies
+        env:
+          CELL: ${{ matrix.cell }}
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential meson ninja-build pkg-config python3 \
+            build-essential meson ninja-build pkg-config python3 git \
             curl bzip2 xz-utils gettext intltool gtk-doc-tools \
-            libglib2.0-dev libgtk-3-dev libdbus-1-dev libudev-dev \
+            gobject-introspection libglib2.0-dev libgtk-3-dev \
+            libdbus-1-dev libudev-dev \
             libwnck-3-dev libstartup-notification0-dev \
             libx11-xcb-dev xvfb xauth ca-certificates
+          if test "$CELL" = successor; then
+            apt-get install -y --no-install-recommends libgtop2-dev
+          fi
 
       - name: Prepare pinned Xfce source stack
         env:

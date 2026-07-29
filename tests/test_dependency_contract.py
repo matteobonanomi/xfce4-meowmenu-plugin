@@ -72,6 +72,24 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn("build-xfce-stack.sh", workflow)
         self.assertIn("--regime \"$regime\" --plugin \"$installed_plugin\"", workflow)
         self.assertIn("--staged-root \"$staged_root\"", workflow)
+        bootstrap = workflow.split(
+            "- name: Install source-stack bootstrap dependencies", maxsplit=1
+        )[1].split("- name:", maxsplit=1)[0]
+        self.assertRegex(bootstrap, r"\bgit\b")
+        self.assertRegex(bootstrap, r"\bgobject-introspection\b")
+        self.assertRegex(bootstrap, r"\blibgtop2-dev\b")
+        stack_builder = (
+            ROOT / "build-aux/compat/build-xfce-stack.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("--libdir=lib", stack_builder)
+        self.assertIn("export GI_GIR_PATH=", stack_builder)
+        self.assertIn("export GI_TYPELIB_PATH=", stack_builder)
+        self.assertIn('"xfce4-dev-tools:4.20.0"', stack_builder)
+        self.assertIn('"xfce4-panel:4.21.0"', stack_builder)
+        self.assertEqual(
+            stack_builder.count('"libxfce4windowing:4.20.4"'),
+            2,
+        )
 
 
 if __name__ == "__main__":

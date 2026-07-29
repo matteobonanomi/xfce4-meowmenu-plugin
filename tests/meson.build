@@ -317,7 +317,7 @@ test_search_action_edit = executable(
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
-  dependencies: [glib, gtk, libxfce4ui, xfconf],
+  dependencies: [glib, gtk, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('search_action_edit', test_search_action_edit)
