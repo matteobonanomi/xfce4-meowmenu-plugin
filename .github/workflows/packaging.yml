@@ -309,8 +309,9 @@ jobs:
           if [[ "$RPM_VERSION" == *"~rc"* ]]; then
             stable_rpm="${RPM_VERSION%%~rc*}"
             rpm --eval "%{lua:
-              rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') < 0 or
+              if rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') >= 0 then
                 error('release candidate must precede its stable version')
+              end
             }"
           fi
           dnf -y install appstream rpmlint

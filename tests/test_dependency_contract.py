@@ -147,6 +147,14 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn('stable_debian="${DEBIAN_VERSION%%~rc*}-1"', workflow)
         self.assertIn('stable_rpm="${RPM_VERSION%%~rc*}"', workflow)
         self.assertIn('stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"', workflow)
+        self.assertIn(
+            "if rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') >= 0 then",
+            workflow,
+        )
+        self.assertNotIn(
+            "rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') < 0 or",
+            workflow,
+        )
         for obsolete in ("0.9.0~rc2", "0.9.0rc2", "RC1 must precede RC2"):
             self.assertNotIn(obsolete, workflow)
 
