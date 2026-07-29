@@ -9,7 +9,7 @@ has_children: false
 
 MeowMenu can be driven entirely from the keyboard: open it, start typing,
 or use the keys below. These shortcuts are tested on the primary X11 path.
-Wayland remains experimental and unverified for the current candidate.
+Wayland remains experimental and unverified live.
 
 ## Quick reference
 

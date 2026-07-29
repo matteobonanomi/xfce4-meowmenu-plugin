@@ -57,24 +57,189 @@ class DocumentationLinksTest(unittest.TestCase):
             }.issubset(set(navigation.values()))
         )
 
-    def test_current_candidate_and_evidence_terms_are_consistent(self):
-        news = (ROOT / "NEWS").read_text(encoding="utf-8")
-        version = re.match(
-            r"^(\S+) \(\d{4}-\d{2}-\d{2}\)$", news.splitlines()[0]
-        ).group(1)
+    def test_evergreen_identity_and_entry_points(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        home = (ROOT / "docs/index.md").read_text(encoding="utf-8")
+        for label, target in (
+            ("Support and compatibility", "docs/support.md"),
+            ("Known limitations", "docs/known-limitations.md"),
+            ("Testing", "docs/testing.md"),
+            ("Translation status", "docs/translations.md"),
+        ):
+            self.assertIn(f"[{label}]({target})", readme)
+        self.assertIn("## Support and compatibility", readme)
+        self.assertIn("supports Xfce 4.16 through 4.21", readme)
+        self.assertIn("Xfce 4.20 as the primary", readme)
+        self.assertIn("MeowMenu is a native Xfce panel launcher", readme)
+        self.assertNotIn("## Release-candidate support", readme)
+        self.assertIn("[Check support and compatibility](support)", home)
+        self.assertIn("[Run the testing checklist](testing)", home)
+        self.assertIn(
+            "Distribution testing, package availability, and Xfce compatibility",
+            home,
+        )
+        self.assertNotRegex(home, r"(?i)current release candidate|check RC1")
+
+    def test_public_support_pages_avoid_obsolete_framing(self):
+        pages = (
+            "installation.md",
+            "support.md",
+            "known-limitations.md",
+            "testing.md",
+            "keyboard-navigation.md",
+        )
+        candidate_scope = re.compile(
+            r"(?i)release[- ]candidate|current candidate|for RC1|"
+            r"upgrade to RC1|check RC1"
+        )
+        current_whisker_identity = re.compile(
+            r"(?im)^#\s+Whisker Menu\b|\bWhisker Menu is\b|"
+            r"\bcurrent (?:product|launcher) is Whisker Menu\b"
+        )
+        coexistence_contract = re.compile(
+            r"(?i)whisker-overlap|coexistence (?:check|test|gate|guarantee)|"
+            r"(?:verified|certified) coexistence"
+        )
+        for name in pages:
+            content = (ROOT / "docs" / name).read_text(encoding="utf-8")
+            self.assertIsNone(candidate_scope.search(content), name)
+            self.assertIsNone(current_whisker_identity.search(content), name)
+            self.assertIsNone(coexistence_contract.search(content), name)
+
+    def test_distro_matrix_records_exact_provenance(self):
         support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
-        self.assertIn(version, readme)
-        self.assertIn(version, support)
-        for label in (
+        header = "| Distribution/context | Maintainer | Community | CI |"
+        self.assertEqual(support.count(header), 1)
+        matrix = support.split("## Distro testing", maxsplit=1)[1]
+        matrix = matrix.split("## Package availability", maxsplit=1)[0]
+        rows = (
+            "| Debian 13 | ✓ | ✓ | — |",
+            "| Debian | — | — | ✓ |",
+            "| Xubuntu 26.04 | ✓ | ✓ | — |",
+            "| Arch Linux | ✓ | — | ✓ |",
+            "| MX Linux | — | ✓ | — |",
+            "| Fedora 44 | — | — | ✓ |",
+            "| Ubuntu | — | — | ✓ |",
+        )
+        for row in rows:
+            self.assertIn(row, matrix)
+        self.assertEqual(sum(matrix.count(row) for row in rows), len(rows))
+        for definition in (
+            "**Maintainer** means a manual result",
+            "**Community** means a manual result",
+            "**CI** means automated",
+            "no result is currently documented",
+            "not a known\n  failure or incompatibility",
+        ):
+            self.assertIn(definition, matrix)
+        self.assertIn(
+            "Ubuntu CI does not count as Xubuntu 26.04 live testing",
+            matrix,
+        )
+        self.assertIn(
+            "Distribution-level\nDebian CI does not create a Debian 13 CI result",
+            matrix,
+        )
+        self.assertNotRegex(
+            matrix,
+            r"(?i)\.deb|\.rpm|AUR|Xfce 4\.(?:16|18|20|21)",
+        )
+        for obsolete in (
             "Source-build compatible",
             "Staged-install compatible",
             "Published package target",
             "Maintainer-published source recipe",
             "Live validated",
         ):
-            self.assertIn(label, support)
-        self.assertRegex(support, r"not a prebuilt\s+project package")
+            self.assertNotIn(obsolete, support)
+        package = support.split("## Package availability", maxsplit=1)[1]
+        self.assertIn("[installation guide](installation)", package)
+        self.assertIn("do not\ncreate maintainer or community testing marks", package)
+
+    def test_xfce_compatibility_has_separate_evidence_boundaries(self):
+        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
+        section = support.split("## Xfce compatibility", maxsplit=1)[1]
+        section = section.split("## Sessions and architectures", maxsplit=1)[0]
+        self.assertIn("supports Xfce 4.16 through 4.21", section)
+        self.assertIn("Xfce 4.20 as the primary\nquality target", section)
+        for row in (
+            "| Xfce 4.16 libraries | Source configure, build, and tests with Exo | Supported source stack |",
+            "| Xfce 4.18 libraries | Source configure, build, and tests with Exo | Supported source stack |",
+            "| Xfce 4.20 libraries | Source configure, build, and tests with Exo | Primary quality target |",
+            "| libxfce4ui 4.21 or newer | Successor source cell and staged install without Exo | Dependency-transition boundary only |",
+        ):
+            self.assertIn(row, section)
+        self.assertIn(
+            "automated source-stack evidence, not distro\nor live desktop results",
+            section,
+        )
+        self.assertIn(
+            "not a separately live-validated Xfce\n4.21 desktop",
+            section,
+        )
+        self.assertIn("does not claim compatibility with every future", section)
+
+        boundaries = support.split(
+            "## Sessions and architectures", maxsplit=1
+        )[1]
+        self.assertIn("X11 on `x86_64`/`amd64` is the primary", boundaries)
+        self.assertIn("Wayland is supported\nwith a graceful", boundaries)
+        self.assertIn(
+            "Source compilation does not establish a session,\n"
+            "architecture, or live desktop result",
+            boundaries,
+        )
+
+    def test_testing_guide_is_reusable_and_scoped(self):
+        testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
+        context = testing.split("## Test context", maxsplit=1)[1]
+        context = context.split("## Five-minute core check", maxsplit=1)[0]
+        for field in (
+            "**MeowMenu version/revision:**",
+            "**Distribution/version:**",
+            "**Xfce version:**",
+            "**Architecture:**",
+            "**Session type:**",
+            "**Installation method/artifact:**",
+        ):
+            self.assertIn(field, context)
+        self.assertIn("Every result applies only to this recorded", context)
+
+        core = testing.split("## Five-minute core check", maxsplit=1)[1]
+        core = core.split("## Automated dependency evidence", maxsplit=1)[0]
+        for check in (
+            "version under test",
+            "version shown in **About**",
+            "**Add New Items**",
+            "fresh profile",
+            "open/search/launch cycle",
+            "Log out and in",
+            "another startup",
+        ):
+            self.assertIn(check, core)
+        self.assertIn("scoped to the six recorded context fields", core)
+
+        upgrade = testing.split("## Upgrade check", maxsplit=1)[1]
+        upgrade = upgrade.split("## Removal and full cleanup", maxsplit=1)[0]
+        self.assertIn("`<source-version>`", upgrade)
+        self.assertIn("`<target-version>`", upgrade)
+        for retained in (
+            "panel item",
+            "favourites and order",
+            "layout/preferences",
+            "Calculator choices",
+            "Xfconf output",
+            "preset files",
+            "Log out and in",
+            "another startup",
+        ):
+            self.assertIn(retained, upgrade)
+        self.assertNotRegex(upgrade, r"\b0\.8\.0\b|\bRC1\b")
+        self.assertIn(
+            "Xubuntu 26.04, Xfce 4.20, X11, and `x86_64`",
+            testing,
+        )
+        self.assertIn("primary quality environment, not a release gate", testing)
 
     def test_release_specific_dependency_classes_are_documented(self):
         installation = (

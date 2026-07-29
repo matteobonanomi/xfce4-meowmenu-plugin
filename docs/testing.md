@@ -1,29 +1,45 @@
 ---
 layout: default
-title: Test a release candidate
+title: Testing
 nav_order: 7
 ---
 
-# Test a release candidate
+# Testing
 
-Record the MeowMenu version, distribution/version, Xfce version, architecture,
-session type, and installation method before starting. Use a disposable profile
-or VM for upgrade tests. Do not publish private contact details in evidence.
+Use a disposable profile or VM for upgrade tests. Do not publish private
+contact details in evidence.
+
+## Test context
+
+Record these six fields before starting:
+
+- **MeowMenu version/revision:** the exact release, prerelease, commit, or
+  development revision under test.
+- **Distribution/version:** the distribution name and version.
+- **Xfce version:** the exact desktop version reported by the tester.
+- **Architecture:** for example, `x86_64` or `amd64`.
+- **Session type:** X11 or Wayland.
+- **Installation method/artifact:** the package format, source build, or exact
+  artifact identity.
+
+Every result applies only to this recorded version and environment. It does
+not establish results for another distribution, Xfce version, architecture,
+session, or installation method.
 
 ## Five-minute core check
 
-1. Install the candidate package. Confirm the package version and the version
-   shown in **About**, then restart the panel.
+1. Install the version under test. Compare the installed version with the
+   version shown in **About**, then restart the panel.
 2. Add **MeowMenu** through **Add New Items**. On a fresh profile, confirm the
    Modern preset is selected.
 3. Open the menu, search for a known application, and launch it.
 4. Press Tab to switch Applications/Places, Ctrl+Tab to move among areas,
    arrows to navigate, and Enter to activate.
-5. Close with Escape. Log out and in, then confirm the panel item, search, and
-   keyboard flow still work.
+5. Close with Escape, reopen MeowMenu, and repeat an open/search/launch cycle.
+6. Log out and in, then confirm the panel item, search, keyboard flow, and
+   another startup still work.
 
-A pass provides **Ran it** evidence only for the exact candidate and environment
-recorded above. File a
+A pass is scoped to the six recorded context fields above. File a
 [compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml);
 prefer a durable public issue or release note over a short-lived workflow link.
 
@@ -61,11 +77,12 @@ custom and persisted command strings remain byte-for-byte unchanged.
 - If convenient, repeat a quick open/search check with a dark theme, vertical
   panel, or scaled display. Missing optional visual evidence is not a failure.
 
-## Fresh Xubuntu release gate
+## Extended Xubuntu quality check
 
-Use Xubuntu 26.04, Xfce 4.20, X11, and `x86_64` with a new profile. Complete
-the core check and record the installed/About versions, Modern default, every
-core result, and the result after login.
+Use Xubuntu 26.04, Xfce 4.20, X11, and `x86_64` with a new profile. This is the
+primary quality environment, not a release gate. Complete the core check and
+record the installed/About versions, Modern default, every core result, and
+the result after login.
 
 Also exercise all ten dependency-sensitive interactions listed above and force
 the Help launch failure once by making its selected helper unavailable. Record
@@ -76,22 +93,26 @@ Successor live evidence, Wayland repetition, and the Xfce 4.16 launcher-trust
 check are useful optional cells. Record them as validated or unvalidated; do
 not promote staged or source evidence to a live result.
 
-## Upgrade from 0.8.0
+## Upgrade check
 
-1. In a separate profile, install 0.8.0 and add MeowMenu to the panel.
+1. Record the exact `<source-version>` already installed and the exact
+   `<target-version>` under test. In a separate profile, install the source
+   version and add MeowMenu to the panel.
 2. Add representative ordered favourites; choose a non-default layout; select
-   Calculator engine, result size, and precision; save a custom preset.
+   non-default preferences; select Calculator engine, result size, and
+   precision; save a custom preset.
 3. Record `xfconf-query -c meowmenu -lv` and copy the saved `.meowpreset`
    files to a comparison directory.
-4. Upgrade to RC1 without deleting configuration.
+4. Upgrade to `<target-version>` without deleting configuration.
 5. Compare the panel item, favourites and order, layout/preferences,
    Calculator choices, Xfconf output, and preset files.
 6. Log out and in and compare again.
-7. Restart MeowMenu once more to exercise migration a second time. Confirm the
-   values are unchanged.
+7. Restart MeowMenu again to exercise another startup and confirm the values
+   remain unchanged.
 
 Expected result: no panel item, user choice, or preset is lost or silently
-reset.
+reset. This result applies only to the recorded source build, target build,
+and six-field environment.
 
 ## Removal and full cleanup
 

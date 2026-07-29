@@ -6,9 +6,9 @@ has_children: false
 
 # Installation
 
-Candidate packages are attached to the matching
+Release packages are attached to the selected
 [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases).
-Replace `<version>` with the public release version, such as `1.0.0-rc1`.
+Replace `<version>` with the version shown on that release.
 
 ## Ubuntu 26.04
 

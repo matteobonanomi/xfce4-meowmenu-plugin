@@ -34,11 +34,11 @@ dependencies, source builds, removal, and full cleanup.
 After installation, restart the panel with `xfce4-panel -r`, then add
 **MeowMenu** through **Add New Items**.
 
-## Release-candidate support
+## Support and compatibility
 
-MeowMenu 1.0.0-rc1 publishes package candidates for Ubuntu 26.04, Debian 13,
-and Fedora 44. Arch is a separately maintained source recipe rather than a
-prebuilt project package.
+MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
+quality target. Package availability is listed under [Install](#install);
+testing evidence is documented separately.
 
 Continuous source builds cover the Xfce 4.16, 4.18, and 4.20 library
 generations. Xfce 4.20 on X11 and `x86_64`/`amd64` remains the primary live
@@ -47,9 +47,9 @@ tested without Exo, but is not presented as a separately live-validated
 desktop release. Wayland remains unverified live and gracefully disables
 optional positioning support when it is unavailable.
 
-- [Release-specific support and evidence](docs/support.md)
+- [Support and compatibility](docs/support.md)
 - [Known limitations](docs/known-limitations.md)
-- [Five-minute test and upgrade checks](docs/testing.md)
+- [Testing](docs/testing.md)
 - [Translation status](docs/translations.md)
 
 ## Build from source
@@ -92,5 +92,4 @@ MeowMenu is distributed under the [GNU General Public License v2](COPYING), or
 any later version. Original Whisker Menu was created by Graeme Gott; its
 [source remains available from Xfce](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin).
 
-AI coding agents assisted with selected translations, hardening and refactoring,
-and documentation consistency checks. Every change is maintainer-reviewed.
+MeowMenu was developed with AI assistance; every change is maintainer-reviewed.
