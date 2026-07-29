@@ -148,6 +148,31 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn('stable_rpm="${RPM_VERSION%%~rc*}"', workflow)
         self.assertIn('stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"', workflow)
         self.assertIn(
+            'rpmbuild -ba --define "meowmenu_testlog ${testlog}"',
+            workflow,
+        )
+        self.assertIn('test -s "$testlog"', workflow)
+        self.assertIn(
+            "xfce4-meowmenu-plugin-${RPM_VERSION}-1.fc44.x86_64.rpm",
+            workflow,
+        )
+        self.assertIn(
+            "rpm -qf --qf '%{NAME}\\n' /usr/bin/exo-open",
+            workflow,
+        )
+        self.assertNotIn(
+            'find "$HOME/rpmbuild/BUILD" -path',
+            workflow,
+        )
+        spec = (
+            ROOT / "dist/rpm/xfce4-meowmenu-plugin.spec"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "%{?meowmenu_testlog:cp -p "
+            "redhat-linux-build/meson-logs/testlog.txt %{meowmenu_testlog}}",
+            spec,
+        )
+        self.assertIn(
             "if rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') >= 0 then",
             workflow,
         )

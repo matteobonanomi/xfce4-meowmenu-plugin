@@ -303,8 +303,11 @@ jobs:
             exit 1
           fi
           dnf -y builddep "$spec"
-          rpmbuild -ba "$spec"
-          package="$(find "$HOME/rpmbuild/RPMS/x86_64" -name 'xfce4-meowmenu-plugin-*.rpm' -print -quit)"
+          testlog="$RUNNER_TEMP/rpm-testlog.txt"
+          rpmbuild -ba --define "meowmenu_testlog ${testlog}" "$spec"
+          package="$HOME/rpmbuild/RPMS/x86_64/xfce4-meowmenu-plugin-${RPM_VERSION}-1.fc44.x86_64.rpm"
+          test -f "$package"
+          test -s "$testlog"
           test "$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' "$package")" = "${RPM_VERSION}-1.fc44"
           if [[ "$RPM_VERSION" == *"~rc"* ]]; then
             stable_rpm="${RPM_VERSION%%~rc*}"
@@ -321,10 +324,9 @@ jobs:
           dnf -y install "$package"
           test "$(rpm -q --qf '%{VERSION}-%{RELEASE}\n' xfce4-meowmenu-plugin)" = \
             "${RPM_VERSION}-1.fc44"
-          test "$(rpm -qf /usr/bin/exo-open)" = exo
-          test "$(rpm -qf /usr/bin/exo-desktop-item-edit)" = exo
+          test "$(rpm -qf --qf '%{NAME}\n' /usr/bin/exo-open)" = exo
+          test "$(rpm -qf --qf '%{NAME}\n' /usr/bin/exo-desktop-item-edit)" = exo
           plugin="$(find /usr/lib64 /usr/lib -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
-          testlog="$(find "$HOME/rpmbuild/BUILD" -path '*/meson-logs/testlog.txt' -print -quit)"
           "xfce4-meowmenu-plugin-${VERSION}/build-aux/compat/assert-dependency-regime.sh" \
             --regime legacy --plugin "$plugin" \
             --testlog "$testlog"

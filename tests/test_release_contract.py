@@ -303,7 +303,7 @@ class ReleaseContractTest(unittest.TestCase):
             "appstreamcli validate --no-net",
             'rpmlint "$spec" "$package"',
             'dnf -y install "$package"',
-            "rpm -qf /usr/bin/exo-open",
+            "rpm -qf --qf '%{NAME}\\n' /usr/bin/exo-open",
             "assert-dependency-regime.sh",
             "installed-action-smoke.sh",
         ):

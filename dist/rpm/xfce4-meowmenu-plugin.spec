@@ -62,6 +62,7 @@ modern look and a more capable search bar.
 
 %check
 %meson_test
+%{?meowmenu_testlog:cp -p redhat-linux-build/meson-logs/testlog.txt %{meowmenu_testlog}}
 
 %install
 %meson_install
