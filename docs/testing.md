@@ -77,22 +77,6 @@ custom and persisted command strings remain byte-for-byte unchanged.
 - If convenient, repeat a quick open/search check with a dark theme, vertical
   panel, or scaled display. Missing optional visual evidence is not a failure.
 
-## Extended Xubuntu quality check
-
-Use Xubuntu 26.04, Xfce 4.20, X11, and `x86_64` with a new profile. This is the
-primary quality environment, not a release gate. Complete the core check and
-record the installed/About versions, Modern default, every core result, and
-the result after login.
-
-Also exercise all ten dependency-sensitive interactions listed above and force
-the Help launch failure once by making its selected helper unavailable. Record
-the visible error, exact Xfce/libxfce4ui/Exo versions, session, architecture,
-and installed artifact identity.
-
-Successor live evidence, Wayland repetition, and the Xfce 4.16 launcher-trust
-check are useful optional cells. Record them as validated or unvalidated; do
-not promote staged or source evidence to a live result.
-
 ## Upgrade check
 
 1. Record the exact `<source-version>` already installed and the exact

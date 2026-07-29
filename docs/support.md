@@ -12,15 +12,13 @@ intended to preserve configuration.
 
 ## Distro testing
 
-| Distribution/context | Maintainer | Community | CI |
-|---|:---:|:---:|:---:|
-| Debian 13 | ✓ | ✓ | — |
-| Debian | — | — | ✓ |
-| Xubuntu 26.04 | ✓ | ✓ | — |
-| Arch Linux | ✓ | — | ✓ |
-| MX Linux | — | ✓ | — |
-| Fedora 44 | — | — | ✓ |
-| Ubuntu | — | — | ✓ |
+| Distribution/context | Maintainer | Community | CI  |
+| ----------------------| :----------:| :---------:| :---:|
+| Debian 13            | ✓          | ✓         | ✓   |
+| Xubuntu 26.04        | ✓          | ✓         | ✓   |
+| Arch Linux           | ✓          | —         | ✓   |
+| MX Linux             | —          | ✓         | —   |
+| Fedora 44            | —          | —         | ✓   |
 
 - **Maintainer** means a manual result recorded by the maintainer for the
   named environment.
