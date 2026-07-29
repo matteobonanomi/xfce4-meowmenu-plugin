@@ -1,12 +1,17 @@
-# MeowMenu: make your Xfce run
+# MeowMenu: a modern and configurable XFCE application launcher
 
-[![Version](https://img.shields.io/github/v/release/matteobonanomi/xfce4-meowmenu-plugin?include_prereleases)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases)
-[![CI](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml)
-[![License: GPL v2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](COPYING)
-[![Language: C++](https://img.shields.io/badge/language-C%2B%2B-00599C.svg)](https://isocpp.org/)
-[![Toolkit: GTK 3](https://img.shields.io/badge/toolkit-GTK%203-7FAE3D.svg)](https://www.gtk.org/)
+<p align="center">
+  <a href="https://www.xfce.org/"><img src="https://img.shields.io/badge/Xfce-4.16%2B-2284F2?logo=xfce&amp;logoColor=white" alt="Xfce 4.16 or later"></a>
+  <a href="https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases"><img src="https://img.shields.io/github/v/release/matteobonanomi/xfce4-meowmenu-plugin?include_prereleases" alt="Version"></a>
+  <a href="https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml"><img src="https://github.com/matteobonanomi/xfce4-meowmenu-plugin/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="COPYING"><img src="https://img.shields.io/badge/License-GPLv2%2B-blue.svg" alt="License: GPL v2+"></a>
+  <a href="https://isocpp.org/"><img src="https://img.shields.io/badge/language-C%2B%2B-00599C.svg" alt="Language: C++"></a>
+  <a href="https://www.gtk.org/"><img src="https://img.shields.io/badge/toolkit-GTK%203-7FAE3D.svg" alt="Toolkit: GTK 3"></a>
+</p>
 
 ![MeowMenu demo](docs/assets/images/demo.gif)
+
+<p align="center"><strong><a href="https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases">Releases</a></strong> | <strong><a href="docs/index.md">Documentation</a></strong> | <strong><a href="https://aur.archlinux.org/packages/xfce4-meowmenu-plugin">AUR</a></strong></p>
 
 MeowMenu is a native Xfce panel launcher and a standalone fork of
 [Whisker Menu](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin).
@@ -87,4 +92,5 @@ MeowMenu is distributed under the [GNU General Public License v2](COPYING), or
 any later version. Original Whisker Menu was created by Graeme Gott; its
 [source remains available from Xfce](https://gitlab.xfce.org/panel-plugins/xfce4-whiskermenu-plugin).
 
-MeowMenu was developed with AI assistance; every change is maintainer-reviewed.
+AI coding agents assisted with selected translations, hardening and refactoring,
+and documentation consistency checks. Every change is maintainer-reviewed.
