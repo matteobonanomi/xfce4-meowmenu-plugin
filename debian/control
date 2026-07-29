@@ -18,6 +18,7 @@ Build-Depends:
  libxfconf-0-dev,
  libaccountsservice-dev,
  libgtk-layer-shell-dev,
+ git,
  gettext
 Standards-Version: 4.6.2
 Homepage: https://github.com/matteobonanomi/xfce4-meowmenu-plugin

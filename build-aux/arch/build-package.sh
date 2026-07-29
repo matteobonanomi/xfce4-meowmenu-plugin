@@ -11,7 +11,8 @@
 #
 set -euo pipefail
 
-build_dir="${1:?usage: build-package.sh <build-dir>}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+build_dir="$(cd "${1:?usage: build-package.sh <build-dir>}" && pwd)"
 
 run_makepkg() {
   if [ "$(id -u)" -eq 0 ]; then
@@ -27,7 +28,7 @@ cd "${build_dir}"
 run_makepkg env LC_ALL=C makepkg \
   --syncdeps --noconfirm --cleanbuild --force >&2
 
-"$(dirname "$0")/../compat/assert-dependency-regime.sh" \
+"${script_dir}/../compat/assert-dependency-regime.sh" \
   --regime legacy \
   --testlog "${build_dir}/src/build/meson-logs/testlog.txt" >&2
 

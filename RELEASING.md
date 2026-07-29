@@ -125,13 +125,33 @@ itself. Inspect and install each native package in its matching clean target.
 Automated package evidence does not substitute for separately recorded live
 desktop testing.
 
+## Development packaging check
+
+Before tagging, the complete packaging workflow can be tested without creating
+or changing a GitHub Release:
+
+1. Push the candidate commit to `development`; this starts an artifact-only
+   packaging run automatically.
+2. Alternatively, once this workflow revision is present on the default
+   branch, open the `packaging` workflow in GitHub Actions, choose
+   **Run workflow**, select `development`, keep `mode` set to `artifact-only`,
+   and leave `tag` empty.
+3. After the run succeeds, download the `package-set-<version>-<run-id>`
+   artifact and inspect its source archive, Ubuntu and Debian packages, Fedora
+   package, and `SHA256SUMS`.
+
+Artifact-only runs accept only the selected `development` commit. They use
+read-only repository permissions, skip the publication job, and cannot delete,
+create, or modify a GitHub Release.
+
 ## Existing-tag recovery
 
 Use manual dispatch only to recover an existing, unmodified annotated or
 lightweight tag that has no public GitHub Release. Select `main` as the
-workflow ref and enter the existing tag. Recovery refuses any workflow ref
-other than `main` and verifies that the workflow revision is reachable from
-`origin/main` before it can delete a stale draft or change a release.
+workflow ref, choose `recover-release`, and enter the existing tag. Recovery
+refuses any workflow ref other than `main` and verifies that the workflow
+revision is reachable from `origin/main` before it can delete a stale draft or
+change a release.
 
 Recovery uses the corrected release tools from `main` while all source and
 package content still comes from the immutable selected tag. It runs the same

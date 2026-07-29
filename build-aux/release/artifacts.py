@@ -15,13 +15,24 @@ from validate_release import (
 )
 
 
-def create_source_archive(repository: Path, tag: str, version: str, output: Path):
-    """Archive the peeled tag with one stable root and normalized gzip time."""
-    expected_tag = f"v{version}"
-    if tag != expected_tag:
-        raise ReleaseValidationError(f"Tag {tag} does not match {expected_tag}")
+def create_source_archive(
+    repository: Path,
+    version: str,
+    output: Path,
+    *,
+    tag: str = None,
+    ref: str = None,
+):
+    """Archive one immutable tag or commit with a stable, normalized layout."""
+    if (tag is None) == (ref is None):
+        raise ReleaseValidationError("Specify exactly one source tag or ref")
+    if tag is not None:
+        expected_tag = f"v{version}"
+        if tag != expected_tag:
+            raise ReleaseValidationError(f"Tag {tag} does not match {expected_tag}")
+        ref = tag
     commit = subprocess.run(
-        ["git", "rev-parse", f"{tag}^{{commit}}"],
+        ["git", "rev-parse", f"{ref}^{{commit}}"],
         cwd=repository,
         check=True,
         text=True,
@@ -68,7 +79,9 @@ def main():
 
     source = subparsers.add_parser("create-source")
     source.add_argument("--repository", type=Path, default=Path.cwd())
-    source.add_argument("--tag", required=True)
+    source_ref = source.add_mutually_exclusive_group(required=True)
+    source_ref.add_argument("--tag")
+    source_ref.add_argument("--ref")
     source.add_argument("--version", required=True)
     source.add_argument("--output", type=Path, required=True)
 
@@ -82,7 +95,13 @@ def main():
 
     args = parser.parse_args()
     if args.command == "create-source":
-        create_source_archive(args.repository, args.tag, args.version, args.output)
+        create_source_archive(
+            args.repository,
+            args.version,
+            args.output,
+            tag=args.tag,
+            ref=args.ref,
+        )
     elif args.command == "checksums":
         generate_checksums(args.assets, args.version)
     else:

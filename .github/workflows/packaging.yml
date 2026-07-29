@@ -2,13 +2,24 @@ name: packaging
 
 on:
   push:
+    branches:
+      - development
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing annotated or lightweight release tag
+      mode:
+        description: Build development artifacts or recover an existing release
         required: true
+        default: artifact-only
+        type: choice
+        options:
+          - artifact-only
+          - recover-release
+      tag:
+        description: Existing annotated or lightweight tag (recover-release only)
+        required: false
+        default: ''
         type: string
 
 concurrency:
@@ -16,20 +27,24 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  RECOVERY_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+  CANDIDATE_REF: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/development') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'artifact-only')) && github.sha || (github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name) }}
+  ARTIFACT_ONLY: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/development') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'artifact-only') }}
 
 jobs:
   validate-tag:
-    name: validate-tag
+    name: validate-candidate
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.identity.outputs.version }}
       debian_version: ${{ steps.identity.outputs.debian_version }}
       rpm_version: ${{ steps.identity.outputs.rpm_version }}
       arch_version: ${{ steps.identity.outputs.arch_version }}
+      publish: ${{ steps.identity.outputs.publish }}
     steps:
       - name: Checkout release tools
         uses: actions/checkout@v7
@@ -39,7 +54,7 @@ jobs:
           path: release-tools
 
       - name: Authorize existing-tag recovery
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'recover-release'
         env:
           WORKFLOW_REF: ${{ github.workflow_ref }}
           WORKFLOW_SHA: ${{ github.workflow_sha }}
@@ -64,35 +79,54 @@ jobs:
       - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.CANDIDATE_REF }}
           fetch-depth: 0
           path: candidate
 
-      - name: Validate tag, main ancestry, and NEWS identity
+      - name: Validate candidate identity
         id: identity
         run: |
           set -euo pipefail
-          git -C candidate fetch --force origin main:refs/remotes/origin/main
-          commit="$(git -C candidate rev-parse "${RELEASE_TAG}^{commit}")"
-          git -C candidate merge-base --is-ancestor "$commit" origin/main || {
-            echo "::error::${RELEASE_TAG} is not reachable from main"
-            exit 1
-          }
           version="$(python3 release-tools/build-aux/news-version.py \
             --version --news candidate/NEWS)"
           expected_tag="$(python3 release-tools/build-aux/news-version.py \
             --tag --news candidate/NEWS)"
-          test "$RELEASE_TAG" = "$expected_tag" || {
-            echo "::error::Tag ${RELEASE_TAG} does not match top NEWS version ${version}"
-            exit 1
-          }
           python3 release-tools/build-aux/news-version.py \
             --date --news candidate/NEWS
+          commit="$(git -C candidate rev-parse HEAD)"
+          if [[ "$ARTIFACT_ONLY" == true ]]; then
+            test "$GITHUB_REF" = refs/heads/development || {
+              echo "::error::Artifact-only packaging must run from development"
+              exit 1
+            }
+            test -z "$RECOVERY_TAG" || {
+              echo "::error::Artifact-only packaging does not accept a release tag"
+              exit 1
+            }
+            test "$commit" = "$GITHUB_SHA" || {
+              echo "::error::Candidate checkout does not match the selected development commit"
+              exit 1
+            }
+            publish=false
+          else
+            git -C candidate fetch --force origin main:refs/remotes/origin/main
+            commit="$(git -C candidate rev-parse "${RELEASE_TAG}^{commit}")"
+            git -C candidate merge-base --is-ancestor "$commit" origin/main || {
+              echo "::error::${RELEASE_TAG} is not reachable from main"
+              exit 1
+            }
+            test "$RELEASE_TAG" = "$expected_tag" || {
+              echo "::error::Tag ${RELEASE_TAG} does not match top NEWS version ${version}"
+              exit 1
+            }
+            publish=true
+          fi
           {
             echo "version=${version}"
             echo "debian_version=$(python3 release-tools/build-aux/news-version.py --debian-version --news candidate/NEWS)"
             echo "rpm_version=$(python3 release-tools/build-aux/news-version.py --rpm-version --news candidate/NEWS)"
             echo "arch_version=$(python3 release-tools/build-aux/news-version.py --arch-version --news candidate/NEWS)"
+            echo "publish=${publish}"
           } >> "$GITHUB_OUTPUT"
 
   source:
@@ -109,7 +143,7 @@ jobs:
       - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.CANDIDATE_REF }}
           fetch-depth: 0
           path: candidate
 
@@ -118,9 +152,13 @@ jobs:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           mkdir -p artifacts
+          source_identity=(--tag "$RELEASE_TAG")
+          if [[ "$ARTIFACT_ONLY" == true ]]; then
+            source_identity=(--ref "$CANDIDATE_REF")
+          fi
           python3 release-tools/build-aux/release/artifacts.py create-source \
             --repository candidate \
-            --tag "$RELEASE_TAG" \
+            "${source_identity[@]}" \
             --version "$VERSION" \
             --output "artifacts/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
 
@@ -332,20 +370,21 @@ jobs:
       - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.CANDIDATE_REF }}
           fetch-depth: 0
           path: candidate
 
       - name: Prepare, build, test, lint, install, and compare version
         env:
-          GITHUB_EVENT_NAME: push
-          GITHUB_REF_NAME: ${{ env.RELEASE_TAG }}
+          MEOWMENU_PACKAGE_VERSION: ${{ needs.validate-tag.outputs.version }}
           EXPECTED_ARCH_VERSION: ${{ needs.validate-tag.outputs.arch_version }}
         run: |
           cd candidate
           git config --global --add safe.directory "$PWD"
           build_dir="$(build-aux/arch/prepare-source.sh)"
-          package="$(build-aux/arch/build-package.sh "$build_dir")"
+          mkdir -p "$RUNNER_TEMP/arch-logs"
+          package="$(build-aux/arch/build-package.sh "$build_dir" \
+            2> >(tee "$RUNNER_TEMP/arch-logs/build.log" >&2))"
           build-aux/arch/run-namcap.sh \
             "$build_dir/PKGBUILD" "$package" "$RUNNER_TEMP/arch-logs"
           build-aux/arch/smoke-install.sh "$package"
@@ -370,7 +409,7 @@ jobs:
           retention-days: 30
 
   assemble-release:
-    name: assemble-and-publish
+    name: assemble-package-set
     needs: [validate-tag, source, build-deb, build-rpm, arch-pkgbuild-test]
     runs-on: ubuntu-latest
     steps:
@@ -383,7 +422,7 @@ jobs:
       - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.CANDIDATE_REF }}
           path: candidate
 
       - name: Run release, presentation, documentation, and translation gates
@@ -434,6 +473,29 @@ jobs:
           python3 release-tools/build-aux/release/artifacts.py verify \
             --assets artifacts --version "$VERSION"
 
+      - name: Upload complete package set
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-set-${{ needs.validate-tag.outputs.version }}-${{ github.run_id }}
+          path: |
+            artifacts/*
+            release-notes.md
+          retention-days: 30
+
+  publish-release:
+    name: publish-release
+    needs: [validate-tag, assemble-release]
+    if: needs.validate-tag.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download complete package set
+        uses: actions/download-artifact@v8
+        with:
+          name: package-set-${{ needs.validate-tag.outputs.version }}-${{ github.run_id }}
+          path: package-set
+
       - name: Publish one complete release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -452,10 +514,10 @@ jobs:
           if [[ "$VERSION" =~ -rc[0-9]+$ ]]; then
             release_flags+=(--prerelease --latest=false)
           fi
-          gh release create "$RELEASE_TAG" artifacts/* \
+          gh release create "$RELEASE_TAG" package-set/artifacts/* \
             --verify-tag \
             --title "MeowMenu ${VERSION}" \
-            --notes-file release-notes.md \
+            --notes-file package-set/release-notes.md \
             "${release_flags[@]}"
 
       - name: Download and verify the published assets

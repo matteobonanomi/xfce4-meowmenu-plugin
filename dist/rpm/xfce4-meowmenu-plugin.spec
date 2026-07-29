@@ -28,6 +28,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  /usr/bin/ninja
 BuildRequires:  /usr/bin/pkg-config
 BuildRequires:  /usr/bin/msgfmt
+BuildRequires:  /usr/bin/git
 BuildRequires:  pkgconfig(gtk+-3.0)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gio-2.0)
