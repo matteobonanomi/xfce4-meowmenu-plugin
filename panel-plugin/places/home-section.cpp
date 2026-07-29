@@ -9,6 +9,7 @@
 
 #include "home-section.h"
 
+#include "home-shortcuts.h"
 #include "places-item.h"
 
 #include <gio/gio.h>
@@ -94,22 +95,21 @@ std::vector<PlacesItem*> HomeSection::get_items(int /*max*/)
 		G_USER_DIRECTORY_PUBLIC_SHARE,
 	};
 
-	auto push_path_if_exists = [this](const gchar* path)
-	{
-		if (!path || !*path || !g_file_test(path, G_FILE_TEST_IS_DIR))
-		{
-			return;
-		}
-		GFile* file = g_file_new_for_path(path);
-		m_items.push_back(new PlacesItem(file));
-		g_object_unref(file);
-	};
-
-	// $HOME first, then the eight XDG specials that exist on disk.
-	push_path_if_exists(g_get_home_dir());
+	std::vector<const char*> candidates;
+	candidates.reserve(G_N_ELEMENTS(xdg_dirs));
 	for (GUserDirectory d : xdg_dirs)
 	{
-		push_path_if_exists(g_get_user_special_dir(d));
+		candidates.push_back(g_get_user_special_dir(d));
+	}
+
+	// GLib calls above are synchronous process-cache reads. MeowMenu does not
+	// own the backing configuration, so it does not reload that global cache.
+	for (const std::string& path : qualify_home_shortcuts(
+			g_get_home_dir(), candidates))
+	{
+		GFile* file = g_file_new_for_path(path.c_str());
+		m_items.push_back(new PlacesItem(file));
+		g_object_unref(file);
 	}
 
 	return m_items;

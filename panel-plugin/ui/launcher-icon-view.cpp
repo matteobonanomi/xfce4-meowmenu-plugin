@@ -28,6 +28,69 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+/* launcher_icon_view_set_transparent_grid_style:
+ * @view: icon-view widget receiving the scoped style class.
+ * @enabled: whether transparent resting cells are enabled.
+ *
+ * Mirrors the preference as a widget-local CSS class and queues a redraw. The
+ * helper keeps style scoping directly testable without a Settings instance.
+ */
+void WhiskerMenu::launcher_icon_view_set_transparent_grid_style(
+		GtkWidget* view, bool enabled)
+{
+	GtkStyleContext* context = gtk_widget_get_style_context(view);
+	if (enabled)
+	{
+		gtk_style_context_add_class(context, "transparent-grid");
+	}
+	else
+	{
+		gtk_style_context_remove_class(context, "transparent-grid");
+	}
+	gtk_widget_queue_draw(view);
+}
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_complete_empty_click:
+ * @view: concrete icon view after GTK default button processing.
+ * @transparent_grid: whether transparent resting cells are enabled.
+ * @event: completed pointer event in widget coordinates.
+ *
+ * Enforces the empty-primary-click postcondition without consuming the event:
+ * no selection remains and the complete grid is queued for redraw. Widget
+ * focus and GTK's cursor are intentionally retained for keyboard continuation.
+ *
+ * Returns: true when an empty primary click was handled.
+ */
+bool WhiskerMenu::launcher_icon_view_complete_empty_click(GtkIconView* view,
+		bool transparent_grid, const GdkEventButton* event)
+{
+	if (!view || !transparent_grid || !event
+			|| event->type != GDK_BUTTON_RELEASE || event->button != 1)
+	{
+		return false;
+	}
+
+	GtkTreePath* path = nullptr;
+	if (event->x >= 0 && event->y >= 0)
+	{
+		path = gtk_icon_view_get_path_at_pos(view,
+				static_cast<int>(event->x), static_cast<int>(event->y));
+	}
+	if (path)
+	{
+		gtk_tree_path_free(path);
+		return false;
+	}
+
+	gtk_icon_view_unselect_all(view);
+	gtk_widget_queue_draw(GTK_WIDGET(view));
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
 LauncherIconView::LauncherIconView(Settings* settings) :
 	m_settings(settings),
 	m_icon_renderer(nullptr),
@@ -66,8 +129,20 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	connect(m_view, "selection-changed",
 		[this](GtkIconView*)
 		{
-			queue_translucent_safeguard_redraw();
+			queue_full_redraw_safeguard();
 		});
+
+	// Observe the completed event so GTK has already applied its own focus and
+	// selection behavior. The callback does not consume activation or drag
+	// events and acts only on primary clicks with no model path.
+	connect(m_view, "button-release-event",
+		[this](GtkWidget*, GdkEventButton* event) -> gboolean
+		{
+			launcher_icon_view_complete_empty_click(m_view,
+					m_transparent_grid, event);
+			return GDK_EVENT_PROPAGATE;
+		},
+		Connect::After);
 
 	g_object_ref_sink(m_view);
 
@@ -393,16 +468,8 @@ void LauncherIconView::sync_transparent_grid_style()
 	}
 	m_transparent_grid = transparent_grid;
 
-	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_view));
-	if (transparent_grid)
-	{
-		gtk_style_context_add_class(context, "transparent-grid");
-	}
-	else
-	{
-		gtk_style_context_remove_class(context, "transparent-grid");
-	}
-	gtk_widget_queue_draw(GTK_WIDGET(m_view));
+	launcher_icon_view_set_transparent_grid_style(GTK_WIDGET(m_view),
+			transparent_grid);
 }
 
 //-----------------------------------------------------------------------------

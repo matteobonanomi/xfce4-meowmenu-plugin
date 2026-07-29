@@ -13,6 +13,7 @@
 #include "favourites-section.h"
 #include "history-section.h"
 #include "home-section.h"
+#include "ui/grid-presentation.h"
 #include "ui/image-menu-item.h"
 #include "ui/launcher-icon-view.h"
 #include "ui/launcher-tree-view.h"
@@ -179,6 +180,12 @@ void PlacesPage::create_view()
 	}
 
 	m_view->set_model(GTK_TREE_MODEL(m_model));
+	m_view->set_full_redraw_safeguard(full_redraw_safeguard_required(
+			m_settings->menu_opacity,
+			m_view->is_grid_view()
+					? LauncherViewKind::IconGrid
+					: LauncherViewKind::Tree,
+			m_settings->transparent_grid));
 }
 
 //-----------------------------------------------------------------------------

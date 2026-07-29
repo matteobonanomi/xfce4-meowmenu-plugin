@@ -8,6 +8,68 @@ test_smoke = executable(
 
 test('smoke', test_smoke)
 
+test_menu_mode_state = executable(
+  'test_menu_mode_state',
+  [
+    'test_menu_mode_state.cpp',
+    '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+)
+
+test('menu_mode_state', test_menu_mode_state)
+
+test_window_mode_integration = executable(
+  'test_window_mode_integration',
+  [
+    'test_window_mode_integration.cpp',
+    '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [gtk],
+)
+
+test('window_mode_integration', test_window_mode_integration)
+
+test_grid_presentation = executable(
+  'test_grid_presentation',
+  [
+    'test_grid_presentation.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'grid-presentation.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+)
+
+test('grid_presentation', test_grid_presentation)
+
+test_launcher_icon_view = executable(
+  'test_launcher_icon_view',
+  [
+    'test_launcher_icon_view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'launcher-icon-view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  dependencies: [glib, gio, gtk, libxfce4util, xfconf],
+)
+
+test('launcher_icon_view', test_launcher_icon_view, timeout: 30)
+
+test_places_home_contract = executable(
+  'test_places_home_contract',
+  [
+    'test_places_home_contract.cpp',
+    '..' / 'panel-plugin' / 'places' / 'home-shortcuts.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+
+test('places_home_contract', test_places_home_contract)
+
 test(
   'release_version',
   python3,

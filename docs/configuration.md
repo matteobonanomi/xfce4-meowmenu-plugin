@@ -135,6 +135,7 @@ expects argument splitting.
 | Grid density | Number of columns in icon-grid mode: low, medium, or high. |
 | Grid columns | Explicit column count for icon-grid mode. |
 | Grid rows | Number of visible rows in icon-grid mode. |
+| Transparent grid | Blend idle grid tiles into the results background. Clicking empty grid space clears the tile selection without leaving an unrelated solid tile; theme-provided hover, selection, press, drag, and keyboard-focus feedback remains visible. |
 | Default category | Category shown on open: favorites, recent, or all apps. |
 | Hover to switch category | Change the visible category by hovering over sidebar entries. |
 
@@ -147,7 +148,7 @@ expects argument splitting.
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (`-1` through `6`; `-1` inherits the theme size). |
 | Sort categories | Sort the category list alphabetically. |
-| Recent items max | Maximum number of recently-used apps to track. |
+| Recent items max | Maximum number of recently used applications to track for the Applications **Recently Used** category. |
 | Include favorites in recent | Also show favorited apps in the Recent category. |
 | Unified bar | Render profile, search, and session controls on one horizontal row (FullScreen mode only). |
 
@@ -165,14 +166,20 @@ icon-only preview.
 
 | Option | Description |
 |--------|-------------|
-| Enable Places | Show a file/folder browser pane in the menu. |
+| Enable Places | Show a flat shortcut surface for Home, configured standard user folders, recent files, and bookmarks. |
 | Show icons | Render the Apps/Places switch as two icon buttons (an app-grid icon and a folder icon, with tooltips) instead of text labels. Forced on, and shown greyed in Preferences, when the sidebar is on top/bottom or disabled. |
 | Switch button shape | Choose whether the Apps/Places switch uses the active GTK theme's normal button shape or MeowMenu's rounded segmented shape. |
-| Show recent files | Include recently opened files in the Places view. |
+| Show recent files | Include recently opened files in Places **History**. This is separate from the Applications **Recently Used** category. |
 | Show bookmarks | Include user bookmarks (from Thunar or GTK bookmarks). |
 | Bookmark sync | Keep the Places bookmarks in sync with **MeowMenu** or **Thunar**. |
 | Max items | Maximum number of items shown in the Places view. |
-| Remember last mode | Reopen MeowMenu showing the last-used Places sub-section. |
+| Remember last mode | Reopen MeowMenu in the last-used top-level mode: Applications or Places. Entering Places starts on Home. |
+
+Places **Home** always starts with Home, followed by configured standard user
+folders such as Documents, Downloads, Music, Pictures, and Videos when those
+directories exist. It does not list every folder under Home and is not an
+embedded file browser: activating a shortcut opens the external file manager.
+Missing, Home-equivalent, and duplicate standard-folder entries are omitted.
 
 Drag a Places file or folder onto **Favourites** when **Bookmark sync** is
 **MeowMenu**. The target is unavailable for disabled Places, sidebar, or
@@ -267,7 +274,7 @@ Replace `<id>` with the numeric plugin ID shown by
 | `launcher-show-tooltip` | bool | true | Show a hover tooltip. |
 | `launcher-icon-size` | int | -1 | Icon size (-1 = theme default). |
 | `grid-density` | string | `medium` | `low`, `medium`, or `high` columns in grid mode. |
-| `transparent-grid` | bool | false | In grid mode, make resting result tiles blend into the results area while keeping icons, labels, and interaction states visible. |
+| `transparent-grid` | bool | false | In grid mode, make resting result tiles blend into the results area. Empty-space clicks clear the selection without leaving a solid idle tile, while theme-provided hover, selection, press, drag, and keyboard-focus feedback remains visible. |
 
 When results are shown as an icon grid, application tiles and Places file or
 folder tiles use the same application-style tile height. This keeps switching
@@ -314,11 +321,15 @@ an arbitrary command or clamping to a different preference.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `places/enabled` | bool | false | Enable the Places pane. |
+| `places/enabled` | bool | false | Enable the Places shortcut surface. |
 | `places/switch-show-icons` | bool | false | Render the Apps/Places switch as icon buttons instead of text. Forced on (render-time only) when the sidebar is on top/bottom or disabled. |
 | `places/switch-button-shape` | string | `gtk-theme` | Apps/Places switch shape: `gtk-theme` uses normal GTK theme button radii, `rounded` uses MeowMenu's rounded segmented shape. |
-| `places/history-enabled` | bool | true | Show recently opened files. |
+| `places/history-enabled` | bool | true | Show recently opened files in Places History. |
 | `places/favourites-enabled` | bool | true | Show bookmarks. |
 | `places/favourite-sync` | string | `meowmenu` | Keep bookmarks in sync with `meowmenu` or `thunar`. |
 | `places/max-items` | int | 20 | Maximum items in the Places view. |
-| `places/remember-last-mode` | bool | false | Reopen in the last-used Places sub-section. |
+| `places/remember-last-mode` | bool | false | Reopen in the last-used top-level mode, Applications or Places. |
+
+X11 is the primary quality path. Wayland support for menu mode, Places, and
+Transparent grid is experimental; the menu remains usable, but theme- or
+compositor-specific pixel differences may occur.

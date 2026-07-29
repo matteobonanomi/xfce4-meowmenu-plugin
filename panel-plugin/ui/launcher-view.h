@@ -124,18 +124,15 @@ public:
 	virtual int get_icon_size() const { return 0; }
 	virtual bool is_grid_view() const { return false; }
 
-	/* set_background_translucent:
-	 * @translucent: whether the menu background is currently see-through
-	 *               (alpha < 1, i.e. menu opacity below 100).
+	/* set_full_redraw_safeguard:
+	 * @enabled: whether this result surface requires full-view redraws.
 	 *
-	 * Pushed by the view owner from the resolved /menu-opacity value; the base
-	 * never reads Xfconf, so it stays settings-agnostic. While true, navigation
-	 * recomposites the whole view (see queue_translucent_safeguard_redraw); while
-	 * false the safeguard is a no-op, so the fully-opaque path is unchanged.
+	 * Pushed by the owner from the resolved opacity and view-style policy. The
+	 * base remains settings-agnostic.
 	 */
-	void set_background_translucent(bool translucent)
+	void set_full_redraw_safeguard(bool enabled)
 	{
-		m_background_translucent = translucent;
+		m_full_redraw_safeguard = enabled;
 	}
 
 	enum Columns
@@ -163,7 +160,7 @@ protected:
 				// neutralised in the plugin CSS), so unselecting here leaves
 				// zero highlights from hover.
 				clear_selection();
-				queue_translucent_safeguard_redraw();
+				queue_full_redraw_safeguard();
 				return GDK_EVENT_PROPAGATE;
 			});
 
@@ -188,10 +185,10 @@ protected:
 		// scrolling moves the viewport without it. The view is a GtkScrollable, so
 		// when it is placed in its scrolled window the scrolled window installs its
 		// own vertical adjustment (notify::vadjustment fires once). Connect that
-		// adjustment's value-changed to the translucent redraw so a pure scroll
+		// adjustment's value-changed to the guarded redraw so a pure scroll
 		// that reveals rows — with no selection change — still recomposites the
-		// whole surface (the documented behavior's "newly revealed rows", the 041 symptom). Gated by
-		// the translucent flag, so a no-op at opacity 100.
+		// whole surface (the documented behavior's "newly revealed rows", the 041 symptom).
+		// Opaque list/tree surfaces leave the guard disabled.
 		//
 		// LIFECYCLE: this is the ONE safeguard connection made on an object the
 		// view does not own. The vertical adjustment belongs to the scrolled
@@ -199,7 +196,7 @@ protected:
 		// rebuilds, so it outlives this LauncherView. Every other safeguard
 		// connection is on the view widget and is torn down with it; this one must
 		// be unbound explicitly, or a later value-changed would invoke
-		// queue_translucent_safeguard_redraw() → get_widget() on a freed view
+		// queue_full_redraw_safeguard() → get_widget() on a freed view
 		// (use-after-free, the documented behavior). We therefore track the current adjustment and
 		// our handler id, drop a stale handler whenever GTK swaps the adjustment
 		// (so at most one is ever live), and disconnect on the view widget's own
@@ -215,7 +212,7 @@ protected:
 					m_scroll_handler_id = connect(adj, "value-changed",
 						[this](GtkAdjustment*)
 						{
-							queue_translucent_safeguard_redraw();
+							queue_full_redraw_safeguard();
 						});
 				}
 			});
@@ -232,22 +229,15 @@ protected:
 			});
 	}
 
-	/* queue_translucent_safeguard_redraw:
+	/* queue_full_redraw_safeguard:
 	 *
-	 * Queues a full-widget redraw ONLY while the background is translucent. Hover,
-	 * wheel, and keyboard navigation all resolve to a single selection change and
-	 * pointer prelight is CSS-neutralised, so this one hook — invoked from the
-	 * shared selection chokepoint here and from the scroll/selection signals each
-	 * concrete view wires up — covers every navigation modality. The redraw forces
-	 * the whole translucent surface to recomposite so no stale highlight pixels
-	 * survive on visited or newly revealed rows. At opacity 100 the flag is false
-	 * and this is a no-op, so the fully-opaque path is byte-for-byte unchanged.
-	 * gtk_widget_queue_draw coalesces, so overlapping triggers cost at most one
-	 * redraw per frame.
+	 * Queues a full-widget redraw only for a surface whose presentation policy
+	 * requires it. GTK coalesces overlapping requests, so navigation and scroll
+	 * triggers still cost at most one redraw per frame.
 	 */
-	void queue_translucent_safeguard_redraw()
+	void queue_full_redraw_safeguard()
 	{
-		if (m_background_translucent)
+		if (m_full_redraw_safeguard)
 			gtk_widget_queue_draw(get_widget());
 	}
 
@@ -272,10 +262,9 @@ private:
 		m_scroll_handler_id = 0;
 	}
 
-	// Whether the menu background is translucent (alpha < 1). Pushed by the view
-	// owner via set_background_translucent(); gates the safeguard redraw so the
-	// fully-opaque path pays nothing. Default false until the owner pushes a value.
-	bool m_background_translucent = false;
+	// Pushed by the owner after resolving opacity and view styling. Default false
+	// so ordinary opaque list/tree views pay nothing.
+	bool m_full_redraw_safeguard = false;
 
 	// The scrolled window's vertical adjustment we hold a value-changed handler
 	// on, plus that handler's id. The adjustment is not owned by this view and
@@ -314,9 +303,9 @@ private:
 		}
 		gtk_tree_path_free(path);
 		// Recomposite the whole surface on every pointer move/wheel while
-		// translucent, so a sweep or wheel that changes (or clears) the hovered
-		// row leaves no trailing highlight; a no-op when opaque.
-		queue_translucent_safeguard_redraw();
+		// guarded, so a sweep or wheel that changes (or clears) the hovered row
+		// leaves no trailing highlight; a no-op on ordinary opaque surfaces.
+		queue_full_redraw_safeguard();
 	}
 };
 

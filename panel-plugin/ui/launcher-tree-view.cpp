@@ -72,7 +72,7 @@ LauncherTreeView::LauncherTreeView(Settings* settings) :
 	connect(selection, "changed",
 		[this](GtkTreeSelection*)
 		{
-			queue_translucent_safeguard_redraw();
+			queue_full_redraw_safeguard();
 		});
 
 	g_object_ref_sink(m_view);

@@ -1,12 +1,12 @@
 /* test_launcher_safeguard_lifecycle:
  *
  * Freezes the the documented behavior invariant (render-invariants contract I13): the
- * translucency-only scroll-reveal safeguard in the shared LauncherView base
+ * transparent-surface scroll-reveal safeguard in the shared LauncherView base
  * connects a value-changed handler to the scrolled window's vertical
  * GtkAdjustment — the one safeguard connection on an object the view does NOT
  * own and which outlives it across menu rebuilds. That handler MUST stop firing
  * once the view is destroyed, or a later value-changed on the surviving
- * adjustment invokes queue_translucent_safeguard_redraw() -> get_widget() on a
+ * adjustment invokes queue_full_redraw_safeguard() -> get_widget() on a
  * freed view: the intermittent plugin crash/restart the documented behavior describes (closing,
  * rebuilding, or reloading the menu after scrolling a translucent list).
  *
@@ -206,17 +206,17 @@ int main()
 	TestLauncherView* view = new TestLauncherView();
 
 	// Adding the scrollable view installs the scrolled window's vertical
-	// adjustment on it (notify::vadjustment), binding the base safeguard. Push the
-	// translucent flag so the safeguard is the active (non no-op) path.
+	// adjustment on it (notify::vadjustment), binding the base safeguard. Enable
+	// the guard so the callback takes the active path.
 	gtk_container_add(GTK_CONTAINER(scrolled), view->get_widget());
-	view->set_background_translucent(true);
+	view->set_full_redraw_safeguard(true);
 
 	// Hold our own ref: the adjustment must outlive the view, like the reused
 	// scrolled window's adjustment in production.
 	GtkAdjustment* adj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrolled));
 	g_object_ref(adj);
 
-	// Live path: with the view alive and translucent, a value-changed must reach
+	// Live path: with the guarded view alive, a value-changed must reach
 	// the safeguard (it calls get_widget()).
 	int before = g_get_widget_calls;
 	g_signal_emit_by_name(adj, "value-changed");

@@ -21,6 +21,8 @@
 #include "launcher/category-button.h"
 #include "launcher/favorites-page.h"
 #include "launcher/recent-page.h"
+#include "places/favourites-section.h"
+#include "places/history-section.h"
 #include "places/home-section.h"
 #include "places/places-page.h"
 #include "search/search-page.h"
@@ -181,6 +183,11 @@ void WhiskerMenu::Window::reset_default_button()
 
 void WhiskerMenu::Window::show_favorites()
 {
+	if (m_places_active)
+	{
+		return;
+	}
+
 	// Switch to favorites panel
 	m_favorites->get_button()->set_active(true);
 
@@ -193,6 +200,16 @@ void WhiskerMenu::Window::show_favorites()
 
 void WhiskerMenu::Window::show_default_page()
 {
+	if (m_places_active)
+	{
+		m_places_home_btn->set_active(true);
+		m_places->set_active_section(m_places->get_home_section());
+		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		gtk_entry_set_text(m_search_entry, "");
+		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		return;
+	}
+
 	// Switch to favorites panel
 	m_default_button->set_active(true);
 
@@ -275,15 +292,43 @@ void WhiskerMenu::Window::search()
 
 //-----------------------------------------------------------------------------
 
-/* switch_mode:
- * @to_places: true to enter Places mode; false to return to Apps.
+/* current_menu_content:
  *
- * Toggles the Apps/Places selector visuals, hides/shows the appropriate
- * sidebar buttons, and updates the search-entry placeholder. Re-entrancy is
- * guarded by m_mode_switch_in_progress so the two toggle-button "toggled"
- * signals do not loop.
+ * Maps the active Places section into the pure presentation vocabulary.
+ * Applications content is deliberately opaque because live reevaluation keeps
+ * its current category or search surface.
+ *
+ * Returns: the current Places section, or RetainCurrent for Applications.
  */
-void WhiskerMenu::Window::switch_mode(bool to_places)
+MenuContentTarget WhiskerMenu::Window::current_menu_content() const
+{
+	if (!m_places_active)
+	{
+		return MenuContentTarget::RetainCurrent;
+	}
+	if (m_places->get_active_section() == m_places->get_history_section())
+	{
+		return MenuContentTarget::PlacesHistory;
+	}
+	if (m_places->get_active_section() == m_places->get_favourites_section())
+	{
+		return MenuContentTarget::PlacesFavourites;
+	}
+	return MenuContentTarget::PlacesHome;
+}
+
+//-----------------------------------------------------------------------------
+
+/* apply_menu_mode:
+ * @requested_mode: desired top-level mode; unavailable Places resolves to Apps.
+ * @transition: Enter selects the mode default, Reevaluate retains valid content.
+ *
+ * Applies selector state, search context, control visibility, and content as
+ * one guarded transaction. This is the only Window path that owns the complete
+ * Applications/Places presentation matrix.
+ */
+void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
+		MenuModeTransition transition)
 {
 	if (m_mode_switch_in_progress)
 	{
@@ -291,45 +336,63 @@ void WhiskerMenu::Window::switch_mode(bool to_places)
 	}
 	m_mode_switch_in_progress = true;
 
-	m_places_active = to_places;
-	gtk_toggle_button_set_active(m_mode_btn_apps,   !to_places);
-	gtk_toggle_button_set_active(m_mode_btn_places,  to_places);
+	MenuModeInputs inputs;
+	inputs.requested_mode = requested_mode;
+	inputs.transition = transition;
+	inputs.current_content = current_menu_content();
+	inputs.places_enabled = m_settings->places_enabled;
+	inputs.recent_applications_enabled = m_settings->recent_items_max;
+	inputs.places_history_enabled = m_settings->places_history_enabled;
+	inputs.places_favourites_enabled = m_settings->places_favourites_enabled;
 
-	const bool history_visible = m_settings->places_history_enabled;
-	const bool fav_visible     = m_settings->places_favourites_enabled;
+	// A live setting can invalidate Places itself. Treat that forced mode change
+	// as entry so the result cannot retain Places content behind Apps controls.
+	const MenuMode prior_mode = m_places_active
+			? MenuMode::Places : MenuMode::Applications;
+	MenuModeResolution resolution = resolve_menu_mode(inputs);
+	if (resolution.mode != prior_mode
+			&& transition == MenuModeTransition::Reevaluate)
+	{
+		inputs.transition = MenuModeTransition::Enter;
+		resolution = resolve_menu_mode(inputs);
+	}
 
-	gtk_widget_set_visible(m_favorites->get_button()->get_widget(),       !to_places);
+	const bool places = resolution.mode == MenuMode::Places;
+	m_places_active = places;
+	gtk_toggle_button_set_active(m_mode_btn_apps, !places);
+	gtk_toggle_button_set_active(m_mode_btn_places, places);
+
+	gtk_widget_set_visible(m_favorites->get_button()->get_widget(),
+			resolution.applications_favourites_visible);
 	gtk_widget_set_visible(m_recent->get_button()->get_widget(),
-			!to_places && m_settings->recent_items_max);
-	gtk_widget_set_visible(m_applications->get_button()->get_widget(),    !to_places);
-
-	gtk_widget_set_visible(m_places_home_btn->get_widget(),     to_places);
-	gtk_widget_set_visible(m_places_history_btn->get_widget(),  to_places && history_visible);
-	gtk_widget_set_visible(m_places_fav_btn->get_widget(),      to_places && fav_visible);
-
-	// Hide app categories (Accessories, Development, ...) in Places mode.
-	for (GtkWidget* w : m_app_category_widgets)
+			resolution.applications_recent_visible);
+	gtk_widget_set_visible(m_applications->get_button()->get_widget(),
+			resolution.applications_all_visible);
+	gtk_widget_set_visible(m_places_home_btn->get_widget(),
+			resolution.places_home_visible);
+	gtk_widget_set_visible(m_places_history_btn->get_widget(),
+			resolution.places_history_visible);
+	gtk_widget_set_visible(m_places_fav_btn->get_widget(),
+			resolution.places_favourites_visible);
+	for (GtkWidget* widget : m_app_category_widgets)
 	{
-		gtk_widget_set_visible(w, !to_places);
+		gtk_widget_set_visible(widget,
+				resolution.application_categories_visible);
 	}
 
-	gtk_entry_set_text(m_search_entry, "");
-	gtk_entry_set_placeholder_text(m_search_entry,
-			to_places ? _("Search places\xe2\x80\xa6")
-			          : _("Search applications\xe2\x80\xa6"));
+	gtk_entry_set_placeholder_text(m_search_entry, places
+			? _("Search places\xe2\x80\xa6")
+			: _("Search applications\xe2\x80\xa6"));
 
-	if (to_places)
+	if (inputs.transition == MenuModeTransition::Enter)
 	{
-		m_places_home_btn->set_active(true);
-		m_places->set_active_section(m_places->get_home_section());
-		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		gtk_entry_set_text(m_search_entry, "");
 	}
-	else
+
+	switch (resolution.content)
 	{
-		// NOTE: Apps and Places buttons are separate radio groups. When Places
-		// was entered, the default Apps button was never deactivated, so
-		// set_active(true) in show_default_page() is a GTK no-op and the
-		// "toggled" handler never fires. Switch the stack explicitly first.
+	case MenuContentTarget::ApplicationsDefault:
+	{
 		const char* page = "favorites";
 		switch (m_settings->default_category)
 		{
@@ -338,12 +401,52 @@ void WhiskerMenu::Window::switch_mode(bool to_places)
 		default: break;
 		}
 		gtk_stack_set_visible_child_name(m_panels_stack, page);
-		show_default_page();
+		m_default_button->set_active(true);
+		break;
 	}
 
-	gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	case MenuContentTarget::PlacesHistory:
+		m_places_history_btn->set_active(true);
+		m_places->set_active_section(m_places->get_history_section());
+		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		break;
+
+	case MenuContentTarget::PlacesFavourites:
+		m_places_fav_btn->set_active(true);
+		m_places->set_active_section(m_places->get_favourites_section());
+		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		break;
+
+	case MenuContentTarget::PlacesHome:
+		m_places_home_btn->set_active(true);
+		m_places->set_active_section(m_places->get_home_section());
+		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		break;
+
+	case MenuContentTarget::RetainCurrent:
+		break;
+	}
+
+	if (inputs.transition == MenuModeTransition::Enter)
+	{
+		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+	}
 	m_mode_switch_in_progress = false;
 	update_favourite_drop_targets();
+}
+
+//-----------------------------------------------------------------------------
+
+/* switch_mode:
+ * @to_places: true to enter Places mode; false to return to Applications.
+ *
+ * Public mode changes are mode-entry transactions, so Places always enters on
+ * Home and Applications enters on its configured valid default category.
+ */
+void WhiskerMenu::Window::switch_mode(bool to_places)
+{
+	apply_menu_mode(to_places ? MenuMode::Places : MenuMode::Applications,
+			MenuModeTransition::Enter);
 }
 
 //-----------------------------------------------------------------------------

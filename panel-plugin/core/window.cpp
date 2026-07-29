@@ -30,6 +30,7 @@
 #include "places/home-section.h"
 #include "places/places-item.h"
 #include "ui/launcher-view.h"
+#include "ui/grid-presentation.h"
 #include "places/places-page.h"
 #include "plugin.h"
 #include "profile.h"
@@ -1002,14 +1003,11 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 				if (g_strcmp0(property, "/places/enabled") == 0)
 				{
 					self->update_layout();
-					if (!self->m_settings->places_enabled && self->m_places_active)
-					{
-						self->switch_mode(false);
-					}
 					self->update_favourite_drop_targets();
 				}
 				else if (g_strcmp0(property, "/places/history-enabled") == 0
-						|| g_strcmp0(property, "/places/favourites-enabled") == 0)
+						|| g_strcmp0(property, "/places/favourites-enabled") == 0
+						|| g_strcmp0(property, "/recent-items-max") == 0)
 				{
 					self->update_layout();
 					self->update_favourite_drop_targets();
@@ -1031,15 +1029,30 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		m_live_settings_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
+				const bool transparent_grid =
+						g_strcmp0(property, "/transparent-grid") == 0;
 				if (g_strcmp0(property, "/corner-radius") != 0
-						&& g_strcmp0(property, "/menu-opacity") != 0)
+						&& g_strcmp0(property, "/menu-opacity") != 0
+						&& !transparent_grid)
 					return;
 				// The corner radius is applied entirely by re-clipping and
 				// re-stroking in on_draw_event; a menu-opacity change re-runs the
 				// CSS so the single shell alpha updates live. The redraw queued
 				// below picks up either change without reopening the menu.
 				auto* self = static_cast<Window*>(user_data);
-				self->update_background_css();
+				if (!transparent_grid)
+				{
+					self->update_background_css();
+				}
+				else
+				{
+					self->m_search_results->get_view()->reload_icon_size();
+					self->m_favorites->get_view()->reload_icon_size();
+					self->m_recent->get_view()->reload_icon_size();
+					self->m_applications->get_view()->reload_icon_size();
+					self->m_places->get_view()->reload_icon_size();
+				}
+				self->update_view_redraw_safeguards();
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
 				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
 			}), this);
@@ -1411,10 +1424,14 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 	if (m_resizing)
 		interactive_resize_cancel();
 
-	// Persist Places last-mode so the next open can resume in the same mode.
-	if (m_settings->places_enabled && m_settings->places_remember_last_mode)
+	// Persist only while remembering is enabled. A disabled preference leaves
+	// the saved value intact so it can be ignored without destructive writes.
+	const char* mode = mode_to_persist(m_settings->places_enabled,
+			m_settings->places_remember_last_mode,
+			m_places_active ? MenuMode::Places : MenuMode::Applications);
+	if (mode)
 	{
-		m_settings->places_last_mode = m_places_active ? "places" : "apps";
+		m_settings->places_last_mode = mode;
 	}
 
 	// Save settings
@@ -1466,17 +1483,7 @@ void WhiskerMenu::Window::show(const Position position)
 	m_recent->update_view();
 	m_applications->update_view();
 	m_places->reload_view();
-
-	// Restore last mode when Places is enabled and remember-last-mode is on.
-	if (m_settings->places_enabled && m_settings->places_remember_last_mode
-			&& (g_strcmp0(m_settings->places_last_mode, "places") == 0))
-	{
-		switch_mode(true);
-	}
-	else if (m_places_active && !m_settings->places_enabled)
-	{
-		switch_mode(false);
-	}
+	update_view_redraw_safeguards();
 
 	// Handle showing tooltips
 	if (m_settings->launcher_show_tooltip)
@@ -1506,9 +1513,6 @@ void WhiskerMenu::Window::show(const Position position)
 	// Make sure recent item count is within max
 	m_recent->enforce_item_count();
 
-	// Make sure recent button is only visible when tracked
-	gtk_widget_set_visible(m_recent->get_button()->get_widget(), m_settings->recent_items_max);
-
 	// Make sure applications list is current; does nothing unless list has changed
 	if (m_applications->load())
 	{
@@ -1523,7 +1527,13 @@ void WhiskerMenu::Window::show(const Position position)
 
 	// Update default page
 	reset_default_button();
-	show_default_page();
+	// Commit the opening mode only after view recreation, category preparation,
+	// and default-button ordering. No later opening step may select content from
+	// the other top-level mode.
+	apply_menu_mode(resolve_opening_mode(m_settings->places_enabled,
+			m_settings->places_remember_last_mode,
+			m_settings->places_last_mode),
+			MenuModeTransition::Enter);
 
 	// Clear any previous selection
 	m_favorites->reset_selection();
@@ -1938,17 +1948,10 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 	// minimum label width so the sidebar floor accounts for them too.
 	sync_category_label_width();
 
-	// NOTE: if Places mode is already active when categories arrive, keep
-	// the application categories hidden so the sidebar matches the mode.
-	if (m_places_active)
-	{
-		for (GtkWidget* w : m_app_category_widgets)
-		{
-			gtk_widget_set_visible(w, false);
-		}
-	}
-
-	show_default_page();
+	// Asynchronous category replacement must obey the same presentation
+	// transaction and must not select an Applications page behind Places.
+	apply_menu_mode(m_places_active ? MenuMode::Places
+			: MenuMode::Applications, MenuModeTransition::Reevaluate);
 }
 
 //-----------------------------------------------------------------------------
@@ -2743,6 +2746,34 @@ void WhiskerMenu::Window::on_state_flags_changed(GtkWidget* widget)
 
 //-----------------------------------------------------------------------------
 
+/* update_view_redraw_safeguards:
+ *
+ * Pushes the current transparent-surface decision into every Applications and
+ * Places result view. Call after view recreation and after live opacity or
+ * Transparent grid changes.
+ */
+void WhiskerMenu::Window::update_view_redraw_safeguards()
+{
+	LauncherView* views[] = {
+		m_search_results->get_view(),
+		m_favorites->get_view(),
+		m_recent->get_view(),
+		m_applications->get_view(),
+		m_places->get_view()
+	};
+	for (LauncherView* view : views)
+	{
+		view->set_full_redraw_safeguard(full_redraw_safeguard_required(
+				m_settings->menu_opacity,
+				view->is_grid_view()
+						? LauncherViewKind::IconGrid
+						: LauncherViewKind::Tree,
+				m_settings->transparent_grid));
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::update_background_css()
 {
 	if (!m_css_provider || !m_window)
@@ -2911,10 +2942,10 @@ void WhiskerMenu::Window::update_background_css()
 		// Transparent grid is opt-in and view-scoped. It removes only the
 		// resting icon-grid cell box; selected, hover, active, and focus states
 		// stay theme-visible so navigation and drag feedback remain legible.
-		".meowmenu iconview.launchers.transparent-grid.view.cell:not(:selected):not(:hover):not(:active):not(:focus),"
-		".meowmenu .launchers.transparent-grid.cell:not(:selected):not(:hover):not(:active):not(:focus),"
-		".meowmenu iconview.launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus),"
-		".meowmenu .launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus)"
+		".meowmenu iconview.launchers.transparent-grid.view.cell:not(:selected):not(:hover):not(:active),"
+		".meowmenu .launchers.transparent-grid.cell:not(:selected):not(:hover):not(:active),"
+		".meowmenu iconview.launchers.transparent-grid cell:not(:selected):not(:hover):not(:active),"
+		".meowmenu .launchers.transparent-grid cell:not(:selected):not(:hover):not(:active)"
 		"{ background: none; background-color: transparent;"
 		"  background-image: none; border: none; border-color: transparent;"
 		"  box-shadow: none; }"
@@ -3414,40 +3445,10 @@ void WhiskerMenu::Window::update_layout()
 				&& pres.switch_location == SwitchLocation::InSidebar
 				&& !pres.categories_horizontal);
 	}
-	if (!places_enabled)
-	{
-		// Hide all Places-only sidebar buttons; show the Apps-mode buttons.
-		gtk_widget_set_visible(m_places_home_btn->get_widget(),    false);
-		gtk_widget_set_visible(m_places_history_btn->get_widget(), false);
-		gtk_widget_set_visible(m_places_fav_btn->get_widget(),     false);
-		gtk_widget_set_visible(m_favorites->get_button()->get_widget(), true);
-		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
-				m_settings->recent_items_max);
-		gtk_widget_set_visible(m_applications->get_button()->get_widget(), true);
-		for (GtkWidget* w : m_app_category_widgets)
-		{
-			gtk_widget_set_visible(w, true);
-		}
-	}
-	else
-	{
-		// In places mode, only the active mode's buttons are visible. In apps
-		// mode, only the apps buttons. The disabled section buttons stay hidden.
-		const bool to_places = m_places_active;
-		gtk_widget_set_visible(m_favorites->get_button()->get_widget(),       !to_places);
-		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
-				!to_places && m_settings->recent_items_max);
-		gtk_widget_set_visible(m_applications->get_button()->get_widget(),    !to_places);
-		gtk_widget_set_visible(m_places_home_btn->get_widget(),     to_places);
-		gtk_widget_set_visible(m_places_history_btn->get_widget(),
-				to_places && m_settings->places_history_enabled);
-		gtk_widget_set_visible(m_places_fav_btn->get_widget(),
-				to_places && m_settings->places_favourites_enabled);
-		for (GtkWidget* w : m_app_category_widgets)
-		{
-			gtk_widget_set_visible(w, !to_places);
-		}
-	}
+	// Visibility is owned by the same transaction used for opening and mode
+	// switches, so layout changes cannot reintroduce a divergent matrix.
+	apply_menu_mode(m_places_active ? MenuMode::Places
+			: MenuMode::Applications, MenuModeTransition::Reevaluate);
 
 	// Apply the Apps/Places switch presentation (icon vs text, orientation,
 	// tooltips). Structural relocation/strip placement is handled further down

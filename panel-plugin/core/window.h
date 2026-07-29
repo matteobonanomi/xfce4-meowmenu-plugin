@@ -23,6 +23,7 @@
 #include <gtk/gtk.h>
 
 #include "interactive-resize.h"
+#include "menu-mode-state.h"
 #include "sidebar-layout.h"
 #include "window-keyboard.h"
 
@@ -214,6 +215,7 @@ private:
 	void apply_window_shape(int width, int height, int radius, bool composited);
 
 	void update_background_css();
+	void update_view_redraw_safeguards();
 	void check_scrollbar_needed();
 	void favorites_toggled();
 	void recent_toggled();
@@ -237,6 +239,9 @@ private:
 	void reset_default_button();
 	void show_favorites();
 	void show_default_page();
+	void apply_menu_mode(MenuMode requested_mode,
+			MenuModeTransition transition);
+	MenuContentTarget current_menu_content() const;
 	void search();
 	void update_layout();
 
