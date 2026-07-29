@@ -221,6 +221,7 @@ class ReleaseContractTest(unittest.TestCase):
     def test_release_publication_is_one_exact_inventory_transaction(self):
         workflow_path = ROOT / ".github/workflows/packaging.yml"
         workflow = workflow_path.read_text(encoding="utf-8")
+        release_job = workflow.split("  publish-release:", maxsplit=1)[1]
         publication = workflow.split(
             "- name: Publish one complete release",
             maxsplit=1,
@@ -228,6 +229,10 @@ class ReleaseContractTest(unittest.TestCase):
             "- name: Download and verify the published assets",
             maxsplit=1,
         )[0]
+        self.assertIn("GH_REPO: ${{ github.repository }}", release_job)
+        self.assertIn("- name: Checkout release tools", release_job)
+        self.assertIn("ref: ${{ github.workflow_sha }}", release_job)
+        self.assertIn("path: release-tools", release_job)
         self.assertIn(
             'gh release create "$RELEASE_TAG" package-set/artifacts/*',
             publication,
