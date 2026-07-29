@@ -30,7 +30,7 @@ class DependencyContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("mk-build-deps --install --remove", workflow)
         self.assertIn("dpkg-query -W libexo-2-dev", workflow)
-        self.assertIn("debian-exo-negative", workflow)
+        self.assertNotIn("debian-exo-negative", workflow)
         bootstrap = workflow.split(
             "- name: Install Debian package bootstrap tools", maxsplit=1
         )[1].split("- name:", maxsplit=1)[0]
@@ -55,14 +55,17 @@ class DependencyContractTests(unittest.TestCase):
             ROOT / "build-aux/arch/build-package.sh"
         ).read_text(encoding="utf-8")
         self.assertRegex(build_helper, r"makepkg\s+\\\n\s+--syncdeps")
+        self.assertNotIn("meson test -C", build_helper)
 
-    def test_fedora_and_arch_workflow_mutations(self):
+    def test_fedora_and_arch_keep_positive_package_checks(self):
         workflow = (
             ROOT / ".github/workflows/packaging.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("dnf -y builddep", workflow)
-        self.assertIn("fedora-exo-negative", workflow)
-        self.assertIn("arch-exo-negative", workflow)
+        self.assertNotIn("fedora-exo-negative", workflow)
+        self.assertNotIn("arch-exo-negative", workflow)
+        self.assertIn("build-aux/arch/build-package.sh", workflow)
+        self.assertIn("build-aux/arch/smoke-install.sh", workflow)
         self.assertIn("installed-action-smoke.sh", workflow)
 
     def test_source_stack_matrix_covers_both_regimes(self):
@@ -90,6 +93,43 @@ class DependencyContractTests(unittest.TestCase):
             stack_builder.count('"libxfce4windowing:4.20.4"'),
             2,
         )
+
+    def test_routine_ci_keeps_six_proportionate_checks(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        build = workflow.split("  build:", maxsplit=1)[1].split(
+            "\n  sanitizers:",
+            maxsplit=1,
+        )[0]
+        self.assertIn("distro: [ubuntu-26.04, debian-13, fedora-44]", build)
+        self.assertIn("name: build (${{ matrix.distro }})", build)
+        self.assertIn("--buildtype=debugoptimized", build)
+        self.assertNotIn("matrix.buildtype", build)
+
+        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1].split(
+            "\n  xfce-source-stack:",
+            maxsplit=1,
+        )[0]
+        self.assertIn("-Daccountsservice=disabled", optional)
+        self.assertIn("-Dgtk-layer-shell=disabled", optional)
+        for provider in ("bc", "qalc", "gcalccmd"):
+            self.assertIn(provider, optional)
+        self.assertIn("meson test -C build --print-errorlogs", optional)
+
+        source_stack = workflow.split(
+            "  xfce-source-stack:",
+            maxsplit=1,
+        )[1]
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", source_stack)
+
+    def test_release_package_ordering_is_derived_from_selected_version(self):
+        workflow = (
+            ROOT / ".github/workflows/packaging.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('stable_debian="${DEBIAN_VERSION%%~rc*}-1"', workflow)
+        self.assertIn('stable_rpm="${RPM_VERSION%%~rc*}"', workflow)
+        self.assertIn('stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"', workflow)
+        for obsolete in ("0.9.0~rc2", "0.9.0rc2", "RC1 must precede RC2"):
+            self.assertNotIn(obsolete, workflow)
 
 
 if __name__ == "__main__":

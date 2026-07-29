@@ -37,8 +37,10 @@ Evidence is never transferred to the Maintainer or Community columns.
 Project release packages are available for Ubuntu 26.04, Debian 13, and
 Fedora 44. Arch Linux uses a separately maintained AUR source recipe. See the
 [installation guide](installation) for current artifacts and commands.
-Availability, successful package automation, and recipe publication do not
-create maintainer or community testing marks.
+The tag workflow builds, tests, installs, and verifies the three native
+packages and validates the Arch recipe before publication. Availability,
+successful package automation, and recipe publication do not create
+maintainer or community testing marks.
 
 ## Xfce compatibility
 
@@ -52,11 +54,11 @@ quality target.
 | Xfce 4.20 libraries | Source configure, build, and tests with Exo | Primary quality target |
 | libxfce4ui 4.21 or newer | Successor source cell and staged install without Exo | Dependency-transition boundary only |
 
-The 4.16, 4.18, and 4.20 rows are automated source-stack evidence, not distro
-or live desktop results. The libxfce4ui 4.21-or-newer path verifies the
-dependency transition without Exo; it is not a separately live-validated Xfce
-4.21 desktop and does not claim compatibility with every future library
-release.
+The 4.16, 4.18, and 4.20 rows are explicit on-demand source-stack evidence,
+not routine distro or live desktop results. The libxfce4ui 4.21-or-newer path
+verifies the dependency transition without Exo; it is not a separately
+live-validated Xfce 4.21 desktop and does not claim compatibility with every
+future library release.
 
 ## Sessions and architectures
 

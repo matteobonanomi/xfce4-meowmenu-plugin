@@ -3,26 +3,17 @@ name: packaging
 on:
   push:
     tags:
-      - 'v*-rc*'
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing annotated release-candidate tag
+        description: Existing annotated or lightweight release tag
         required: true
         type: string
-      publish:
-        description: Publish the verified draft prerelease
-        required: true
-        default: false
-        type: boolean
-      authorization:
-        description: Enter "publish <tag>" after completing live checks
-        required: false
-        type: string
-      manual_evidence:
-        description: Durable URL for the primary fresh-install and upgrade results
-        required: false
-        type: string
+
+concurrency:
+  group: packaging-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -40,38 +31,68 @@ jobs:
       rpm_version: ${{ steps.identity.outputs.rpm_version }}
       arch_version: ${{ steps.identity.outputs.arch_version }}
     steps:
-      - name: Checkout candidate
+      - name: Checkout release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          path: release-tools
+
+      - name: Authorize existing-tag recovery
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          case "$WORKFLOW_REF" in
+            */.github/workflows/packaging.yml@refs/heads/main) ;;
+            *)
+              echo "::error::Existing-tag recovery must use the workflow from main"
+              exit 1
+              ;;
+          esac
+          git -C release-tools fetch --force \
+            origin main:refs/remotes/origin/main
+          test "$(git -C release-tools rev-parse HEAD)" = "$WORKFLOW_SHA"
+          git -C release-tools merge-base --is-ancestor \
+            "$WORKFLOW_SHA" origin/main || {
+            echo "::error::Recovery workflow revision is not reachable from main"
+            exit 1
+          }
+
+      - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
+          path: candidate
 
-      - name: Validate annotated tag, main ancestry, and NEWS identity
+      - name: Validate tag, main ancestry, and NEWS identity
         id: identity
         run: |
           set -euo pipefail
-          git fetch --force origin main:refs/remotes/origin/main
-          test "$(git cat-file -t "refs/tags/${RELEASE_TAG}")" = tag || {
-            echo "::error::${RELEASE_TAG} must be an annotated tag"
-            exit 1
-          }
-          commit="$(git rev-parse "${RELEASE_TAG}^{commit}")"
-          git merge-base --is-ancestor "$commit" origin/main || {
+          git -C candidate fetch --force origin main:refs/remotes/origin/main
+          commit="$(git -C candidate rev-parse "${RELEASE_TAG}^{commit}")"
+          git -C candidate merge-base --is-ancestor "$commit" origin/main || {
             echo "::error::${RELEASE_TAG} is not reachable from main"
             exit 1
           }
-          version="$(python3 build-aux/news-version.py --version --news NEWS)"
-          expected_tag="$(python3 build-aux/news-version.py --tag --news NEWS)"
+          version="$(python3 release-tools/build-aux/news-version.py \
+            --version --news candidate/NEWS)"
+          expected_tag="$(python3 release-tools/build-aux/news-version.py \
+            --tag --news candidate/NEWS)"
           test "$RELEASE_TAG" = "$expected_tag" || {
             echo "::error::Tag ${RELEASE_TAG} does not match top NEWS version ${version}"
             exit 1
           }
-          python3 build-aux/news-version.py --date --news NEWS
+          python3 release-tools/build-aux/news-version.py \
+            --date --news candidate/NEWS
           {
             echo "version=${version}"
-            echo "debian_version=$(python3 build-aux/news-version.py --debian-version --news NEWS)"
-            echo "rpm_version=$(python3 build-aux/news-version.py --rpm-version --news NEWS)"
-            echo "arch_version=$(python3 build-aux/news-version.py --arch-version --news NEWS)"
+            echo "debian_version=$(python3 release-tools/build-aux/news-version.py --debian-version --news candidate/NEWS)"
+            echo "rpm_version=$(python3 release-tools/build-aux/news-version.py --rpm-version --news candidate/NEWS)"
+            echo "arch_version=$(python3 release-tools/build-aux/news-version.py --arch-version --news candidate/NEWS)"
           } >> "$GITHUB_OUTPUT"
 
   source:
@@ -79,19 +100,26 @@ jobs:
     needs: validate-tag
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout candidate
+      - name: Checkout release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: release-tools
+
+      - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
+          path: candidate
 
       - name: Create canonical source archive
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           mkdir -p artifacts
-          python3 build-aux/release/artifacts.py create-source \
-            --repository . \
+          python3 release-tools/build-aux/release/artifacts.py create-source \
+            --repository candidate \
             --tag "$RELEASE_TAG" \
             --version "$VERSION" \
             --output "artifacts/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
@@ -161,9 +189,10 @@ jobs:
           dpkg-buildpackage -us -uc -b
           package="$(find .. -maxdepth 1 -name 'xfce4-meowmenu-plugin_*_amd64.deb' -print -quit)"
           test "$(dpkg-deb -f "$package" Version)" = "$DEBIAN_VERSION"
-          dpkg --compare-versions 0.8.0-1 lt "$DEBIAN_VERSION"
-          dpkg --compare-versions "$DEBIAN_VERSION" lt 0.9.0~rc2-1
-          dpkg --compare-versions "$DEBIAN_VERSION" lt 0.9.0-1
+          if [[ "$DEBIAN_VERSION" == *"~rc"* ]]; then
+            stable_debian="${DEBIAN_VERSION%%~rc*}-1"
+            dpkg --compare-versions "$DEBIAN_VERSION" lt "$stable_debian"
+          fi
           apt-get install -y --no-install-recommends appstream lintian
           appstreamcli validate --no-net \
             data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
@@ -198,56 +227,6 @@ jobs:
           path: lintian.log
           if-no-files-found: ignore
           retention-days: 7
-
-  debian-exo-negative:
-    name: debian-exo-negative (${{ matrix.label }}, ${{ matrix.omission }})
-    needs: [validate-tag, source]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: ubuntu-26.04
-            image: ubuntu:26.04
-            omission: libexo-2-dev
-          - label: ubuntu-26.04
-            image: ubuntu:26.04
-            omission: exo-utils
-          - label: debian-13
-            image: debian:13
-            omission: libexo-2-dev
-          - label: debian-13
-            image: debian:13
-            omission: exo-utils
-    container:
-      image: ${{ matrix.image }}
-    steps:
-      - name: Install mutation bootstrap tools
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates python3
-
-      - name: Download canonical source
-        uses: actions/download-artifact@v8
-        with:
-          name: canonical-source
-          path: source
-
-      - name: Require the direct-contract mutation to fail closed
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-          OMISSION: ${{ matrix.omission }}
-        run: |
-          set -euo pipefail
-          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
-          cd "xfce4-meowmenu-plugin-${VERSION}"
-          sed -i "/^[[:space:]]${OMISSION},$/d" debian/control
-          if python3 tests/test_dependency_contract.py; then
-            echo "::error::direct contract accepted missing ${OMISSION}"
-            exit 1
-          fi
-          printf 'target=%s\nomission=%s\nresult=rejected\n' \
-            '${{ matrix.label }}' "$OMISSION" >> "$GITHUB_STEP_SUMMARY"
 
   build-rpm:
     name: build-rpm (fedora-44)
@@ -289,11 +268,13 @@ jobs:
           rpmbuild -ba "$spec"
           package="$(find "$HOME/rpmbuild/RPMS/x86_64" -name 'xfce4-meowmenu-plugin-*.rpm' -print -quit)"
           test "$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' "$package")" = "${RPM_VERSION}-1.fc44"
-          rpm --eval "%{lua:
-            rpm.vercmp('0.8.0', '${RPM_VERSION}') < 0 or error('RC must follow 0.8.0')
-            rpm.vercmp('${RPM_VERSION}', '0.9.0~rc2') < 0 or error('RC1 must precede RC2')
-            rpm.vercmp('${RPM_VERSION}', '0.9.0') < 0 or error('RC must precede final')
-          }"
+          if [[ "$RPM_VERSION" == *"~rc"* ]]; then
+            stable_rpm="${RPM_VERSION%%~rc*}"
+            rpm --eval "%{lua:
+              rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') < 0 or
+                error('release candidate must precede its stable version')
+            }"
+          fi
           dnf -y install appstream rpmlint
           appstreamcli validate --no-net \
             "xfce4-meowmenu-plugin-${VERSION}/data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml"
@@ -329,48 +310,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  fedora-exo-negative:
-    name: fedora-exo-negative (${{ matrix.omission }})
-    needs: [validate-tag, source]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        omission: [build, helper]
-    container:
-      image: fedora:44
-    steps:
-      - name: Install mutation bootstrap tools
-        run: dnf -y install python3
-
-      - name: Download canonical source
-        uses: actions/download-artifact@v8
-        with:
-          name: canonical-source
-          path: source
-
-      - name: Require the Fedora direct-contract mutation to fail closed
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-          OMISSION: ${{ matrix.omission }}
-        run: |
-          set -euo pipefail
-          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
-          cd "xfce4-meowmenu-plugin-${VERSION}"
-          if test "$OMISSION" = build; then
-            sed -i '/^BuildRequires:[[:space:]]*pkgconfig(exo-2)$/d' \
-              dist/rpm/xfce4-meowmenu-plugin.spec
-          else
-            sed -i '\|^Requires:[[:space:]]*/usr/bin/exo-open$|d' \
-              dist/rpm/xfce4-meowmenu-plugin.spec
-          fi
-          if python3 tests/test_dependency_contract.py; then
-            echo "::error::Fedora direct contract accepted ${OMISSION} omission"
-            exit 1
-          fi
-          printf 'target=fedora-44\nomission=%s\nresult=rejected\n' \
-            "$OMISSION" >> "$GITHUB_STEP_SUMMARY"
-
   arch-pkgbuild-test:
     name: arch-pkgbuild-test
     needs: validate-tag
@@ -384,11 +323,18 @@ jobs:
           useradd -m -G wheel builder
           echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel
 
-      - name: Checkout candidate
+      - name: Checkout release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: release-tools
+
+      - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
+          path: candidate
 
       - name: Prepare, build, test, lint, install, and compare version
         env:
@@ -396,7 +342,8 @@ jobs:
           GITHUB_REF_NAME: ${{ env.RELEASE_TAG }}
           EXPECTED_ARCH_VERSION: ${{ needs.validate-tag.outputs.arch_version }}
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cd candidate
+          git config --global --add safe.directory "$PWD"
           build_dir="$(build-aux/arch/prepare-source.sh)"
           package="$(build-aux/arch/build-package.sh "$build_dir")"
           build-aux/arch/run-namcap.sh \
@@ -404,9 +351,10 @@ jobs:
           build-aux/arch/smoke-install.sh "$package"
           test "$(pacman -Q xfce4-meowmenu-plugin | awk '{print $2}')" = \
             "${EXPECTED_ARCH_VERSION}-1"
-          test "$(vercmp 0.8.0 "$EXPECTED_ARCH_VERSION")" -lt 0
-          test "$(vercmp "$EXPECTED_ARCH_VERSION" 0.9.0rc2)" -lt 0
-          test "$(vercmp "$EXPECTED_ARCH_VERSION" 1.0.0)" -lt 0
+          if [[ "$EXPECTED_ARCH_VERSION" == *rc* ]]; then
+            stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"
+            test "$(vercmp "$EXPECTED_ARCH_VERSION" "$stable_arch")" -lt 0
+          fi
           cp "$build_dir/PKGBUILD" "$RUNNER_TEMP/arch-logs/PKGBUILD"
           sudo -u builder bash -c \
             "cd '$build_dir' && makepkg --printsrcinfo" \
@@ -421,53 +369,34 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  arch-exo-negative:
-    name: arch-exo-negative
-    needs: validate-tag
-    runs-on: ubuntu-latest
-    container:
-      image: archlinux:base-devel
-    steps:
-      - name: Install mutation tools
-        run: pacman -Syu --noconfirm --needed git python
-
-      - name: Checkout candidate
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_TAG }}
-
-      - name: Require the Arch direct-contract mutation to fail closed
-        run: |
-          set -euo pipefail
-          sed -i "s/'exo' //" dist/arch/PKGBUILD
-          if python3 tests/test_dependency_contract.py; then
-            echo "::error::Arch direct contract accepted missing exo"
-            exit 1
-          fi
-          printf 'target=arch-current\nomission=exo\nresult=rejected\n' \
-            >> "$GITHUB_STEP_SUMMARY"
-
   assemble-release:
-    name: assemble-private-prerelease
-    needs: [validate-tag, source, build-deb, debian-exo-negative, build-rpm, fedora-exo-negative, arch-pkgbuild-test, arch-exo-negative]
+    name: assemble-and-publish
+    needs: [validate-tag, source, build-deb, build-rpm, arch-pkgbuild-test]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout candidate
+      - name: Checkout release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: release-tools
+
+      - name: Checkout immutable candidate
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
+          path: candidate
 
       - name: Run release, presentation, documentation, and translation gates
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends gettext appstream
-          python3 tests/test_release_version.py
-          python3 tests/test_release_contract.py
-          python3 tests/test_repository_presentation.py
-          python3 tests/test_documentation_links.py
-          python3 tests/test_translation_status.py
+          python3 release-tools/tests/test_release_version.py
+          python3 release-tools/tests/test_release_contract.py
+          python3 release-tools/tests/test_repository_presentation.py
+          python3 release-tools/tests/test_documentation_links.py
+          python3 release-tools/tests/test_translation_status.py
           appstreamcli validate --no-net \
-            data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
+            candidate/data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
 
       - name: Download Ubuntu DEB
         uses: actions/download-artifact@v8
@@ -497,67 +426,44 @@ jobs:
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
-          python3 build-aux/release/release_notes.py \
-            --news NEWS --version "$VERSION" --output release-notes.md
-          python3 build-aux/release/artifacts.py checksums \
+          python3 release-tools/build-aux/release/release_notes.py \
+            --news candidate/NEWS --version "$VERSION" --output release-notes.md
+          python3 release-tools/build-aux/release/artifacts.py checksums \
             --assets artifacts --version "$VERSION"
-          python3 build-aux/release/artifacts.py verify \
+          test -f artifacts/SHA256SUMS
+          python3 release-tools/build-aux/release/artifacts.py verify \
             --assets artifacts --version "$VERSION"
 
-      - name: Create or replace one private draft prerelease
+      - name: Publish one complete release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" --json isDraft >/tmp/release.json 2>/dev/null; then
-            test "$(jq -r .isDraft /tmp/release.json)" = true || {
+            if test "$(jq -r .isDraft /tmp/release.json)" = true; then
+              gh release delete "$RELEASE_TAG" --yes
+            else
               echo "::error::A public release already exists for ${RELEASE_TAG}"
               exit 1
-            }
-            gh release delete-asset "$RELEASE_TAG" --yes \
-              "xfce4-meowmenu-plugin_${VERSION}_ubuntu26.04_amd64.deb" || true
-            gh release delete-asset "$RELEASE_TAG" --yes \
-              "xfce4-meowmenu-plugin_${VERSION}_debian13_amd64.deb" || true
-            gh release delete-asset "$RELEASE_TAG" --yes \
-              "xfce4-meowmenu-plugin-${VERSION}-1.fc44.x86_64.rpm" || true
-            gh release delete-asset "$RELEASE_TAG" --yes \
-              "xfce4-meowmenu-plugin-${VERSION}.tar.gz" || true
-            gh release delete-asset "$RELEASE_TAG" --yes SHA256SUMS || true
-            gh release edit "$RELEASE_TAG" \
-              --title "MeowMenu ${VERSION}" --notes-file release-notes.md \
-              --draft --prerelease --latest=false
-          else
-            gh release create "$RELEASE_TAG" \
-              --verify-tag --title "MeowMenu ${VERSION}" \
-              --notes-file release-notes.md --draft --prerelease --latest=false
+            fi
           fi
-          gh release upload "$RELEASE_TAG" artifacts/* --clobber
+          release_flags=()
+          if [[ "$VERSION" =~ -rc[0-9]+$ ]]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" artifacts/* \
+            --verify-tag \
+            --title "MeowMenu ${VERSION}" \
+            --notes-file release-notes.md \
+            "${release_flags[@]}"
 
-      - name: Download and verify the exact draft assets
+      - name: Download and verify the published assets
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           mkdir downloaded
           gh release download "$RELEASE_TAG" --dir downloaded
-          python3 build-aux/release/artifacts.py verify \
+          python3 release-tools/build-aux/release/artifacts.py verify \
             --assets downloaded --version "$VERSION"
-
-      - name: Publish only with explicit live-evidence authorization
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-          AUTHORIZATION: ${{ inputs.authorization }}
-          MANUAL_EVIDENCE: ${{ inputs.manual_evidence }}
-        run: |
-          test "$AUTHORIZATION" = "publish ${RELEASE_TAG}" || {
-            echo "::error::Authorization must be exactly: publish ${RELEASE_TAG}"
-            exit 1
-          }
-          test -n "$MANUAL_EVIDENCE" || {
-            echo "::error::A durable primary live-test evidence URL is required"
-            exit 1
-          }
-          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

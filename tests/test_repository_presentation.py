@@ -52,11 +52,21 @@ class RepositoryPresentationTest(unittest.TestCase):
             metainfo.read_text(encoding="utf-8"),
         )
 
-    def test_release_guide_separates_examples_from_current_candidate(self):
+    def test_release_guide_is_evergreen_and_automatic(self):
         releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
-        self.assertIn("`v1.0.0`", releasing)
-        self.assertIn("`v0.9.0-rc1`", releasing)
-        self.assertNotIn("git tag -a v0.9.0-rc1", releasing)
+        self.assertIn("Automatic publication", releasing)
+        self.assertIn("annotated or lightweight", releasing)
+        self.assertIn("becomes public automatically", releasing)
+        self.assertIn("Existing-tag recovery", releasing)
+        self.assertIn("Select `main`", releasing)
+        self.assertNotRegex(releasing, r"\bv\d+\.\d+\.\d+(?:-rc\d+)?\b")
+        for retired in (
+            "Private candidate workflow",
+            "Publish the prerelease",
+            "Authorization exactly",
+            "live-evidence URL",
+        ):
+            self.assertNotIn(retired, releasing)
 
     def test_public_dependency_text_has_no_internal_workflow_ids(self):
         documents = [ROOT / "README.md", *(ROOT / "docs").glob("*.md")]
@@ -64,6 +74,30 @@ class RepositoryPresentationTest(unittest.TestCase):
         for document in documents:
             self.assertIsNone(
                 forbidden.search(document.read_text(encoding="utf-8")),
+                document,
+            )
+
+    def test_readme_describes_release_packages_without_arch_binary(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "native packages for Ubuntu 26.04, Debian 13, and\nFedora 44",
+            readme,
+        )
+        self.assertIn("source archive and `SHA256SUMS`", readme)
+        self.assertIn("not attached as a binary", readme)
+
+    def test_public_ci_wording_does_not_claim_continuous_source_stack(self):
+        documents = (
+            ROOT / "README.md",
+            ROOT / "docs/testing.md",
+            ROOT / "docs/support.md",
+            ROOT / "docs/known-limitations.md",
+        )
+        for document in documents:
+            content = document.read_text(encoding="utf-8")
+            self.assertNotRegex(
+                content,
+                r"(?i)continuous(?:ly)? (?:source|source-stack)",
                 document,
             )
 

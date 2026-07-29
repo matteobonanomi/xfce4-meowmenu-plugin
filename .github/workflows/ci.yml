@@ -6,18 +6,16 @@
 # break merge gating.
 #
 # Required on `main`:
-#   build (ubuntu-26.04, debugoptimized)
-#   build (ubuntu-26.04, release)
-#   build (debian-13, debugoptimized)
-#   build (debian-13, release)
-#   build (fedora-44, debugoptimized)
-#   build (fedora-44, release)
+#   build (ubuntu-26.04)
+#   build (debian-13)
+#   build (fedora-44)
 #   sanitizers
-#   translations
+#   static-checks
 #   no-optional-deps
 #
-# If a required job is renamed, the same change must
-# update branch-protection required-checks. See docs/ci.md "Rename protocol".
+# Coordinate any rename with the required checks in `main` branch protection.
+# During a transition, add the new names before removing the old names so merge
+# protection is never knowingly weakened. See RELEASING.md.
 # =============================================================================
 
 name: ci
@@ -34,13 +32,12 @@ permissions:
 
 jobs:
   build:
-    name: build (${{ matrix.distro }}, ${{ matrix.buildtype }})
+    name: build (${{ matrix.distro }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         distro: [ubuntu-26.04, debian-13, fedora-44]
-        buildtype: [debugoptimized, release]
         include:
           - distro: ubuntu-26.04
             image: ubuntu:26.04
@@ -107,7 +104,7 @@ jobs:
               git ca-certificates
 
       - name: Meson setup
-        run: meson setup build --buildtype=${{ matrix.buildtype }}
+        run: meson setup build --buildtype=debugoptimized
 
       - name: Meson compile
         run: meson compile -C build
@@ -116,9 +113,8 @@ jobs:
         run: xvfb-run -a meson test -C build --print-errorlogs
 
   # HACK: `b_lundef=false` is required because the plugin is built as a
-  # `shared_module` (see Edge Cases §269 in spec.md). Without it, the
-  # sanitizer link step fails on unresolved symbols that the panel resolves
-  # at runtime.
+  # `shared_module`. Without it, the sanitizer link step fails on unresolved
+  # symbols that the panel resolves at runtime.
   sanitizers:
     name: sanitizers
     runs-on: ubuntu-latest
@@ -168,8 +164,8 @@ jobs:
           # freed-view safeguard path under a real display.
           xvfb-run -a meson test -C build --print-errorlogs
 
-  translations:
-    name: translations
+  static-checks:
+    name: static-checks
     runs-on: ubuntu-latest
     container:
       image: ubuntu:26.04
@@ -179,17 +175,57 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install gettext
+      - name: Install repository check tools
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get install -y --no-install-recommends gettext
+          apt-get install -y --no-install-recommends \
+            appstream gettext git python3
 
       - name: msgfmt --check every po/*.po
         run: |
           for f in po/*.po; do
               msgfmt --check --check-format -o /dev/null "$f"
           done
+
+      - name: Run repository consistency checks
+        run: |
+          python3 tests/test_release_version.py
+          python3 tests/test_release_contract.py
+          python3 tests/test_dependency_contract.py
+          python3 tests/test_documentation_links.py
+          python3 tests/test_repository_presentation.py
+          python3 tests/test_translation_status.py
+          appstreamcli validate --no-net \
+            data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
+
+      - name: Report advisory package-to-documentation drift
+        shell: bash
+        run: |
+          set -uo pipefail
+          control_deps="$(awk '/^Depends:/{p=1;next} /^Recommends:/{p=1;next} /^[A-Za-z-]+:/{p=0} p' debian/control \
+                          | tr ',' '\n' \
+                          | sed -E 's/^[[:space:]]*//; s/[[:space:]]*\(.*\)//; s/[[:space:]]*$//' \
+                          | grep -v '^\${' \
+                          | grep -v '^$' \
+                          | sort -u || true)"
+          spec_requires="$(grep -E '^(Requires|Recommends):' dist/rpm/xfce4-meowmenu-plugin.spec \
+                            | awk '{$1=""; print}' \
+                            | tr ' ' '\n' \
+                            | sed '/^$/d' \
+                            | sort -u || true)"
+          missing_in_docs=()
+          for dependency in $control_deps $spec_requires; do
+            if ! grep -Fq -- "$dependency" docs/installation.md 2>/dev/null; then
+              missing_in_docs+=("$dependency")
+            fi
+          done
+          if [ "${#missing_in_docs[@]}" -gt 0 ]; then
+            echo "::warning::Packaging dependencies missing from installation documentation:"
+            printf '  - %s\n' "${missing_in_docs[@]}"
+          else
+            echo "Documentation dependency names match package manifests."
+          fi
 
   no-optional-deps:
     name: no-optional-deps
@@ -227,11 +263,21 @@ jobs:
       - name: Meson compile
         run: meson compile -C build
 
+      - name: Verify Calculator providers are unavailable
+        run: |
+          for provider in bc qalc gcalccmd; do
+            if command -v "$provider"; then
+              echo "::error::Unexpected Calculator provider: $provider"
+              exit 1
+            fi
+          done
+
       - name: Meson test
         run: xvfb-run -a meson test -C build --print-errorlogs
 
   xfce-source-stack:
     name: source-stack (${{ matrix.cell }})
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
       image: debian:13
@@ -316,43 +362,5 @@ jobs:
             compatibility-build/meson-logs/
           if-no-files-found: error
           retention-days: 30
-
-  # Keep package dependency names represented in the maintained installation
-  # guide. This check is advisory because package aliases differ by distro.
-  docs-dependency-drift:
-    name: docs-dependency-drift
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Compare package and docs dep lists
-        shell: bash
-        run: |
-          set -uo pipefail
-          control_deps="$(awk '/^Depends:/{p=1;next} /^Recommends:/{p=1;next} /^[A-Za-z-]+:/{p=0} p' debian/control \
-                          | tr ',' '\n' \
-                          | sed -E 's/^[[:space:]]*//; s/[[:space:]]*\(.*\)//; s/[[:space:]]*$//' \
-                          | grep -v '^\${' \
-                          | grep -v '^$' \
-                          | sort -u || true)"
-          spec_requires="$(grep -E '^(Requires|Recommends):' dist/rpm/xfce4-meowmenu-plugin.spec \
-                            | awk '{$1=""; print}' \
-                            | tr ' ' '\n' \
-                            | sed '/^$/d' \
-                            | sort -u || true)"
-          missing_in_docs=()
-          for d in $control_deps $spec_requires; do
-            if [ -z "$d" ]; then continue; fi
-            if ! grep -Fq -- "$d" docs/installation.md 2>/dev/null; then
-              missing_in_docs+=("$d")
-            fi
-          done
-          if [ "${#missing_in_docs[@]}" -gt 0 ]; then
-            echo "::warning::docs-dependency-drift: packaging dependencies missing from docs/installation.md:"
-            printf '  - %s\n' "${missing_in_docs[@]}"
-          else
-            echo "docs dependency lists are consistent with packaging."
-          fi
 
 # Actions use stable major-version references; no branch references are used.

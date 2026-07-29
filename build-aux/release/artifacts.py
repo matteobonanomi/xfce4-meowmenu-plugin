@@ -43,6 +43,8 @@ def create_source_archive(repository: Path, tag: str, version: str, output: Path
 def generate_checksums(asset_dir: Path, version: str):
     """Write a sorted manifest for exactly the four required payloads."""
     expected = expected_payload_names(version)
+    if len(expected) != 4:
+        raise ReleaseValidationError("Release contract must define four payloads")
     present = {item.name for item in asset_dir.iterdir() if item.is_file()}
     missing = expected - present
     if missing:

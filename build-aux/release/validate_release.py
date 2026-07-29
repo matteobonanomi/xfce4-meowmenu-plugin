@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed validation for a prepared MeowMenu release candidate."""
+"""Fail-closed validation for a prepared MeowMenu release."""
 
 import argparse
 import hashlib
@@ -10,15 +10,8 @@ import tarfile
 from pathlib import Path
 
 
-REQUIRED_NOTE_HEADINGS = (
-    "Release candidate",
-    "Changes since 0.8.0",
-    "Known limitations",
-    "Artifacts and integrity",
-    "Verification",
-    "Upgrade",
-    "Feedback and security",
-)
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-rc\d+)?$")
+RC_RE = re.compile(r"^\d+\.\d+\.\d+-rc\d+$")
 
 
 class ReleaseValidationError(ValueError):
@@ -39,14 +32,17 @@ def run_git(repository: Path, *arguments):
     return result.stdout.strip()
 
 
+def resolve_tag_commit(repository: Path, tag: str):
+    """Resolve either an annotated or lightweight tag to its commit."""
+    run_git(repository, "show-ref", "--verify", f"refs/tags/{tag}")
+    return run_git(repository, "rev-parse", f"{tag}^{{commit}}")
+
+
 def validate_tag(repository: Path, tag: str, expected_tag: str, main_ref: str):
-    """Require an exact annotated tag whose commit is reachable from main."""
+    """Require an exact release tag whose commit is reachable from main."""
     if tag != expected_tag:
         raise ReleaseValidationError(f"Tag {tag} does not match {expected_tag}")
-    object_type = run_git(repository, "cat-file", "-t", f"refs/tags/{tag}")
-    if object_type != "tag":
-        raise ReleaseValidationError(f"{tag} is not an annotated tag")
-    commit = run_git(repository, "rev-parse", f"{tag}^{{commit}}")
+    commit = resolve_tag_commit(repository, tag)
     result = subprocess.run(
         ["git", "merge-base", "--is-ancestor", commit, main_ref],
         cwd=repository,
@@ -91,6 +87,8 @@ def expected_payload_names(version: str):
 def validate_assets(asset_dir: Path, version: str):
     """Require the exact four payloads plus their integrity manifest."""
     expected = expected_payload_names(version)
+    if len(expected) != 4:
+        raise ReleaseValidationError("Release contract must define four payloads")
     actual = {item.name for item in asset_dir.iterdir() if item.is_file()}
     if actual != expected | {"SHA256SUMS"}:
         missing = sorted((expected | {"SHA256SUMS"}) - actual)
@@ -101,12 +99,16 @@ def validate_assets(asset_dir: Path, version: str):
 
 def validate_checksums(manifest: Path, asset_dir: Path, expected):
     lines = [line for line in manifest.read_text(encoding="utf-8").splitlines() if line]
+    if len(lines) != 4:
+        raise ReleaseValidationError("Checksum manifest must contain four payloads")
     names = []
     for line in lines:
         match = re.fullmatch(r"([0-9a-f]{64})  ([^/]+)", line)
         if not match:
             raise ReleaseValidationError(f"Invalid checksum line: {line}")
         digest, name = match.groups()
+        if name == manifest.name:
+            raise ReleaseValidationError("Checksum manifest must not name itself")
         names.append(name)
         payload = asset_dir / name
         if not payload.is_file():
@@ -118,23 +120,32 @@ def validate_checksums(manifest: Path, asset_dir: Path, expected):
         raise ReleaseValidationError("Checksum manifest does not cover payloads exactly")
 
 
-def validate_release_notes(notes: Path):
+def validate_release_notes(notes: Path, expected_body=None):
+    """Require non-empty notes and optionally an exact literal NEWS body."""
     content = notes.read_text(encoding="utf-8")
-    missing = [
-        heading for heading in REQUIRED_NOTE_HEADINGS
-        if f"## {heading}" not in content
-    ]
-    if missing:
-        raise ReleaseValidationError(f"Release notes lack sections: {missing}")
+    if not content.strip():
+        raise ReleaseValidationError("Release notes are empty")
+    if expected_body is not None and content != expected_body:
+        raise ReleaseValidationError("Release notes do not match NEWS literally")
 
 
-def validate_release_state(state):
-    if not state.get("draft", False):
-        raise ReleaseValidationError("Release must remain a private draft")
-    if not state.get("prerelease", False):
-        raise ReleaseValidationError("Release must be marked as a prerelease")
-    if state.get("latest", True):
-        raise ReleaseValidationError("Release candidate must not be latest stable")
+def release_presentation(version: str):
+    """Derive GitHub prerelease and latest flags from the public version."""
+    if not VERSION_RE.fullmatch(version):
+        raise ReleaseValidationError(f"Unsupported release version: {version}")
+    prerelease = bool(RC_RE.fullmatch(version))
+    return {"prerelease": prerelease, "latest": not prerelease}
+
+
+def validate_release_state(state, version):
+    """Require a public release with version-derived presentation."""
+    if state.get("draft", True):
+        raise ReleaseValidationError("Release must be public")
+    expected = release_presentation(version)
+    if state.get("prerelease") != expected["prerelease"]:
+        raise ReleaseValidationError("Release prerelease state does not match version")
+    if state.get("latest") != expected["latest"]:
+        raise ReleaseValidationError("Release latest state does not match version")
 
 
 def main():
@@ -146,7 +157,10 @@ def main():
     args = parser.parse_args()
     validate_assets(args.assets, args.version)
     validate_release_notes(args.notes)
-    validate_release_state(json.loads(args.state_json.read_text(encoding="utf-8")))
+    validate_release_state(
+        json.loads(args.state_json.read_text(encoding="utf-8")),
+        args.version,
+    )
     return 0
 
 
