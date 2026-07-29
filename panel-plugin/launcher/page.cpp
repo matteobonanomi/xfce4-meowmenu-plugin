@@ -17,15 +17,16 @@
 
 #include "page.h"
 
+#include "config/xfce-helpers.h"
 #include "core/desktop-drag.h"
 #include "launcher/category-button.h"
 #include "favorites-page.h"
 #include "ui/image-menu-item.h"
+#include "ui/grid-presentation.h"
 #include "launcher.h"
 #include "launcher-safety.h"
 #include "ui/launcher-icon-view.h"
 #include "ui/launcher-tree-view.h"
-#include "core/opacity-model.h"
 #include "recent-page.h"
 #include "settings.h"
 #include "ui/slot.h"
@@ -321,15 +322,15 @@ void Page::create_view()
 
 	set_reorderable(m_reorderable);
 
-	// Push the resolved translucency into the freshly-built view so its
-	// single-highlight safeguard knows whether to recomposite on navigation. The
-	// base view never reads Xfconf; the owner feeds it the flag here. This covers
-	// the view's whole lifetime: the translucent<->opaque transition only happens
-	// when /menu-opacity crosses 100, and crossing 100 always rebuilds the menu
-	// window (and therefore every Page and its view), so no separate live push is
-	// needed for same-band opacity changes.
-	m_view->set_background_translucent(
-			meowmenu_background_translucent(m_settings->menu_opacity));
+	// Transparent grid is redraw-sensitive even when the surrounding menu shell
+	// is fully opaque. The owner resolves that policy while the shared view stays
+	// independent of Xfconf.
+	m_view->set_full_redraw_safeguard(full_redraw_safeguard_required(
+			m_settings->menu_opacity,
+			m_view->is_grid_view()
+					? LauncherViewKind::IconGrid
+					: LauncherViewKind::Tree,
+			m_settings->transparent_grid));
 }
 
 //-----------------------------------------------------------------------------
@@ -363,8 +364,8 @@ bool Page::activate_first()
 
 void Page::launcher_activated(GtkTreePath* path)
 {
-	// NOTE: 250 ms debounce against held-Enter key-repeat bursts (FR-022,
-	// SC-005). The state is process-global across pages because a single
+	// NOTE: 250 ms debounce against held-Enter key-repeat bursts (the documented behavior,
+	// the documented behavior). The state is process-global across pages because a single
 	// user keypress can only target one launcher at a time and a stuck
 	// key must not multi-launch.
 	static Keyboard::ActivationDebounce s_debounce;
@@ -824,11 +825,8 @@ void Page::edit_selected()
 	{
 		return;
 	}
-#if LIBXFCE4UI_CHECK_VERSION(4, 21, 0)
-	const gchar* editor = "xfce-desktop-item-edit";
-#else
-	const gchar* editor = "exo-desktop-item-edit";
-#endif
+	const gchar* editor = xfce_desktop_item_editor(
+			current_xfce_dependency_regime());
 	gchar** argv = launcher_editor_argv(editor, uri);
 	g_free(uri);
 	if (!argv)

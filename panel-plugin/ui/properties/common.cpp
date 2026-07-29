@@ -106,7 +106,7 @@ GtkWidget* make_two_column_section()
 	// column_homogeneous forces the two columns to identical width regardless of
 	// their children's natural sizes, so the split is a strict 50/50 that cannot
 	// drift the way two hexpanding box children can when one child's minimum
-	// exceeds half (R1, FR-001). One shared grid (rather than two independent
+	// exceeds half (R1, the documented behavior). One shared grid (rather than two independent
 	// sub-grids) keeps paired C1/C2 cells on the same row even when one side is
 	// empty, since both columns share the grid's row heights.
 	GtkWidget* grid = gtk_grid_new();

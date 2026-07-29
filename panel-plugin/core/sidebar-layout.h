@@ -80,6 +80,34 @@ struct SwitchPresentation
 	bool show_default_category_heading;
 };
 
+/* ModernDividerState:
+ *
+ * The resolved, display-independent inputs for the contextual Modern upper
+ * divider. vertical_sidebar_switch is true only when the selector is visible
+ * in a left/right sidebar, never in a top/bottom strip or search-bar row.
+ */
+struct ModernDividerState
+{
+	bool modern_preset;
+	bool docked_or_centered;
+	bool vertical_sidebar_switch;
+	bool profile_visible;
+	unsigned int visible_command_count;
+};
+
+/* meow_modern_divider_visible:
+ * @state: resolved Modern identity, layout, selector placement, and upper-row
+ *         content availability for the current layout pass.
+ *
+ * Determines whether the contextual upper separator belongs before the
+ * Apps/Places selector. This stays independent of GTK and settings so all
+ * presentation paths share one exhaustive visibility rule.
+ *
+ * Returns: true when the separator is visible and must be packed; false when
+ *          it must be hidden without reserving space.
+ */
+bool meow_modern_divider_visible(const ModernDividerState& state);
+
 /* meow_parse_sidebar_position:
  * @value: a stored /sidebar-position string; may be NULL.
  *
@@ -217,14 +245,18 @@ int meow_strip_spacer_order(bool categories_horizontal);
 
 /* meow_default_category_order_base:
  * @strip_spacer_visible: true when the horizontal strip spacer is visible.
+ * @vertical_switch_controls: true when the vertical sidebar owns its upper
+ *                            separator, Apps/Places selector, and lower
+ *                            separator.
  *
- * Default-category reordering must leave the strip spacer ahead of the built-in
- * category buttons, otherwise close/reopen can move All/Recent/Favorites to the
- * leading side of the strip.
+ * Default-category reordering must leave fixed leading children ahead of the
+ * built-in category buttons. The strip keeps its spacer at index 0; a vertical
+ * sidebar keeps its upper separator, selector, and lower separator at 0..2.
  *
  * Returns: the first child index available for default-category buttons.
  */
-int meow_default_category_order_base(bool strip_spacer_visible);
+int meow_default_category_order_base(bool strip_spacer_visible,
+		bool vertical_switch_controls);
 
 /* meow_category_label_visible:
  * @category_show_name: the stored "show category names" intent.
@@ -232,7 +264,7 @@ int meow_default_category_order_base(bool strip_spacer_visible);
  *
  * The single label-visibility decision shared by every sidebar button — Apps
  * category buttons and Places section buttons alike — so names appear or hide
- * identically in both modes (FR-015/016). A horizontal strip is always
+ * identically in both modes (the documented behavior). A horizontal strip is always
  * icon-only regardless of the stored intent.
  *
  * Returns: true when sidebar buttons should show their text label.

@@ -17,6 +17,7 @@
 
 #include "search-action.h"
 
+#include "config/xfce-helpers.h"
 #include "query.h"
 #include "settings.h"
 
@@ -97,7 +98,11 @@ unsigned int SearchAction::match_prefix(const gchar* haystack)
 
 	gchar* uri = nullptr;
 
-	m_expanded_command = m_command;
+	m_expanded_command = effective_search_action_command(
+			current_xfce_dependency_regime(),
+			m_pattern,
+			m_command,
+			m_is_regex);
 	std::string::size_type pos = 0, lastpos = m_expanded_command.length() - 1;
 	while ((pos = m_expanded_command.find('%', pos)) != std::string::npos)
 	{
@@ -165,7 +170,13 @@ unsigned int SearchAction::match_regex(const gchar* haystack)
 	GMatchInfo* match = nullptr;
 	if (g_regex_match(m_regex, haystack, GRegexMatchFlags(0), &match))
 	{
-		gchar* expanded = g_match_info_expand_references(match, m_command.c_str(), nullptr);
+		const std::string effective_command = effective_search_action_command(
+				current_xfce_dependency_regime(),
+				m_pattern,
+				m_command,
+				m_is_regex);
+		gchar* expanded = g_match_info_expand_references(
+				match, effective_command.c_str(), nullptr);
 		if (expanded)
 		{
 			m_expanded_command = expanded;

@@ -26,6 +26,28 @@ enum class CalculatorResultState
 	MissingBc
 };
 
+/* calculator_auto_font_size:
+ * @preset_id: active built-in, saved-custom, empty, or unknown preset id.
+ *
+ * Resolves Auto Calculator typography without changing its stored -1 setting.
+ * Custom and unknown identities deliberately use the conservative Normal size.
+ *
+ * Returns: semantic font-size index in the inclusive 0..6 range.
+ */
+int calculator_auto_font_size(const char* preset_id);
+
+/* calculator_result_height:
+ * @item_height: ordinary list or tree row height in logical pixels.
+ * @is_grid: true when the surrounding launcher view is an icon grid.
+ *
+ * Keeps the external Calculator banner synchronized with the active result
+ * presentation. List mode supplies one list-row height; grid mode supplies one
+ * grid-row height.
+ *
+ * Returns: the fixed Calculator banner height in logical pixels.
+ */
+int calculator_result_height(int item_height, bool is_grid);
+
 class CalculatorResult
 {
 public:
@@ -41,7 +63,8 @@ public:
 			const char* fallback_icon_name, const std::string& value,
 			int font_size);
 	void set_missing_bc();
-	void set_presentation_metrics(int item_height, int icon_size, bool is_grid);
+	void set_presentation_metrics(int item_height, int icon_size, bool is_grid,
+			int auto_font_size = 3);
 	void set_activate_callback(ActivateCallback callback);
 	bool activate();
 	bool is_visible() const;
@@ -54,13 +77,14 @@ private:
 	void update_font();
 	void update_icon();
 	void update_vertical_margins();
-	void queue_auto_font_update();
 
 	GtkWidget* m_widget;
 	GtkWidget* m_row;
+	GtkWidget* m_clip;
 	GtkWidget* m_content;
 	GtkWidget* m_icon;
 	GtkWidget* m_engine;
+	GtkWidget* m_value_allocation;
 	GtkWidget* m_value_label;
 	GIcon* m_icon_gicon;
 	CalculatorResultState m_state;
@@ -69,7 +93,7 @@ private:
 	int m_font_size;
 	int m_item_height;
 	int m_icon_size;
-	guint m_auto_font_idle_source;
+	int m_auto_font_size;
 	bool m_is_grid;
 };
 

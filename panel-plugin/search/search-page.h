@@ -43,6 +43,7 @@ public:
 	GtkWidget* get_preferred_focus_widget() const;
 	bool has_calculator_result() const;
 	bool activate_first();
+	void refresh_calculator_presentation();
 
 	void set_filter(const gchar* filter);
 	void set_menu_items();

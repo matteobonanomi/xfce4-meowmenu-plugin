@@ -6,9 +6,9 @@ has_children: false
 
 # Installation
 
-Prebuilt packages for the three officially supported distributions are
-attached to every [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases/latest).
-Replace `<version>` with the actual release tag (e.g. `0.7.2`).
+Release packages are attached to the selected
+[GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases).
+Replace `<version>` with the version shown on that release.
 
 ## Ubuntu 26.04
 
@@ -39,8 +39,9 @@ yay -S xfce4-meowmenu-plugin
 
 The package
 ([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
-is maintainer-published and distributed through the AUR. Unlike the three
-prebuilt packages above, it is **not** built or smoke-tested in CI.
+is maintainer-published and distributed through the AUR. The repository recipe
+is built, tested, linted, and smoke-installed before publication, but the AUR
+package is published separately by the maintainer.
 
 Uninstall with `yay -R xfce4-meowmenu-plugin`.
 
@@ -67,7 +68,7 @@ also available when installed; none is a build or hard runtime dependency.
 2. Right-click the panel → **Add New Items** → **MeowMenu**.
 3. Right-click the MeowMenu button → **Properties** to pick a preset.
 
-## Uninstall
+## Remove the package
 
 Remove the package with the appropriate command for your distribution:
 
@@ -75,12 +76,19 @@ Remove the package with the appropriate command for your distribution:
 - **Fedora**: `sudo dnf remove xfce4-meowmenu-plugin`
 - **Source install**: `sudo ninja -C build uninstall`
 
-Then remove any user configuration left behind:
+Package removal keeps user configuration so a later reinstall can restore it.
+
+## Full cleanup
+
+To deliberately delete settings and saved custom presets after removing the
+package:
 
 ```bash
 rm -rf ~/.local/share/meowmenu/
 rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
 ```
+
+This cleanup is optional and cannot be undone without a backup.
 
 ## Build from source
 
@@ -92,9 +100,11 @@ meson compile -C build
 sudo meson install -C build
 ```
 
-Install the required build dependencies for your distribution first:
+Install the required core build dependencies for the exact distribution
+release first. Optional integrations are listed separately so omitting one
+never blocks the core launcher.
 
-### Ubuntu 26.04 / Debian 13
+### Ubuntu 26.04
 
 ```bash
 sudo apt update
@@ -105,12 +115,34 @@ sudo apt install \
     libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
     libexo-2-dev \
     libxfconf-0-dev \
-    libaccountsservice-dev libgtk-layer-shell-dev \
     gettext
 ```
 
-On Ubuntu 24.04 / Linux Mint 22 / LMDE 6, replace `libgarcon-1-dev` /
-`libgarcon-gtk3-1-dev` with `libgarcon-1-0-dev` / `libgarcon-gtk3-1-0-dev`.
+Optional integrations on Ubuntu 26.04:
+
+```bash
+sudo apt install libaccountsservice-dev libgtk-layer-shell-dev
+```
+
+### Debian 13
+
+```bash
+sudo apt update
+sudo apt install \
+    build-essential meson ninja-build pkg-config \
+    libgtk-3-dev libglib2.0-dev \
+    libgarcon-1-dev libgarcon-gtk3-1-dev \
+    libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
+    libexo-2-dev \
+    libxfconf-0-dev \
+    gettext
+```
+
+Optional integrations on Debian 13:
+
+```bash
+sudo apt install libaccountsservice-dev libgtk-layer-shell-dev
+```
 
 ### Fedora 44+
 
@@ -122,8 +154,13 @@ sudo dnf install \
     xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
     exo-devel \
     xfconf-devel \
-    accountsservice-devel gtk-layer-shell-devel \
     gettext
+```
+
+Optional integrations on Fedora 44:
+
+```bash
+sudo dnf install accountsservice-devel gtk-layer-shell-devel
 ```
 
 ### Arch / Manjaro / EndeavourOS
@@ -136,6 +173,28 @@ sudo pacman -S --needed \
     xfce4-panel libxfce4ui libxfce4util \
     exo \
     xfconf \
-    accountsservice gtk-layer-shell \
     gettext
 ```
+
+Optional integrations on Arch:
+
+```bash
+sudo pacman -S --needed accountsservice gtk-layer-shell
+```
+
+## Xfce dependency boundary
+
+Xfce 4.16, 4.18, and 4.20 builds require Exo development files and helper
+programs. The commands above therefore retain `libexo-2-dev`, `exo-devel`, or
+`exo` for their current repositories. Starting with libxfce4ui 4.21, the
+required chooser, opener, and launcher editor are supplied by libxfce4ui; the
+replacement compatibility build is tested with Exo absent.
+
+Do not remove Exo from a distribution recipe merely because the replacement
+source stack passes. A concrete target may remove it only after that target's
+repository crosses the boundary and its package build, linkage inspection,
+installed actions, and upgraded stored actions all pass without Exo.
+
+`gtk-layer-shell` is optional. If a named release does not provide a suitable
+version, leave it out: MeowMenu still builds and uses its normal
+session-compatible positioning fallback.

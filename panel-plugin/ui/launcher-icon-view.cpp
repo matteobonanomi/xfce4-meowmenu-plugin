@@ -17,6 +17,7 @@
 
 #include "launcher-icon-view.h"
 
+#include "grid-cell-metrics.h"
 #include "icon-renderer.h"
 #include "settings.h"
 #include "slot.h"
@@ -24,6 +25,69 @@
 #include <algorithm>
 
 using namespace WhiskerMenu;
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_set_transparent_grid_style:
+ * @view: icon-view widget receiving the scoped style class.
+ * @enabled: whether transparent resting cells are enabled.
+ *
+ * Mirrors the preference as a widget-local CSS class and queues a redraw. The
+ * helper keeps style scoping directly testable without a Settings instance.
+ */
+void WhiskerMenu::launcher_icon_view_set_transparent_grid_style(
+		GtkWidget* view, bool enabled)
+{
+	GtkStyleContext* context = gtk_widget_get_style_context(view);
+	if (enabled)
+	{
+		gtk_style_context_add_class(context, "transparent-grid");
+	}
+	else
+	{
+		gtk_style_context_remove_class(context, "transparent-grid");
+	}
+	gtk_widget_queue_draw(view);
+}
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_complete_empty_click:
+ * @view: concrete icon view after GTK default button processing.
+ * @transparent_grid: whether transparent resting cells are enabled.
+ * @event: completed pointer event in widget coordinates.
+ *
+ * Enforces the empty-primary-click postcondition without consuming the event:
+ * no selection remains and the complete grid is queued for redraw. Widget
+ * focus and GTK's cursor are intentionally retained for keyboard continuation.
+ *
+ * Returns: true when an empty primary click was handled.
+ */
+bool WhiskerMenu::launcher_icon_view_complete_empty_click(GtkIconView* view,
+		bool transparent_grid, const GdkEventButton* event)
+{
+	if (!view || !transparent_grid || !event
+			|| event->type != GDK_BUTTON_RELEASE || event->button != 1)
+	{
+		return false;
+	}
+
+	GtkTreePath* path = nullptr;
+	if (event->x >= 0 && event->y >= 0)
+	{
+		path = gtk_icon_view_get_path_at_pos(view,
+				static_cast<int>(event->x), static_cast<int>(event->y));
+	}
+	if (path)
+	{
+		gtk_tree_path_free(path);
+		return false;
+	}
+
+	gtk_icon_view_unselect_all(view);
+	gtk_widget_queue_draw(GTK_WIDGET(view));
+	return true;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -61,12 +125,24 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	// Keyboard cursor moves change the selection without passing through the
 	// hover chokepoint, so recomposite the whole surface on every selection
 	// change while the background is translucent (no-op when opaque). This is the
-	// keyboard half of the single-highlight safeguard (FR-006/FR-007).
+	// keyboard half of the single-highlight safeguard (the documented behavior).
 	connect(m_view, "selection-changed",
 		[this](GtkIconView*)
 		{
-			queue_translucent_safeguard_redraw();
+			queue_full_redraw_safeguard();
 		});
+
+	// Observe the completed event so GTK has already applied its own focus and
+	// selection behavior. The callback does not consume activation or drag
+	// events and acts only on primary clicks with no model path.
+	connect(m_view, "button-release-event",
+		[this](GtkWidget*, GdkEventButton* event) -> gboolean
+		{
+			launcher_icon_view_complete_empty_click(m_view,
+					m_transparent_grid, event);
+			return GDK_EVENT_PROPAGATE;
+		},
+		Connect::After);
 
 	g_object_ref_sink(m_view);
 
@@ -76,7 +152,7 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	// Handle hover selection
 	enable_hover_selection(GTK_WIDGET(m_view));
 
-	// FR-100: keep the focused item visible on programmatic cursor moves
+	// the documented behavior: keep the focused item visible on programmatic cursor moves
 	// (Tab into Results, sidebar arrow exit). use_align=FALSE so an
 	// already-visible item does not jump.
 	connect(m_view, "focus-in-event",
@@ -328,7 +404,7 @@ void LauncherIconView::reload_icon_size()
 		break;
 	}
 
-	// T043: adjust padding/spacing from grid-density (low/medium/high)
+	// the implementation step: adjust padding/spacing from grid-density (low/medium/high)
 	int padding = base_padding;
 	if (g_strcmp0(density, "low") == 0)
 	{
@@ -361,23 +437,18 @@ void LauncherIconView::reload_icon_size()
 
 /* get_item_height:
  *
- * Returns the live grid tile height when GTK has laid out an item. The fallback
- * mirrors the configured icon and density spacing so a Calculator result can
- * still reserve a stable tile before ordinary matches are available.
+ * Returns one deterministic grid-row height from the renderer's configured
+ * icon, padding, spacing, and label allowance. Live cell rectangles are not
+ * used because a transient single-item model can stretch them across the
+ * results area, which would incorrectly move external rows such as Calculator.
  */
 int LauncherIconView::get_item_height() const
 {
-	if (m_model)
-	{
-		GtkTreePath* path = gtk_tree_path_new_first();
-		GdkRectangle rect;
-		const bool has_rect = gtk_icon_view_get_cell_rect(m_view, path,
-				m_icon_renderer, &rect);
-		gtk_tree_path_free(path);
-		if (has_rect && rect.height > 0)
-			return rect.height;
-	}
-	return std::max(32, std::max(0, m_icon_size) + 40);
+	const int padding = gtk_icon_view_get_item_padding(m_view);
+	const int spacing = gtk_icon_view_get_row_spacing(m_view);
+	const GridCellMetrics cell = meow_grid_cell_metrics(padding,
+			std::max(0, m_icon_size), spacing, true, 2);
+	return std::max(32, cell.natural_height);
 }
 
 //-----------------------------------------------------------------------------
@@ -397,16 +468,8 @@ void LauncherIconView::sync_transparent_grid_style()
 	}
 	m_transparent_grid = transparent_grid;
 
-	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_view));
-	if (transparent_grid)
-	{
-		gtk_style_context_add_class(context, "transparent-grid");
-	}
-	else
-	{
-		gtk_style_context_remove_class(context, "transparent-grid");
-	}
-	gtk_widget_queue_draw(GTK_WIDGET(m_view));
+	launcher_icon_view_set_transparent_grid_style(GTK_WIDGET(m_view),
+			transparent_grid);
 }
 
 //-----------------------------------------------------------------------------

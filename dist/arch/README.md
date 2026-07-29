@@ -12,11 +12,9 @@ hand-pinned checksum. The authoritative AUR metadata, including the release
 checksum and `.SRCINFO`, is generated at release time by `dev/aur-release.sh` in
 the sibling AUR clone.
 
-The shipped recipe intentionally omits the install-time `check()` phase so
-default `yay` and `makepkg` installs are fast. The project test suite is still
-exercised on the Arch toolchain by the advisory packaging-validation CI job.
-The package installs alongside Arch's official Whisker Menu package and never
-declares any substitution metadata against it.
+The recipe includes `check()` so candidate validation exercises the complete
+Meson suite. The release workflow also builds, lints, and smoke-installs the
+recipe as a publication prerequisite.
 
 ## Reproducing the build locally
 
@@ -34,8 +32,8 @@ chown -R builder:builder /src
 Then, from `dist/arch/`:
 
 ```bash
-# 1. pkgver must equal the project version
-test "$(python3 ../../build-aux/news-version.py --version)" \
+# 1. pkgver must equal the derived Arch version
+test "$(python3 ../../build-aux/news-version.py --arch-version)" \
      = "$(bash -c 'source PKGBUILD; printf %s "$pkgver"')"
 
 # 2. validate the source archive named by the recipe
@@ -58,6 +56,8 @@ To build from an untagged working tree instead of a published tag, patch a
 `dev/aur-release.sh` copies the recipe to the sibling AUR clone, refreshes the
 checksum from the live release tarball, regenerates `.SRCINFO`, and verifies the
 download there. The generated AUR metadata is not committed in this repository.
+It is the authoritative checksum-bearing recipe for AUR users; the
+in-repository `SKIP` placeholder is only a development seed.
 
 ## Tolerated namcap warnings
 

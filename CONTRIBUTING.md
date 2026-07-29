@@ -1,0 +1,32 @@
+# Contributing to MeowMenu
+
+Thanks for helping improve MeowMenu. Discuss non-trivial behavior changes in an
+issue before investing substantial work.
+
+## Build and test
+
+Install the dependencies listed in the
+[installation guide](docs/installation.md#build-from-source), then run:
+
+```bash
+meson setup build
+meson compile -C build
+meson test -C build --print-errorlogs
+```
+
+Match the surrounding C++/GTK style and avoid unrelated formatting changes.
+New user-visible strings must use the existing gettext macros. Regenerate the
+template with `meson compile -C build xfce4-meowmenu-plugin-pot`; update a
+catalog only when supplying an actual translation.
+
+Update public documentation when behavior, installation, or settings change.
+Every new setting needs a safe default, a Preferences control,
+reset-to-default behavior, and migration coverage. Note Debian, RPM, Arch, and
+optional-dependency effects when packaging changes.
+
+## Pull requests
+
+Keep changes focused and explain the user-facing reason. Describe tests run and
+any manual X11 or Wayland result without presenting automated tests as desktop
+runtime evidence. Link the relevant issue and call out documentation,
+translation, packaging, settings/default, and migration impact.

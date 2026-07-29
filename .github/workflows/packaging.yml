@@ -1,897 +1,376 @@
-# =============================================================================
-# Job-name contract (packaging.yml — never a required check, tag-triggered)
-# =============================================================================
-# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2, §4, §5
-# Feature 010 additions: .specify/specs/010-standalone-identity/contracts/package-overlap-check.md
-#
-# Job display names (used by branch-protection / audit log):
-#   validate-tag
-#   build-deb (ubuntu-26.04)
-#   build-deb (debian-13)
-#   build-rpm (fedora-44)
-#   verify-install-deb (ubuntu-26.04)
-#   verify-install-deb (debian-13)
-#   verify-install-rpm
-#   whisker-overlap-check (ubuntu-26.04)        [feature 010, FR-021 / FR-025]
-#   whisker-overlap-check (debian-13)           [feature 010, FR-021 / FR-025]
-#   whisker-overlap-check (fedora-44)           [feature 010, FR-021 / FR-025]
-#   relationship-declaration-check              [feature 010, FR-022]
-#   arch-pkgbuild-test                          [feature 035, advisory]
-#   attach-artifacts
-#
-# arch-pkgbuild-test (feature 035) is an ADVISORY Arch/AUR-readiness gate: it
-# builds, tests, lints, installs and coexistence-checks the Arch package, but
-# releases NO Arch binary and is NOT a `needs:` of attach-artifacts, so a
-# failure stays a visible red ❌ without blocking .deb/.rpm publication. It must
-# never be added to branch-protection required checks and never uses
-# continue-on-error. The .deb/.rpm artifact contract below is unchanged.
-#
-# Job IDs (used by `needs:`) differ from display names by design — see
-# workflow-jobs.md §2 NOTE on IDs vs names.
-#
-# Artifact filename contract (FR-017, §4):
-#   xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
-#   xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
-#   xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
-#
-# Tag-on-`main` invariant (§5): validate-tag refuses to proceed when the tag
-# is not reachable from `origin/main`.
-# =============================================================================
-
 name: packaging
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*-rc*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated release-candidate tag
+        required: true
+        type: string
+      publish:
+        description: Publish the verified draft prerelease
+        required: true
+        default: false
+        type: boolean
+      authorization:
+        description: Enter "publish <tag>" after completing live checks
+        required: false
+        type: string
+      manual_evidence:
+        description: Durable URL for the primary fresh-install and upgrade results
+        required: false
+        type: string
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   validate-tag:
     name: validate-tag
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.identity.outputs.version }}
+      debian_version: ${{ steps.identity.outputs.debian_version }}
+      rpm_version: ${{ steps.identity.outputs.rpm_version }}
+      arch_version: ${{ steps.identity.outputs.arch_version }}
     steps:
-      - name: Checkout
+      - name: Checkout candidate
         uses: actions/checkout@v7
         with:
+          ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
 
-      - name: Enforce tag-on-main invariant
-        if: github.event_name == 'push'
+      - name: Validate annotated tag, main ancestry, and NEWS identity
+        id: identity
         run: |
-          git fetch --no-tags origin main:refs/remotes/origin/main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Tag $GITHUB_REF_NAME does not point at a commit reachable from main; refusing to publish artifacts."
+          set -euo pipefail
+          git fetch --force origin main:refs/remotes/origin/main
+          test "$(git cat-file -t "refs/tags/${RELEASE_TAG}")" = tag || {
+            echo "::error::${RELEASE_TAG} must be an annotated tag"
+            exit 1
+          }
+          commit="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          git merge-base --is-ancestor "$commit" origin/main || {
+            echo "::error::${RELEASE_TAG} is not reachable from main"
+            exit 1
+          }
+          version="$(python3 build-aux/news-version.py --version --news NEWS)"
+          expected_tag="$(python3 build-aux/news-version.py --tag --news NEWS)"
+          test "$RELEASE_TAG" = "$expected_tag" || {
+            echo "::error::Tag ${RELEASE_TAG} does not match top NEWS version ${version}"
+            exit 1
+          }
+          python3 build-aux/news-version.py --date --news NEWS
+          {
+            echo "version=${version}"
+            echo "debian_version=$(python3 build-aux/news-version.py --debian-version --news NEWS)"
+            echo "rpm_version=$(python3 build-aux/news-version.py --rpm-version --news NEWS)"
+            echo "arch_version=$(python3 build-aux/news-version.py --arch-version --news NEWS)"
+          } >> "$GITHUB_OUTPUT"
+
+  source:
+    name: canonical-source
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Create canonical source archive
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          mkdir -p artifacts
+          python3 build-aux/release/artifacts.py create-source \
+            --repository . \
+            --tag "$RELEASE_TAG" \
+            --version "$VERSION" \
+            --output "artifacts/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+
+      - name: Upload canonical source
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-source
+          path: artifacts/*.tar.gz
+
+  build-deb:
+    name: build-deb (${{ matrix.label }})
+    needs: [validate-tag, source]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: ubuntu-26.04
+            image: ubuntu:26.04
+            token: ubuntu26.04
+            artifact: deb-package-ubuntu
+          - label: debian-13
+            image: debian:13
+            token: debian13
+            artifact: deb-package-debian
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Install Debian package bootstrap tools
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates debhelper devscripts dpkg-dev \
+            equivs python3
+
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-source
+          path: source
+
+      - name: Build, test, validate, and install package
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+          DEBIAN_VERSION: ${{ needs.validate-tag.outputs.debian_version }}
+        run: |
+          set -euo pipefail
+          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+          cd "xfce4-meowmenu-plugin-${VERSION}"
+          if dpkg-query -W libexo-2-dev >/dev/null 2>&1; then
+            echo "::error::libexo-2-dev was installed before manifest resolution"
             exit 1
           fi
-
-      - name: Derive version from NEWS
-        id: version
-        run: |
-          version="$(python3 build-aux/news-version.py --version)"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "Derived version: ${version}"
-
-  build-deb-ubuntu:
-    name: build-deb (ubuntu-26.04)
-    needs: validate-tag
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:26.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      # NOTE: README is the source of truth for build deps (spec Assumptions).
-      # Ubuntu 26.04 uses the same garcon dev package names as Debian 13
-      # (`libgarcon-1-dev` / `libgarcon-gtk3-1-dev`); the `-0` SONAME suffix
-      # was dropped in 26.04.
-      - name: Install build dependencies (Ubuntu 26.04 + packaging tools)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends \
-              build-essential meson ninja-build pkg-config \
-              libgtk-3-dev libglib2.0-dev \
-              libgarcon-1-dev libgarcon-gtk3-1-dev \
-              libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
-              libexo-2-dev \
-              libxfconf-0-dev \
-              libaccountsservice-dev libgtk-layer-shell-dev \
-              gettext \
-              git ca-certificates \
-              debhelper devscripts equivs dpkg-dev python3
-
-      - name: Regenerate debian/changelog from NEWS
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          # NOTE: Top entry of NEWS is the source of truth (FR-014). The
-          # committed debian/changelog is a seed only; we replace it here.
           date_rfc="$(date -u +'%a, %d %b %Y %H:%M:%S +0000')"
-          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
           {
-            echo "xfce4-meowmenu-plugin (${VERSION}-1) unstable; urgency=medium"
+            echo "xfce4-meowmenu-plugin (${DEBIAN_VERSION}) unstable; urgency=medium"
             echo
-            if [ -n "$news_body" ]; then
-              echo "$news_body" | sed 's/^/  /'
-            else
-              echo "  * Release ${VERSION}."
-            fi
+            echo "  * MeowMenu ${VERSION}."
             echo
             echo " -- Matteo Bonanomi <mbonanomi.dev@proton.me>  ${date_rfc}"
           } > debian/changelog
+          mk-build-deps --install --remove \
+            --tool 'apt-get -y --no-install-recommends' debian/control
+          dpkg-checkbuilddeps
+          dpkg-buildpackage -us -uc -b
+          package="$(find .. -maxdepth 1 -name 'xfce4-meowmenu-plugin_*_amd64.deb' -print -quit)"
+          test "$(dpkg-deb -f "$package" Version)" = "$DEBIAN_VERSION"
+          dpkg --compare-versions 0.8.0-1 lt "$DEBIAN_VERSION"
+          dpkg --compare-versions "$DEBIAN_VERSION" lt 0.9.0~rc2-1
+          dpkg --compare-versions "$DEBIAN_VERSION" lt 0.9.0-1
+          apt-get install -y --no-install-recommends appstream lintian
+          appstreamcli validate --no-net \
+            data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
+          lintian "$package" | tee ../lintian.log || true
+          apt-get install -y "$package"
+          test "$(dpkg-query -W -f='${Version}' xfce4-meowmenu-plugin)" = "$DEBIAN_VERSION"
+          dpkg-query -W -f='${Depends}\n' xfce4-meowmenu-plugin | \
+            tr ',' '\n' | grep -Eq '^[[:space:]]*exo-utils([[:space:]]|$)'
+          test "$(dpkg-query -S /usr/bin/exo-open | cut -d: -f1)" = exo-utils
+          test "$(dpkg-query -S /usr/bin/exo-desktop-item-edit | cut -d: -f1)" = exo-utils
+          plugin="$(find /usr/lib -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
+          build-aux/compat/assert-dependency-regime.sh \
+            --regime legacy --plugin "$plugin" \
+            --testlog "$(find . -path '*/meson-logs/testlog.txt' -print -quit)"
+          build-aux/compat/installed-action-smoke.sh \
+            --regime legacy --plugin "$plugin" > ../installed-action-smoke.log
+          mkdir -p ../artifacts
+          cp "$package" \
+            "../artifacts/xfce4-meowmenu-plugin_${VERSION}_${{ matrix.token }}_amd64.deb"
 
-      - name: Build .deb
-        run: dpkg-buildpackage -us -uc -b
-
-      # HACK: Both Ubuntu and Debian cells produce `..._amd64.deb` from the same
-      # debian/ source. Rename to embed the distribution token (FR-017) so the
-      # two artifacts never collide on disk, in artifact storage, or on the
-      # Release. Rename happens in the same job that produced the file, before
-      # upload, so the artifact-store name matches the final Release filename.
-      - name: Stage artifact under contract filename (ubuntu26.04 token)
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          mkdir -p artifacts
-          src="$(ls ../xfce4-meowmenu-plugin_*_amd64.deb | head -n1)"
-          cp "$src" "artifacts/xfce4-meowmenu-plugin_${VERSION}_ubuntu26.04_amd64.deb"
-          ls -la artifacts/
-
-      - name: Upload Ubuntu .deb artifact
+      - name: Upload DEB
         uses: actions/upload-artifact@v7
         with:
-          name: deb-package-ubuntu
-          path: artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
-          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
+          name: ${{ matrix.artifact }}
+          path: artifacts/*.deb
 
-  build-deb-debian:
-    name: build-deb (debian-13)
-    needs: validate-tag
+      - name: Upload advisory lint output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lintian-${{ matrix.token }}
+          path: lintian.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  debian-exo-negative:
+    name: debian-exo-negative (${{ matrix.label }}, ${{ matrix.omission }})
+    needs: [validate-tag, source]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: ubuntu-26.04
+            image: ubuntu:26.04
+            omission: libexo-2-dev
+          - label: ubuntu-26.04
+            image: ubuntu:26.04
+            omission: exo-utils
+          - label: debian-13
+            image: debian:13
+            omission: libexo-2-dev
+          - label: debian-13
+            image: debian:13
+            omission: exo-utils
     container:
-      image: debian:13
+      image: ${{ matrix.image }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Install build dependencies (Debian 13 + packaging tools)
+      - name: Install mutation bootstrap tools
         run: |
-          export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get install -y --no-install-recommends \
-              build-essential meson ninja-build pkg-config \
-              libgtk-3-dev libglib2.0-dev \
-              libgarcon-1-dev libgarcon-gtk3-1-dev \
-              libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
-              libexo-2-dev \
-              libxfconf-0-dev \
-              libaccountsservice-dev libgtk-layer-shell-dev \
-              gettext \
-              git ca-certificates \
-              debhelper devscripts equivs dpkg-dev python3
+          apt-get install -y --no-install-recommends ca-certificates python3
 
-      - name: Regenerate debian/changelog from NEWS
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          # NOTE: Top entry of NEWS is the source of truth (FR-014). The
-          # committed debian/changelog is a seed only; we replace it here.
-          date_rfc="$(date -u +'%a, %d %b %Y %H:%M:%S +0000')"
-          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
-          {
-            echo "xfce4-meowmenu-plugin (${VERSION}-1) unstable; urgency=medium"
-            echo
-            if [ -n "$news_body" ]; then
-              echo "$news_body" | sed 's/^/  /'
-            else
-              echo "  * Release ${VERSION}."
-            fi
-            echo
-            echo " -- Matteo Bonanomi <mbonanomi.dev@proton.me>  ${date_rfc}"
-          } > debian/changelog
-
-      - name: Build .deb
-        run: dpkg-buildpackage -us -uc -b
-
-      # HACK: see build-deb-ubuntu for the rename rationale (FR-017).
-      - name: Stage artifact under contract filename (debian13 token)
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
-          mkdir -p artifacts
-          src="$(ls ../xfce4-meowmenu-plugin_*_amd64.deb | head -n1)"
-          cp "$src" "artifacts/xfce4-meowmenu-plugin_${VERSION}_debian13_amd64.deb"
-          ls -la artifacts/
-
-      - name: Upload Debian .deb artifact
-        uses: actions/upload-artifact@v7
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
         with:
-          name: deb-package-debian
-          path: artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
-          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
+          name: canonical-source
+          path: source
+
+      - name: Require the direct-contract mutation to fail closed
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+          OMISSION: ${{ matrix.omission }}
+        run: |
+          set -euo pipefail
+          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+          cd "xfce4-meowmenu-plugin-${VERSION}"
+          sed -i "/^[[:space:]]${OMISSION},$/d" debian/control
+          if python3 tests/test_dependency_contract.py; then
+            echo "::error::direct contract accepted missing ${OMISSION}"
+            exit 1
+          fi
+          printf 'target=%s\nomission=%s\nresult=rejected\n' \
+            '${{ matrix.label }}' "$OMISSION" >> "$GITHUB_STEP_SUMMARY"
 
   build-rpm:
     name: build-rpm (fedora-44)
-    needs: validate-tag
+    needs: [validate-tag, source]
     runs-on: ubuntu-latest
     container:
       image: fedora:44
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Install build dependencies (Fedora 44 + packaging tools)
+      - name: Install RPM package bootstrap tools
         run: |
           dnf -y install \
-              gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
-              gtk3-devel glib2-devel \
-              garcon-devel \
-              xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
-              exo-devel \
-              xfconf-devel \
-              accountsservice-devel gtk-layer-shell-devel \
-              gettext \
-              git ca-certificates \
-              rpm-build rpmdevtools python3
+            dnf-plugins-core rpm-build rpmdevtools python3 ca-certificates
 
-      - name: Render spec Version and %changelog from NEWS
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-source
+          path: source
+
+      - name: Build, test, validate, and install package
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
+          RPM_VERSION: ${{ needs.validate-tag.outputs.rpm_version }}
         run: |
-          spec="dist/rpm/xfce4-meowmenu-plugin.spec"
-          sed -i "s/^Version:.*/Version:        ${VERSION}/" "$spec"
-          date_rpm="$(date -u +'%a %b %d %Y')"
-          news_body="$(awk '/^[0-9]+\.[0-9]+\.[0-9]+/{if(c++)exit;next} c==1{print}' NEWS | sed '/^$/d')"
-          # Rewrite the trailing %changelog block.
-          awk -v ver="$VERSION" -v dt="$date_rpm" -v body="$news_body" '
-            BEGIN { skip = 0 }
-            /^%changelog/ {
-              print "%changelog"
-              print "* " dt " Matteo Bonanomi <mbonanomi.dev@proton.me> - " ver "-1"
-              n = split(body, lines, "\n")
-              if (n == 0 || (n == 1 && lines[1] == "")) {
-                print "- Release " ver "."
-              } else {
-                for (i = 1; i <= n; i++) print lines[i]
-              }
-              skip = 1
-              next
-            }
-            skip == 0 { print }
-          ' "$spec" > "${spec}.new"
-          mv "${spec}.new" "$spec"
-
-      # HACK: stage the source tree under its versioned directory name before
-      # tarring, instead of relying on `tar --transform 's,^,prefix/,'` against
-      # `.`. The transform approach produces archive entries like
-      # `prefix/./file`, which some GNU tar versions reject on extraction with
-      # "Cannot open: No such file or directory". Staging a real directory
-      # makes the tarball valid on any tar version.
-      - name: Stage source tarball and build RPM
-        env:
-          VERSION: ${{ needs.validate-tag.outputs.version }}
-        run: |
+          set -euo pipefail
           rpmdev-setuptree
-          stage="$(mktemp -d)"
-          srcdir="$stage/xfce4-meowmenu-plugin-${VERSION}"
-          mkdir -p "$srcdir"
-          tar --exclude='./.git' --exclude='./build' -cf - . \
-            | tar -xf - -C "$srcdir"
-          tar -czf "$HOME/rpmbuild/SOURCES/xfce4-meowmenu-plugin-${VERSION}.tar.gz" \
-              -C "$stage" "xfce4-meowmenu-plugin-${VERSION}"
-          cp dist/rpm/xfce4-meowmenu-plugin.spec "$HOME/rpmbuild/SPECS/"
-          rpmbuild -ba "$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
+          cp "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz" "$HOME/rpmbuild/SOURCES/"
+          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+          cp "xfce4-meowmenu-plugin-${VERSION}/dist/rpm/xfce4-meowmenu-plugin.spec" \
+            "$HOME/rpmbuild/SPECS/"
+          spec="$HOME/rpmbuild/SPECS/xfce4-meowmenu-plugin.spec"
+          sed -i "s/^Version:.*/Version:        ${RPM_VERSION}/" "$spec"
+          sed -i "s/^%global upstream_version.*/%global upstream_version ${VERSION}/" "$spec"
+          if rpm -q --whatprovides 'pkgconfig(exo-2)' >/dev/null 2>&1; then
+            echo "::error::Exo development files existed before manifest resolution"
+            exit 1
+          fi
+          dnf -y builddep "$spec"
+          rpmbuild -ba "$spec"
+          package="$(find "$HOME/rpmbuild/RPMS/x86_64" -name 'xfce4-meowmenu-plugin-*.rpm' -print -quit)"
+          test "$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' "$package")" = "${RPM_VERSION}-1.fc44"
+          rpm --eval "%{lua:
+            rpm.vercmp('0.8.0', '${RPM_VERSION}') < 0 or error('RC must follow 0.8.0')
+            rpm.vercmp('${RPM_VERSION}', '0.9.0~rc2') < 0 or error('RC1 must precede RC2')
+            rpm.vercmp('${RPM_VERSION}', '0.9.0') < 0 or error('RC must precede final')
+          }"
+          dnf -y install appstream rpmlint
+          appstreamcli validate --no-net \
+            "xfce4-meowmenu-plugin-${VERSION}/data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml"
+          rpmlint "$spec" "$package" | tee rpmlint.log || true
+          dnf -y install "$package"
+          test "$(rpm -q --qf '%{VERSION}-%{RELEASE}\n' xfce4-meowmenu-plugin)" = \
+            "${RPM_VERSION}-1.fc44"
+          test "$(rpm -qf /usr/bin/exo-open)" = exo
+          test "$(rpm -qf /usr/bin/exo-desktop-item-edit)" = exo
+          plugin="$(find /usr/lib64 /usr/lib -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
+          testlog="$(find "$HOME/rpmbuild/BUILD" -path '*/meson-logs/testlog.txt' -print -quit)"
+          "xfce4-meowmenu-plugin-${VERSION}/build-aux/compat/assert-dependency-regime.sh" \
+            --regime legacy --plugin "$plugin" \
+            --testlog "$testlog"
+          "xfce4-meowmenu-plugin-${VERSION}/build-aux/compat/installed-action-smoke.sh" \
+            --regime legacy --plugin "$plugin" > installed-action-smoke.log
+          mkdir -p artifacts
+          cp "$package" \
+            "artifacts/xfce4-meowmenu-plugin-${VERSION}-1.fc44.x86_64.rpm"
 
-      - name: Stage artifact under contract filename
+      - name: Upload RPM
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpm-package
+          path: artifacts/*.rpm
+
+      - name: Upload advisory lint output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpmlint-fedora44
+          path: rpmlint.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  fedora-exo-negative:
+    name: fedora-exo-negative (${{ matrix.omission }})
+    needs: [validate-tag, source]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        omission: [build, helper]
+    container:
+      image: fedora:44
+    steps:
+      - name: Install mutation bootstrap tools
+        run: dnf -y install python3
+
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-source
+          path: source
+
+      - name: Require the Fedora direct-contract mutation to fail closed
         env:
           VERSION: ${{ needs.validate-tag.outputs.version }}
+          OMISSION: ${{ matrix.omission }}
         run: |
-          mkdir -p artifacts
-          src="$(ls "$HOME"/rpmbuild/RPMS/x86_64/xfce4-meowmenu-plugin-*.rpm | head -n1)"
-          cp "$src" "artifacts/xfce4-meowmenu-plugin-${VERSION}-1.fc44.x86_64.rpm"
-          ls -la artifacts/
-
-      - name: Upload .rpm artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: rpm-package
-          path: artifacts/xfce4-meowmenu-plugin-*.rpm
-          retention-days: ${{ github.event_name == 'push' && 90 || 7 }}
-
-  verify-install-deb-ubuntu:
-    name: verify-install-deb (ubuntu-26.04)
-    needs: build-deb-ubuntu
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:26.04
-    steps:
-      - name: Install runtime tooling
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates
-
-      - name: Download Ubuntu .deb artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-ubuntu
-          path: artifacts
-
-      - name: Smoke-install .deb (Ubuntu 26.04)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
-          dpkg -s xfce4-meowmenu-plugin
-          dpkg -s bc
-
-      - name: Verify calculator-free install without recommendations (Ubuntu 26.04)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get remove -y xfce4-meowmenu-plugin bc
-          apt-get install -y --no-install-recommends ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
-          dpkg -s xfce4-meowmenu-plugin
-          # apt-get remove preserves dpkg's "config-files" state, for which
-          # dpkg -s still succeeds. Only an installed package is a failure.
-          if dpkg-query -W -f='${db:Status-Status}\n' bc 2>/dev/null | grep -qx 'installed'; then
-            echo "::error::bc was installed despite --no-install-recommends"
+          set -euo pipefail
+          tar -xzf "source/xfce4-meowmenu-plugin-${VERSION}.tar.gz"
+          cd "xfce4-meowmenu-plugin-${VERSION}"
+          if test "$OMISSION" = build; then
+            sed -i '/^BuildRequires:[[:space:]]*pkgconfig(exo-2)$/d' \
+              dist/rpm/xfce4-meowmenu-plugin.spec
+          else
+            sed -i '\|^Requires:[[:space:]]*/usr/bin/exo-open$|d' \
+              dist/rpm/xfce4-meowmenu-plugin.spec
+          fi
+          if python3 tests/test_dependency_contract.py; then
+            echo "::error::Fedora direct contract accepted ${OMISSION} omission"
             exit 1
           fi
+          printf 'target=fedora-44\nomission=%s\nresult=rejected\n' \
+            "$OMISSION" >> "$GITHUB_STEP_SUMMARY"
 
-  verify-install-deb-debian:
-    name: verify-install-deb (debian-13)
-    needs: build-deb-debian
-    runs-on: ubuntu-latest
-    container:
-      image: debian:13
-    steps:
-      - name: Install runtime tooling
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates
-
-      - name: Download Debian .deb artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-debian
-          path: artifacts
-
-      - name: Smoke-install .deb (Debian 13)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
-          dpkg -s xfce4-meowmenu-plugin
-          dpkg -s bc
-
-      - name: Verify calculator-free install without recommendations (Debian 13)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get remove -y xfce4-meowmenu-plugin bc
-          apt-get install -y --no-install-recommends ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
-          dpkg -s xfce4-meowmenu-plugin
-          # apt-get remove preserves dpkg's "config-files" state, for which
-          # dpkg -s still succeeds. Only an installed package is a failure.
-          if dpkg-query -W -f='${db:Status-Status}\n' bc 2>/dev/null | grep -qx 'installed'; then
-            echo "::error::bc was installed despite --no-install-recommends"
-            exit 1
-          fi
-
-  verify-install-rpm:
-    name: verify-install-rpm
-    needs: build-rpm
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:44
-    steps:
-      - name: Download .rpm artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: rpm-package
-          path: artifacts
-
-      - name: Smoke-install .rpm
-        run: |
-          dnf install -y ./artifacts/xfce4-meowmenu-plugin-*.rpm
-          rpm -qi xfce4-meowmenu-plugin
-          rpm -q bc
-
-      - name: Verify calculator-free install with weak dependencies disabled
-        run: |
-          dnf remove -y xfce4-meowmenu-plugin bc
-          dnf install -y --setopt=install_weak_deps=False ./artifacts/xfce4-meowmenu-plugin-*.rpm
-          rpm -qi xfce4-meowmenu-plugin
-          ! rpm -q bc >/dev/null 2>&1
-
-  # ===========================================================================
-  # Feature 010 — Whisker coexistence gates
-  #
-  # Each per-distro overlap job (a) installs the produced MeowMenu artifact in
-  # a clean container of the target distribution, (b) installs that distro's
-  # `xfce4-whiskermenu-plugin` package from its native repos, (c) computes
-  # the set intersection of `dpkg -L` / `rpm -ql` for the two packages, and
-  # (d) fails if the intersection contains any non-directory entry (FR-021).
-  # Each job additionally re-runs the install on a clean image with no
-  # Whisker present to exercise FR-025 (identical install command regardless
-  # of Whisker presence).
-  #
-  # The pinned Whisker package name per distro lives in docs/ci.md
-  # "Upstream Whisker package names" and in
-  # contracts/package-overlap-check.md "Pinned package names".
-  # ===========================================================================
-
-  whisker-overlap-check-ubuntu:
-    name: whisker-overlap-check (ubuntu-26.04)
-    needs: build-deb-ubuntu
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:26.04
-    steps:
-      - name: Install tooling
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates
-
-      - name: Download Ubuntu .deb artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-ubuntu
-          path: artifacts
-
-      - name: Coexistence install (Whisker present)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y xfce4-whiskermenu-plugin
-          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
-          dpkg -s xfce4-meowmenu-plugin
-          dpkg -s xfce4-whiskermenu-plugin
-
-      - name: Compute file-path intersection (FR-021)
-        run: |
-          set -e
-          dpkg -L xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
-          dpkg -L xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
-          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
-          # NOTE: shared directory entries are expected (both packages drop
-          # files into /usr/share/xfce4/, /usr/share/locale/, ...). Only
-          # non-directory entries are FR-001 violations.
-          : > /tmp/overlap-violations.txt
-          while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            if [ -d "$path" ] && [ ! -L "$path" ]; then
-              continue
-            fi
-            echo "$path" >> /tmp/overlap-violations.txt
-          done < /tmp/intersection.txt
-          mkdir -p /tmp/report
-          {
-            echo "## ubuntu-26.04"
-            echo
-            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
-            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
-            echo
-            echo "### Raw file-listing intersection"
-            echo
-            echo '```'
-            cat /tmp/intersection.txt
-            echo '```'
-            echo
-            echo "### Non-directory overlaps (must be empty)"
-            echo
-            echo '```'
-            cat /tmp/overlap-violations.txt
-            echo '```'
-          } > /tmp/report/ubuntu-26.04.md
-          if [ -s /tmp/overlap-violations.txt ]; then
-            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on ubuntu-26.04"
-            cat /tmp/overlap-violations.txt
-            exit 1
-          fi
-
-      - name: Whisker-absent install smoke (FR-025)
-        run: |
-          set -e
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get remove -y xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
-          ! dpkg -s xfce4-whiskermenu-plugin >/dev/null 2>&1
-          # Re-install with the SAME native command; FR-025 forbids any
-          # difference in user-visible install procedure between
-          # "Whisker present" and "Whisker absent".
-          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb 2>&1 | tee /tmp/install-log.txt
-          if grep -Ei 'force-overwrite|replac|missing.*xfce4-whiskermenu' /tmp/install-log.txt; then
-            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution/missing-package warning"
-            exit 1
-          fi
-          dpkg -s xfce4-meowmenu-plugin
-
-      - name: Upload overlap report (ubuntu-26.04)
-        uses: actions/upload-artifact@v7
-        with:
-          name: whisker-overlap-report-ubuntu-26.04
-          path: /tmp/report/ubuntu-26.04.md
-
-  whisker-overlap-check-debian:
-    name: whisker-overlap-check (debian-13)
-    needs: build-deb-debian
-    runs-on: ubuntu-latest
-    container:
-      image: debian:13
-    steps:
-      - name: Install tooling
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates
-
-      - name: Download Debian .deb artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-debian
-          path: artifacts
-
-      - name: Coexistence install (Whisker present)
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y xfce4-whiskermenu-plugin
-          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
-          dpkg -s xfce4-meowmenu-plugin
-          dpkg -s xfce4-whiskermenu-plugin
-
-      - name: Compute file-path intersection (FR-021)
-        run: |
-          set -e
-          dpkg -L xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
-          dpkg -L xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
-          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
-          : > /tmp/overlap-violations.txt
-          while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            if [ -d "$path" ] && [ ! -L "$path" ]; then
-              continue
-            fi
-            echo "$path" >> /tmp/overlap-violations.txt
-          done < /tmp/intersection.txt
-          mkdir -p /tmp/report
-          {
-            echo "## debian-13"
-            echo
-            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
-            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
-            echo
-            echo "### Raw file-listing intersection"
-            echo
-            echo '```'
-            cat /tmp/intersection.txt
-            echo '```'
-            echo
-            echo "### Non-directory overlaps (must be empty)"
-            echo
-            echo '```'
-            cat /tmp/overlap-violations.txt
-            echo '```'
-          } > /tmp/report/debian-13.md
-          if [ -s /tmp/overlap-violations.txt ]; then
-            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on debian-13"
-            cat /tmp/overlap-violations.txt
-            exit 1
-          fi
-
-      - name: Whisker-absent install smoke (FR-025)
-        run: |
-          set -e
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get remove -y xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
-          ! dpkg -s xfce4-whiskermenu-plugin >/dev/null 2>&1
-          apt-get install -y ./artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb 2>&1 | tee /tmp/install-log.txt
-          if grep -Ei 'force-overwrite|replac|missing.*xfce4-whiskermenu' /tmp/install-log.txt; then
-            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution/missing-package warning"
-            exit 1
-          fi
-          dpkg -s xfce4-meowmenu-plugin
-
-      - name: Upload overlap report (debian-13)
-        uses: actions/upload-artifact@v7
-        with:
-          name: whisker-overlap-report-debian-13
-          path: /tmp/report/debian-13.md
-
-  whisker-overlap-check-fedora:
-    name: whisker-overlap-check (fedora-44)
-    needs: build-rpm
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:44
-    steps:
-      - name: Install tooling
-        run: dnf -y install ca-certificates coreutils
-
-      - name: Download Fedora .rpm artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: rpm-package
-          path: artifacts
-
-      - name: Coexistence install (Whisker present)
-        run: |
-          dnf -y install xfce4-whiskermenu-plugin
-          dnf -y install ./artifacts/xfce4-meowmenu-plugin-*.rpm
-          rpm -qi xfce4-meowmenu-plugin
-          rpm -qi xfce4-whiskermenu-plugin
-
-      - name: Compute file-path intersection (FR-021)
-        run: |
-          set -e
-          rpm -ql xfce4-meowmenu-plugin    | sort -u > /tmp/meow.txt
-          rpm -ql xfce4-whiskermenu-plugin | sort -u > /tmp/whisker.txt
-          comm -12 /tmp/meow.txt /tmp/whisker.txt > /tmp/intersection.txt
-          : > /tmp/overlap-violations.txt
-          while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            if [ -d "$path" ] && [ ! -L "$path" ]; then
-              continue
-            fi
-            echo "$path" >> /tmp/overlap-violations.txt
-          done < /tmp/intersection.txt
-          mkdir -p /tmp/report
-          {
-            echo "## fedora-44"
-            echo
-            echo "- Whisker package: \`xfce4-whiskermenu-plugin\`"
-            echo "- MeowMenu package: \`xfce4-meowmenu-plugin\`"
-            echo
-            echo "### Raw file-listing intersection"
-            echo
-            echo '```'
-            cat /tmp/intersection.txt
-            echo '```'
-            echo
-            echo "### Non-directory overlaps (must be empty)"
-            echo
-            echo '```'
-            cat /tmp/overlap-violations.txt
-            echo '```'
-          } > /tmp/report/fedora-44.md
-          if [ -s /tmp/overlap-violations.txt ]; then
-            echo "::error::FR-001 / FR-021 violation: non-directory file overlap with xfce4-whiskermenu-plugin on fedora-44"
-            cat /tmp/overlap-violations.txt
-            exit 1
-          fi
-
-      - name: Whisker-absent install smoke (FR-025)
-        run: |
-          set -e
-          dnf -y remove xfce4-meowmenu-plugin xfce4-whiskermenu-plugin
-          ! rpm -q xfce4-whiskermenu-plugin >/dev/null 2>&1
-          dnf -y install ./artifacts/xfce4-meowmenu-plugin-*.rpm 2>&1 | tee /tmp/install-log.txt
-          if grep -Ei 'replacing|obsoletes|conflicts.*xfce4-whiskermenu' /tmp/install-log.txt; then
-            echo "::error::FR-025 violation: Whisker-absent install emitted a substitution warning"
-            exit 1
-          fi
-          rpm -qi xfce4-meowmenu-plugin
-
-      - name: Upload overlap report (fedora-44)
-        uses: actions/upload-artifact@v7
-        with:
-          name: whisker-overlap-report-fedora-44
-          path: /tmp/report/fedora-44.md
-
-  # ===========================================================================
-  # Feature 010 — relationship declaration check (FR-022).
-  # No produced .deb may declare Conflicts/Replaces/Provides against
-  # xfce4-whiskermenu-plugin. No produced .rpm may declare
-  # Conflicts/Obsoletes/Provides against it. Coexistence, not substitution.
-  # ===========================================================================
-  relationship-declaration-check:
-    name: relationship-declaration-check
-    needs:
-      - build-deb-ubuntu
-      - build-deb-debian
-      - build-rpm
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install tooling
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends dpkg-dev rpm
-
-      - name: Download Ubuntu .deb
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-ubuntu
-          path: artifacts/deb-ubuntu
-
-      - name: Download Debian .deb
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-debian
-          path: artifacts/deb-debian
-
-      - name: Download Fedora .rpm
-        uses: actions/download-artifact@v8
-        with:
-          name: rpm-package
-          path: artifacts/rpm-fedora
-
-      - name: Check .deb relationship declarations
-        run: |
-          set -e
-          mkdir -p /tmp/report
-          report=/tmp/report/relationship-deb.md
-          : > "$report"
-          fail=0
-          for deb in artifacts/deb-ubuntu/*.deb artifacts/deb-debian/*.deb; do
-            [ -f "$deb" ] || continue
-            echo "### $(basename "$deb")" >> "$report"
-            echo '```' >> "$report"
-            dpkg-deb -I "$deb" | grep -E '^[[:space:]]*(Conflicts|Replaces|Provides):' >> "$report" \
-              || echo "(no Conflicts/Replaces/Provides fields)" >> "$report"
-            echo '```' >> "$report"
-            if dpkg-deb -I "$deb" \
-                | grep -Ei '^[[:space:]]*(Conflicts|Replaces|Provides):' \
-                | grep -Eq '(^|[, ])xfce4-whiskermenu-plugin([ ,]|$)'; then
-              echo "::error::FR-022 violation: $deb declares a substitution relationship against xfce4-whiskermenu-plugin"
-              fail=1
-            fi
-          done
-          exit $fail
-
-      - name: Check .rpm relationship declarations
-        run: |
-          set -e
-          mkdir -p /tmp/report
-          report=/tmp/report/relationship-rpm.md
-          : > "$report"
-          fail=0
-          for rpm in artifacts/rpm-fedora/*.rpm; do
-            [ -f "$rpm" ] || continue
-            echo "### $(basename "$rpm")" >> "$report"
-            for kind in conflicts obsoletes provides; do
-              echo "**${kind}:**" >> "$report"
-              echo '```' >> "$report"
-              rpm -qp --"$kind" "$rpm" >> "$report" || true
-              echo '```' >> "$report"
-              if rpm -qp --"$kind" "$rpm" \
-                  | grep -Eq '(^|[, ])xfce4-whiskermenu-plugin([ ,]|$)'; then
-                echo "::error::FR-022 violation: $kind in $rpm references xfce4-whiskermenu-plugin"
-                fail=1
-              fi
-            done
-          done
-          exit $fail
-
-      - name: Upload relationship report
-        uses: actions/upload-artifact@v7
-        with:
-          name: relationship-declaration-report
-          path: /tmp/report/
-
-  attach-artifacts:
-    name: attach-artifacts
-    if: github.event_name == 'push'
-    needs:
-      - verify-install-deb-ubuntu
-      - verify-install-deb-debian
-      - verify-install-rpm
-      - whisker-overlap-check-ubuntu
-      - whisker-overlap-check-debian
-      - whisker-overlap-check-fedora
-      - relationship-declaration-check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Ubuntu .deb artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-ubuntu
-          path: artifacts
-
-      - name: Download Debian .deb artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deb-package-debian
-          path: artifacts
-
-      - name: Download .rpm artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: rpm-package
-          path: artifacts
-
-      - name: Download per-distro overlap reports (canonical three)
-        uses: actions/download-artifact@v8
-        with:
-          path: overlap-reports
-          pattern: whisker-overlap-report-*
-          merge-multiple: true
-
-      - name: Download relationship-declaration report
-        uses: actions/download-artifact@v8
-        with:
-          name: relationship-declaration-report
-          path: relationship-report
-
-      # NOTE: aggregate the per-distro overlap reports plus the
-      # relationship-declaration report into a single whisker-overlap.md
-      # release artifact per FR-024. The aggregated file lists, for each
-      # shipped distro, the resolved Whisker package name, the file-listing
-      # diff, and the relationship-declaration grep output, so packagers
-      # and users can verify coexistence claims without reproducing the
-      # build.
-      - name: Assemble whisker-overlap.md release report
-        run: |
-          set -e
-          out=artifacts/whisker-overlap.md
-          {
-            echo "# Whisker / MeowMenu coexistence report"
-            echo
-            echo "Tag: \`${{ github.ref_name }}\`"
-            echo
-            echo "Pinned Whisker package per distro (source of truth:"
-            echo "\`docs/ci.md\` 'Upstream Whisker package names'):"
-            echo
-            echo "| Distro             | Whisker package name        |"
-            echo "|--------------------|-----------------------------|"
-            echo "| Ubuntu 26.04       | \`xfce4-whiskermenu-plugin\` |"
-            echo "| Debian 13          | \`xfce4-whiskermenu-plugin\` |"
-            echo "| Fedora 44          | \`xfce4-whiskermenu-plugin\` |"
-            echo
-            echo "## Per-distro file-listing overlap"
-            echo
-            for f in overlap-reports/ubuntu-26.04.md \
-                     overlap-reports/debian-13.md \
-                     overlap-reports/fedora-44.md; do
-              [ -f "$f" ] && { cat "$f"; echo; }
-            done
-            echo "## Substitution-declaration check (FR-022)"
-            echo
-            for f in relationship-report/relationship-deb.md \
-                     relationship-report/relationship-rpm.md; do
-              [ -f "$f" ] && { cat "$f"; echo; }
-            done
-          } > "$out"
-          ls -la artifacts/
-
-      - name: Attach to the Release for ${{ github.ref_name }}
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            artifacts/xfce4-meowmenu-plugin_*_ubuntu26.04_amd64.deb
-            artifacts/xfce4-meowmenu-plugin_*_debian13_amd64.deb
-            artifacts/xfce4-meowmenu-plugin-*.fc44.x86_64.rpm
-          fail_on_unmatched_files: true
-
-  # ===========================================================================
-  # Feature 035 — Arch Linux PKGBUILD validation (ADVISORY).
-  #
-  # Proves the project is AUR-ready before any AUR submission: in a clean Arch
-  # container it validates the committed recipe, builds with makepkg (non-root),
-  # runs the project test suite via the package check() phase, lints with
-  # namcap, smoke-installs with pacman, and proves coexistence with the official
-  # xfce4-whiskermenu-plugin. It publishes NO Arch binary and is intentionally a
-  # leaf job (nothing `needs:` it), so a failure is visible but does not block
-  # .deb/.rpm publication (advisory). The build uses official Arch repositories
-  # only — no AUR helper, no AUR credential, no AUR publishing step.
-  #
-  # packaging.yml is orchestration only: all Arch logic lives in the
-  # shellcheck-clean build-aux/arch/*.sh helpers invoked below.
-  # ===========================================================================
   arch-pkgbuild-test:
     name: arch-pkgbuild-test
     needs: validate-tag
@@ -899,84 +378,186 @@ jobs:
     container:
       image: archlinux:base-devel
     steps:
-      # HACK: the archlinux base image ships without git; actions/checkout needs
-      # it to perform a full-history clone (and prepare-source.sh later runs
-      # `git archive`). Install it before checkout.
-      - name: Install git (required by actions/checkout)
-        run: pacman -Sy --noconfirm --needed git
-
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Install Arch packaging tooling and create non-root builder
+      - name: Install packaging tools and create builder
         run: |
-          # base-devel is present in the image; --needed makes the rest
-          # idempotent. namcap lints; pacman-contrib provides updpkgsums.
-          pacman -Syu --noconfirm --needed \
-              base-devel git namcap pacman-contrib sudo
-          # makepkg refuses to run as root — create an unprivileged builder.
+          pacman -Syu --noconfirm --needed git namcap pacman-contrib sudo
           useradd -m -G wheel builder
           echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel
-          chmod 0440 /etc/sudoers.d/wheel
-          # The tag-run build path runs makepkg (as builder) directly in
-          # dist/arch, so only that directory needs builder ownership. The rest
-          # of the workspace stays root-owned so root-run git operations (e.g.
-          # prepare-source.sh's `git archive`) are not rejected for "dubious
-          # ownership"; the manual path builds in a builder-owned scratch dir.
-          chown -R builder:builder dist/arch
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # State sequence (fail-fast): source → build → namcap → install →
-      # coexistence. The package version is
-      # tag-driven and resolved at build time (like the .deb/.rpm jobs), so
-      # there is no version-equality gate against a hand-maintained recipe value.
-      - name: Resolve source from the tagged checkout (version from tag)
-        id: source
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Prepare, build, test, lint, install, and compare version
         env:
-          # Tag-driven: prepare-source.sh derives pkgver from the pushed tag
-          # (vX.Y.Z) and builds that exact checkout; on untagged runs it falls
-          # back to the committed pkgver. The committed recipe is never mutated.
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_EVENT_NAME: push
+          GITHUB_REF_NAME: ${{ env.RELEASE_TAG }}
+          EXPECTED_ARCH_VERSION: ${{ needs.validate-tag.outputs.arch_version }}
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           build_dir="$(build-aux/arch/prepare-source.sh)"
-          echo "build_dir=${build_dir}" >> "$GITHUB_OUTPUT"
-
-      - name: Build, run explicit test suite, and package (FR-014)
-        id: build
-        run: |
-          pkg="$(build-aux/arch/build-package.sh '${{ steps.source.outputs.build_dir }}')"
-          echo "pkg=${pkg}" >> "$GITHUB_OUTPUT"
-
-      - name: Lint recipe and package with namcap (FR-015)
-        run: |
+          package="$(build-aux/arch/build-package.sh "$build_dir")"
           build-aux/arch/run-namcap.sh \
-            "${{ steps.source.outputs.build_dir }}/PKGBUILD" \
-            "${{ steps.build.outputs.pkg }}" \
-            "${{ runner.temp }}/arch-logs"
+            "$build_dir/PKGBUILD" "$package" "$RUNNER_TEMP/arch-logs"
+          build-aux/arch/smoke-install.sh "$package"
+          test "$(pacman -Q xfce4-meowmenu-plugin | awk '{print $2}')" = \
+            "${EXPECTED_ARCH_VERSION}-1"
+          test "$(vercmp 0.8.0 "$EXPECTED_ARCH_VERSION")" -lt 0
+          test "$(vercmp "$EXPECTED_ARCH_VERSION" 0.9.0rc2)" -lt 0
+          test "$(vercmp "$EXPECTED_ARCH_VERSION" 1.0.0)" -lt 0
+          cp "$build_dir/PKGBUILD" "$RUNNER_TEMP/arch-logs/PKGBUILD"
+          sudo -u builder bash -c \
+            "cd '$build_dir' && makepkg --printsrcinfo" \
+            > "$RUNNER_TEMP/arch-logs/.SRCINFO"
 
-      - name: Smoke-install with pacman (FR-016)
-        run: build-aux/arch/smoke-install.sh "${{ steps.build.outputs.pkg }}"
-
-      - name: Verify Whisker coexistence (FR-017/FR-018)
-        run: build-aux/arch/check-whisker-overlap.sh "${{ steps.build.outputs.pkg }}"
-
-      # NOTE: CI-only logs (short retention). MUST NOT be added to the
-      # attach-artifacts Release files: list (FR-019).
-      - name: Upload Arch validation logs
+      - name: Upload Arch validation metadata
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: arch-pkgbuild-logs
           path: ${{ runner.temp }}/arch-logs
-          retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: error
+          retention-days: 30
 
-# Action-pinning audit (FR-022, T047):
-#   - actions/checkout@v7
-#   - actions/upload-artifact@v4
-#   - actions/download-artifact@v8
-#   - softprops/action-gh-release@v3
-#   No `@main` / `@master` references.
+  arch-exo-negative:
+    name: arch-exo-negative
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install mutation tools
+        run: pacman -Syu --noconfirm --needed git python
+
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Require the Arch direct-contract mutation to fail closed
+        run: |
+          set -euo pipefail
+          sed -i "s/'exo' //" dist/arch/PKGBUILD
+          if python3 tests/test_dependency_contract.py; then
+            echo "::error::Arch direct contract accepted missing exo"
+            exit 1
+          fi
+          printf 'target=arch-current\nomission=exo\nresult=rejected\n' \
+            >> "$GITHUB_STEP_SUMMARY"
+
+  assemble-release:
+    name: assemble-private-prerelease
+    needs: [validate-tag, source, build-deb, debian-exo-negative, build-rpm, fedora-exo-negative, arch-pkgbuild-test, arch-exo-negative]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Run release, presentation, documentation, and translation gates
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gettext appstream
+          python3 tests/test_release_version.py
+          python3 tests/test_release_contract.py
+          python3 tests/test_repository_presentation.py
+          python3 tests/test_documentation_links.py
+          python3 tests/test_translation_status.py
+          appstreamcli validate --no-net \
+            data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
+
+      - name: Download Ubuntu DEB
+        uses: actions/download-artifact@v8
+        with:
+          name: deb-package-ubuntu
+          path: artifacts
+
+      - name: Download Debian DEB
+        uses: actions/download-artifact@v8
+        with:
+          name: deb-package-debian
+          path: artifacts
+
+      - name: Download Fedora RPM
+        uses: actions/download-artifact@v8
+        with:
+          name: rpm-package
+          path: artifacts
+
+      - name: Download canonical source
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-source
+          path: artifacts
+
+      - name: Generate and validate notes, manifest, and inventory
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          python3 build-aux/release/release_notes.py \
+            --news NEWS --version "$VERSION" --output release-notes.md
+          python3 build-aux/release/artifacts.py checksums \
+            --assets artifacts --version "$VERSION"
+          python3 build-aux/release/artifacts.py verify \
+            --assets artifacts --version "$VERSION"
+
+      - name: Create or replace one private draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft >/tmp/release.json 2>/dev/null; then
+            test "$(jq -r .isDraft /tmp/release.json)" = true || {
+              echo "::error::A public release already exists for ${RELEASE_TAG}"
+              exit 1
+            }
+            gh release delete-asset "$RELEASE_TAG" --yes \
+              "xfce4-meowmenu-plugin_${VERSION}_ubuntu26.04_amd64.deb" || true
+            gh release delete-asset "$RELEASE_TAG" --yes \
+              "xfce4-meowmenu-plugin_${VERSION}_debian13_amd64.deb" || true
+            gh release delete-asset "$RELEASE_TAG" --yes \
+              "xfce4-meowmenu-plugin-${VERSION}-1.fc44.x86_64.rpm" || true
+            gh release delete-asset "$RELEASE_TAG" --yes \
+              "xfce4-meowmenu-plugin-${VERSION}.tar.gz" || true
+            gh release delete-asset "$RELEASE_TAG" --yes SHA256SUMS || true
+            gh release edit "$RELEASE_TAG" \
+              --title "MeowMenu ${VERSION}" --notes-file release-notes.md \
+              --draft --prerelease --latest=false
+          else
+            gh release create "$RELEASE_TAG" \
+              --verify-tag --title "MeowMenu ${VERSION}" \
+              --notes-file release-notes.md --draft --prerelease --latest=false
+          fi
+          gh release upload "$RELEASE_TAG" artifacts/* --clobber
+
+      - name: Download and verify the exact draft assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+        run: |
+          mkdir downloaded
+          gh release download "$RELEASE_TAG" --dir downloaded
+          python3 build-aux/release/artifacts.py verify \
+            --assets downloaded --version "$VERSION"
+
+      - name: Publish only with explicit live-evidence authorization
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+          AUTHORIZATION: ${{ inputs.authorization }}
+          MANUAL_EVIDENCE: ${{ inputs.manual_evidence }}
+        run: |
+          test "$AUTHORIZATION" = "publish ${RELEASE_TAG}" || {
+            echo "::error::Authorization must be exactly: publish ${RELEASE_TAG}"
+            exit 1
+          }
+          test -n "$MANUAL_EVIDENCE" || {
+            echo "::error::A durable primary live-test evidence URL is required"
+            exit 1
+          }
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false

@@ -62,7 +62,7 @@ struct ModeButtonLabels
  * @short_label: the short visible name ("Apps"/"Places").
  * @long_label: the long descriptive name ("Applications"/"Places").
  *
- * Pure selection of which label goes where (FR-012/014): the short label is the
+ * Pure selection of which label goes where (the documented behavior): the short label is the
  * visible text in text mode, the long label is always the accessible name and is
  * the tooltip in icon mode. No GTK calls.
  *

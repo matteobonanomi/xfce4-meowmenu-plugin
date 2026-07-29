@@ -9,8 +9,8 @@
  * lockstep.
  *
  * Covered behaviour:
- *   - both clusters hidden in a docked layout collapses the row (FR-003);
- *   - the shared row is preserved in unified-bar / full-screen (FR-004);
+ *   - both clusters hidden in a docked layout collapses the row (the documented behavior);
+ *   - the shared row is preserved in unified-bar / full-screen (the documented behavior);
  *   - a single visible cluster keeps the row.
  */
 
@@ -23,7 +23,7 @@ using namespace WhiskerMenu;
 
 /* Mirror of user_session_row_visible() in panel-plugin/core/window.cpp. The
  * canonical implementation collapses the docked row only when both clusters are
- * hidden, independent of category placement (FR-001/004); this mirror is kept
+ * hidden, independent of category placement (the documented behavior); this mirror is kept
  * in lockstep with it. */
 static bool user_session_row_visible(bool unified, bool profile_hidden,
                                      bool commands_hidden, bool /*categories_alternate*/)
@@ -92,12 +92,12 @@ static UserSessionResolution simulate_live_edit(LayoutMode mode, const char* sea
 
 int main()
 {
-	// FR-003: docked, both profile and commands hidden → the row collapses,
+	// the documented behavior: docked, both profile and commands hidden → the row collapses,
 	// regardless of the category arrangement.
 	assert(user_session_row_visible(false, true, true, false) == false);
 	assert(user_session_row_visible(false, true, true, true)  == false);
 
-	// FR-004: unified-bar / full-screen always keeps the row (it carries the
+	// the documented behavior: unified-bar / full-screen always keeps the row (it carries the
 	// shared search cluster), even when both clusters are hidden.
 	assert(user_session_row_visible(true, true,  true,  false) == true);
 	assert(user_session_row_visible(true, true,  true,  true)  == true);
@@ -108,7 +108,7 @@ int main()
 	assert(user_session_row_visible(false, false, true,  false) == true);
 	assert(user_session_row_visible(false, false, true,  true)  == true);
 
-	// FR-001/004: profile hidden but commands visible (docked) keeps the row —
+	// the documented behavior: profile hidden but commands visible (docked) keeps the row —
 	// and it no longer depends on category placement (the old bug suppressed it
 	// when the category list sat at the bottom).
 	assert(user_session_row_visible(false, true, false, false) == true);

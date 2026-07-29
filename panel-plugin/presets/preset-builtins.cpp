@@ -155,7 +155,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "profile-position",     PresetValue::from_str("top-left")     },
 			{ "commands-position",    PresetValue::from_str("top-right")    },
 			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
-			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
+			{ "category-icon-size",   PresetValue::from_int(2)              }, // Small
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
 			{ "unified-bar",          PresetValue::from_bool(true)          },
@@ -266,7 +266,7 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
  * The governed keys that sync_preset_widgets() drives onto Properties widgets
  * after a preset switch. This list MUST equal governed_keys() (a unit test
  * enforces it): every key a preset governs must also be re-synced into the
- * dialog so no control is left stale (FR-001/003). It is declared here, away
+ * dialog so no control is left stale (the documented behavior). It is declared here, away
  * from the GTK widget-driving code, so the coverage set is inspectable without
  * a display.
  *

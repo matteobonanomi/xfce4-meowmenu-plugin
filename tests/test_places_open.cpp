@@ -23,8 +23,12 @@
 #include <gio/gio.h>
 
 #include "places/places-item.h"
+#include "config/xfce-helpers.h"
 
 using WhiskerMenu::PlacesItem;
+using WhiskerMenu::XfceDependencyRegime;
+using WhiskerMenu::build_file_manager_command;
+using WhiskerMenu::build_terminal_command;
 
 // Reject the C0 control range (and DEL) — an open-failure message must be
 // legible, so any control byte counts as garbage for this check. Tab/newline
@@ -42,7 +46,7 @@ static bool has_control_bytes(const char* s)
 }
 
 // ---------------------------------------------------------------------------
-// FR-006: the reason string maps a GError + display name to a non-empty,
+// the documented behavior: the reason string maps a GError + display name to a non-empty,
 // named, legible message.
 // ---------------------------------------------------------------------------
 
@@ -52,11 +56,11 @@ static void test_error_message_contains_name_and_reason()
 			"No application is registered as handling this file");
 	gchar* msg = PlacesItem::build_open_error_message(error, "report.odt");
 
-	assert(msg && *msg);                                  // non-empty (FR-006c)
-	assert(strstr(msg, "report.odt") != nullptr);         // names the item (FR-006a)
-	assert(strstr(msg, "No application is registered") != nullptr); // reason (FR-006b)
+	assert(msg && *msg);                                  // non-empty (the documented behavior)
+	assert(strstr(msg, "report.odt") != nullptr);         // names the item (the documented behavior)
+	assert(strstr(msg, "No application is registered") != nullptr); // reason (the documented behavior)
 	assert(g_utf8_validate(msg, -1, nullptr));
-	assert(!has_control_bytes(msg));                      // legible (FR-006c)
+	assert(!has_control_bytes(msg));                      // legible (the documented behavior)
 
 	g_free(msg);
 	g_error_free(error);
@@ -87,7 +91,7 @@ static void test_error_message_strips_control_bytes()
 }
 
 // ---------------------------------------------------------------------------
-// FR-007/FR-008: a path quoted with g_shell_quote round-trips through
+// the documented behavior: a path quoted with g_shell_quote round-trips through
 // g_shell_parse_argv (the parse Element::spawn performs) to the exact literal
 // path, so the external helper receives the right target and no embedded
 // command can run.
@@ -95,24 +99,24 @@ static void test_error_message_strips_control_bytes()
 
 static void assert_quote_round_trip(const char* path)
 {
-	gchar* quoted = g_shell_quote(path);
-	// Mirror Element::spawn(): the helper command is "exo-open … <quoted>".
-	gchar* command = g_strdup_printf("exo-open --launch FileManager %s", quoted);
-
-	gchar** argv = nullptr;
-	GError* error = nullptr;
-	const gboolean ok = g_shell_parse_argv(command, nullptr, &argv, &error);
-	assert(ok && argv);
-
-	// argv = { "exo-open", "--launch", "FileManager", <path> } — the last token
-	// must equal the original path byte-for-byte.
-	guint n = g_strv_length(argv);
-	assert(n == 4);
-	assert(g_strcmp0(argv[n - 1], path) == 0);
-
-	g_strfreev(argv);
-	g_free(command);
-	g_free(quoted);
+	for (XfceDependencyRegime regime :
+			{XfceDependencyRegime::Legacy, XfceDependencyRegime::Successor})
+	{
+		for (const std::string& command : {
+				build_file_manager_command(regime, path),
+				build_terminal_command(regime, path)})
+		{
+			gchar** argv = nullptr;
+			GError* error = nullptr;
+			const gboolean ok = g_shell_parse_argv(
+					command.c_str(), nullptr, &argv, &error);
+			assert(ok && argv);
+			guint n = g_strv_length(argv);
+			assert(n >= 4);
+			assert(g_strcmp0(argv[n - 1], path) == 0);
+			g_strfreev(argv);
+		}
+	}
 }
 
 static void test_shell_quote_round_trip()

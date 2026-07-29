@@ -62,7 +62,7 @@ void no_fg_prefer_dark_gives_dark()
 	CHECK(rgba_equal(meow_choose_background_fallback(FALSE, nullptr, TRUE), DARK));
 }
 
-// Decision-table row 5: no fg + prefer-dark FALSE/unknown → dark (FR-004).
+// Decision-table row 5: no fg + prefer-dark FALSE/unknown → dark (the documented behavior).
 void no_fg_no_prefer_gives_dark()
 {
 	CHECK(rgba_equal(meow_choose_background_fallback(FALSE, nullptr, FALSE), DARK));

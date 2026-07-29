@@ -377,8 +377,22 @@ void SearchPage::populate_search_results()
 void SearchPage::update_calculator_presentation()
 {
 	LauncherView* view = get_view();
+	const bool is_grid = view->is_grid_view();
 	m_calculator_result->set_presentation_metrics(view->get_item_height(),
-			view->get_icon_size(), view->is_grid_view());
+			view->get_icon_size(), is_grid,
+			calculator_auto_font_size(m_settings->current_preset_id));
+}
+
+//-----------------------------------------------------------------------------
+
+/* refresh_calculator_presentation:
+ *
+ * Re-resolves the derived Auto size after a layout-only setting notification.
+ * This restyles an existing Calculator result without rerunning its engine.
+ */
+void SearchPage::refresh_calculator_presentation()
+{
+	update_calculator_presentation();
 }
 
 //-----------------------------------------------------------------------------

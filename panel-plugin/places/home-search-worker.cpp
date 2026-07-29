@@ -24,8 +24,8 @@ using namespace WhiskerMenu;
 namespace
 {
 
-// FR-035b §2: hard-coded blocklist of directory names that are never
-// descended. The dot-prefix rule (FR-035b §1) already covers .cache,
+// the documented behavior §2: hard-coded blocklist of directory names that are never
+// descended. The dot-prefix rule (the documented behavior §1) already covers .cache,
 // .local, .git etc.; these entries catch the visible heavyweights.
 static const char* const HOME_SEARCH_BLOCKLIST[] = {
 	"node_modules",
@@ -36,7 +36,7 @@ static const char* const HOME_SEARCH_BLOCKLIST[] = {
 	nullptr
 };
 
-// FR-035d wall-clock budgets.
+// the documented behavior wall-clock budgets.
 static constexpr gint64 SOFT_BUDGET_US = 150 * 1000;
 static constexpr gint64 HARD_BUDGET_US = 300 * 1000;
 
@@ -234,7 +234,7 @@ void HomeSearchWorker::walk(const gchar* root_path)
 
 			GFile* child = g_file_get_child(dir, name);
 
-			// Match test (FR-035c).
+			// Match test (the documented behavior).
 			gchar* folded = g_utf8_casefold(name, -1);
 			const bool match = folded
 					&& strstr(folded, m_query.c_str()) != nullptr;

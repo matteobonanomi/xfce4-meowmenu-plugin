@@ -31,7 +31,7 @@ namespace Keyboard
 /* Logical focusable region of the menu. The cycle order used by Ctrl+Tab /
  * Ctrl+Shift+Tab is the declared numeric order below; see CANONICAL_CYCLE.
  * The Apps/Places mode toggle is deliberately absent: it is operated by Tab
- * and is never a keyboard-focusable cycle stop (FR-007). */
+ * and is never a keyboard-focusable cycle stop (the documented behavior). */
 enum class Zone : unsigned
 {
 	Search  = 0,
@@ -54,7 +54,7 @@ enum class Direction : unsigned
 	Backward,
 };
 
-/* What a bare Tab / Shift+Tab press does. Encodes FR-006: Tab always means
+/* What a bare Tab / Shift+Tab press does. Encodes the documented behavior: Tab always means
  * "switch Applications/Places" and never silently becomes area cycling. */
 enum class TabAction : unsigned
 {
@@ -67,7 +67,7 @@ enum class TabAction : unsigned
  *                    target for the toggle (Window::m_settings->places_enabled).
  *
  * Pure, total, side-effect-free decision for a bare Tab/Shift+Tab press.
- * Keeping it a free function lets the FR-006 invariant be unit-tested
+ * Keeping it a free function lets the the documented behavior invariant be unit-tested
  * without instantiating any GTK widgets.
  *
  * Returns: TabAction::ToggleMode when Places is available, otherwise
@@ -97,7 +97,7 @@ CalculatorFocus calculator_vertical_target(bool banner_visible,
 
 /* Per-zone visibility mask folded from the existing m_layout_* flags
  * and the preset's per-zone "hidden" positions. Search and Results
- * are forced visible per FR-030. */
+ * are forced visible per the documented behavior. */
 struct VisibilityMask
 {
 	bool search  = true;
@@ -108,9 +108,9 @@ struct VisibilityMask
 
 /* Canonical, locale-independent focus-area cycle order, walked by Ctrl+Tab
  * (Forward) and Ctrl+Shift+Tab (Backward). RTL does not reverse it; arrow
- * keys handle visual direction separately (FR-120). The Apps/Places mode
+ * keys handle visual direction separately (the documented behavior). The Apps/Places mode
  * toggle is intentionally NOT a member: it is operated by Tab and is never
- * a cycle stop (FR-007). */
+ * a cycle stop (the documented behavior). */
 constexpr std::array<Zone, 4> CANONICAL_CYCLE = {
 	Zone::Search, Zone::Results, Zone::Sidebar, Zone::Profile,
 };
@@ -122,7 +122,7 @@ constexpr std::array<Zone, 4> CANONICAL_CYCLE = {
  *
  * True iff @z is both visible (per @mask) and not inert in the given
  * @state. Sidebar is the only zone whose activity depends on @state
- * (inert while Searching, per FR-046).
+ * (inert while Searching, per the documented behavior).
  */
 bool zone_active(Zone z, VisibilityMask mask, MenuState state);
 
@@ -208,7 +208,7 @@ enum class KeyClass : unsigned
  *   4. Printable test (gdk_keyval_to_unicode != 0 and no Ctrl/Alt held)
  *
  * Total function over GdkEventKey*; every input maps to exactly one
- * KeyClass. Space classifies as Printable (FR-010).
+ * KeyClass. Space classifies as Printable (the documented behavior).
  *
  * Returns: the KeyClass of the event.
  */
@@ -224,7 +224,7 @@ KeyClass classify_key(const GdkEventKey* event);
 bool is_printable_for_search(const GdkEventKey* event);
 
 /* Monotonic-clock guard absorbing key-repeat bursts on Enter against a
- * single launchable (FR-022, SC-005). Shared between launcher and
+ * single launchable (the documented behavior, the documented behavior). Shared between launcher and
  * profile-bar activation sites. */
 struct ActivationDebounce
 {

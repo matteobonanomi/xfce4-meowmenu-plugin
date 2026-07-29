@@ -13,9 +13,14 @@
  * Compile: part of the 'tests' Meson subdir.
  */
 
+#include "../panel-plugin/settings-defaults.h"
+
 #include <cassert>
 #include <cstring>
+#include <fstream>
 #include <initializer_list>
+#include <iterator>
+#include <string>
 
 // ---------------------------------------------------------------------------
 // Minimal stand-in for the pure logic extracted from migrate_schema()
@@ -132,7 +137,7 @@ static void test_calculator_v11_migration()
 
 /* fresh_install_preset_id:
  *
- * Fresh installs apply the Modern preset (FR-010). Pure mirror of the v1
+ * Fresh installs apply the Modern preset (the documented behavior). Pure mirror of the v1
  * is_fresh_install branch for the regression guard.
  *
  * Returns: the preset id a fresh install lands on.
@@ -179,7 +184,7 @@ static bool migrate_hidden_sidebar_enabled(const char* stored_position)
  * @stored_position: pre-migration /sidebar-position string, or nullptr.
  *
  * Returns the rewritten position ("left") when the stored value was "hidden",
- * or nullptr to leave a valid position untouched (SC-009).
+ * or nullptr to leave a valid position untouched (the documented behavior).
  */
 static const char* migrate_hidden_sidebar_position(const char* stored_position)
 {
@@ -242,136 +247,73 @@ static bool detect_fresh_install(unsigned int property_count)
 	return property_count == 0;
 }
 
-// ---------------------------------------------------------------------------
-// Marker-aware fresh-vs-upgrade decision (contracts/fresh-vs-upgrade-decision.md)
-// ---------------------------------------------------------------------------
-
-enum FreshUpgradeResult { FU_FRESH, FU_UPGRADE, FU_SAFE_FALLBACK };
-
-enum ConfigState { CFG_NONE, CFG_READABLE, CFG_CORRUPT };
-
-/* decide_fresh_vs_upgrade:
- * @marker:         value of the persisted /initialized key (absent ⇒ false).
- * @property_count: number of plugin properties present at load.
- * @config_state:   whether stored config is none/readable/corrupt.
- * @out_apply_modern: set to whether the Modern preset must be applied.
- * @out_set_marker:   set to whether /initialized must be written true.
- *
- * Pure mirror of the gate implemented in Settings::migrate_schema. The marker
- * — not the raw property count — is the authoritative fresh-vs-upgrade signal:
- * a present marker always means UPGRADE (never reset the user's layout). The
- * property count only distinguishes a truly empty channel from an existing
- * user's first marker-aware run when the marker is absent.
- *
- * Returns: the classification for the given inputs.
- */
-static FreshUpgradeResult decide_fresh_vs_upgrade(bool marker,
-	unsigned int property_count, ConfigState config_state,
-	bool* out_apply_modern, bool* out_set_marker)
-{
-	// Every completed path back-fills the marker so the next load is an upgrade.
-	*out_set_marker = true;
-
-	if (marker)
-	{
-		// Marker present ⇒ upgrade regardless of count/config; never reset.
-		*out_apply_modern = false;
-		return FU_UPGRADE;
-	}
-
-	if (property_count == 0 && config_state == CFG_NONE)
-	{
-		*out_apply_modern = true;
-		return FU_FRESH;
-	}
-
-	if (config_state == CFG_CORRUPT)
-	{
-		// Present but unmigratable ⇒ safe Modern fallback; never force Classic.
-		*out_apply_modern = true;
-		return FU_SAFE_FALLBACK;
-	}
-
-	// Marker absent but readable config ⇒ existing user's first marker-aware
-	// run: preserve layout, derive identity, back-fill the marker.
-	*out_apply_modern = false;
-	return FU_UPGRADE;
-}
-
 static void test_marker_decision_table()
 {
-	bool apply_modern = false, set_marker = false;
-
-	// Row 1: marker absent + empty channel ⇒ FRESH (Modern + marker set).
-	assert(decide_fresh_vs_upgrade(false, 0, CFG_NONE, &apply_modern, &set_marker) == FU_FRESH);
-	assert(apply_modern == true && set_marker == true);
-
-	// Row 2: marker absent + readable config ⇒ UPGRADE (preserve, back-fill).
-	assert(decide_fresh_vs_upgrade(false, 7, CFG_READABLE, &apply_modern, &set_marker) == FU_UPGRADE);
-	assert(apply_modern == false && set_marker == true);
-
-	// Row 3: marker present ⇒ UPGRADE (no reset), any count/config.
-	assert(decide_fresh_vs_upgrade(true, 0, CFG_NONE, &apply_modern, &set_marker) == FU_UPGRADE);
-	assert(apply_modern == false && set_marker == true);
-	assert(decide_fresh_vs_upgrade(true, 42, CFG_READABLE, &apply_modern, &set_marker) == FU_UPGRADE);
-	assert(apply_modern == false && set_marker == true);
-	assert(decide_fresh_vs_upgrade(true, 3, CFG_CORRUPT, &apply_modern, &set_marker) == FU_UPGRADE);
-	assert(apply_modern == false && set_marker == true);
-
-	// Row 4: marker absent + corrupt/unmigratable config ⇒ SAFE FALLBACK.
-	assert(decide_fresh_vs_upgrade(false, 5, CFG_CORRUPT, &apply_modern, &set_marker) == FU_SAFE_FALLBACK);
-	assert(apply_modern == true && set_marker == true);
-
-	// Postcondition (all paths): the marker is always set true afterwards.
+	assert(WhiskerMenu::should_apply_fresh_preset(false, true));
+	assert(!WhiskerMenu::should_apply_fresh_preset(true, true));
+	assert(!WhiskerMenu::should_apply_fresh_preset(false, false));
+	assert(!WhiskerMenu::should_apply_fresh_preset(true, false));
 }
 
-/* apply_decision_to_identity:
- * Models the observable identity/layout outcome of migrate_schema for the given
- * decision inputs. On a path that applies Modern, the active-preset identity
- * becomes "modern" and the layout is the Modern layout; otherwise the existing
- * identity and layout are preserved verbatim (no reset on upgrade).
- */
-static void apply_decision_to_identity(bool marker, unsigned int property_count,
-	ConfigState config_state, const char** identity, const char** layout)
+struct StoredPresentationValues
 {
-	bool apply_modern = false, set_marker = false;
-	decide_fresh_vs_upgrade(marker, property_count, config_state,
-		&apply_modern, &set_marker);
-	if (apply_modern)
+	int category_icon_size;
+	const char* layout_mode;
+	const char* preset_id;
+	int calculator_size;
+};
+
+static void apply_initial_preset_if_needed(bool marker, bool empty_channel,
+	StoredPresentationValues* values)
+{
+	if (!WhiskerMenu::should_apply_fresh_preset(marker, empty_channel))
+		return;
+	values->category_icon_size = 1;
+	values->layout_mode = "docked";
+	values->preset_id = "modern";
+	values->calculator_size = -1;
+}
+
+static void test_upgrade_preserves_stored_presentation_values()
+{
+	const StoredPresentationValues expected = { 6, "fullscreen", "saved-custom", 5 };
+	for (const bool marker : { true, false })
 	{
-		*identity = "modern";
-		*layout = "modern-layout";
+		StoredPresentationValues values = expected;
+		apply_initial_preset_if_needed(marker, false, &values);
+		assert(values.category_icon_size == expected.category_icon_size);
+		assert(std::strcmp(values.layout_mode, expected.layout_mode) == 0);
+		assert(std::strcmp(values.preset_id, expected.preset_id) == 0);
+		assert(values.calculator_size == expected.calculator_size);
 	}
-	// else: leave identity/layout untouched — upgrades preserve the user's data.
 }
 
-static void test_fresh_install_records_modern_identity()
+/* test_080_fixture_preserves_release_baseline:
+ *
+ * Verifies that the representative upgrade snapshot contains the panel-scoped
+ * identity, layout, favourites, Calculator choices, and custom-preset subtree
+ * that the live release walkthrough compares before and after migration.
+ */
+static void test_080_fixture_preserves_release_baseline()
 {
-	// Acceptance scenario 1: a genuinely fresh install lands on Modern and
-	// records the Modern active-preset identity.
-	const char* identity = "";
-	const char* layout = "";
-	apply_decision_to_identity(false, 0, CFG_NONE, &identity, &layout);
-	assert(std::strcmp(identity, "modern") == 0);
-	assert(std::strcmp(layout, "modern-layout") == 0);
-}
-
-static void test_upgrade_preserves_customized_layout()
-{
-	// Acceptance scenario 3: an upgrade with a customized layout is preserved,
-	// never reset to Modern, whether the marker is present or being back-filled.
-	const char* identity = "my-custom";
-	const char* layout = "custom-layout";
-	apply_decision_to_identity(true, 12, CFG_READABLE, &identity, &layout);
-	assert(std::strcmp(identity, "my-custom") == 0);
-	assert(std::strcmp(layout, "custom-layout") == 0);
-
-	// Marker-absent-but-readable (first marker-aware run) also preserves layout.
-	identity = "classic";
-	layout = "classic-layout";
-	apply_decision_to_identity(false, 12, CFG_READABLE, &identity, &layout);
-	assert(std::strcmp(identity, "classic") == 0);
-	assert(std::strcmp(layout, "classic-layout") == 0);
+	std::ifstream input(MEOWMENU_080_XFCONF_FIXTURE);
+	assert(input.good());
+	const std::string xml((std::istreambuf_iterator<char>(input)),
+		std::istreambuf_iterator<char>());
+	for (const char* token : {
+		"plugin-17",
+		"saved-custom",
+		"layout-mode",
+		"centered",
+		"firefox.desktop",
+		"org.xfce.Thunar.desktop",
+		"calculator-engine",
+		"qalc",
+		"calculator-result-size",
+		"calculator-decimal-precision",
+		"rc-upgrade-baseline",
+	})
+		assert(xml.find(token) != std::string::npos);
 }
 
 static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacity)
@@ -446,7 +388,7 @@ static void test_schema_version_guard()
 
 static void test_fresh_install_lands_on_modern()
 {
-	// FR-010 regression guard: a fresh install applies Modern, not Classic.
+	// the documented behavior regression guard: a fresh install applies Modern, not Classic.
 	assert(std::strcmp(fresh_install_preset_id(), "modern") == 0);
 }
 
@@ -472,7 +414,7 @@ static void test_hidden_sidebar_migration()
 	assert(migrate_hidden_sidebar_enabled("hidden") == false);
 	assert(std::strcmp(migrate_hidden_sidebar_position("hidden"), "left") == 0);
 
-	// Pre-existing left/right/top/bottom configs are untouched (SC-009):
+	// Pre-existing left/right/top/bottom configs are untouched (the documented behavior):
 	// sidebar stays enabled and the position is not rewritten.
 	for (const char* p : { "left", "right", "top", "bottom" })
 	{
@@ -653,7 +595,7 @@ static void test_v6_cleanup()
 	assert(v6_resets_key("/grid-rows") == true);
 	assert(v6_resets_key("/places/show-metadata") == true);
 
-	// Unrelated keys are left untouched (SC-005).
+	// Unrelated keys are left untouched (the documented behavior).
 	assert(v6_resets_key("/categories-opacity") == false);
 	assert(v6_resets_key("/profile-position") == false);
 	assert(v6_resets_key("/full-screen-opacity") == false);
@@ -698,7 +640,7 @@ static void test_v8_profile_position_canonicalization()
  * @preset_menu_opacity: that preset's menu-opacity (ignored when !has_preset).
  *
  * Returns: the value written to /menu-opacity — the preset's value, or 100 when
- * no preset governs opacity (FR-012).
+ * no preset governs opacity (the documented behavior).
  */
 static int derive_menu_opacity_v7(bool has_preset, int preset_menu_opacity)
 {
@@ -776,7 +718,7 @@ static void test_v7_fresh_install_lands_on_100_no_old_keys()
 //
 // TODO-INTEGRATION: test_fresh_install_sets_modern()
 //   Same fixture, but empty channel.
-//   assert: current-preset-id=="modern" (T030 wired: apply_preset(BUILTIN_PRESETS[MODERN])
+//   assert: current-preset-id=="modern" (the implementation step wired: apply_preset(BUILTIN_PRESETS[MODERN])
 //   is now called in migrate_schema when is_fresh_install==true).
 
 int main()
@@ -784,8 +726,8 @@ int main()
 	test_schema_version_guard();
 	test_fresh_install_detection();
 	test_marker_decision_table();
-	test_fresh_install_records_modern_identity();
-	test_upgrade_preserves_customized_layout();
+	test_upgrade_preserves_stored_presentation_values();
+	test_080_fixture_preserves_release_baseline();
 	test_legacy_opacity_mapping();
 	test_full_screen_opacity_default();
 	test_position_categories_horizontal_migration();

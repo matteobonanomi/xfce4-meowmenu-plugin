@@ -17,7 +17,7 @@ install_data(
 # Maintainer target: regenerate every PNG from the master SVG via
 # build-aux/regen-icons.py (rsvg-convert preferred, inkscape fallback).
 # build_by_default:false because end-user builds rely on the committed
-# PNGs (FR-006); only maintainers invoke this when the SVG changes:
+# PNGs (the documented behavior); only maintainers invoke this when the SVG changes:
 #   meson compile -C build regen-icons
 regen_icon_outputs = []
 foreach size : sizes
@@ -29,7 +29,7 @@ custom_target(
   input: '..' / 'build-aux' / 'art' / 'meowmenu.svg',
   output: regen_icon_outputs,
   # HACK: writing into the source tree (icons/) instead of the build dir
-  # so the regenerated PNGs can be committed (FR-006). Meson normally
+  # so the regenerated PNGs can be committed (the documented behavior). Meson normally
   # treats outputs as living in the build dir; we override with an
   # absolute path. Safe because this target is opt-in (build_by_default:
   # false) and only run by the maintainer.

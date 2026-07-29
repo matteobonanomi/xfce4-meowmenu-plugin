@@ -1,6 +1,6 @@
 # Minimal preset — compact, distraction-free launcher.
 # Centered, sidebar-less, search bar on top over an app list; no profile or commands.
-# Source of truth for all keys: .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+# Settings use the same Xfconf keys as the graphical Preferences window.
 
 [Preset]
 Name=Minimal

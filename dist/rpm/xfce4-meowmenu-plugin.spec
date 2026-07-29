@@ -1,19 +1,20 @@
 # NOTE: `Version:` and the `%changelog` top entry are rewritten by the
-# packaging workflow (.github/workflows/packaging.yml) from the top entry of
-# NEWS at build time via `tools/news-version.py`. Do NOT hand-edit those
+# packaging workflow from the top entry of NEWS via
+# `build-aux/news-version.py`. Do NOT hand-edit those
 # fields; the placeholder values below exist only so `rpmbuild -bs` accepts
 # the spec when run outside CI.
 
 %global plugin_name xfce4-meowmenu-plugin
 
 Name:           %{plugin_name}
-Version:        0.7.2
+Version:        0.9.0~rc1
 Release:        1%{?dist}
 Summary:        Modern menu launcher plugin for the Xfce panel
 
 License:        GPLv2+
 URL:            https://github.com/matteobonanomi/xfce4-meowmenu-plugin
-Source0:        %{name}-%{version}.tar.gz
+%global upstream_version 0.9.0-rc1
+Source0:        %{name}-%{upstream_version}.tar.gz
 
 Packager:       Matteo Bonanomi <mbonanomi.dev@proton.me>
 
@@ -40,6 +41,7 @@ BuildRequires:  pkgconfig(accountsservice)
 BuildRequires:  pkgconfig(gtk-layer-shell-0)
 
 Requires:       xfce4-panel
+Requires:       /usr/bin/exo-open
 Recommends:     accountsservice
 Recommends:     bc
 Recommends:     gtk-layer-shell
@@ -48,22 +50,22 @@ Recommends:     gtk-layer-shell
 MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a
 standalone project that originated as a fork of Xfce's Whisker Menu
 and keeps the familiar panel-launcher feel while bringing a cleaner
-modern look and a more capable search bar. MeowMenu coexists with
-Whisker Menu and does not replace it. Built for Xubuntu 26.04 with
-Xfce 4.20.x.
+modern look and a more capable search bar.
 
 %prep
-%autosetup -n %{name}-%{version}
+%autosetup -n %{name}-%{upstream_version}
 
 %build
 %meson
 %meson_build
 
+%check
+%meson_test
+
 %install
 %meson_install
-# NOTE: GETTEXT_PACKAGE matches the meson project() name
-# (feature 010 — xfce4-meowmenu-plugin). Locale .mo files install under
-# that name, so %find_lang must use it.
+# NOTE: GETTEXT_PACKAGE matches the Meson project name. Locale files install
+# under that name, so %find_lang must use it.
 %find_lang xfce4-meowmenu-plugin
 
 %files -f xfce4-meowmenu-plugin.lang
@@ -75,9 +77,9 @@ Xfce 4.20.x.
 %{_datadir}/icons/hicolor/*/apps/*meowmenu*
 %{_datadir}/meowmenu/presets/
 %{_datadir}/xfce4-meowmenu-plugin/
-%{_datadir}/metainfo/xfce4-meowmenu-plugin.appdata.xml
+%{_datadir}/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
 %{_mandir}/man1/xfce4-popup-meowmenu.1*
 
 %changelog
-* Tue May 19 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.3.3-1
-- Seed entry. Regenerated from NEWS at build time by packaging.yml.
+* Thu Jul 23 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.9.0~rc1-1
+- First release candidate on the path to 1.0.0.

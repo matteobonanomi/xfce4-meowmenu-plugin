@@ -3,7 +3,7 @@
 # Render the master SVG (assets/meowmenu.svg) to all PNG sizes used by the
 # Xfce hicolor icon theme. Uses rsvg-convert when available (preferred,
 # lighter), falls back to inkscape. The generated PNGs are committed to
-# the repo (FR-006) so end-user builds do not require either tool.
+# the repo (the documented behavior) so end-user builds do not require either tool.
 
 import argparse
 import shutil

@@ -25,7 +25,7 @@ changes create an unsaved custom state; built-in presets never change.
 
 ![Classic preset](assets/images/preset-classic.png)
 
-Traditional Whisker Menu look. Compact docked window, apps as a list,
+Traditional compact launcher look. Compact docked window, apps as a list,
 sidebar on the right, no rounded corners, fully solid (menu opacity 100%). The
 Apps/Places switch uses text labels.
 
@@ -36,7 +36,9 @@ Apps/Places switch uses text labels.
 
 Contemporary layout with rounded corners, a fully solid background (menu
 opacity 100%), hover-to-switch-category, and Places search enabled. The
-Apps/Places switch uses icon buttons.
+Apps/Places switch uses icon buttons. When it appears in a left or right
+sidebar and the upper profile or session area is available, a theme-native
+separator gives it a little visual breathing room from that area.
 
 
 ### Full Screen
@@ -44,8 +46,9 @@ Apps/Places switch uses icon buttons.
 ![Full Screen preset](assets/images/preset-fullscreen.png)
 
 Launcher fills the entire screen over a translucent backdrop (menu opacity
-80%). Ideal for touch or keyboard-first workflows. Places search enabled. The
-Apps/Places switch uses text labels.
+80%). Ideal for touch or keyboard-first workflows. Places search enabled, and
+the category sidebar uses Small (32 px) icons. The Apps/Places switch uses text
+labels.
 
 
 ### Minimal

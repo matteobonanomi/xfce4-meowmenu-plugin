@@ -30,6 +30,7 @@
 #include "places/home-section.h"
 #include "places/places-item.h"
 #include "ui/launcher-view.h"
+#include "ui/grid-presentation.h"
 #include "places/places-page.h"
 #include "plugin.h"
 #include "profile.h"
@@ -243,6 +244,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
 	m_live_settings_property_slot(0),
+	m_mode_selector_upper_separator(nullptr),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
@@ -268,7 +270,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
-	m_resizing(false)
+	m_resizing(false),
+	m_resize_monitor(nullptr),
+	m_resize_monitor_notify_slot(0),
+	m_resize_monitor_removed_slot(0)
 {
 	// Create the window
 	m_window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
@@ -326,6 +331,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	connect(m_window, "focus-out-event",
 		[this](GtkWidget* widget, GdkEvent*) -> gboolean
 		{
+			if (m_resizing)
+				interactive_resize_cancel();
+
 			if (m_settings->stay_on_focus_out || m_child_has_focus || !gtk_widget_get_visible(widget))
 			{
 				return GDK_EVENT_PROPAGATE;
@@ -361,6 +369,14 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		[this](GtkWidget*, GdkEvent*) -> gboolean
 		{
 			return on_map_event();
+		});
+
+	connect(m_window, "unmap-event",
+		[this](GtkWidget*, GdkEvent*) -> gboolean
+		{
+			if (m_resizing)
+				interactive_resize_cancel();
+			return GDK_EVENT_PROPAGATE;
 		});
 
 	connect(m_window, "state-flags-changed",
@@ -402,7 +418,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	// Create the profile picture and username label
 	m_profile = new Profile(m_settings, this);
 
-	// Create action buttons. FR-022 / SC-005: a 250 ms monotonic-clock
+	// Create action buttons. the documented behavior / the documented behavior: a 250 ms monotonic-clock
 	// debounce absorbs held-Enter key-repeat bursts so a single press
 	// (or burst) launches exactly once. The state is process-global
 	// across the nine session buttons because the user can only target
@@ -412,7 +428,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	for (int i = 0; i < 9; ++i)
 	{
 		m_commands_button[i] = m_settings->command[i]->get_button();
-		// FR-040: session buttons participate in the keyboard focus chain.
+		// the documented behavior: session buttons participate in the keyboard focus chain.
 		gtk_widget_set_can_focus(m_commands_button[i], TRUE);
 		gtk_style_context_add_class(gtk_widget_get_style_context(m_commands_button[i]),
 				"meow-focus-ring");
@@ -427,7 +443,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			});
 	}
 
-	// FR-040: ←/→ move focus between visible session buttons in physical
+	// the documented behavior: ←/→ move focus between visible session buttons in physical
 	// box order with NO wrap. ↑/↓ are no-ops within the Profile bar so
 	// they do not accidentally jump to other zones (Tab is the cross-zone
 	// motion). The avatar/username are kept non-focusable below.
@@ -475,7 +491,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		if (it == ordered.end())
 			return GDK_EVENT_PROPAGATE;
 
-		// FR-120: in RTL the visual left/right are swapped relative to
+		// the documented behavior: in RTL the visual left/right are swapped relative to
 		// physical box order. Use the widget's default direction to
 		// pick the move sign rather than assuming LTR.
 		const bool ltr = (gtk_widget_get_default_direction()
@@ -491,7 +507,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		{
 			gtk_widget_grab_focus(*std::prev(it));
 		}
-		// At either end: explicit no-op (FR-040 "NO wrap").
+		// At either end: explicit no-op (the documented behavior "NO wrap").
 		return GDK_EVENT_STOP;
 	};
 	for (int i = 0; i < 9; ++i)
@@ -518,10 +534,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			search();
 		});
 
-	// FR-021: Enter on the search entry activates the first match (or
+	// the documented behavior: Enter on the search entry activates the first match (or
 	// is a silent no-op when the current query has zero results — see
 	// clarification Q4). The debounce inside Page::launcher_activated
-	// covers held-Enter key-repeat (FR-022).
+	// covers held-Enter key-repeat (the documented behavior).
 	connect(m_search_entry, "activate",
 		[this](GtkEntry*)
 		{
@@ -613,7 +629,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	// The three Places section toggles mirror the Applications handlers: pointer
 	// selection hands focus to the search entry so the user can type, but a
 	// keyboard-driven activation (m_keyboard_category_nav set) keeps focus on the
-	// active section button so arrow navigation can continue (FR-003; C1/C2).
+	// active section button so arrow navigation can continue (the documented behavior; C1/C2).
 	connect(m_places_home_btn->get_widget(), "toggled",
 		[this](GtkToggleButton* b)
 		{
@@ -667,11 +683,11 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			"places-mode-selector");
 	m_mode_btn_apps = GTK_TOGGLE_BUTTON(gtk_toggle_button_new_with_label(_("Apps")));
 	m_mode_btn_places = GTK_TOGGLE_BUTTON(gtk_toggle_button_new_with_label(_("Places")));
-	// FR-090: no Alt-mnemonic activation on the mode toggles — the labels
+	// the documented behavior: no Alt-mnemonic activation on the mode toggles — the labels
 	// "Apps"/"Places" must render verbatim, not as "_Apps"/"_Places".
 	gtk_button_set_use_underline(GTK_BUTTON(m_mode_btn_apps),   FALSE);
 	gtk_button_set_use_underline(GTK_BUTTON(m_mode_btn_places), FALSE);
-	// FR-002 / SC-007: shared focus-indicator class. The rule lives in
+	// the documented behavior / the documented behavior: shared focus-indicator class. The rule lives in
 	// the CSS provider built by update_background_css() so themes can
 	// override the ring colour/thickness by re-styling .meow-focus-ring.
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_mode_btn_apps)),
@@ -681,7 +697,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_toggle_button_set_active(m_mode_btn_apps, true);
 	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_apps), true, true, 0);
 	gtk_box_pack_start(m_mode_selector_box, GTK_WIDGET(m_mode_btn_places), true, true, 0);
-	// Equal-width Apps/Places buttons in every layout/preset (FR-013). A size
+	// Equal-width Apps/Places buttons in every layout/preset (the documented behavior). A size
 	// group forces both to the larger natural width regardless of label length
 	// or the icon↔text child swap — more robust than box homogeneity, which the
 	// strip relocation can defeat.
@@ -709,7 +725,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		});
 
 	// The Apps/Places mode is now operated solely by Tab/Shift+Tab and is
-	// never a keyboard-focus stop (FR-007). Make both toggle buttons
+	// never a keyboard-focus stop (the documented behavior). Make both toggle buttons
 	// non-focusable so GTK's own Tab traversal can never land on them and
 	// so no arrow-key mode flip is possible from them; mouse activation
 	// via the "toggled" handlers above is unaffected.
@@ -817,7 +833,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_stack_add_named(m_panels_stack, m_favorites->get_widget(), "favorites");
 	gtk_stack_add_named(m_panels_stack, m_recent->get_widget(), "recent");
 	// Use the outer wrapper so the default-category heading (sidebar-disabled
-	// case, FR-020) sits above the applications launcher view.
+	// case, the documented behavior) sits above the applications launcher view.
 	gtk_stack_add_named(m_panels_stack, m_applications->get_outer_widget(), "applications");
 	// Search results live inside the applications area so the sidebar remains visible
 	// while the user types. This applies to all layout modes, not just fullscreen.
@@ -831,6 +847,11 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
+	m_mode_selector_upper_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	// Keep the line itself at the results-row origin, then add the same small
+	// breathing space the lower boundary gives the selector on its other side.
+	gtk_widget_set_margin_bottom(m_mode_selector_upper_separator, 4);
+	gtk_box_pack_start(m_category_buttons, m_mode_selector_upper_separator, false, false, 0);
 	gtk_box_pack_start(m_category_buttons, GTK_WIDGET(m_mode_selector_box), false, false, 0);
 	m_mode_selector_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_box_pack_start(m_category_buttons, m_mode_selector_separator, false, false, 4);
@@ -857,7 +878,7 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 G_GNUC_END_IGNORE_DEPRECATIONS
 	// Both the Apps-mode buttons and the Places-section buttons join the width
 	// group, so switching Apps↔Places (which only toggles visibility) never
-	// resizes the sidebar (FR-023/024) — the group already sizes to the widest
+	// resizes the sidebar (the documented behavior) — the group already sizes to the widest
 	// member, hidden or not.
 	gtk_size_group_add_widget(m_category_width_group, favorites_button->get_widget());
 	gtk_size_group_add_widget(m_category_width_group, recent_button->get_widget());
@@ -887,7 +908,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	gtk_scrolled_window_set_policy(m_sidebar, GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 	gtk_container_add(GTK_CONTAINER(m_sidebar), GTK_WIDGET(m_category_buttons));
 
-	// FR-100: keep the focused category in view as Tab/arrow keys move
+	// the documented behavior: keep the focused category in view as Tab/arrow keys move
 	// through the sidebar. GtkScrolledWindow wraps m_category_buttons in
 	// a viewport on gtk_container_add; binding the viewport's
 	// adjustments to the box's focus chain makes the viewport scroll
@@ -947,6 +968,12 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		gtk_widget_set_visible(m_mode_selector_separator,
 			m_settings->places_enabled);
 	}
+	if (m_mode_selector_upper_separator)
+	{
+		// update_layout() resolves the full Modern predicate after live command
+		// availability is known. Keep this hidden until that pass runs.
+		gtk_widget_set_visible(m_mode_selector_upper_separator, false);
+	}
 
 	m_default_button->set_active(true);
 
@@ -976,14 +1003,11 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 				if (g_strcmp0(property, "/places/enabled") == 0)
 				{
 					self->update_layout();
-					if (!self->m_settings->places_enabled && self->m_places_active)
-					{
-						self->switch_mode(false);
-					}
 					self->update_favourite_drop_targets();
 				}
 				else if (g_strcmp0(property, "/places/history-enabled") == 0
-						|| g_strcmp0(property, "/places/favourites-enabled") == 0)
+						|| g_strcmp0(property, "/places/favourites-enabled") == 0
+						|| g_strcmp0(property, "/recent-items-max") == 0)
 				{
 					self->update_layout();
 					self->update_favourite_drop_targets();
@@ -1005,15 +1029,30 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		m_live_settings_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
+				const bool transparent_grid =
+						g_strcmp0(property, "/transparent-grid") == 0;
 				if (g_strcmp0(property, "/corner-radius") != 0
-						&& g_strcmp0(property, "/menu-opacity") != 0)
+						&& g_strcmp0(property, "/menu-opacity") != 0
+						&& !transparent_grid)
 					return;
 				// The corner radius is applied entirely by re-clipping and
 				// re-stroking in on_draw_event; a menu-opacity change re-runs the
 				// CSS so the single shell alpha updates live. The redraw queued
 				// below picks up either change without reopening the menu.
 				auto* self = static_cast<Window*>(user_data);
-				self->update_background_css();
+				if (!transparent_grid)
+				{
+					self->update_background_css();
+				}
+				else
+				{
+					self->m_search_results->get_view()->reload_icon_size();
+					self->m_favorites->get_view()->reload_icon_size();
+					self->m_recent->get_view()->reload_icon_size();
+					self->m_applications->get_view()->reload_icon_size();
+					self->m_places->get_view()->reload_icon_size();
+				}
+				self->update_view_redraw_safeguards();
 				self->on_screen_changed(GTK_WIDGET(self->m_window));
 				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
 			}), this);
@@ -1217,6 +1256,9 @@ void WhiskerMenu::Window::on_places_favourites_drag_data_received(
 
 WhiskerMenu::Window::~Window()
 {
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	for (int i = 0; i < 9; ++i)
 	{
 		g_signal_handler_disconnect(m_commands_button[i], m_command_slots[i]);
@@ -1273,12 +1315,123 @@ WhiskerMenu::Window::~Window()
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::clear_resize_handles()
+{
+	for (Resizer* resizer : m_resize)
+		resizer->cancel();
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::resize_display_signature:
+ * @monitor: active monitor retained for the transaction; never NULL.
+ *
+ * Captures every display property that defines the transaction's coordinate
+ * system and bounds. Any later difference invalidates the gesture.
+ *
+ * Returns: the current immutable comparison value for @monitor.
+ */
+InteractiveResize::DisplaySignature
+WhiskerMenu::Window::resize_display_signature(GdkMonitor* monitor) const
+{
+	GdkRectangle geometry = {};
+	GdkRectangle workarea = {};
+	gdk_monitor_get_geometry(monitor, &geometry);
+	gdk_monitor_get_workarea(monitor, &workarea);
+	return {
+		reinterpret_cast<std::uintptr_t>(monitor),
+		{geometry.x, geometry.y, geometry.width, geometry.height},
+		{workarea.x, workarea.y, workarea.width, workarea.height},
+		gdk_monitor_get_scale_factor(monitor),
+		reinterpret_cast<std::uintptr_t>(
+				gtk_widget_get_screen(GTK_WIDGET(m_window)))
+	};
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::start_resize_display_watch:
+ * @monitor: monitor captured by the new active transaction; never NULL.
+ *
+ * Retains the monitor and observes its properties plus display removal for
+ * exactly the transaction lifetime.
+ */
+void WhiskerMenu::Window::start_resize_display_watch(GdkMonitor* monitor)
+{
+	stop_resize_display_watch();
+	m_resize_monitor = GDK_MONITOR(g_object_ref(monitor));
+	m_resize_monitor_notify_slot = connect(
+			m_resize_monitor,
+			"notify",
+			[this](GObject*, GParamSpec*)
+			{
+				validate_resize_display();
+			});
+
+	GdkDisplay* display = gdk_monitor_get_display(m_resize_monitor);
+	m_resize_monitor_removed_slot = connect(
+			display,
+			"monitor-removed",
+			[this](GdkDisplay*, GdkMonitor* removed)
+			{
+				if (removed == m_resize_monitor)
+					interactive_resize_cancel();
+			});
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::stop_resize_display_watch:
+ *
+ * Disconnects both active display subscriptions before releasing the retained
+ * monitor. Repeated calls are safe.
+ */
+void WhiskerMenu::Window::stop_resize_display_watch()
+{
+	if (!m_resize_monitor)
+		return;
+
+	GdkDisplay* display = gdk_monitor_get_display(m_resize_monitor);
+	disconnect_signal(display, m_resize_monitor_removed_slot);
+	disconnect_signal(m_resize_monitor, m_resize_monitor_notify_slot);
+	g_object_unref(m_resize_monitor);
+	m_resize_monitor = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::validate_resize_display:
+ *
+ * Compares the retained monitor with the frozen transaction signature and
+ * cancels before more geometry can be accepted when any property changed.
+ */
+void WhiskerMenu::Window::validate_resize_display()
+{
+	if (!m_resizing || !m_resize_monitor)
+		return;
+
+	if (!m_resize_transaction.display_matches(
+			resize_display_signature(m_resize_monitor)))
+	{
+		interactive_resize_cancel();
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::hide(bool lost_focus)
 {
-	// Persist Places last-mode so the next open can resume in the same mode.
-	if (m_settings->places_enabled && m_settings->places_remember_last_mode)
+	if (m_resizing)
+		interactive_resize_cancel();
+
+	// Persist only while remembering is enabled. A disabled preference leaves
+	// the saved value intact so it can be ignored without destructive writes.
+	const char* mode = mode_to_persist(m_settings->places_enabled,
+			m_settings->places_remember_last_mode,
+			m_places_active ? MenuMode::Places : MenuMode::Applications);
+	if (mode)
 	{
-		m_settings->places_last_mode = m_places_active ? "places" : "apps";
+		m_settings->places_last_mode = mode;
 	}
 
 	// Save settings
@@ -1330,17 +1483,7 @@ void WhiskerMenu::Window::show(const Position position)
 	m_recent->update_view();
 	m_applications->update_view();
 	m_places->reload_view();
-
-	// Restore last mode when Places is enabled and remember-last-mode is on.
-	if (m_settings->places_enabled && m_settings->places_remember_last_mode
-			&& (g_strcmp0(m_settings->places_last_mode, "places") == 0))
-	{
-		switch_mode(true);
-	}
-	else if (m_places_active && !m_settings->places_enabled)
-	{
-		switch_mode(false);
-	}
+	update_view_redraw_safeguards();
 
 	// Handle showing tooltips
 	if (m_settings->launcher_show_tooltip)
@@ -1370,9 +1513,6 @@ void WhiskerMenu::Window::show(const Position position)
 	// Make sure recent item count is within max
 	m_recent->enforce_item_count();
 
-	// Make sure recent button is only visible when tracked
-	gtk_widget_set_visible(m_recent->get_button()->get_widget(), m_settings->recent_items_max);
-
 	// Make sure applications list is current; does nothing unless list has changed
 	if (m_applications->load())
 	{
@@ -1387,7 +1527,13 @@ void WhiskerMenu::Window::show(const Position position)
 
 	// Update default page
 	reset_default_button();
-	show_default_page();
+	// Commit the opening mode only after view recreation, category preparation,
+	// and default-button ordering. No later opening step may select content from
+	// the other top-level mode.
+	apply_menu_mode(resolve_opening_mode(m_settings->places_enabled,
+			m_settings->places_remember_last_mode,
+			m_settings->places_last_mode),
+			MenuModeTransition::Enter);
 
 	// Clear any previous selection
 	m_favorites->reset_selection();
@@ -1397,7 +1543,7 @@ void WhiskerMenu::Window::show(const Position position)
 	// Make sure icon sizes are correct. The Places section buttons are reloaded
 	// on the SAME trigger as the Apps category buttons so sidebar label
 	// visibility (names vs icon-only) is identical in both modes — both consult
-	// the one shared decision in CategoryButton::reload_icon_size (FR-015/016).
+	// the one shared decision in CategoryButton::reload_icon_size (the documented behavior).
 	m_favorites->get_button()->reload_icon_size();
 	m_recent->get_button()->reload_icon_size();
 	m_applications->get_button()->reload_icon_size();
@@ -1414,7 +1560,7 @@ void WhiskerMenu::Window::show(const Position position)
 	m_places->get_view()->reload_icon_size();
 
 	GdkMonitor* monitor_gdk = nullptr;
-	// Centered always references the panel button's monitor (FR-004), so it takes
+	// Centered always references the panel button's monitor (the documented behavior), so it takes
 	// the button-detection branch even when launched by a keyboard shortcut
 	// (which would otherwise pick the cursor's monitor).
 	if (position == PositionAtButton || centered_layout())
@@ -1480,7 +1626,7 @@ void WhiskerMenu::Window::show(const Position position)
 	move_window();
 
 	// Relayout window if necessary.
-	// T044: new string settings (sidebar-position, search-bar-position, profile-position,
+	// the implementation step: new string settings (sidebar-position, search-bar-position, profile-position,
 	//       commands-position) take precedence over the legacy boolean toggles.
 	const bool layout_ltr = gtk_widget_get_default_direction() != GTK_TEXT_DIR_RTL;
 
@@ -1511,7 +1657,7 @@ void WhiskerMenu::Window::show(const Position position)
 	// NOTE: hidden state is tracked independently of the edge flags above. A
 	// Hidden ↔ visible transition (e.g. "hidden" → "top") leaves *_alternate
 	// unchanged, so without these comparisons show() would skip update_layout()
-	// and the restored element would never re-render (defect 2, FR-005/006).
+	// and the restored element would never re-render (defect 2, the documented behavior).
 	const bool profile_hidden  = profile_position_is_hidden(user_session.profile_position);
 	const bool commands_hidden = commands_position_is_hidden(user_session.commands_position);
 
@@ -1566,13 +1712,13 @@ void WhiskerMenu::Window::show(const Position position)
 		update_layout();
 	}
 
-	// Sidebar visibility now follows the Enable-sidebar switch (FR-022/032);
+	// Sidebar visibility now follows the Enable-sidebar switch (the documented behavior);
 	// update_layout() owns the in-strip/relocated cases, this is the docked
 	// vertical-sidebar show/hide. (Legacy "hidden" position migrated away.)
 	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
 			sidebar_enabled && !cats_horizontal);
 
-	// T045: FullScreen mode + size-sensitive layout tweaks
+	// the implementation step: FullScreen mode + size-sensitive layout tweaks
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 
 	// Apply mode-dependent child size requests *before* resizing the toplevel.
@@ -1602,7 +1748,7 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), column.margin);
 		// Keep sidebar width meaningful, and compensate on the opposite side so
 		// the applications grid stays centered.
-		// NOTE (FR-026/027): the symmetry margin is a fixed fraction of the work
+		// NOTE (the documented behavior): the symmetry margin is a fixed fraction of the work
 		// area and is deliberately independent of the icon/category-name toggles
 		// and the relocated switch. The switch, when the sidebar is disabled,
 		// packs into m_title_box (the unified-bar row) rather than the
@@ -1618,7 +1764,7 @@ void WhiskerMenu::Window::show(const Position position)
 		// one-sided margin would shove the results box off-centre — exactly the
 		// "no void on the left" symptom. Mirror the margin on both sides there to
 		// keep the grid centred with symmetric voids, aligned with the centred
-		// search bar (FR-023/SC-007).
+		// search bar (the documented behavior).
 		const bool vertical_sidebar_visible = sidebar_enabled && !cats_horizontal;
 		if (vertical_sidebar_visible)
 		{
@@ -1641,7 +1787,7 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), 0);
 		// Docked: the strip fills the menu width so the toggle reaches the leading
-		// edge and the categories the trailing edge of the menu (FR-005/008).
+		// edge and the categories the trailing edge of the menu (the documented behavior).
 		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), 0);
@@ -1759,7 +1905,13 @@ void WhiskerMenu::Window::detach_categories()
  */
 void WhiskerMenu::Window::refresh_layout()
 {
+	// Layout and presentation define the transaction's anchors and bounds.
+	// Changing either invalidates the active gesture rather than mixing states.
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	update_background_css();
+	m_search_results->refresh_calculator_presentation();
 
 	if (gtk_widget_get_visible(GTK_WIDGET(m_window)))
 	{
@@ -1796,17 +1948,10 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 	// minimum label width so the sidebar floor accounts for them too.
 	sync_category_label_width();
 
-	// NOTE: if Places mode is already active when categories arrive, keep
-	// the application categories hidden so the sidebar matches the mode.
-	if (m_places_active)
-	{
-		for (GtkWidget* w : m_app_category_widgets)
-		{
-			gtk_widget_set_visible(w, false);
-		}
-	}
-
-	show_default_page();
+	// Asynchronous category replacement must obey the same presentation
+	// transaction and must not select an Applications page behind Places.
+	apply_menu_mode(m_places_active ? MenuMode::Places
+			: MenuMode::Applications, MenuModeTransition::Reevaluate);
 }
 
 //-----------------------------------------------------------------------------
@@ -1902,14 +2047,14 @@ void WhiskerMenu::Window::unset_items()
  *
  * Pure visibility decision for the docked user/session row (m_title_box). In a
  * unified-bar / full-screen layout the row hosts the centred search cluster, so
- * it is always kept and only the profile/commands clusters hide (FR-004). In a
+ * it is always kept and only the profile/commands clusters hide (the documented behavior). In a
  * docked layout the row is present whenever either cluster is visible and
- * collapses only when both are hidden, so no empty strip remains (FR-003).
+ * collapses only when both are hidden, so no empty strip remains (the documented behavior).
  *
  * NOTE: row visibility must NOT depend on category placement. The previous
  * `return !categories_alternate` branch coupled the row's existence to where
  * the category list sat, which suppressed a visible commands cluster whenever
- * the categories were at the bottom (defect 1, FR-001).
+ * the categories were at the bottom (defect 1, the documented behavior).
  *
  * Returns: true if the user/session row should be visible.
  */
@@ -1925,9 +2070,9 @@ static bool user_session_row_visible(bool unified, bool profile_hidden,
 
 Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 {
-	// FR-030: Search and Results are never hidden. Optional zones follow
+	// the documented behavior: Search and Results are never hidden. Optional zones follow
 	// the preset's per-zone "hidden" position string and the legacy
-	// visibility flags. The Apps/Places toggle is not a focus zone (FR-007),
+	// visibility flags. The Apps/Places toggle is not a focus zone (the documented behavior),
 	// so it has no entry here; Tab reads places_enabled directly.
 	Keyboard::VisibilityMask mask;
 	mask.search  = true;
@@ -1942,7 +2087,7 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 	// buttons are focusable (the avatar/username are not), so a hidden profile
 	// contributes nothing focusable. The zone is therefore gated on
 	// commands_position != "hidden" with at least one visible command, which
-	// already keeps focus off both hidden commands and a hidden profile (FR-005).
+	// already keeps focus off both hidden commands and a hidden profile (the documented behavior).
 	//
 	// NOTE: availability must also require gtk_widget_get_can_focus, matching
 	// grab_focus_in_zone()'s own target predicate. A command button can be
@@ -1950,7 +2095,7 @@ Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
 	// would let next_zone() route Ctrl+Tab to it, the grab would silently fail,
 	// and forward cycling would stall in Results (the US3 defect). Tying
 	// availability to focusability keeps the abstract mask consistent with what
-	// the grab can actually land (FR-010).
+	// the grab can actually land (the documented behavior).
 	bool any_command_focusable = false;
 	if (g_strcmp0(commands_pos, "hidden") != 0)
 	{
@@ -1995,7 +2140,7 @@ bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 
 	case Keyboard::Zone::Results:
 	{
-		// FR-032: on Tab entry, land on the currently selected item; if
+		// the documented behavior: on Tab entry, land on the currently selected item; if
 		// nothing is selected, select the first item so the user has a
 		// visible anchor (select_first() is called after the grab below).
 		// NOTE: in Places mode get_active_page() returns the hidden applications
@@ -2040,7 +2185,7 @@ bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
 	// A grab can only land on a target that is visible, sensitive and
 	// focusable; mirror that predicate and report the outcome so the forward
 	// Ctrl+Tab loop can advance past a zone whose grab would silently fail
-	// (FR-010). gtk_widget_is_focus() confirms the target became the toplevel's
+	// (the documented behavior). gtk_widget_is_focus() confirms the target became the toplevel's
 	// focus widget rather than assuming the grab took effect.
 	if (target
 			&& gtk_widget_get_visible(target)
@@ -2084,7 +2229,7 @@ Keyboard::Zone WhiskerMenu::Window::current_zone() const
 	}
 
 	// NOTE: the Apps/Places toggle box is intentionally not matched here:
-	// its buttons are non-focusable (FR-007) so focus can never rest in it.
+	// its buttons are non-focusable (the documented behavior) so focus can never rest in it.
 	GtkWidget* sidebar   = m_sidebar            ? GTK_WIDGET(m_sidebar)            : nullptr;
 	GtkWidget* cats_box  = m_categories_box     ? GTK_WIDGET(m_categories_box)     : nullptr;
 	GtkWidget* cmds_box  = m_commands_box       ? GTK_WIDGET(m_commands_box)       : nullptr;
@@ -2134,7 +2279,7 @@ void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
 
 gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey* key_event)
 {
-	// Type-to-search catch-all (FR-010, FR-012, FR-013, FR-015). This
+	// Type-to-search catch-all (the documented behavior, the documented behavior, the documented behavior, the documented behavior). This
 	// runs BEFORE GTK's default key chain so that:
 	//   - Printable keys typed while focus is on the results view do
 	//     not reach the view's default Space-activates-row handler.
@@ -2142,7 +2287,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	//     post-default signal must not also re-route, otherwise every
 	//     keystroke would be inserted twice once Window::search()
 	//     moves focus to the view).
-	// Backspace gets a dedicated branch (FR-013): it must remove a
+	// Backspace gets a dedicated branch (the documented behavior): it must remove a
 	// character from the query regardless of which zone holds focus,
 	// but it is not classified Printable (control codepoint) and
 	// therefore cannot ride the generic printable redirect.
@@ -2162,9 +2307,9 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	// Tab family is intercepted before GTK's default focus-chain and split
 	// on the Control modifier:
 	//   - bare Tab / Shift+Tab        → Applications⇄Places mode toggle
-	//                                    (FR-001, FR-002, FR-006);
+	//                                    (the documented behavior, the documented behavior, the documented behavior);
 	//   - Ctrl+Tab / Ctrl+Shift+Tab   → canonical focus-area cycling
-	//                                    (FR-004, FR-005, FR-007).
+	//                                    (the documented behavior, the documented behavior, the documented behavior).
 	// The two are mutually exclusive on GDK_CONTROL_MASK and both always
 	// consume the event so GTK's own Tab traversal never also fires.
 	if (key_event->keyval == GDK_KEY_Tab
@@ -2191,7 +2336,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 				// advancing. Walk at most once around CANONICAL_CYCLE: if the
 				// search wraps back to `here` (or stops making progress) no
 				// other zone can take focus, so the press is a harmless no-op
-				// and focus stays put (FR-010, FR-011). With the focusability-
+				// and focus stays put (the documented behavior, the documented behavior). With the focusability-
 				// aware mask the first grab normally lands; this loop is the
 				// defensive guarantee against any residual widget-state drift.
 				Keyboard::Zone candidate = here;
@@ -2225,14 +2370,14 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		}
 
 		// Bare Tab/Shift+Tab toggles the mode (or is inert when Places is
-		// unavailable). FR-006: Tab never silently falls back to area
+		// unavailable). the documented behavior: Tab never silently falls back to area
 		// cycling, so the Inert arm consumes the event and changes nothing.
 		switch (Keyboard::tab_action(m_settings->places_enabled))
 		{
 		case Keyboard::TabAction::ToggleMode:
 			// switch_mode resets the new view to its default selection and
 			// clears the query; the Tab path then lands focus on Results so
-			// the user sees the new view's default item (FR-003).
+			// the user sees the new view's default item (the documented behavior).
 			switch_mode(!m_places_active);
 			grab_focus_in_zone(Keyboard::Zone::Results);
 			break;
@@ -2244,7 +2389,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 
 	if (key_event->keyval == GDK_KEY_Escape)
 	{
-		// Esc ladder (FR-060, FR-061). Strict priority:
+		// Esc ladder (the documented behavior, the documented behavior). Strict priority:
 		//   ContextMenuOpen > ResizeInProgress > QueryNonEmpty > MenuOpen.
 		// Each press peels one layer; Backspace/Delete MUST NOT close the
 		// menu (the explicit BackSpace branch above only redirects to the
@@ -2269,7 +2414,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		case Keyboard::EscAction::CloseContextMenu:
 			// Forward the Esc into the active menu shell so it closes
 			// just that layer and returns focus to the originating
-			// launcher (FR-051).
+			// launcher (the documented behavior).
 			if (esc_focused)
 			{
 				for (GtkWidget* w = esc_focused; w; w = gtk_widget_get_parent(w))
@@ -2284,17 +2429,12 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 			break;
 
 		case Keyboard::EscAction::CancelResize:
-			for (Resizer* resizer : m_resize)
-			{
-				resizer->cancel();
-			}
-			set_size(m_settings->menu_width, m_settings->menu_height);
-			resize_end();
+			interactive_resize_cancel();
 			break;
 
 		case Keyboard::EscAction::ClearQuery:
 			gtk_entry_set_text(m_search_entry, "");
-			// FR-014 follow-up: focus returns to the entry so the user is
+			// the documented behavior follow-up: focus returns to the entry so the user is
 			// back in Browsing. Window::search() also grabs focus to the
 			// entry when the text becomes empty, but make it explicit
 			// here so the ladder behaves the same regardless of where
@@ -2317,13 +2457,13 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		: page->get_view()->get_widget();
 	GtkWidget* search = GTK_WIDGET(m_search_entry);
 
-	// FR-043 / FR-046: sidebar exit arrow → focus the results view. The
+	// the documented behavior / the documented behavior: sidebar exit arrow → focus the results view. The
 	// "outward" arrow depends on sidebar side (left/right/top/bottom),
 	// which is encoded by m_layout_categories_horizontal,
 	// m_layout_categories_alternate and m_layout_ltr. Mirror is applied
 	// via gtk_widget_get_default_direction() so RTL behaves correctly.
 	// In Searching state the sidebar is inert and the exit arrow is a
-	// no-op (FR-046).
+	// no-op (the documented behavior).
 	if (current_zone() == Keyboard::Zone::Sidebar
 			&& current_menu_state() == Keyboard::MenuState::Browsing)
 	{
@@ -2350,7 +2490,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 				|| (outward == GDK_KEY_Right && kv == GDK_KEY_KP_Right);
 		if (match_outward)
 		{
-			// FR-007 / C4.1: the outward arrow enters the results of the
+			// the documented behavior / C4.1: the outward arrow enters the results of the
 			// COMMITTED category. Along-axis navigation never auto-commits in
 			// hover-OFF mode, so `view` (resolved from get_active_page above)
 			// already points at the committed category's view — no implicit
@@ -2359,7 +2499,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 			return GDK_EVENT_STOP;
 		}
 
-		// Along-axis category navigation (FR-001/002/009). Centralized here so
+		// Along-axis category navigation (the documented behavior). Centralized here so
 		// the event is consumed BEFORE GTK's default radio-group key navigation,
 		// which would otherwise both move focus AND auto-activate the next radio
 		// — the activation that previously ejected focus to the search entry.
@@ -2415,13 +2555,13 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 					}
 					// Single navigable category (or already at the Home/End
 					// target): a harmless no-op that keeps focus in the sidebar
-					// rather than falling through to the default chain (SC-002).
+					// rather than falling through to the default chain (the documented behavior).
 					return GDK_EVENT_STOP;
 				}
 			}
 
 			// Enter/Space commits the highlighted category while keeping focus in
-			// the sidebar (FR-008b). In hover-ON the target is already active, so
+			// the sidebar (the documented behavior). In hover-ON the target is already active, so
 			// this is a no-op activation; in hover-OFF it is the explicit commit
 			// that updates the results. Consumed under the guard either way.
 			if (kv == GDK_KEY_Return || kv == GDK_KEY_KP_Enter
@@ -2442,7 +2582,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	case GDK_KEY_Right:
 	case GDK_KEY_KP_Right:
 		// Allow keyboard navigation out of treeview. NOTE: in Searching
-		// state the sidebar is inert (FR-046); the exit arrow MUST be a
+		// state the sidebar is inert (the documented behavior); the exit arrow MUST be a
 		// no-op so the user can keep refining the query with arrow keys
 		// inside the result list.
 		if (GTK_IS_TREE_VIEW(view) && ((widget == view) || (gtk_window_get_focus(m_window) == view)))
@@ -2471,7 +2611,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	// NOTE: arrow navigation drives only the GTK cursor and single selection;
 	// there is no separate "highlight" state. GTK moves the cursor on Up/Down
 	// and the single-selection follows it, so the selection is the sole
-	// highlight driver for keyboard navigation (FR-002). With pointer prelight
+	// highlight driver for keyboard navigation (the documented behavior). With pointer prelight
 	// neutralised in the plugin CSS, exactly one row is ever painted.
 	case GDK_KEY_Up:
 	case GDK_KEY_KP_Up:
@@ -2526,7 +2666,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		// single valid selection on first arrow entry; combined with the model
 		// rebuild + select_first() on every query change (SearchPage::set_filter)
 		// it guarantees the highlight resets to one valid row or none, with no
-		// stale carry-over from the prior result set (FR-006).
+		// stale carry-over from the prior result set (the documented behavior).
 		if ((gtk_window_get_focus(m_window) == view) && reset)
 		{
 			m_places_active ? m_places->select_first() : page->select_first();
@@ -2535,7 +2675,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		break;
 	}
 
-	// Pass PageUp and PageDown keys to current view. FR-047: when focus
+	// Pass PageUp and PageDown keys to current view. the documented behavior: when focus
 	// was on the search entry and no row was selected yet, also select
 	// the first row so the user sees a visual anchor for the subsequent
 	// Page motion.
@@ -2573,10 +2713,10 @@ gboolean WhiskerMenu::Window::on_key_press_event_after(GtkWidget* /*widget*/, Gd
 {
 	// NOTE: type-to-search routing moved to the pre-default handler
 	// above so it can pre-empt GtkTreeView/GtkIconView's "Space
-	// activates the selected row" default binding (FR-012). Keeping
+	// activates the selected row" default binding (the documented behavior). Keeping
 	// a duplicate redirect here would cause every keystroke to be
 	// inserted twice once Window::search() moves focus to the view
-	// per FR-011. The post-default slot remains attached as a hook
+	// per the documented behavior. The post-default slot remains attached as a hook
 	// point for future expansion; today it is a no-op.
 	return GDK_EVENT_PROPAGATE;
 }
@@ -2602,6 +2742,34 @@ void WhiskerMenu::Window::on_state_flags_changed(GtkWidget* widget)
 	}
 
 	update_background_css();
+}
+
+//-----------------------------------------------------------------------------
+
+/* update_view_redraw_safeguards:
+ *
+ * Pushes the current transparent-surface decision into every Applications and
+ * Places result view. Call after view recreation and after live opacity or
+ * Transparent grid changes.
+ */
+void WhiskerMenu::Window::update_view_redraw_safeguards()
+{
+	LauncherView* views[] = {
+		m_search_results->get_view(),
+		m_favorites->get_view(),
+		m_recent->get_view(),
+		m_applications->get_view(),
+		m_places->get_view()
+	};
+	for (LauncherView* view : views)
+	{
+		view->set_full_redraw_safeguard(full_redraw_safeguard_required(
+				m_settings->menu_opacity,
+				view->is_grid_view()
+						? LauncherViewKind::IconGrid
+						: LauncherViewKind::Tree,
+				m_settings->transparent_grid));
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -2711,7 +2879,7 @@ void WhiskerMenu::Window::update_background_css()
 		// (and often its own border-radius/border/margin). That node is painted
 		// outside everything on_draw_event controls, so it surfaces as a faint
 		// translucent halo sitting just beyond the single custom border — the
-		// ghost outline FR-003 forbids. Neutralise it so the only thing framing
+		// ghost outline the documented behavior forbids. Neutralise it so the only thing framing
 		// the menu is the one border stroked along the rounded clip path.
 		"window.meowmenu decoration,"
 		".meowmenu decoration"
@@ -2766,7 +2934,7 @@ void WhiskerMenu::Window::update_background_css()
 		// :not(:selected), and the .meow-focus-ring focus outline below is
 		// untouched. These rules are plugin-scoped (class .launchers), not
 		// theme-scoped, so the invariant holds identically across every preset
-		// and theme (FR-008).
+		// and theme (the documented behavior).
 		".meowmenu .launchers:hover:not(:selected),"
 		".meowmenu .launchers cell:hover:not(:selected),"
 		".meowmenu .launchers row:hover:not(:selected)"
@@ -2774,10 +2942,10 @@ void WhiskerMenu::Window::update_background_css()
 		// Transparent grid is opt-in and view-scoped. It removes only the
 		// resting icon-grid cell box; selected, hover, active, and focus states
 		// stay theme-visible so navigation and drag feedback remain legible.
-		".meowmenu iconview.launchers.transparent-grid.view.cell:not(:selected):not(:hover):not(:active):not(:focus),"
-		".meowmenu .launchers.transparent-grid.cell:not(:selected):not(:hover):not(:active):not(:focus),"
-		".meowmenu iconview.launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus),"
-		".meowmenu .launchers.transparent-grid cell:not(:selected):not(:hover):not(:active):not(:focus)"
+		".meowmenu iconview.launchers.transparent-grid.view.cell:not(:selected):not(:hover):not(:active),"
+		".meowmenu .launchers.transparent-grid.cell:not(:selected):not(:hover):not(:active),"
+		".meowmenu iconview.launchers.transparent-grid cell:not(:selected):not(:hover):not(:active),"
+		".meowmenu .launchers.transparent-grid cell:not(:selected):not(:hover):not(:active)"
 		"{ background: none; background-color: transparent;"
 		"  background-image: none; border: none; border-color: transparent;"
 		"  box-shadow: none; }"
@@ -2787,12 +2955,12 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .category-button label"
 		"{ opacity: 1; }"
 		// Default-category heading shown when the sidebar is disabled
-		// (FR-020). Uppercase text comes from the catalog strings; the
+		// (the documented behavior). Uppercase text comes from the catalog strings; the
 		// letter-spacing/weight here are theme-overridable.
 		".meowmenu .meow-default-heading"
 		"{ font-weight: bold; letter-spacing: 1px; opacity: 0.65;"
 		"  margin: 6px 6px 2px 6px; }"
-		// FR-002 / SC-007: keyboard focus indicator. The 1 px inset
+		// the documented behavior / the documented behavior: keyboard focus indicator. The 1 px inset
 		// outline sits inside the widget border (outline-offset: -1px)
 		// so the widget does not change size on focus and the
 		// surrounding layout does not shift. :focus-visible restricts
@@ -2844,6 +3012,9 @@ void WhiskerMenu::Window::update_background_css()
 
 void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 {
+	if (m_resizing)
+		interactive_resize_cancel();
+
 	GdkScreen* screen = gtk_widget_get_screen(widget);
 	GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
 	// Always request an RGBA visual when the compositor provides one so that
@@ -2880,8 +3051,8 @@ void WhiskerMenu::Window::apply_window_shape(int width, int height, int radius, 
 		return;
 
 	// Square window: clear any prior mask so the toplevel is its full rectangle.
-	// Covers both corner radius 0 (FR-002) and the non-composited fallback
-	// (FR-006), which both render clean square corners.
+	// Covers both corner radius 0 (the documented behavior) and the non-composited fallback
+	// (the documented behavior), which both render clean square corners.
 	if (radius <= 0 || !composited || width <= 0 || height <= 0)
 	{
 		gtk_widget_shape_combine_region(widget, nullptr);
@@ -3030,7 +3201,7 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 	}
 
 	// Non-composited fallback (no RGBA visual): solid, square, no rounding
-	// (FR-006). Draw the shell background and propagate the children unclipped,
+	// (the documented behavior). Draw the shell background and propagate the children unclipped,
 	// then a single SQUARE border — gated on docked only (not the composited
 	// predicate, which requires supports_alpha), so a non-composited full-screen
 	// menu stays one seamless square surface with no outline.
@@ -3076,29 +3247,42 @@ void WhiskerMenu::Window::center_window()
 
 //-----------------------------------------------------------------------------
 
+/* Window::move_window:
+ *
+ * Applies panel-relative gap and monitor clamping from the caller's current
+ * unadjusted geometry, then moves either the normal toplevel or layer surface.
+ * Resize completion resolves a fresh panel base before entering this path.
+ */
 void WhiskerMenu::Window::move_window()
 {
-	// T042: apply panel-gap offset away from the panel.
-	// Centered placement never sits flush against a panel edge, so the gap is
-	// meaningless there and is suppressed without mutating the stored value
-	// (the Properties dialog also greys the gap control in Centered).
-	const int gap = m_settings->panel_gap;
-	if (gap > 0 && m_position == PositionAtButton && !centered_layout())
+	InteractiveResize::PanelEdge panel_edge =
+			InteractiveResize::PanelEdge::None;
+	if (m_position == PositionAtButton && !centered_layout())
 	{
 		const XfceScreenPosition screen_pos = m_plugin->get_screen_position();
 		if (xfce_screen_position_is_top(screen_pos))
-			m_geometry.y += gap;
+			panel_edge = InteractiveResize::PanelEdge::Top;
 		else if (xfce_screen_position_is_bottom(screen_pos))
-			m_geometry.y -= gap;
+			panel_edge = InteractiveResize::PanelEdge::Bottom;
 		else if (xfce_screen_position_is_left(screen_pos))
-			m_geometry.x += gap;
+			panel_edge = InteractiveResize::PanelEdge::Left;
 		else
-			m_geometry.x -= gap;
+			panel_edge = InteractiveResize::PanelEdge::Right;
 	}
 
-	// Prevent window from leaving screen
-	m_geometry.x = CLAMP(m_geometry.x, m_monitor.x, m_monitor.x + m_monitor.width - m_geometry.width);
-	m_geometry.y = CLAMP(m_geometry.y, m_monitor.y, m_monitor.y + m_monitor.height - m_geometry.height);
+	// Derive the gap and monitor clamp from one unadjusted placement. During a
+	// resize this base is freshly resolved from the panel before settling, so
+	// repeated motion never compounds the configured gap.
+	const InteractiveResize::Rectangle placed =
+			InteractiveResize::place_docked(
+					{m_geometry.x, m_geometry.y,
+						m_geometry.width, m_geometry.height},
+					{m_monitor.x, m_monitor.y,
+						m_monitor.width, m_monitor.height},
+					panel_edge,
+					m_settings->panel_gap);
+	m_geometry.x = placed.x;
+	m_geometry.y = placed.y;
 
 	// Move window
 #ifdef HAVE_GTK_LAYER_SHELL
@@ -3122,7 +3306,7 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 {
 	GtkWidget* child = gtk_bin_get_child(GTK_BIN(button));
 
-	// The pure helper picks the label placement (FR-012/014): the long
+	// The pure helper picks the label placement (the documented behavior): the long
 	// descriptive name is the accessible name in both modes and the tooltip in
 	// icon-only mode; the short label is the visible text in text mode.
 	const ModeButtonLabels labels =
@@ -3136,7 +3320,7 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 		const char* name = meow_resolve_icon_name(theme, icon_chain);
 		// Reuse an existing image child so a relayout that only changes the
 		// derived size (e.g. category-icon-size edited) refreshes the pixel size
-		// in place rather than no-op'ing on the early child check (FR-002).
+		// in place rather than no-op'ing on the early child check (the documented behavior).
 		GtkImage* image;
 		if (GTK_IS_IMAGE(child))
 		{
@@ -3151,7 +3335,7 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 			gtk_container_add(GTK_CONTAINER(button), GTK_WIDGET(image));
 			gtk_widget_show(GTK_WIDGET(image));
 		}
-		// Size the toggle icon from its containing region (FR-001/002/003): the
+		// Size the toggle icon from its containing region (the documented behavior): the
 		// category icon size in a sidebar, the search-bar height in the search
 		// row. icon_px <= 0 means the toggle is hidden, so keep the themed size.
 		if (icon_px > 0)
@@ -3180,7 +3364,7 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 {
 	const bool icons = pres.effective_show_icons;
 
-	// Resolve the toggle icon size from its region (FR-001/003/012/013). The
+	// Resolve the toggle icon size from its region (the documented behavior). The
 	// sidebar source is the authoritative category icon size; the search-bar
 	// source has no stored value, so it is measured live from the search entry.
 	const int category_px = m_settings->category_icon_size.get_size();
@@ -3199,7 +3383,7 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 	const int button_height_px = meow_toggle_button_height_px(pres.switch_location,
 			pres.categories_horizontal, category_px);
 
-	// Text↔icon child swap (FR-012/014): the visible text label is the short
+	// Text↔icon child swap (the documented behavior): the visible text label is the short
 	// "Apps"/"Places"; the long "Applications"/"Places" stays as tooltip and
 	// accessible name in both modes.
 	set_mode_button_content(m_mode_btn_apps, icons, MEOW_SWITCH_APPS_ICONS,
@@ -3219,7 +3403,7 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_apps), -1, button_height_px);
 	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_places), -1, button_height_px);
 
-	// Switch-box orientation (FR-007/008/014): vertical only on a vertical
+	// Switch-box orientation (the documented behavior): vertical only on a vertical
 	// sidebar with category names hidden; horizontal everywhere else.
 	gtk_orientable_set_orientation(GTK_ORIENTABLE(m_mode_selector_box),
 			pres.switch_orientation == SwitchOrientation::Vertical
@@ -3236,7 +3420,7 @@ void WhiskerMenu::Window::update_layout()
 
 	// Feature 020: resolve the effective sidebar/switch presentation from the
 	// stored intent. Forcing rules live in the pure helper; nothing here writes
-	// back to settings, so removing a forcing layout restores intent (FR-029).
+	// back to settings, so removing a forcing layout restores intent (the documented behavior).
 	SidebarLayoutState layout_state;
 	layout_state.sidebar_enabled = m_settings->sidebar_enabled;
 	layout_state.position = meow_parse_sidebar_position(m_settings->sidebar_position);
@@ -3261,40 +3445,10 @@ void WhiskerMenu::Window::update_layout()
 				&& pres.switch_location == SwitchLocation::InSidebar
 				&& !pres.categories_horizontal);
 	}
-	if (!places_enabled)
-	{
-		// Hide all Places-only sidebar buttons; show the Apps-mode buttons.
-		gtk_widget_set_visible(m_places_home_btn->get_widget(),    false);
-		gtk_widget_set_visible(m_places_history_btn->get_widget(), false);
-		gtk_widget_set_visible(m_places_fav_btn->get_widget(),     false);
-		gtk_widget_set_visible(m_favorites->get_button()->get_widget(), true);
-		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
-				m_settings->recent_items_max);
-		gtk_widget_set_visible(m_applications->get_button()->get_widget(), true);
-		for (GtkWidget* w : m_app_category_widgets)
-		{
-			gtk_widget_set_visible(w, true);
-		}
-	}
-	else
-	{
-		// In places mode, only the active mode's buttons are visible. In apps
-		// mode, only the apps buttons. The disabled section buttons stay hidden.
-		const bool to_places = m_places_active;
-		gtk_widget_set_visible(m_favorites->get_button()->get_widget(),       !to_places);
-		gtk_widget_set_visible(m_recent->get_button()->get_widget(),
-				!to_places && m_settings->recent_items_max);
-		gtk_widget_set_visible(m_applications->get_button()->get_widget(),    !to_places);
-		gtk_widget_set_visible(m_places_home_btn->get_widget(),     to_places);
-		gtk_widget_set_visible(m_places_history_btn->get_widget(),
-				to_places && m_settings->places_history_enabled);
-		gtk_widget_set_visible(m_places_fav_btn->get_widget(),
-				to_places && m_settings->places_favourites_enabled);
-		for (GtkWidget* w : m_app_category_widgets)
-		{
-			gtk_widget_set_visible(w, !to_places);
-		}
-	}
+	// Visibility is owned by the same transaction used for opening and mode
+	// switches, so layout changes cannot reintroduce a divergent matrix.
+	apply_menu_mode(m_places_active ? MenuMode::Places
+			: MenuMode::Applications, MenuModeTransition::Reevaluate);
 
 	// Apply the Apps/Places switch presentation (icon vs text, orientation,
 	// tooltips). Structural relocation/strip placement is handled further down
@@ -3302,7 +3456,7 @@ void WhiskerMenu::Window::update_layout()
 	apply_switch_presentation(pres);
 
 	// Default-category heading: visible only when the sidebar is disabled
-	// (FR-020/021); text follows the configured default category.
+	// (the documented behavior); text follows the configured default category.
 	m_applications->set_default_heading(pres.show_default_category_heading,
 			m_settings->default_category);
 
@@ -3372,7 +3526,7 @@ void WhiskerMenu::Window::update_layout()
 			{
 				// Lazily build the horizontal strip scroller: overlay
 				// horizontal scrollbar, no vertical scroll, no arrow chrome
-				// (FR-012). Keyboard focus auto-scroll is provided by GTK.
+				// (the documented behavior). Keyboard focus auto-scroll is provided by GTK.
 				m_strip_scroll = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
 				gtk_scrolled_window_set_shadow_type(m_strip_scroll, GTK_SHADOW_NONE);
 				gtk_scrolled_window_set_policy(m_strip_scroll,
@@ -3392,7 +3546,7 @@ void WhiskerMenu::Window::update_layout()
 			{
 				// Leading expander that pushes the category icons to the trailing
 				// edge inside the (stretched) viewport, so the slack falls between
-				// the leading toggle and the trailing icons (FR-005). A GtkViewport
+				// the leading toggle and the trailing icons (the documented behavior). A GtkViewport
 				// stretches its child to the view width and ignores child halign,
 				// so the trailing pull must come from an expanding child rather than
 				// an alignment.
@@ -3462,11 +3616,11 @@ void WhiskerMenu::Window::update_layout()
 			// Strip: the toggle anchors to the row's leading edge
 			// (StripGeometry.toggle_anchor == Leading). It is pack_start'd +
 			// reordered to child 0 in m_categories_box, outside the scroller
-			// (FR-006/014); pack_start is direction-aware, so it follows
+			// (the documented behavior); pack_start is direction-aware, so it follows
 			// m_layout_ltr (leading = left in LTR, right in RTL) for free, and the
 			// trailing category icons stay pinned by m_strip_lead_spacer. When the
 			// toggle is absent (None) this leading anchor is simply left empty
-			// (FR-007). Vertical sidebar: first child of the button list.
+			// (the documented behavior). Vertical sidebar: first child of the button list.
 			target = want_strip ? GTK_WIDGET(m_categories_box)
 			                     : GTK_WIDGET(m_category_buttons);
 			break;
@@ -3475,7 +3629,7 @@ void WhiskerMenu::Window::update_layout()
 			// mode that means the centring cluster (so [entry][switch] stays
 			// centred as one unit); otherwise the plain search row, where it is
 			// placed just before the command buttons (see below) so the commands
-			// keep their trailing position and the entry yields the room (FR-019).
+			// keep their trailing position and the entry yields the room (the documented behavior).
 			target = unified_now ? m_search_cluster : GTK_WIDGET(m_search_box);
 			break;
 		case SwitchLocation::None:
@@ -3494,7 +3648,7 @@ void WhiskerMenu::Window::update_layout()
 				// Unified bar: the switch trails the search entry inside the
 				// centring cluster, so [entry][switch] stay centred as one unit and
 				// the entry shrinks to leave room rather than the row growing
-				// (FR-019). The entry is reordered to child 0 in the unified-bar
+				// (the documented behavior). The entry is reordered to child 0 in the unified-bar
 				// transition below, so reorder the switch to last here.
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				gtk_box_reorder_child(GTK_BOX(target), sw, -1);
@@ -3504,7 +3658,7 @@ void WhiskerMenu::Window::update_layout()
 				// Plain (non-unified) search row: the embedded switch is anchored
 				// before the command buttons (the leading side), not at the very
 				// trailing edge, so the commands stay rightmost and the search entry
-				// shrinks to make room (FR-019). When no commands share the row the
+				// shrinks to make room (the documented behavior). When no commands share the row the
 				// switch becomes the trailing element. The leading placement is the
 				// single source of truth in meow_embedded_switch_slot() and is pinned
 				// by a regression test; do not inline the ordering decision here.
@@ -3551,7 +3705,7 @@ void WhiskerMenu::Window::update_layout()
 
 	// Resolve the Profile/Commands pair through the shared coupling helper so the
 	// rendered row reflects a coherent edge combination — the same resolution the
-	// Preferences combos grey and prevent_invalid() persists (FR-014). A "hidden"
+	// Preferences combos grey and prevent_invalid() persists (the documented behavior). A "hidden"
 	// value is always preserved by the helper, so the visibility decisions below
 	// are unchanged for hidden inputs; the edge resolution matters for the
 	// reorder/packing that follows. Full-screen coupling is finalised in the
@@ -3582,16 +3736,56 @@ void WhiskerMenu::Window::update_layout()
 	// title row count toward its visibility.
 	const bool commands_in_title_row = !commands_hidden && !m_layout_commands_alternate;
 
-	// Collapse the user/session row only when nothing remains in it (FR-003);
+	ModernDividerState divider_state;
+	divider_state.modern_preset = (g_strcmp0(m_settings->current_preset_id, "modern") == 0);
+	divider_state.docked_or_centered = (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0);
+	divider_state.vertical_sidebar_switch = switch_visible
+			&& pres.switch_location == SwitchLocation::InSidebar
+			&& !pres.categories_horizontal;
+	divider_state.profile_visible = !profile_hidden;
+	divider_state.visible_command_count = 0;
+	if (!commands_hidden)
+	{
+		for (int i = 0; i < 9; ++i)
+		{
+			// Command::check() resolves availability before the derived divider
+			// decides whether a command supplies upper-region content.
+			m_settings->command[i]->check();
+			if (gtk_widget_get_visible(m_commands_button[i])
+					&& gtk_widget_get_sensitive(m_commands_button[i]))
+			{
+				++divider_state.visible_command_count;
+			}
+		}
+	}
+	if (m_mode_selector_upper_separator)
+	{
+		gtk_widget_set_visible(m_mode_selector_upper_separator,
+				meow_modern_divider_visible(divider_state));
+	}
+
+	// Reparenting the selector during a layout transition can move it ahead of
+	// the divider. Restore the stable vertical-sidebar order on every pass.
+	if (want_vertical)
+	{
+		gtk_box_reorder_child(m_category_buttons,
+				m_mode_selector_upper_separator, 0);
+		gtk_box_reorder_child(m_category_buttons,
+				GTK_WIDGET(m_mode_selector_box), 1);
+		gtk_box_reorder_child(m_category_buttons,
+				m_mode_selector_separator, 2);
+	}
+
+	// Collapse the user/session row only when nothing remains in it (the documented behavior);
 	// keep it in unified-bar / full-screen where it carries the shared search row
-	// (FR-004). Independent of category placement (FR-001).
+	// (the documented behavior). Independent of category placement (the documented behavior).
 	meow_widget_set_visible_if_valid(GTK_WIDGET(m_title_box),
 			user_session_row_visible(unified, profile_hidden, !commands_in_title_row,
 					m_layout_categories_alternate));
 
 	// When the profile cluster is hidden, no expanding username remains in the
 	// title row to push the surviving commands cluster to the trailing edge, so
-	// give the commands box the expand + end alignment itself (FR-002). Reset to
+	// give the commands box the expand + end alignment itself (the documented behavior). Reset to
 	// the neutral state otherwise; the unified bar handles its own right-edge
 	// placement via pack_end below.
 	const bool docked_solo_commands = commands_in_title_row && profile_hidden && !unified;
@@ -3696,7 +3890,7 @@ void WhiskerMenu::Window::update_layout()
 
 	// Rhythm-matched symmetric gap: equal space before and after the strip
 	// (one gap is the inter-row spacing, the other the strip's outer margin),
-	// so the strip is not flush against the menu edge (FR-021).
+	// so the strip is not flush against the menu edge (the documented behavior).
 	const int STRIP_GAP = 6;
 	gtk_widget_set_margin_top(GTK_WIDGET(m_categories_box),
 			m_layout_categories_horizontal && !strip_below_results ? STRIP_GAP : 0);
@@ -3810,7 +4004,7 @@ void WhiskerMenu::Window::update_layout()
 	// mode) and the centre-widget slot of m_title_box (unified-bar mode).
 	// gtk_box_set_center_widget positions the entry at the exact horizontal
 	// centre of m_title_box regardless of the profile or session-button widths,
-	// satisfying FR-002 without any per-widget size measurement (FR-004).
+	// satisfying the documented behavior without any per-widget size measurement (the documented behavior).
 	const bool eff = unified_bar_effective(*m_settings);
 	const bool was_unified = m_layout_unified_bar;
 	GtkStyleContext* title_ctx = gtk_widget_get_style_context(GTK_WIDGET(m_title_box));
@@ -3858,7 +4052,7 @@ void WhiskerMenu::Window::update_layout()
 		g_object_unref(m_search_entry);
 	}
 
-	// Pin the search entry width to exactly match the applications panel (FR-004).
+	// Pin the search entry width to exactly match the applications panel (the documented behavior).
 	// The centre-widget slot guarantees screen-centre alignment; all that remains
 	// is setting the correct width so the entry lines up with the grid edges.
 	// Subtract the 6 px column-spacing of m_contents_box so the search entry does
@@ -3868,9 +4062,9 @@ void WhiskerMenu::Window::update_layout()
 	//
 	// NOTE: this width is computed purely from the workarea/sidebar geometry and
 	// is independent of whether the profile or commands clusters are visible, so
-	// hiding both (FR-013) leaves the centred search bar — and therefore the
+	// hiding both (the documented behavior) leaves the centred search bar — and therefore the
 	// results grid and the left/right void widths — at exactly the same size and
-	// position as when both clusters are shown (SC-005, INV-4). The merged row
+	// position as when both clusters are shown (the documented behavior, INV-4). The merged row
 	// reads profile + void + search bar + void + session via the centre widget;
 	// hiding a cluster only blanks that child, it never re-flows the geometry.
 	if (eff)
@@ -3887,7 +4081,7 @@ void WhiskerMenu::Window::update_layout()
 
 	// Move commands_box to the right edge of the unified bar on every layout pass.
 	// update_layout() re-adds it as pack_start at the top of this function; we
-	// move it to pack_end here so it appears right-aligned (FR-002: session buttons
+	// move it to pack_end here so it appears right-aligned (the documented behavior: session buttons
 	// at the trailing edge). Only relevant when commands are in title_box
 	// (m_layout_commands_alternate == false).
 	if (eff && !m_layout_commands_alternate)
@@ -3897,7 +4091,7 @@ void WhiskerMenu::Window::update_layout()
 	}
 
 	// Three void bands: top (above unified bar), middle (between bar and content),
-	// bottom (below content). All shown only when unified bar is effective (FR-008/FR-009).
+	// bottom (below content). All shown only when unified bar is effective (the documented behavior).
 	// The vbox position numbers below account for the 3 main widgets (title_box,
 	// search_box, contents_stack) plus all 3 void widgets in the pack_start list.
 	const bool title_at_bottom = m_layout_search_alternate && m_layout_profile_alternate;
@@ -3928,7 +4122,7 @@ void WhiskerMenu::Window::update_layout()
 	gtk_widget_set_visible(m_void_middle, eff);
 	gtk_widget_set_visible(m_void_bottom, eff);
 
-	// FR-015 hook: warn once per layout pass if the merged row is too narrow.
+	// the documented behavior hook: warn once per layout pass if the merged row is too narrow.
 	if (eff)
 	{
 		static int warn_count = 0;

@@ -1,244 +1,162 @@
 # Releasing MeowMenu
 
-End-to-end checklist for cutting a new release. Follow it top to bottom.
+This guide records the reusable release procedure and the additional gates for
+the current release candidate. Examples use `v1.0.0` so they remain clear for a
+future stable release; commands that act on a real release derive its identity
+from `NEWS`. The next planned tag is `v0.9.0-rc1`, so candidate-specific
+sections retain that exact value.
 
----
+The maintainer alone merges, commits release metadata, creates and pushes tags,
+authorizes publication, and publishes AUR metadata.
 
-## Prerequisites
+## Release identity
 
-- **Python ≥ 3.6** — runs helper scripts.
-- **rsvg-convert** (preferred) or **inkscape** (fallback) — only needed if you
-  re-render icons. Install with `sudo apt install librsvg2-bin`.
-- **gh** — GitHub CLI. Install with `sudo apt install gh`, then
-  `gh auth login`.
-- Write access to `matteobonanomi/xfce4-meowmenu-plugin` on GitHub.
-
----
-
-## Release steps
-
-### 1. Promote `development` → `main`
-
-MeowMenu uses a direct release flow gated by CI:
-
-1. **`development` → `main`**: open a PR from `development` (or any feature
-   branch) into `main`. The full CI suite (`ci.yml`) runs the six-cell distro
-   matrix plus `sanitizers`, `translations`, and `no-optional-deps`. All
-   nine checks must be green to merge.
-2. **Tag on `main`**: the release tag must point at a commit reachable from
-   `main`. The packaging workflow enforces this invariant and refuses to
-   produce artifacts otherwise (see [`docs/ci.md`](docs/ci.md) and
-   [`contracts/workflow-jobs.md` §5](.specify/specs/009-ci-foundation/contracts/workflow-jobs.md#5-tag-on-main-invariant-runtime-contract)).
+`NEWS` is the version and changelog authority. A stable-release example would
+use public version `1.0.0` and annotated tag `v1.0.0`; do not copy those
+illustrative values into release metadata. Inspect the actual shared values
+with:
 
 ```bash
-# After the release PR is merged and main is up to date:
-git checkout main
-git pull origin main
+python3 build-aux/news-version.py --version --news NEWS
+python3 build-aux/news-version.py --tag --news NEWS
+python3 build-aux/news-version.py --debian-version --news NEWS
+python3 build-aux/news-version.py --rpm-version --news NEWS
+python3 build-aux/news-version.py --arch-version --news NEWS
 ```
 
-Post-release: load the plugin in an Xfce panel session and confirm it
-launches, opens, and runs a search end-to-end. CI does not exercise the
-running plugin; this manual UI verification is the only check covering that
-surface.
+For the current candidate, those commands produce public version
+`0.9.0-rc1`, annotated tag `v0.9.0-rc1`, and these native package versions:
 
-### 2. Edit `NEWS`
+| Package | Version |
+|---|---|
+| Debian and Ubuntu | `0.9.0~rc1-1` |
+| Fedora 44 | `0.9.0~rc1-1.fc44` |
+| Arch | `0.9.0rc1-1` |
 
-Prepend a new top entry:
+The transformations preserve native upgrade ordering before RC2 and 1.0.0.
+
+## Before tagging
+
+1. Set a real date in the top `NEWS` entry and ensure its bullets describe all
+   changes since the previous published release.
+2. Review the package seeds, AppStream metadata, documentation, support
+   boundaries, security policy, and community routes.
+3. From a clean checkout, run:
+
+   ```bash
+   meson setup build
+   meson compile -C build
+   meson test -C build --print-errorlogs
+   appstreamcli validate --no-net \
+     data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
+   ```
+
+4. Merge through the protected `main` process. Update local `main`, then create
+   an annotated tag:
+
+   ```bash
+   git switch main
+   git pull --ff-only origin main
+   release_version="$(python3 build-aux/news-version.py --version --news NEWS)"
+   release_tag="$(python3 build-aux/news-version.py --tag --news NEWS)"
+   test "$release_tag" = "v${release_version}"
+   git tag -a "$release_tag" -m "MeowMenu ${release_version}"
+   git push origin "$release_tag"
+   ```
+
+   A lightweight tag, a tag not reachable from `main`, or a tag different from
+   the top `NEWS` version is rejected. With a stable `1.0.0` top entry, these
+   commands create the illustrative `v1.0.0` tag; for the current candidate
+   they create `v0.9.0-rc1`.
+
+## Private candidate workflow
+
+The tag starts `.github/workflows/packaging.yml`, the sole GitHub Release
+owner. It:
+
+1. validates the annotated tag, `main` ancestry, date, and exact `NEWS`
+   identity;
+2. creates the canonical tagged source archive with one stable top-level
+   directory;
+3. builds, tests, installs, and version-checks Ubuntu 26.04, Debian 13, and
+   Fedora 44 packages;
+4. validates the Arch recipe through build, tests, namcap review, installation,
+   and version ordering;
+5. runs blocking AppStream validation and exposes advisory lintian/rpmlint
+   output;
+6. generates structured notes and `SHA256SUMS`;
+7. creates or reuses one private draft prerelease, uploads the exact assets,
+   downloads them again, and verifies their inventory and checksums.
+
+Any failure leaves the release private. A rerun may replace assets only on the
+matching draft; a pre-existing public release for the tag is an error.
+
+The expected assets are:
 
 ```text
-0.4.0 (2026-06-01)
-=====
-- one bullet per user-visible change, present tense
+xfce4-meowmenu-plugin_0.9.0-rc1_ubuntu26.04_amd64.deb
+xfce4-meowmenu-plugin_0.9.0-rc1_debian13_amd64.deb
+xfce4-meowmenu-plugin-0.9.0-rc1-1.fc44.x86_64.rpm
+xfce4-meowmenu-plugin-0.9.0-rc1.tar.gz
+SHA256SUMS
 ```
 
-The header **must** match `X.Y.Z (YYYY-MM-DD)` exactly — `build-aux/news-version.py`
-parses this format. Only edit `NEWS` when you are ready to tag.
-
-### 3. Build and verify locally
+Download all five from the draft and verify:
 
 ```bash
-./dev/dev-install.sh
+sha256sum -c SHA256SUMS
+tar -tzf xfce4-meowmenu-plugin-0.9.0-rc1.tar.gz \
+  | sed 's#/.*##' | sort -u
+dpkg-deb -f xfce4-meowmenu-plugin_0.9.0-rc1_*_amd64.deb Version
+rpm -qp --qf '%{VERSION}-%{RELEASE}\n' \
+  xfce4-meowmenu-plugin-0.9.0-rc1-1.fc44.x86_64.rpm
 ```
 
-> **What `dev/dev-install.sh` does (and does not do)**
->
-> This script is a **local development tool only**. It reconfigures Meson
-> (which re-reads `NEWS` and regenerates `panel-plugin/version.h`), compiles,
-> installs, and hot-reloads the plugin in your running Xfce session. It does
-> **not** update GitHub, the README badge, or create any release.
->
-> Pass `--icons` to also re-render `icons/hi*-app-meowmenu.png` from
-> `build-aux/art/meowmenu.svg` before building. This requires `rsvg-convert` or
-> `inkscape`. Without `--icons`, the committed PNGs are used as-is — you only
-> need this flag when the master SVG has changed.
->
-> ```bash
-> ./dev/dev-install.sh --icons   # regenerate icons, then build + reload
-> ./dev/dev-install.sh           # build + reload only (normal case)
-> ```
+The archive command must print only
+`xfce4-meowmenu-plugin-0.9.0-rc1`.
 
-Open the plugin's *About* dialog and confirm the version and date are correct.
+## Live release gates
 
-### 4. Run the test suite
+Using the private draft packages, complete both primary Xubuntu
+26.04/Xfce 4.20/X11/amd64 procedures in [docs/testing.md](docs/testing.md):
+
+- a fresh-profile core run, including the Modern default and post-login
+  persistence;
+- a 0.8.0 upgrade, including panel item, Xfconf values, favourites, layout,
+  Calculator choices, custom preset files, a second migration pass, and
+  post-login persistence.
+
+Record the results in a durable public issue or prepared release evidence.
+Review the support matrix, known limitations, translations, notes, five
+assets, checksums, package versions, and feedback/security links as one unit.
+Enable GitHub private vulnerability reporting before publication.
+
+## Publish the prerelease
+
+Manually run the packaging workflow for `v0.9.0-rc1` with:
+
+- **Publish** enabled;
+- **Authorization** exactly `publish v0.9.0-rc1`;
+- the durable primary live-evidence URL.
+
+The workflow repeats all gates before changing visibility. The public record is
+`prerelease=true` and is never selected as the latest stable release.
+
+After publication, download the public assets again, rerun `sha256sum -c`,
+inspect package versions, and recheck public links before announcing RC1.
+
+## Arch and AUR
+
+The in-repository `dist/arch/PKGBUILD` uses `sha256sums=('SKIP')` for
+development and CI. The separately published AUR `PKGBUILD` and `.SRCINFO`,
+prepared with a verified source checksum, are authoritative for AUR users.
+
+After the public tag/archive exists:
 
 ```bash
-meson test -C build
+./dev/aur-release.sh ../xfce4-meowmenu-plugin-AUR
 ```
 
-The `version-consistency` test must pass. If it fails, the `NEWS` top entry
-does not match `meson.project_version()`.
-
-### 5. Commit and push
-
-```bash
-git add NEWS
-git commit -m "release: 0.4.0"
-git push origin main
-```
-
-### 6. Tag and push the tag
-
-```bash
-git tag v0.4.0
-git push origin v0.4.0
-```
-
-Pushing the tag triggers `.github/workflows/release.yml`, which:
-
-1. Extracts the matching `NEWS` section.
-2. Creates a GitHub Release with that content.
-3. Automatically updates the `[![Version](...)]` badge in the README — the
-   badge is dynamic (shields.io GitHub releases API) and picks up the new
-   latest release within a few minutes.
-
-### 7. Verify on GitHub
-
-Open the *Releases* page and confirm the new release exists with the correct
-body. The README version badge should update shortly after.
-
-### 8. Update the release notes body (feature 010 obligations)
-
-Before announcing the release, edit the release-notes body on the GitHub
-Releases page to include:
-
-- **Shipped distributions.** List all three: `Ubuntu 26.04`, `Debian 13`,
-  `Fedora 44`. The `attach-artifacts` job requires all three distro builds
-  and coexistence checks to pass — if any gate failed, no artifacts were
-  uploaded and the release tag must be investigated before announcing.
-- **Coexistence evidence.** Link the published `whisker-overlap.md`
-  release artifact for each shipped distro (FR-024).
-- **Verification scope.** Add a short note clarifying which success
-  criteria are gated by CI vs. validated by manual walkthrough.
-  Explicitly: **SC-003 (configuration-isolation cross-contamination,
-  5 changes per plugin) is validated by manual
-  `quickstart.md §D` walkthrough only on each shipped distribution; no
-  automated test gates it.**
-
-A reusable template:
-
-```markdown
-## Shipped distributions
-- Ubuntu 26.04 — `.deb`
-- Debian 13 — `.deb`
-- Fedora 44 — `.rpm`
-
-## Coexistence evidence
-- See attached `whisker-overlap.md` for per-distro `dpkg -L` / `rpm -ql`
-  intersections and substitution-declaration grep output (FR-024).
-
-## Verification scope
-- Automated: SC-001, SC-002, SC-004, SC-005, SC-006, SC-008, SC-009,
-  SC-011, SC-012, SC-013 (CI gates + meson test).
-- Manual on each shipped distro: SC-003, SC-007, SC-010
-  (`quickstart.md §C, §D, §G`).
-```
-
----
-
-## Why the README badge shows an old version
-
-The badge reads the **latest published GitHub Release**, not the `NEWS` file or
-any local build. It will only update after you push a tag and the release
-workflow completes successfully. Running `dev-reload.sh` has no effect on it.
-
----
-
-## Tooling reference
-
-### `build-aux/news-version.py`
-
-Parses the top entry of `NEWS`.
-
-| Flag | Effect |
-|------|--------|
-| `--version` | print the version string only |
-| `--date` | print the release date only |
-| `--check EXPECTED` | exit non-zero if NEWS version ≠ `EXPECTED` |
-| `--news PATH` | use a non-default NEWS path (auto-discovered otherwise) |
-
-Used by Meson at configure time and by the `version-consistency` test.
-
-### `build-aux/regen-icons.py`
-
-Renders `build-aux/art/meowmenu.svg` to every PNG size in `icons/`. Invoked
-automatically by `dev-reload.sh --icons`, or manually:
-
-```bash
-python3 build-aux/regen-icons.py --input build-aux/art/meowmenu.svg --output-dir icons/
-```
-
-You can also call it via Meson:
-
-```bash
-meson compile -C build regen-icons
-```
-
-End-user builds do not require a renderer because the PNGs are committed.
-
----
-
-## Tag format
-
-Tags **must** be `v<version>` (e.g. `v0.4.0`, `v0.4.0-rc1`). The `release.yml`
-workflow only triggers on `v*` tags and strips the leading `v` when locating
-the matching `NEWS` section.
-
----
-
-## Branch protection
-
-`main` is the single release-track branch and is protected on github.com. The
-full prose reproduction of the settings lives in [`docs/ci.md`](docs/ci.md);
-this section is a deliberate duplicate so the required-check sets can be
-reconstructed even if `docs/ci.md` is ever moved (FR-021).
-
-**Required checks on `main`** (all must be green to merge):
-
-- `build (ubuntu-26.04, debugoptimized)`
-- `build (ubuntu-26.04, release)`
-- `build (debian-13, debugoptimized)`
-- `build (debian-13, release)`
-- `build (fedora-44, debugoptimized)`
-- `build (fedora-44, release)`
-- `sanitizers`
-- `translations`
-- `no-optional-deps`
-
-`analyze (cpp)` is advisory only — it MUST NOT be added to this list.
-
-When configuring the ruleset GitHub will autocomplete check names from every
-job ever run in the repository, including tag-triggered packaging jobs. The
-naming convention distinguishes them:
-
-| Workflow | Name format | Example |
-|---|---|---|
-| `ci.yml` — PR/push checks | `build (distro, type)` | `build (ubuntu-26.04, debugoptimized)` |
-| `packaging.yml` — tag-only | `build-deb (distro)` / `build-rpm (distro)` | `build-deb (ubuntu-26.04)` |
-
-Only add checks from `ci.yml` (space + parenthesis format). If a packaging job
-were added by mistake, every PR would be permanently blocked because those
-checks never run outside a tag push.
-
-**Other protection rules**: force-push disabled; deletion disabled; rules apply
-to administrators. See [`docs/ci.md`](docs/ci.md) for the full reproduction
-and the rename protocol (FR-023).
+Review the generated `PKGBUILD`, `.SRCINFO`, checksum, and source verification
+in the AUR clone. Commit and publish them manually; the helper performs no Git
+commit or publication.

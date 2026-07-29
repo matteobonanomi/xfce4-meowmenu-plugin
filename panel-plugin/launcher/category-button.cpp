@@ -34,7 +34,7 @@ namespace
 // navigation lives at the window level while the hover auto-activation lives in
 // these leaf widgets, and a leaf button has no back-reference to the Window.
 // When set, the enter-notify timeout and the focus-in auto-activate skip
-// activation so a stationary pointer cannot eject keyboard focus (FR-012); the
+// activation so a stationary pointer cannot eject keyboard focus (the documented behavior); the
 // first genuine motion-notify over any category button re-arms hover.
 static bool s_hover_suppressed_until_motion = false;
 
@@ -52,7 +52,7 @@ static gboolean hover_timeout(gpointer user_data)
 	GtkToggleButton* button = GTK_TOGGLE_BUTTON(user_data);
 	// NOTE: a keyboard navigation may have fired after this 150 ms timeout was
 	// armed; honouring the suppression latch keeps the stale pointer from
-	// activating the button it still rests over (FR-012).
+	// activating the button it still rests over (the documented behavior).
 	if (s_hover_suppressed_until_motion)
 	{
 		return GDK_EVENT_PROPAGATE;
@@ -77,7 +77,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	gtk_widget_set_focus_on_click(GTK_WIDGET(m_button), false);
 
 	// Pointer-motion events are needed to re-arm hover after a keyboard
-	// navigation suppressed it (FR-012); a plain button does not request them.
+	// navigation suppressed it (the documented behavior); a plain button does not request them.
 	gtk_widget_add_events(GTK_WIDGET(m_button), GDK_POINTER_MOTION_MASK);
 
 	connect(m_button, "enter-notify-event",
@@ -94,7 +94,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	// Genuine pointer motion re-arms hover activation that a keyboard
 	// navigation had suppressed, so "keyboard wins over a still pointer" stays
 	// deterministic: only after the user actually moves the mouse does hover
-	// take over again (FR-012, C5).
+	// take over again (the documented behavior, C5).
 	connect(m_button, "motion-notify-event",
 		[](GtkWidget*, GdkEvent*) -> gboolean
 		{
@@ -109,7 +109,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 			// While hover is suppressed (a keyboard navigation just moved focus
 			// here), do not auto-activate on focus-in: the window handler owns
 			// the keyboard activation model (live vs Enter-to-commit) and a
-			// focus-in activation here would bypass its guard (FR-012).
+			// focus-in activation here would bypass its guard (the documented behavior).
 			if (m_settings->category_hover_activate
 					&& !s_hover_suppressed_until_motion
 					&& !gtk_toggle_button_get_active(button))
@@ -135,7 +135,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	m_label = gtk_label_new(text);
 	gtk_label_set_xalign(GTK_LABEL(m_label), 0.0);
 	m_label_chars = g_utf8_strlen(text, -1);
-	// Content-fit sidebar width (FR-023/025): a label longer than the shared cap
+	// Content-fit sidebar width (the documented behavior): a label longer than the shared cap
 	// ellipsises instead of widening the sidebar without bound; shorter labels
 	// keep their natural width. The cross-mode width *floor* is applied later by
 	// Window::sync_category_label_width(), which pins every button — visible or
@@ -176,7 +176,7 @@ void CategoryButton::reload_icon_size()
 	// NOTE: schema v2 — categories are rendered icon-only whenever the sidebar is
 	// laid out horizontally (sidebar-position ∈ {top, bottom}); the legacy
 	// /position-categories-horizontal key is migrated away (see migrate_schema).
-	// The single shared decision (FR-015/016) ensures Apps category buttons and
+	// The single shared decision (the documented behavior) ensures Apps category buttons and
 	// Places section buttons — all CategoryButtons reloaded on the same trigger —
 	// show or hide labels identically in both modes.
 	const bool sidebar_horizontal = (g_strcmp0(m_settings->sidebar_position, "top") == 0

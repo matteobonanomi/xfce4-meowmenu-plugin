@@ -3,7 +3,7 @@
  * panel-plugin/core/sidebar-layout.h. No GTK types are used.
  *
  * Asserts every row of the layout-decision contract (ui-contract.md §3) plus
- * the "forcing removed ⇒ effective reverts to stored intent" case (FR-029).
+ * the "forcing removed ⇒ effective reverts to stored intent" case (the documented behavior).
  */
 
 #include "core/sidebar-layout.h"
@@ -134,7 +134,7 @@ void row6_disabled_places_off()
 	CHECK(p.show_default_category_heading);
 }
 
-// FR-029: a forced state never overwrites stored intent, so once the forcing
+// the documented behavior: a forced state never overwrites stored intent, so once the forcing
 // layout is removed the effective value reverts to the stored value with no
 // bookkeeping. Stored switch_show_icons=false + stored names=true:
 //   top (forced icons ON, names off) → left (icons OFF, names ON).
@@ -167,7 +167,7 @@ void parse_positions()
 }
 
 // Top/Bottom strip stacking order, row anchoring, and width source
-// (FR-005/006/017/018/020). The toggle anchors leading and the category group
+// (the documented behavior). The toggle anchors leading and the category group
 // trailing on a single row; the order is direction-independent and the anchors
 // are direction-relative, so both LTR and RTL resolve identically here.
 void strip_geometry_ordering()
@@ -220,7 +220,7 @@ void fullscreen_places_disabled_strip_centers_categories()
 	CHECK(top.categories_anchor == StripAnchor::Trailing);
 }
 
-// Toggle icon-size source (ui-contract §1, FR-001/002/003/012/013): the toggle
+// Toggle icon-size source (ui-contract §1, the documented behavior): the toggle
 // inherits the category icon size in a sidebar, the search-bar height in the
 // search-bar row, and is unsized (0 → not applied) when hidden.
 void toggle_icon_size_source()
@@ -258,12 +258,15 @@ void strip_spacer_order_decision()
 
 void default_category_order_base_decision()
 {
-	CHECK(meow_default_category_order_base(true) == 1);
-	CHECK(meow_default_category_order_base(false) == 0);
+	CHECK(meow_default_category_order_base(true, false) == 1);
+	CHECK(meow_default_category_order_base(false, false) == 0);
+	// A vertical sidebar keeps the upper divider, selector, and lower divider
+	// ahead of every reorderable built-in category.
+	CHECK(meow_default_category_order_base(false, true) == 3);
 }
 
 // Embedded Apps/Places switch ordering in the standard (non-unified) search-bar
-// row. FR-004 regression intent: no slot ever places the switch after a present
+// row. the documented behavior regression intent: no slot ever places the switch after a present
 // command box. When commands share the row the switch is anchored before them
 // (commands stay trailing-most); when the switch is alone it is the trailing
 // element. The unified centring cluster is a separate, untested-here path.
@@ -273,9 +276,9 @@ void embedded_switch_slot_decision()
 	CHECK(meow_embedded_switch_slot(false) == EmbeddedSwitchSlot::Trailing);
 }
 
-// T038: the single label-visibility decision is identical for Apps and Places
+// the implementation step: the single label-visibility decision is identical for Apps and Places
 // buttons (both call meow_category_label_visible). Names show only when
-// "show names" is on AND the sidebar is not a horizontal strip (FR-015/016).
+// "show names" is on AND the sidebar is not a horizontal strip (the documented behavior).
 void label_visibility_decision()
 {
 	CHECK(meow_category_label_visible(true,  false) == true);   // names on, vertical
@@ -344,6 +347,43 @@ void sidebar_max_label_width_decision()
 	CHECK(meow_sidebar_max_label_width(a, 3) == meow_sidebar_max_label_width(b, 3));
 }
 
+// The Modern upper divider is derived from the resolved presentation, never
+// from stored layout values alone. Both vertical sidebar sides are positive;
+// strips and the search-bar switch are deliberately excluded.
+void modern_divider_visibility_truth_table()
+{
+	struct Case
+	{
+		bool modern;
+		bool docked_or_centered;
+		bool vertical_sidebar_switch;
+		bool profile_visible;
+		unsigned int visible_commands;
+		bool expected;
+	};
+
+	const Case cases[] = {
+		{ true,  true,  true,  true,  0, true  }, // profile keeps upper region alive
+		{ true,  true,  true,  false, 1, true  }, // a live command is sufficient
+		{ true,  true,  true,  false, 9, true  }, // every command may be visible
+		{ true,  true,  true,  false, 0, false }, // no upper-region content
+		{ true,  true,  false, true,  9, false }, // top/bottom strip or search bar
+		{ true,  false, true,  true,  9, false }, // Full Screen
+		{ false, true,  true,  true,  9, false }, // another built-in or custom
+	};
+
+	for (const auto& c : cases)
+	{
+		ModernDividerState state;
+		state.modern_preset = c.modern;
+		state.docked_or_centered = c.docked_or_centered;
+		state.vertical_sidebar_switch = c.vertical_sidebar_switch;
+		state.profile_visible = c.profile_visible;
+		state.visible_command_count = c.visible_commands;
+		CHECK(meow_modern_divider_visible(state) == c.expected);
+	}
+}
+
 } // namespace
 
 int main()
@@ -366,6 +406,7 @@ int main()
 	label_visibility_decision();
 	label_cap_decision();
 	sidebar_max_label_width_decision();
+	modern_divider_visibility_truth_table();
 	embedded_switch_slot_decision();
 
 	if (g_failures != 0)

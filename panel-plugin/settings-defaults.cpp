@@ -60,7 +60,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	// Marker is authoritative: only a never-initialized, genuinely empty
 	// channel is a fresh install. Everything else is an upgrade.
-	const bool is_fresh_install = !marker && empty_channel;
+	const bool is_fresh_install = should_apply_fresh_preset(marker, empty_channel);
 
 	begin_property_update();
 
@@ -332,7 +332,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 	if (schema_version < 7)
 	{
 		// Collapse the three per-region opacities to one menu-wide value. Derive
-		// it from the active preset (FR-012): the value the preset pins, else
+		// it from the active preset (the documented behavior): the value the preset pins, else
 		// fully opaque (100) when no preset governs opacity. The retired keys no
 		// longer drive rendering, so reset them — the channel then carries only
 		// /menu-opacity. Resetting an absent key is a no-op, so this block is

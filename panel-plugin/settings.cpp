@@ -17,6 +17,7 @@
 
 #include "settings.h"
 
+#include "config/xfce-helpers.h"
 #include "launcher/command.h"
 #include "core/plugin.h"
 #include "core/user-session-layout.h"
@@ -86,21 +87,27 @@ Settings::Settings(Plugin* plugin) :
 	confirm_session_command(this, "/confirm-session-command", true),
 
 	search_actions(this, {
-#if LIBXFCE4UI_CHECK_VERSION(4, 21, 0)
-		new SearchAction(this, _("Man Pages"), "#", "xfce-open --launch TerminalEmulator man %s", false),
-		new SearchAction(this, _("Search the Web"), "?", "xfce-open --launch WebBrowser https://duckduckgo.com/?q=%u", false),
+		new SearchAction(this, _("Man Pages"), "#",
+				effective_search_action_command(current_xfce_dependency_regime(),
+						"#", "exo-open --launch TerminalEmulator man %s", false).c_str(),
+				false),
+		new SearchAction(this, _("Search the Web"), "?",
+				effective_search_action_command(current_xfce_dependency_regime(),
+						"?", "exo-open --launch WebBrowser https://duckduckgo.com/?q=%u", false).c_str(),
+				false),
 		new SearchAction(this, _("Search for Files"), "-", "catfish --path=~ --start %s", false),
-		new SearchAction(this, _("Wikipedia"), "!w", "xfce-open --launch WebBrowser https://en.wikipedia.org/wiki/%u", false),
-		new SearchAction(this, _("Run in Terminal"), "!", "xfce-open --launch TerminalEmulator %s", false),
-		new SearchAction(this, _("Open URI"), "^(file|http|https):\\/\\/(.*)$", "xfce-open \\0", true)
-#else
-		new SearchAction(this, _("Man Pages"), "#", "exo-open --launch TerminalEmulator man %s", false),
-		new SearchAction(this, _("Search the Web"), "?", "exo-open --launch WebBrowser https://duckduckgo.com/?q=%u", false),
-		new SearchAction(this, _("Search for Files"), "-", "catfish --path=~ --start %s", false),
-		new SearchAction(this, _("Wikipedia"), "!w", "exo-open --launch WebBrowser https://en.wikipedia.org/wiki/%u", false),
-		new SearchAction(this, _("Run in Terminal"), "!", "exo-open --launch TerminalEmulator %s", false),
-		new SearchAction(this, _("Open URI"), "^(file|http|https):\\/\\/(.*)$", "exo-open \\0", true)
-#endif
+		new SearchAction(this, _("Wikipedia"), "!w",
+				effective_search_action_command(current_xfce_dependency_regime(),
+						"!w", "exo-open --launch WebBrowser https://en.wikipedia.org/wiki/%u", false).c_str(),
+				false),
+		new SearchAction(this, _("Run in Terminal"), "!",
+				effective_search_action_command(current_xfce_dependency_regime(),
+						"!", "exo-open --launch TerminalEmulator %s", false).c_str(),
+				false),
+		new SearchAction(this, _("Open URI"), "^(file|http|https):\\/\\/(.*)$",
+				effective_search_action_command(current_xfce_dependency_regime(),
+						"^(file|http|https):\\/\\/(.*)$", "exo-open \\0", true).c_str(),
+				true)
 	}),
 
 	fuzzy_enabled(this, "/search/fuzzy-enabled", true),
@@ -446,7 +453,7 @@ void Settings::prevent_invalid()
 	// (the Profile edge when docked, the search-bar edge when full-screen) and
 	// persist any snapped value. The pure helper is the single authority shared
 	// with the renderer and the Preferences combos, so a stored or live-edited
-	// disallowed combination resolves the same way everywhere (FR-014/FR-017).
+	// disallowed combination resolves the same way everywhere (the documented behavior).
 	//
 	// NOTE: the snapped value is written back through the existing
 	// /profile-position and /commands-position keys (no new key) so the stored

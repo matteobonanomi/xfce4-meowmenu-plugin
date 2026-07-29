@@ -67,7 +67,7 @@ private:
 	void show_context_menu(PlacesItem* item, GdkEvent* event);
 	void rebuild_model();
 
-	// Home recursive-search dispatch (FR-035, FR-035a–f).
+	// Home recursive-search dispatch (the documented behavior, the documented behavior–f).
 	void start_home_search();
 	void cancel_home_search();
 	void clear_home_search_items();

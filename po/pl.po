@@ -23,7 +23,7 @@
 #
 # MeowMenu-specific strings extended via LLM-assisted translation, 2026.
 # Native speakers are warmly invited to review and improve this file via
-# Pull Request: https://github.com/matteob/xfce4-meowmenu-plugin
+# Pull Request: https://github.com/matteobonanomi/xfce4-meowmenu-plugin
 msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
@@ -681,7 +681,7 @@ msgstr "Promień _narożników:"
 msgid "F_ull-screen opacity:"
 msgstr "Przezroczystość _pełnoekranowa:"
 
-#. Stay visible when focus is lost (FR-013: lives only in General).
+#. Stay visible when focus is lost (the documented behavior: lives only in General).
 #: panel-plugin/ui/properties/general.cpp:817
 msgid "Stay _visible when focus is lost"
 msgstr "Utrzymywanie _widoczności po utracie fokusu"

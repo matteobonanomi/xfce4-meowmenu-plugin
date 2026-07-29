@@ -37,7 +37,7 @@ bool zone_active(Zone z, VisibilityMask mask, MenuState state)
 	if (!visible)
 		return false;
 
-	// NOTE: Sidebar is the only state-dependent inert zone (FR-046).
+	// NOTE: Sidebar is the only state-dependent inert zone (the documented behavior).
 	if (z == Zone::Sidebar && state == MenuState::Searching)
 		return false;
 
@@ -52,7 +52,7 @@ Zone next_zone(VisibilityMask mask,
 	const std::size_t N = CANONICAL_CYCLE.size();
 
 	// Count active zones first; if there are none the contract returns
-	// `current` unchanged (FR-030 guarantees Search and Results are
+	// `current` unchanged (the documented behavior guarantees Search and Results are
 	// active, so this branch is unreachable in practice).
 	std::size_t active_count = 0;
 	for (Zone z : CANONICAL_CYCLE)
@@ -69,7 +69,7 @@ Zone next_zone(VisibilityMask mask,
 	// `current` is itself inert (e.g. the user just typed and Sidebar
 	// went inert mid-cycle) the anchor remains its canonical position,
 	// so the next active zone after Sidebar in Forward direction is
-	// Profile (the mode toggle is no longer a cycle stop, FR-007).
+	// Profile (the mode toggle is no longer a cycle stop, the documented behavior).
 	std::size_t anchor = 0;
 	for (std::size_t k = 0; k < N; ++k)
 	{
@@ -251,7 +251,7 @@ KeyClass classify_key(const GdkEventKey* event)
 	// must NOT be routed into the search entry as printable text:
 	// they each have dedicated dispatch paths (zone cycling on Tab,
 	// activation on Return, the Esc ladder, and an explicit Backspace
-	// branch for FR-013). Excluding them here keeps the post-default
+	// branch for the documented behavior). Excluding them here keeps the post-default
 	// printable catch-all from accidentally inserting "\b", "\t",
 	// "\r", or "\x1b" into the query when focus is off the entry.
 	if (unichar < 0x20 || unichar == 0x7F)

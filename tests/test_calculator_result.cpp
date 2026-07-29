@@ -10,12 +10,24 @@ using namespace WhiskerMenu;
 namespace
 {
 
+GtkWidget* result_content(CalculatorResult& result)
+{
+	GtkWidget* clip = gtk_bin_get_child(GTK_BIN(result.get_focus_widget()));
+	GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(clip));
+	return gtk_bin_get_child(GTK_BIN(viewport));
+}
+
 GtkWidget* value_label(CalculatorResult& result)
 {
-	GtkWidget* content = gtk_bin_get_child(GTK_BIN(result.get_focus_widget()));
+	GtkWidget* content = result_content(result);
 	GList* children = gtk_container_get_children(GTK_CONTAINER(content));
-	GtkWidget* label = GTK_WIDGET(g_list_last(children)->data);
+	GtkWidget* allocation = GTK_WIDGET(g_list_last(children)->data);
 	g_list_free(children);
+	if (GTK_IS_LABEL(allocation))
+		return allocation;
+	GList* overlays = gtk_container_get_children(GTK_CONTAINER(allocation));
+	GtkWidget* label = GTK_WIDGET(g_list_last(overlays)->data);
+	g_list_free(overlays);
 	return label;
 }
 
@@ -31,10 +43,37 @@ double label_scale(GtkWidget* label)
 	return scale;
 }
 
+GtkWidget* engine_label(CalculatorResult& result)
+{
+	GtkWidget* content = result_content(result);
+	GList* children = gtk_container_get_children(GTK_CONTAINER(content));
+	GtkWidget* engine = GTK_WIDGET(children->next->data);
+	g_list_free(children);
+	return engine;
+}
+
 void flush_events()
 {
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, false);
+}
+
+void test_auto_preset_mapping()
+{
+	g_assert_cmpint(calculator_auto_font_size("minimal"), ==, 3);
+	g_assert_cmpint(calculator_auto_font_size("modern"), ==, 4);
+	g_assert_cmpint(calculator_auto_font_size("classic"), ==, 4);
+	g_assert_cmpint(calculator_auto_font_size("fullscreen"), ==, 5);
+	g_assert_cmpint(calculator_auto_font_size("saved-custom"), ==, 3);
+	g_assert_cmpint(calculator_auto_font_size(""), ==, 3);
+	g_assert_cmpint(calculator_auto_font_size(nullptr), ==, 3);
+}
+
+void test_grid_banner_stays_compact()
+{
+	g_assert_cmpint(calculator_result_height(37, false), ==, 37);
+	g_assert_cmpint(calculator_result_height(64, false), ==, 64);
+	g_assert_cmpint(calculator_result_height(192, true), ==, 192);
 }
 
 void test_states_and_activation()
@@ -92,16 +131,21 @@ void test_one_line_typography()
 		g_object_ref_sink(widget);
 		for (int size = -1; size <= 6; ++size)
 		{
+			result.set_presentation_metrics(37, 24, false, 5);
 			result.set_result("Qalculate", "qalculate", "accessories-calculator",
 					"12345678901234567890.1234567890 m/s", size);
 			GtkWidget* label = value_label(result);
 			g_assert_cmpint(gtk_label_get_ellipsize(GTK_LABEL(label)), ==,
 					PANGO_ELLIPSIZE_MIDDLE);
 			g_assert_cmpint(gtk_label_get_lines(GTK_LABEL(label)), ==, 1);
-			if (size < 0)
-				g_assert_null(gtk_label_get_attributes(GTK_LABEL(label)));
-			else
-				g_assert_nonnull(gtk_label_get_attributes(GTK_LABEL(label)));
+			g_assert_nonnull(gtk_label_get_attributes(GTK_LABEL(label)));
+			const double expected[] = {
+				PANGO_SCALE_XX_SMALL, PANGO_SCALE_X_SMALL, PANGO_SCALE_SMALL,
+				PANGO_SCALE_MEDIUM, PANGO_SCALE_LARGE, PANGO_SCALE_X_LARGE,
+				PANGO_SCALE_XX_LARGE
+			};
+			g_assert_cmpfloat_with_epsilon(label_scale(label),
+					expected[size < 0 ? 5 : size], 0.0001);
 		}
 	}
 	gtk_widget_destroy(widget);
@@ -139,16 +183,18 @@ void test_presentation_metrics()
 		result.set_result("bc", "accessories-calculator", "accessories-calculator",
 				"4", -1);
 		result.set_presentation_metrics(37, 24, false);
+		g_assert_false(gtk_widget_compute_expand(result.get_widget(),
+				GTK_ORIENTATION_VERTICAL));
 		int minimum = 0;
 		int natural = 0;
 		gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);
 		g_assert_cmpint(minimum, ==, 37);
 		g_assert_cmpint(natural, ==, 37);
 
-		result.set_presentation_metrics(64, 48, true);
+		result.set_presentation_metrics(192, 48, true);
 		gtk_widget_get_preferred_height(result.get_widget(), &minimum, &natural);
-		g_assert_cmpint(minimum, ==, 64);
-		g_assert_cmpint(natural, ==, 64);
+		g_assert_cmpint(minimum, ==, 192);
+		g_assert_cmpint(natural, ==, 192);
 	}
 	gtk_widget_destroy(widget);
 	g_object_unref(widget);
@@ -163,10 +209,11 @@ void test_auto_typography_waits_for_banner_allocation()
 	gtk_container_add(GTK_CONTAINER(window), container);
 	{
 		CalculatorResult result;
-		result.set_presentation_metrics(37, 24, false);
+		result.set_presentation_metrics(37, 24, false, 4);
 		result.set_result("bc", "accessories-calculator", "accessories-calculator",
 				"4", -1);
-		g_assert_null(gtk_label_get_attributes(GTK_LABEL(value_label(result))));
+		g_assert_cmpfloat_with_epsilon(label_scale(value_label(result)),
+				PANGO_SCALE_LARGE, 0.0001);
 
 		gtk_box_pack_start(GTK_BOX(container), result.get_widget(), false, false, 0);
 		gtk_box_pack_start(GTK_BOX(container), gtk_label_new(nullptr), true, true, 0);
@@ -174,19 +221,18 @@ void test_auto_typography_waits_for_banner_allocation()
 		flush_events();
 
 		GtkWidget* value = value_label(result);
-		GtkWidget* content = gtk_bin_get_child(GTK_BIN(result.get_focus_widget()));
-		GList* children = gtk_container_get_children(GTK_CONTAINER(content));
-		GtkWidget* engine = GTK_WIDGET(children->next->data);
-		g_list_free(children);
+		GtkWidget* engine = engine_label(result);
 		g_assert_cmpint(gtk_widget_get_allocated_width(value), >, 1);
 		g_assert_nonnull(gtk_label_get_attributes(GTK_LABEL(value)));
-		g_assert_cmpfloat(label_scale(value), >=, 1.0);
-		g_assert_cmpfloat(label_scale(engine), <, label_scale(value));
+		g_assert_cmpfloat_with_epsilon(label_scale(value), PANGO_SCALE_LARGE, 0.0001);
+		g_assert_cmpfloat_with_epsilon(label_scale(engine),
+				PANGO_SCALE_LARGE * 0.85, 0.0001);
 		int banner_minimum = 0;
 		int banner_natural = 0;
 		gtk_widget_get_preferred_height(result.get_widget(), &banner_minimum, &banner_natural);
 		g_assert_cmpint(banner_minimum, ==, 37);
 		g_assert_cmpint(banner_natural, ==, 37);
+		g_assert_cmpint(gtk_widget_get_allocated_height(result.get_widget()), ==, 37);
 	}
 
 	gtk_widget_destroy(window);
@@ -194,10 +240,48 @@ void test_auto_typography_waits_for_banner_allocation()
 	flush_events();
 }
 
+void test_missing_guidance_has_no_auto_emphasis()
+{
+	GtkWidget* widget = nullptr;
+	{
+		CalculatorResult result;
+		widget = result.get_widget();
+		g_object_ref_sink(widget);
+		result.set_presentation_metrics(37, 24, false, 5);
+		result.set_missing_bc();
+		g_assert_null(gtk_label_get_attributes(GTK_LABEL(value_label(result))));
+		g_assert_null(gtk_label_get_attributes(GTK_LABEL(engine_label(result))));
+	}
+	gtk_widget_destroy(widget);
+	g_object_unref(widget);
+}
+
+void test_auto_restyles_existing_result()
+{
+	GtkWidget* widget = nullptr;
+	{
+		CalculatorResult result;
+		widget = result.get_widget();
+		g_object_ref_sink(widget);
+		result.set_presentation_metrics(37, 24, false, 3);
+		result.set_result("bc", "accessories-calculator", "accessories-calculator",
+				"4", -1);
+		g_assert_cmpfloat_with_epsilon(label_scale(value_label(result)),
+				PANGO_SCALE_MEDIUM, 0.0001);
+		result.set_presentation_metrics(37, 24, false, 5);
+		g_assert_cmpfloat_with_epsilon(label_scale(value_label(result)),
+				PANGO_SCALE_X_LARGE, 0.0001);
+	}
+	gtk_widget_destroy(widget);
+	g_object_unref(widget);
+}
+
 }
 
 int main(int argc, char** argv)
 {
+	test_auto_preset_mapping();
+	test_grid_banner_stays_compact();
 	if (!gtk_init_check(&argc, &argv))
 	{
 		g_test_message("SKIP: GTK display unavailable");
@@ -210,6 +294,8 @@ int main(int argc, char** argv)
 	g_test_add_func("/calculator/result/presentation-metrics", test_presentation_metrics);
 	g_test_add_func("/calculator/result/auto-typography-allocation",
 			test_auto_typography_waits_for_banner_allocation);
+	g_test_add_func("/calculator/result/missing-guidance", test_missing_guidance_has_no_auto_emphasis);
+	g_test_add_func("/calculator/result/auto-restyle", test_auto_restyles_existing_result);
 	const int status = g_test_run();
 	// Release Pango's process-global Fontconfig map after all GTK test objects.
 	PangoFontMap* font_map = pango_cairo_font_map_get_default();

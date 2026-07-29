@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# dev-uninstall.sh — remove a MeowMenu dev install and wipe every trace of
+# uninstall.sh — remove a MeowMenu dev install and wipe every trace of
 #                    user configuration, leaving the system as if MeowMenu had
 #                    never been installed.
 #
 # BACKGROUND
 #   Use this before creating a release branch or PR to verify you are starting
 #   from a clean slate — no installed files, no leftover Xfconf state, no user
-#   presets, no /initialized marker.  It is the counterpart of dev-install.sh;
+#   presets, no /initialized marker.  It is the counterpart of install.sh;
 #   both are dev/debug helpers and are not part of the public install
 #   documentation.
 #
 #   The script reads the install prefix from the build directory so it removes
-#   exactly what dev-install.sh put there.  If the build directory is missing
+#   exactly what install.sh put there.  If the build directory is missing
 #   it falls back to /usr/local.
 #
 #   xfconfd is NOT touched: killing it would race with the panel and corrupt
@@ -19,7 +19,7 @@
 #   itself keeps running with all other plugins intact.
 #
 # USAGE
-#   ./dev/dev-uninstall.sh [BUILD_DIR]
+#   ./dev/uninstall.sh [BUILD_DIR]
 #
 #   BUILD_DIR  Meson build directory (default: ./build at the repo root).
 
@@ -91,7 +91,7 @@ step "Remove package data"
 do_rmr "${DATADIR}/xfce4-meowmenu-plugin"
 
 step "Remove appstream metainfo"
-do_rm "${DATADIR}/metainfo/xfce4-meowmenu-plugin.appdata.xml"
+do_rm "${DATADIR}/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml"
 
 step "Remove icons"
 for size in 16 22 24 32 48 64 128 256; do

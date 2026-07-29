@@ -1,4 +1,5 @@
 plugin_sources = [
+  'config/xfce-helpers.cpp',
   'launcher/applications-page.cpp',
   'launcher/application-load-generation.cpp',
   'presets/preset.cpp',
@@ -14,7 +15,9 @@ plugin_sources = [
   'places/history-section.cpp',
   'places/home-search-worker.cpp',
   'places/home-section.cpp',
+  'places/home-shortcuts.cpp',
   'ui/grid-cell-metrics.cpp',
+  'ui/grid-presentation.cpp',
   'ui/icon-renderer.cpp',
   'ui/icon-size.cpp',
   'ui/image-menu-item.h',
@@ -29,6 +32,8 @@ plugin_sources = [
   'core/category-lifetime.cpp',
   'core/desktop-drag.cpp',
   'core/drag-to-favourites.cpp',
+  'core/interactive-resize.cpp',
+  'core/menu-mode-state.cpp',
   'core/opacity-model.cpp',
   'core/plugin.cpp',
   'core/sidebar-layout.cpp',
@@ -75,13 +80,19 @@ plugin_sources = [
   meowmenu_version_h,
 ]
 
+if exo.found()
+  xfce_helper_cpp_args = ['-DMEOWMENU_XFCE_SUCCESSOR=0']
+else
+  xfce_helper_cpp_args = ['-DMEOWMENU_XFCE_SUCCESSOR=1']
+endif
+
 plugin_install_subdir = 'xfce4' / 'panel' / 'plugins'
 
 plugin_lib = shared_module(
   'meowmenu',
   plugin_sources,
   gnu_symbol_visibility: 'hidden',
-  cpp_args: [
+  cpp_args: xfce_helper_cpp_args + [
     '-DG_LOG_DOMAIN="@0@"'.format('xfce4-meowmenu-plugin'),
     '-DSETTINGS_MENUFILE="@0@"'.format(get_option('sysconfdir') / 'xdg' / 'menus' / 'xfce-settings-manager.menu'),
   ],

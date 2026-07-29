@@ -54,14 +54,14 @@ void HistorySection::clear_items()
  *
  * Reads the system GtkRecentManager store, filters out items marked private,
  * sorts by last-visited time (newest first), caps at @max, and constructs a
- * PlacesItem per file URI. Folders are not included (FR-017).
+ * PlacesItem per file URI. Folders are not included (the documented behavior).
  */
 std::vector<PlacesItem*> HistorySection::get_items(int max)
 {
 	// Rebuild fresh PlacesItem objects on every call (clear_items() + new
 	// below), so each item's exists() — and therefore its muted markup and
 	// "missing" tooltip — is re-evaluated against the live filesystem at every
-	// list rebuild (FR-007). No filesystem watch is involved.
+	// list rebuild (the documented behavior). No filesystem watch is involved.
 	clear_items();
 	if (!m_manager)
 	{

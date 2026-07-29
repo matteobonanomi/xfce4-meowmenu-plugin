@@ -20,19 +20,82 @@
 #include "ui/slot.h"
 #include "window.h"
 
+#ifdef GDK_WINDOWING_X11
+#include <gdk/gdkx.h>
+#endif
+
 using namespace WhiskerMenu;
+
+namespace
+{
+
+bool uses_x11_root_coordinates(GdkDisplay* display)
+{
+#ifdef GDK_WINDOWING_X11
+	return GDK_IS_X11_DISPLAY(display);
+#else
+	return false;
+#endif
+}
+
+/* event_pointer:
+ * @event: press, motion, or release event from one resize handle.
+ * @space: stable coordinate space selected when the press began.
+ *
+ * Uses coordinates carried by the event so queued events remain ordered.
+ * X11 samples use the root window; fallback samples use the unchanged handle
+ * frame and never poll the current device position.
+ *
+ * Returns: a logical pointer sample with the event timestamp.
+ */
+InteractiveResize::PointerSample event_pointer(
+		GdkEvent* event,
+		InteractiveResize::CoordinateSpace space)
+{
+	double x = 0;
+	double y = 0;
+	if (space == InteractiveResize::CoordinateSpace::Screen)
+		gdk_event_get_root_coords(event, &x, &y);
+	else
+		gdk_event_get_coords(event, &x, &y);
+	return {
+		static_cast<std::int64_t>(x),
+		static_cast<std::int64_t>(y),
+		gdk_event_get_time(event),
+		space
+	};
+}
+
+/* resize_direction:
+ * @edge: one of the eight visible handle positions.
+ *
+ * Returns: the equivalent reducer direction without relying on enum ordinals.
+ */
+InteractiveResize::Direction resize_direction(Resizer::Edge edge)
+{
+	switch (edge)
+	{
+	case Resizer::TopLeft:     return InteractiveResize::Direction::TopLeft;
+	case Resizer::Top:         return InteractiveResize::Direction::Top;
+	case Resizer::TopRight:    return InteractiveResize::Direction::TopRight;
+	case Resizer::Left:        return InteractiveResize::Direction::Left;
+	case Resizer::Right:       return InteractiveResize::Direction::Right;
+	case Resizer::BottomLeft:  return InteractiveResize::Direction::BottomLeft;
+	case Resizer::Bottom:      return InteractiveResize::Direction::Bottom;
+	case Resizer::BottomRight: return InteractiveResize::Direction::BottomRight;
+	}
+	return InteractiveResize::Direction::BottomRight;
+}
+
+} // namespace
 
 //-----------------------------------------------------------------------------
 
 Resizer::Resizer(Edge edge, Window* window) :
 	m_window(window),
 	m_cursor(nullptr),
-	m_x(0),
-	m_y(0),
-	m_delta_x(0),
-	m_delta_y(0),
-	m_delta_width(0),
-	m_delta_height(0),
+	m_direction(resize_direction(edge)),
+	m_coordinate_space(InteractiveResize::CoordinateSpace::Handle),
 	m_pressed(false)
 {
 	m_drawing = gtk_drawing_area_new();
@@ -51,14 +114,26 @@ Resizer::Resizer(Edge edge, Window* window) :
 			{
 				return GDK_EVENT_PROPAGATE;
 			}
-			m_pressed = true;
+			m_coordinate_space = uses_x11_root_coordinates(
+					gtk_widget_get_display(m_drawing))
+					? InteractiveResize::CoordinateSpace::Screen
+					: InteractiveResize::CoordinateSpace::Handle;
+			const InteractiveResize::PointerSample pointer =
+					event_pointer(event, m_coordinate_space);
+			// HACK: Wayland has no dependable desktop-global coordinate space.
+			// Keep the handle frame unchanged until release, then apply the
+			// cumulative local displacement once. This also covers layer shell.
+			const InteractiveResize::BackendPolicy policy =
+					m_coordinate_space
+							== InteractiveResize::CoordinateSpace::Screen
+					? InteractiveResize::BackendPolicy::X11Live
+					: InteractiveResize::BackendPolicy::WaylandReleaseToApply;
+			m_pressed = m_window->interactive_resize_begin(
+					m_direction,
+					policy,
+					pointer);
 
-			m_x = event_button->x;
-			m_y = event_button->y;
-
-			m_window->resize_start();
-
-			return GDK_EVENT_STOP;
+			return m_pressed ? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
 		});
 
 	connect(m_drawing, "button-release-event",
@@ -69,9 +144,10 @@ Resizer::Resizer(Edge edge, Window* window) :
 			{
 				return GDK_EVENT_PROPAGATE;
 			}
+			const InteractiveResize::PointerSample pointer =
+					event_pointer(event, m_coordinate_space);
+			m_window->interactive_resize_complete(pointer);
 			m_pressed = false;
-
-			m_window->resize_end();
 
 			return GDK_EVENT_STOP;
 		});
@@ -85,16 +161,29 @@ Resizer::Resizer(Edge edge, Window* window) :
 			}
 
 			GdkEventMotion* event_motion = reinterpret_cast<GdkEventMotion*>(event);
-			const int delta_x = event_motion->x - m_x;
-			const int delta_y = event_motion->y - m_y;
-
-			m_window->resize(delta_x * m_delta_x, delta_y * m_delta_y, delta_x * m_delta_width, delta_y * m_delta_height);
-
-			// Update anchor so next event gives an incremental delta, not cumulative.
-			m_x = event_motion->x;
-			m_y = event_motion->y;
+			if (!(event_motion->state & GDK_BUTTON1_MASK))
+			{
+				m_window->interactive_resize_cancel();
+				m_pressed = false;
+				return GDK_EVENT_STOP;
+			}
+			m_window->interactive_resize_step(
+					event_pointer(event, m_coordinate_space));
 
 			return GDK_EVENT_STOP;
+		});
+
+	connect(m_drawing, "grab-broken-event",
+		[this](GtkWidget*, GdkEvent*) -> gboolean
+		{
+			if (m_pressed)
+			{
+				// The implicit press grab ended without a valid release. Roll
+				// back through the owner before accepting any later event.
+				m_window->interactive_resize_cancel();
+			}
+			m_pressed = false;
+			return GDK_EVENT_PROPAGATE;
 		});
 
 	connect(m_drawing, "enter-notify-event",
@@ -115,53 +204,35 @@ Resizer::Resizer(Edge edge, Window* window) :
 	switch (edge)
 	{
 	case BottomLeft:
-		m_delta_x = 1;
-		m_delta_width = -1;
-		m_delta_height = 1;
 		type = "nesw-resize";
 		break;
 
 	case Bottom:
-		m_delta_height = 1;
 		type = "ns-resize";
 		break;
 
 	case BottomRight:
-		m_delta_width = 1;
-		m_delta_height = 1;
 		type = "nwse-resize";
 		break;
 
 	case Left:
-		m_delta_x = 1;
-		m_delta_width = -1;
 		type = "ew-resize";
 		break;
 
 	case Right:
-		m_delta_width = 1;
 		type = "ew-resize";
 		break;
 
 	case TopLeft:
-		m_delta_x = 1;
-		m_delta_width = -1;
-		m_delta_y = 1;
-		m_delta_height = -1;
 		type = "nwse-resize";
 		break;
 
 	case Top:
-		m_delta_y = 1;
-		m_delta_height = -1;
 		type = "ns-resize";
 		break;
 
 	case TopRight:
 	default:
-		m_delta_y = 1;
-		m_delta_height = -1;
-		m_delta_width = 1;
 		type = "nesw-resize";
 		break;
 	}

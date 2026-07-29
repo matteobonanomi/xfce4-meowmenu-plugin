@@ -14,6 +14,7 @@
  */
 
 #include "../panel-plugin/settings-bindings.h"
+#include "config/xfce-helpers.h"
 
 #include <cassert>
 #include <string>
@@ -117,6 +118,45 @@ static void test_special_characters_preserved()
 	assert(action.command == "xdg-open %s");
 }
 
+static void test_legacy_tuple_translation_preserves_storage()
+{
+	std::size_t count = 0;
+	const HistoricalSearchAction* actions = historical_search_actions(&count);
+	assert(count == 5);
+	for (std::size_t i = 0; i < count; ++i)
+	{
+		ShadowSearchAction stored;
+		stored.name = "Renamed and reordered";
+		stored.pattern = actions[i].pattern;
+		stored.command = actions[i].legacy_command;
+		stored.is_regex = actions[i].is_regex;
+
+		const std::string before = stored.command;
+		const std::string effective = effective_search_action_command(
+				XfceDependencyRegime::Successor,
+				stored.pattern,
+				stored.command,
+				stored.is_regex);
+		assert(effective == actions[i].successor_command);
+		assert(stored.command == before);
+	}
+}
+
+static void test_edited_tuple_is_not_translated()
+{
+	const std::string command = "exo-open --launch TerminalEmulator man %s ";
+	assert(effective_search_action_command(
+			XfceDependencyRegime::Successor,
+			"#",
+			command,
+			false) == command);
+	assert(effective_search_action_command(
+			XfceDependencyRegime::Successor,
+			"#",
+			"exo-open --launch TerminalEmulator man %s",
+			true) == "exo-open --launch TerminalEmulator man %s");
+}
+
 static void test_search_action_property_parser_accepts_valid_fields()
 {
 	int index = -1;
@@ -164,6 +204,8 @@ int main()
 	test_regex_flag_survives_roundtrip();
 	test_empty_strings_accepted();
 	test_special_characters_preserved();
+	test_legacy_tuple_translation_preserves_storage();
+	test_edited_tuple_is_not_translated();
 	test_search_action_property_parser_accepts_valid_fields();
 	test_search_action_property_parser_ignores_invalid_inputs();
 	return 0;

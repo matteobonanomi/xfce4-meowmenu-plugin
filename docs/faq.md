@@ -1,6 +1,6 @@
 ---
 title: FAQ
-nav_order: 5
+nav_order: 10
 has_children: false
 ---
 
@@ -10,13 +10,14 @@ has_children: false
 
 Yes, MeowMenu originated as a fork of Whisker Menu by Graeme Gott. No, it
 will not track upstream — MeowMenu is now a standalone project with its own
-settings schema (`meowmenu.xml`), feature roadmap, and release cycle. All
-54 upstream translations are preserved.
+settings schema (`meowmenu.xml`), roadmap, and release cycle. The current
+translation inventory contains 56 catalogs.
 
 ### Can I install MeowMenu alongside Whisker Menu?
 
-Yes. They are separate XFCE panel plugins and can coexist. You can have both
-buttons on the panel simultaneously.
+They use separate package names, panel identifiers, and configuration. This is
+a factual packaging property, not a separately certified compatibility
+contract.
 
 ### The plugin doesn't appear in 'Add New Items' after install.
 
@@ -37,5 +38,5 @@ panel with `xfce4-panel -r` after placing the file.
 ### Can I contribute a translation?
 
 Yes — edit the relevant `po/<lang>.po` file, run `msgfmt --check`, and open a
-pull request against the `development` branch. Only Italian has been validated
-by a native speaker, so reviews for other languages are especially welcome.
+pull request. Italian has maintainer review; reviews for every other language
+are especially welcome. See [translation status](translations).

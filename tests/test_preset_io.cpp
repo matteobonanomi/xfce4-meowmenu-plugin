@@ -2,7 +2,7 @@
  * Unit tests for the preset-io import/export *logic* — no GLib, no Xfconf.
  *
  * The actual I/O (GKeyFile, xfconf writes) is covered by manual integration
- * testing (quickstart.md §T5). Here we test the pure validation rules that
+ * testing (quickstart.md §the implementation step). Here we test the pure validation rules that
  * are extracted as shadow helpers below:
  *
  *   - round-trip: a valid INI-like map → validate → all entries survive
@@ -48,6 +48,7 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "transparent-grid",      PropKind::Bool, 0,   0,    {} },
 	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },
 	{ "launcher-icon-size",    PropKind::Int,  -1,  6,    {} },
+	{ "category-icon-size",    PropKind::Int,  -1,  6,    {} },
 	{ "view-mode-default",     PropKind::Str,  0,   0,    {"icons","list","tree"} },
 	{ "hover-switch-category", PropKind::Bool, 0,   0,    {} },
 	{ "stay-on-focus-out",     PropKind::Bool, 0,   0,    {} },
@@ -200,6 +201,7 @@ static RawSettings make_valid_modern_raw()
 	r.put("commands-position",  "top-right");
 	r.put("layout-mode",        "docked");
 	r.put("launcher-icon-size", "3");
+	r.put("category-icon-size", "2");
 	r.put("grid-density",       "medium");
 	r.put("hover-switch-category", "true");
 	r.put("transparent-grid",   "true");
@@ -234,7 +236,7 @@ static void test_calculator_domains_and_bounds()
 }
 
 // ---------------------------------------------------------------------------
-// T102: Tests
+// the implementation step: Tests
 // ---------------------------------------------------------------------------
 
 static void test_round_trip_all_valid()
@@ -374,8 +376,21 @@ static void test_int_boundary_values()
 	}
 }
 
+static void test_category_icon_size_round_trip()
+{
+	for (int size : { -1, 0, 2, 6 })
+	{
+		RawSettings raw;
+		raw.put("category-icon-size", std::to_string(size));
+		std::vector<std::string> skipped;
+		ShadowValueMap imported = validate_settings(raw, skipped);
+		assert(skipped.empty());
+		assert(imported.at("category-icon-size").i == size);
+	}
+}
+
 // ---------------------------------------------------------------------------
-// T043: Shadow enumeration tests — simulate enumerate_preset_files logic.
+// the implementation step: Shadow enumeration tests — simulate enumerate_preset_files logic.
 // These verify the merge/override rules without touching the filesystem.
 // ---------------------------------------------------------------------------
 
@@ -387,7 +402,7 @@ struct ShadowPreset
 };
 
 // Shadow version of enumerate_preset_files: system presets in first map,
-// user presets in second; user wins on id collision (FR-061).
+// user presets in second; user wins on id collision (the documented behavior).
 static std::vector<ShadowPreset> shadow_enumerate(
 	const std::vector<ShadowPreset>& sys,
 	const std::vector<ShadowPreset>& user)
@@ -500,8 +515,8 @@ static void test_new_schema_keys_accepted()
 }
 
 // ---------------------------------------------------------------------------
-// T019/T020: schema-lenient import gate (FR-018) and name-conflict resolution
-// (FR-011). Mirrors the accept/reject decision of import_user_preset() before
+// the implementation step: schema-lenient import gate (the documented behavior) and name-conflict resolution
+// (the documented behavior). Mirrors the accept/reject decision of import_user_preset() before
 // the per-key [Settings] validation already covered above.
 //
 // Reject ONLY when: unparseable, a required section ([Preset]/[Settings]) is
@@ -602,9 +617,9 @@ static void test_conflict_user_offers_overwrite()
 	assert(classify_conflict("Brand New", users) == ConflictKind::None);
 }
 
-// T030: export→import round-trip equality. A saved preset's validated value set,
+// the implementation step: export→import round-trip equality. A saved preset's validated value set,
 // serialised on export and re-validated on import, must be byte-for-byte the same
-// governed-key map — locking SC-007 automatically (contract Export/Import).
+// governed-key map — locking the documented behavior automatically (contract Export/Import).
 static void test_export_import_round_trip_equality()
 {
 	// Start from a fully-valid saved-custom value set.
@@ -653,7 +668,7 @@ static void test_export_import_round_trip_equality()
 	}
 }
 
-// FR-014: a preset still carrying only the three retired per-region opacity keys
+// the documented behavior: a preset still carrying only the three retired per-region opacity keys
 // imports without error — each is now unknown and skipped, leaving opacity
 // unpinned (it resolves to the current/default single value).
 static void test_import_old_opacity_keys_skipped_no_error()
@@ -672,7 +687,7 @@ static void test_import_old_opacity_keys_skipped_no_error()
 	assert(result.find("menu-opacity") == result.end());
 }
 
-// FR-014 precedence: when a file carries both the retired keys and menu-opacity,
+// the documented behavior precedence: when a file carries both the retired keys and menu-opacity,
 // the retired keys are ignored and the single menu-opacity value is what applies.
 static void test_import_new_opacity_wins_over_old()
 {
@@ -703,7 +718,8 @@ int main()
 	test_builtin_name_conflict_rejected();
 	test_empty_settings_section();
 	test_int_boundary_values();
-	// T043: enumeration logic
+	test_category_icon_size_round_trip();
+	// the implementation step: enumeration logic
 	test_enumerate_system_only();
 	test_enumerate_user_wins_on_duplicate_id();
 	test_enumerate_malformed_file_silently_skipped();
@@ -711,7 +727,7 @@ int main()
 	test_enumerate_unknown_key_dropped();
 	test_new_schema_keys_accepted();
 	// 029-custom-presets: schema-lenient import gate, conflict resolution,
-	// export→import round-trip equality (FR-011/FR-018, SC-007)
+	// export→import round-trip equality (the documented behavior, the documented behavior)
 	test_import_accepts_missing_schema_version();
 	test_import_accepts_newer_schema_version();
 	test_import_rejects_unparseable();

@@ -143,7 +143,7 @@ void current_is_inert_zone()
 
 void ltr_and_rtl_equivalence()
 {
-	// The cycle is independent of widget default direction (FR-120);
+	// The cycle is independent of widget default direction (the documented behavior);
 	// the function takes no GTK state. Pin the property explicitly by
 	// running the same call twice with identical inputs and asserting
 	// the same output.
@@ -155,7 +155,7 @@ void ltr_and_rtl_equivalence()
 
 void three_tabs_visit_every_visible()
 {
-	// SC-006: starting from Search in an all-visible Browsing menu, three
+	// the documented behavior: starting from Search in an all-visible Browsing menu, three
 	// Forward steps must visit the other three zones: Results, Sidebar,
 	// Profile (the four-zone cycle has no Mode stop).
 	VisibilityMask mask;
@@ -220,10 +220,10 @@ void profile_unfocusable_skipped()
 
 void single_available_zone_noop()
 {
-	// FR-011 / C3: when exactly one zone can receive focus, Ctrl+Tab is a
+	// the documented behavior / C3: when exactly one zone can receive focus, Ctrl+Tab is a
 	// harmless no-op — next_zone returns `current`. Fabricate a single-zone
 	// mask (only Search active) to exercise the no-op path directly. In the
-	// live menu Search and Results are never both hidden (FR-030); this is the
+	// live menu Search and Results are never both hidden (the documented behavior); this is the
 	// pure-layer guarantee the runtime grab-retry loop relies on.
 	VisibilityMask mask;
 	mask.results = false;
@@ -237,7 +237,7 @@ void single_available_zone_noop()
 
 void tab_action_rule()
 {
-	// FR-006: Tab toggles the mode when Places is available and is inert
+	// the documented behavior: Tab toggles the mode when Places is available and is inert
 	// otherwise — it never falls back to area cycling.
 	CHECK(tab_action(true)  == TabAction::ToggleMode);
 	CHECK(tab_action(false) == TabAction::Inert);
@@ -271,7 +271,7 @@ void sidebar_focus_retention_zone_invariant()
 	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Forward),
 	    Zone::Profile);
 
-	// SC-002 single-navigable-category edge. At the widget level an along-axis
+	// the documented behavior single-navigable-category edge. At the widget level an along-axis
 	// move with one focusable sibling is a no-op that keeps focus on that
 	// category (verified manually per quickstart). The pure-layer analogue is
 	// the single-available-zone no-op: with only one focusable zone, resolution

@@ -36,7 +36,7 @@ using namespace WhiskerMenu;
  * Builds the Places panel (milestone 005). Eight controls bound directly to
  * the /places-prefixed Xfconf-backed Settings members. Sensitivity is gated by
  * /places/enabled at the panel level and by /places/favourites-enabled for
- * the sync dropdown (FR-037, FR-038).
+ * the sync dropdown (the documented behavior, the documented behavior).
  *
  * Returns: a scrolled container ready to be packed into the dialog's stack.
  */
@@ -47,7 +47,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 
 	std::vector<GtkWidget*> places_dependents;
 
-	// Places mode section (FR-027) — Enable Places switch C1 / Show icons C2.
+	// Places mode section (the documented behavior) — Enable Places switch C1 / Show icons C2.
 	GtkWidget* enable_grid = make_two_column_section();
 	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), enable_grid), false, false, 0);
 
@@ -59,9 +59,9 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_label), enable_switch);
 
 	// "Show icons" — renders the Apps/Places switch as two themed icon buttons
-	// instead of text (FR-001). Bound to /places/switch-show-icons with the
+	// instead of text (the documented behavior). Bound to /places/switch-show-icons with the
 	// binding's reset-to-default; greyed (forced ON, value unchanged) when the
-	// sidebar is on Top/Bottom or disabled (FR-015/018).
+	// sidebar is on Top/Bottom or disabled (the documented behavior).
 	GtkWidget* show_icons_switch = make_form_switch();
 	GtkWidget* show_icons_label = gtk_label_new_with_mnemonic(_("Show _icons"));
 	gtk_switch_set_active(GTK_SWITCH(show_icons_switch), m_settings->places_switch_show_icons);
@@ -69,7 +69,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(show_icons_label), show_icons_switch);
 	m_places_switch_show_icons = show_icons_switch;
 
-	// Sections section (FR-028/029) — history switch C1 / favourites switch C2;
+	// Sections section (the documented behavior) — history switch C1 / favourites switch C2;
 	// favourite-sync combo C1 / maximum-items spin C2.
 	GtkWidget* sections_grid = make_two_column_section();
 	GtkWidget* sections_frame = make_aligned_frame(_("Sections"), sections_grid);
@@ -103,7 +103,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	add_form_row(sections_grid, COLUMN_C2, 1, max_label, max_spin, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), max_spin);
 
-	// Behaviour section (FR-030): remember-last-mode and switch shape share one
+	// Behaviour section (the documented behavior): remember-last-mode and switch shape share one
 	// row so the mode memory and its visual presentation are configured together.
 	GtkWidget* behaviour_grid = make_two_column_section();
 	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), behaviour_grid);
@@ -127,7 +127,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(shape_label), shape_combo);
 	m_places_switch_button_shape = shape_combo;
 
-	// Sensitivity helpers (FR-037, FR-038).
+	// Sensitivity helpers (the documented behavior, the documented behavior).
 	auto refresh_sensitivity = [=]()
 	{
 		const bool enabled = gtk_switch_get_active(GTK_SWITCH(enable_switch));
@@ -138,7 +138,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 		gtk_widget_set_sensitive(sync_label, fav_enabled);
 
 		// "Show icons" is forced ON (greyed, value unchanged) when the sidebar
-		// is on Top/Bottom or disabled (FR-015/018); it is also moot when
+		// is on Top/Bottom or disabled (the documented behavior); it is also moot when
 		// Places is off. The stored value is never rewritten here.
 		const gchar* sp = static_cast<const gchar*>(m_settings->sidebar_position);
 		const bool strip = sp && (g_strcmp0(sp, "top") == 0 || g_strcmp0(sp, "bottom") == 0);
@@ -149,7 +149,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	refresh_sensitivity();
 
 	// Expose this tab's sensitivity recompute so sync_preset_widgets() can
-	// re-evaluate the Places greying after a preset switch (FR-002). This also
+	// re-evaluate the Places greying after a preset switch (the documented behavior). This also
 	// re-runs the "Show icons" forced-ON rule when a preset changes the sidebar
 	// position from another tab.
 	m_places_refresh_sensitivity = refresh_sensitivity;
@@ -171,7 +171,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 			if (m_programmatic_update)
 				return FALSE;
 			// Stored intent only; the switch re-renders on the next menu open
-			// when update_layout() reads the new value (FR-029, render-time).
+			// when update_layout() reads the new value (the documented behavior, render-time).
 			m_settings->places_switch_show_icons = state;
 			m_plugin->refresh_layout();
 			return FALSE;

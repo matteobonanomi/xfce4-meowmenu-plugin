@@ -50,7 +50,7 @@ int main()
 	expect_intent("/extras/calculator-max-decimal-places", ReloadIntent::Content);
 
 	expect_intent("/search/fuzzy-enabled", ReloadIntent::None);
-	expect_intent("/current-preset-id", ReloadIntent::None);
+	expect_intent("/current-preset-id", ReloadIntent::Layout);
 	expect_intent(nullptr, ReloadIntent::None);
 
 	return 0;

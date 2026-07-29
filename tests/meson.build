@@ -8,6 +8,122 @@ test_smoke = executable(
 
 test('smoke', test_smoke)
 
+test_menu_mode_state = executable(
+  'test_menu_mode_state',
+  [
+    'test_menu_mode_state.cpp',
+    '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+)
+
+test('menu_mode_state', test_menu_mode_state)
+
+test_window_mode_integration = executable(
+  'test_window_mode_integration',
+  [
+    'test_window_mode_integration.cpp',
+    '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [gtk],
+)
+
+test('window_mode_integration', test_window_mode_integration)
+
+test_grid_presentation = executable(
+  'test_grid_presentation',
+  [
+    'test_grid_presentation.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'grid-presentation.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+)
+
+test('grid_presentation', test_grid_presentation)
+
+test_launcher_icon_view = executable(
+  'test_launcher_icon_view',
+  [
+    'test_launcher_icon_view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'launcher-icon-view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  dependencies: [glib, gio, gtk, libxfce4util, xfconf],
+)
+
+test('launcher_icon_view', test_launcher_icon_view, timeout: 30)
+
+test_places_home_contract = executable(
+  'test_places_home_contract',
+  [
+    'test_places_home_contract.cpp',
+    '..' / 'panel-plugin' / 'places' / 'home-shortcuts.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+
+test('places_home_contract', test_places_home_contract)
+
+test(
+  'release_version',
+  python3,
+  args: [meson.current_source_dir() / 'test_release_version.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'release_contract',
+  python3,
+  args: [meson.current_source_dir() / 'test_release_contract.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'translation_status',
+  python3,
+  args: [meson.current_source_dir() / 'test_translation_status.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'repository_presentation',
+  python3,
+  args: [meson.current_source_dir() / 'test_repository_presentation.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'documentation_links',
+  python3,
+  args: [meson.current_source_dir() / 'test_documentation_links.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'dependency_contract',
+  python3,
+  args: [meson.current_source_dir() / 'test_dependency_contract.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test_xfce_helpers = executable(
+  'test_xfce_helpers',
+  [
+    'test_xfce_helpers.cpp',
+    '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
+  ],
+  cpp_args: xfce_helper_cpp_args,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+test('xfce_helpers', test_xfce_helpers)
+
 # GLib refuses to run g_test assertions when Meson's release build enables
 # G_DISABLE_ASSERT. Keep Calculator tests assert-enabled in every build type.
 calculator_test_cpp_args = ['-UG_DISABLE_ASSERT']
@@ -95,6 +211,9 @@ test_schema_migration_sources = ['test_schema_migration.cpp']
 test_schema_migration = executable(
   'test_schema_migration',
   test_schema_migration_sources,
+  cpp_args: [
+    '-DMEOWMENU_080_XFCONF_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-0.8.0.xml' + '"',
+  ],
   dependencies: [],
 )
 
@@ -150,7 +269,7 @@ test_preset_xfconf_sources = [
 test_preset_xfconf = executable(
   'test_preset_xfconf',
   test_preset_xfconf_sources,
-  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  cpp_args: xfce_helper_cpp_args + ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gio, xfconf, libxfce4ui],
@@ -159,7 +278,7 @@ test_preset_xfconf = executable(
 test('preset_xfconf', test_preset_xfconf, timeout: 60)
 
 # test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
-# coverage gate (T013). preset-builtins.cpp is Settings-free, so it links
+# coverage gate (the implementation step). preset-builtins.cpp is Settings-free, so it links
 # directly to expose governed_keys()/synced_keys() without a GTK display.
 test_properties_tabs_sources = [
   'test_properties_tabs.cpp',
@@ -190,6 +309,7 @@ test_search_action_edit_sources = ['test_search_action_edit.cpp']
 test_search_action_edit = executable(
   'test_search_action_edit',
   test_search_action_edit_sources + [
+    '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
     '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
     '..' / 'panel-plugin' / 'search' / 'search-action.cpp',
     '..' / 'panel-plugin' / 'settings-bindings.cpp',
@@ -197,7 +317,7 @@ test_search_action_edit = executable(
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
-  dependencies: [glib, gtk, libxfce4ui, xfconf],
+  dependencies: [glib, gtk, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('search_action_edit', test_search_action_edit)
@@ -260,13 +380,14 @@ test_home_search = executable(
 test('home_search', test_home_search)
 
 # test_places_open: GTK-free coverage of the Places open-path hardening —
-# the g_shell_quote round-trip handed to the external helper (FR-007/008) and
-# the open-failure reason string built for the error dialog (FR-006). Compiles
+# the g_shell_quote round-trip handed to the external helper (the documented behavior) and
+# the open-failure reason string built for the error dialog (the documented behavior). Compiles
 # places-item.cpp plus its Element base (element.cpp) directly into the binary,
 # mirroring test_home_search_lifecycle; no display is needed for these pure
 # helpers, so the binary runs headless.
 test_places_open_sources = [
   'test_places_open.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
 ]
@@ -275,6 +396,7 @@ test_places_open = executable(
   'test_places_open',
   test_places_open_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
   dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 
@@ -351,6 +473,7 @@ test('search_ranking', test_search_ranking)
 # Skips cleanly when no display is available.
 test_home_search_lifecycle_sources = [
   'test_home_search_lifecycle.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'home-search-worker.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
@@ -360,6 +483,7 @@ test_home_search_lifecycle = executable(
   'test_home_search_lifecycle',
   test_home_search_lifecycle_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
   dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 
@@ -468,7 +592,23 @@ test_centered_geometry = executable(
 
 test('centered_geometry', test_centered_geometry)
 
-# test_layout_sensitivity: headless coverage of the pure FR-006 control-
+# Display-free coverage of the interactive resize geometry reducer. The
+# production helper has no GTK dependency and accepts plain logical geometry.
+test_interactive_resize_sources = [
+  'test_interactive_resize.cpp',
+  '..' / 'panel-plugin' / 'core' / 'interactive-resize.cpp',
+]
+
+test_interactive_resize = executable(
+  'test_interactive_resize',
+  test_interactive_resize_sources,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('interactive_resize', test_interactive_resize)
+
+# test_layout_sensitivity: headless coverage of the pure the documented behavior control-
 # sensitivity matrix (control_enabled) in core/user-session-layout.cpp. No
 # display; the helper is GTK-free.
 test_layout_sensitivity_sources = [
@@ -696,17 +836,18 @@ test_application_load_generation = executable(
 
 test('application_load_generation', test_application_load_generation)
 
-# test_launcher_safeguard_lifecycle: headless freeze for the FR-008a safeguard
+# test_launcher_safeguard_lifecycle: headless freeze for the the documented behavior safeguard
 # lifetime (render-invariants I13). The fix lives entirely in the header-only
 # shared base LauncherView, so the binary needs only that header (plus slot.h)
 # and gtk — no production .cpp. It constructs a minimal concrete view, binds the
 # scroll-reveal safeguard to an externally-owned adjustment, destroys the view,
 # and asserts the handler is gone so a later value-changed never fires on a freed
-# view (the SC-005a crash; also caught by the sanitizer CI). Constructing the
+# view (the the documented behavior crash; also caught by the sanitizer CI). Constructing the
 # widgets needs a display, so it skips cleanly when none is present and CI runs
 # it under a virtual display so the sanitizers still exercise the freed-view path.
 test_launcher_safeguard_lifecycle_sources = [
   'test_launcher_safeguard_lifecycle.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'launcher-safety.cpp',
 ]
 
@@ -714,6 +855,7 @@ test_launcher_safeguard_lifecycle = executable(
   'test_launcher_safeguard_lifecycle',
   test_launcher_safeguard_lifecycle_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
   dependencies: [glib, gtk],
 )
 

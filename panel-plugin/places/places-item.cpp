@@ -9,6 +9,8 @@
 
 #include "places-item.h"
 
+#include "config/xfce-helpers.h"
+
 #include <cstring>
 
 #include <gio/gio.h>
@@ -137,10 +139,10 @@ PlacesItem::~PlacesItem()
  *          be nullptr (the dialog is then unparented).
  *
  * Opens the file or folder with the system-default handler via GIO. Folders
- * fall back to "exo-open --launch FileManager <path>" on launch failure, with
- * the path shell-quoted (FR-007) so names containing spaces or shell-significant
- * characters open the exact target. On failure exactly one error dialog names
- * the item and states the underlying reason (FR-006).
+ * fall back to the active Xfce FileManager helper on launch failure. The
+ * shared builder quotes shell-significant paths so the helper receives the
+ * exact target. On failure exactly one error dialog names the item and states
+ * the underlying reason.
  *
  * NOTE: the caller dispatches this before closing the menu so the item is not
  * freed mid-open; see PlacesPage::on_row_activated().
@@ -170,17 +172,12 @@ void PlacesItem::open(GdkScreen* screen, GtkWidget* parent)
 		gchar* path = g_file_get_path(m_file);
 		if (path)
 		{
-			// FR-007: quote the path so the helper receives the exact folder
-			// even with spaces, quotes, '$', backticks, or parentheses. The
-			// command is parsed by g_shell_parse_argv inside Element::spawn().
-			gchar* quoted = g_shell_quote(path);
-			gchar* command = g_strdup_printf("exo-open --launch FileManager %s", quoted);
-			// FR-006d: Element::spawn() owns the single failure dialog for this
+			std::string command = build_file_manager_command(
+					current_xfce_dependency_regime(), path);
+			// Element::spawn() owns the single failure dialog for this
 			// fallback, so the default-handler error above is dropped here to
 			// avoid stacking a second dialog.
-			spawn(screen, command, nullptr, true, nullptr);
-			g_free(command);
-			g_free(quoted);
+			spawn(screen, command.c_str(), nullptr, true, nullptr);
 			g_free(path);
 			if (error) g_error_free(error);
 			return;
@@ -188,7 +185,7 @@ void PlacesItem::open(GdkScreen* screen, GtkWidget* parent)
 		g_free(path);
 	}
 
-	// FR-006: exactly one dialog, naming the item with a legible reason.
+	// the documented behavior: exactly one dialog, naming the item with a legible reason.
 	gchar* message = build_open_error_message(error, get_text());
 	GtkWindow* window = parent
 			? GTK_WINDOW(gtk_widget_get_toplevel(parent)) : nullptr;
@@ -204,7 +201,7 @@ void PlacesItem::open(GdkScreen* screen, GtkWidget* parent)
  * @parent: accepted so the Places open paths share a uniform (screen, parent)
  *          signature; this path shows no dialog of its own, so it is unused.
  *
- * Opens the item's parent folder with the default handler. FR-010: when the
+ * Opens the item's parent folder with the default handler. the documented behavior: when the
  * item has no parent (e.g. a filesystem root) this is a defined silent no-op,
  * and a failed launch is intentionally not reported — never a blank dialog.
  */
@@ -217,7 +214,7 @@ void PlacesItem::open_containing(GdkScreen* screen, GtkWidget* /*parent*/)
 	GFile* parent_dir = g_file_get_parent(m_file);
 	if (!parent_dir)
 	{
-		// Defined no-op: no parent to open (FR-010). Never a blank dialog.
+		// Defined no-op: no parent to open (the documented behavior). Never a blank dialog.
 		return;
 	}
 	gchar* uri = g_file_get_uri(parent_dir);
@@ -225,7 +222,7 @@ void PlacesItem::open_containing(GdkScreen* screen, GtkWidget* /*parent*/)
 	{
 		GdkAppLaunchContext* ctx = gdk_display_get_app_launch_context(
 				gdk_screen_get_display(screen ? screen : gdk_screen_get_default()));
-		// NOTE: launch result is intentionally ignored — FR-010 defines this as
+		// NOTE: launch result is intentionally ignored — the documented behavior defines this as
 		// a silent no-op on failure rather than an error dialog.
 		g_app_info_launch_default_for_uri(uri, G_APP_LAUNCH_CONTEXT(ctx), nullptr);
 		if (ctx) g_object_unref(ctx);
@@ -271,13 +268,9 @@ void PlacesItem::open_in_terminal(GdkScreen* screen, GtkWidget* /*parent*/)
 	}
 	// NOTE: defer to Xfce's TerminalEmulator launch alias; this honors the
 	// user's configured terminal without parsing xfce4-session.xml ourselves.
-	// FR-008: quote the working directory so the terminal opens in the exact
-	// folder even when its name contains shell-significant characters.
-	gchar* quoted = g_shell_quote(path);
-	gchar* command = g_strdup_printf("exo-open --launch TerminalEmulator --working-directory %s", quoted);
-	spawn(screen, command, path, true, nullptr);
-	g_free(command);
-	g_free(quoted);
+	std::string command = build_terminal_command(
+			current_xfce_dependency_regime(), path);
+	spawn(screen, command.c_str(), path, true, nullptr);
 	g_free(path);
 }
 
@@ -320,7 +313,7 @@ void PlacesItem::open_with(GtkWidget* parent)
 
 	if (launch_failed)
 	{
-		// FR-009: a failed launch is explained, not silently swallowed.
+		// the documented behavior: a failed launch is explained, not silently swallowed.
 		gchar* message = build_open_error_message(error, get_text());
 		xfce_dialog_show_error(
 				parent ? GTK_WINDOW(gtk_widget_get_toplevel(parent)) : nullptr,

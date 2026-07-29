@@ -27,6 +27,11 @@ namespace WhiskerMenu
 
 class Settings;
 
+void launcher_icon_view_set_transparent_grid_style(GtkWidget* view,
+		bool enabled);
+bool launcher_icon_view_complete_empty_click(GtkIconView* view,
+		bool transparent_grid, const GdkEventButton* event);
+
 class LauncherIconView : public LauncherView
 {
 public:

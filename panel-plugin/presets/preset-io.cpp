@@ -215,7 +215,7 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 		return result;
 	}
 
-	// Step 3: required keys. FR-018: only the preset identity (Name) is required.
+	// Step 3: required keys. the documented behavior: only the preset identity (Name) is required.
 	// SchemaVersion is advisory — a missing version is assumed current and a newer
 	// version is accepted best-effort; neither is grounds for rejection. Per-key
 	// validation in Step 5 still drops any value that does not fit the schema.
@@ -415,7 +415,7 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 		return false;
 	}
 
-	// FR-018: SchemaVersion is advisory for seeded files. A missing version is
+	// the documented behavior: SchemaVersion is advisory for seeded files. A missing version is
 	// assumed current and a newer version is accepted best-effort, so a future
 	// package shipping a newer built-in preset file is not silently dropped. The
 	// per-key validation below still discards any value that does not fit the
@@ -562,8 +562,8 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
  * @user_dir:   path to the user-writable preset directory.
  *
  * Walks system_dir then user_dir, parsing every .meowpreset file. Entries
- * with the same id are deduplicated: user_dir wins (FR-061). Files that
- * fail validation are silently skipped — no error dialog, no crash (FR-063).
+ * with the same id are deduplicated: user_dir wins (the documented behavior). Files that
+ * fail validation are silently skipped — no error dialog, no crash (the documented behavior).
  *
  * Returns: list of successfully parsed LayoutPreset objects; may be empty.
  */

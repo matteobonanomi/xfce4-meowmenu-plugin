@@ -68,18 +68,18 @@ LauncherTreeView::LauncherTreeView(Settings* settings) :
 	// Keyboard cursor moves change the selection without passing through the
 	// hover chokepoint, so recomposite the whole surface on every selection
 	// change while the background is translucent (no-op when opaque). This is the
-	// keyboard half of the single-highlight safeguard (FR-006/FR-007).
+	// keyboard half of the single-highlight safeguard (the documented behavior).
 	connect(selection, "changed",
 		[this](GtkTreeSelection*)
 		{
-			queue_translucent_safeguard_redraw();
+			queue_full_redraw_safeguard();
 		});
 
 	g_object_ref_sink(m_view);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_view)), "launchers");
 
-	// FR-100: bring the focused row into view without snap-scrolling on
+	// the documented behavior: bring the focused row into view without snap-scrolling on
 	// programmatic cursor moves (Tab into Results, arrow exit out of the
 	// sidebar). use_align=FALSE keeps the existing scroll position when
 	// the cursor row is already visible.

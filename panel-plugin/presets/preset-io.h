@@ -64,7 +64,7 @@ ImportResult import_user_preset(const std::string& file_path,
 // Enumerate .meowpreset files from system_dir (first) then user_dir.
 // Files with the same id (filename stem without extension) are deduplicated: user wins.
 // Malformed or unreadable files are silently skipped (g_debug() only).
-// Never crashes, never shows an error dialog (FR-063).
+// Never crashes, never shows an error dialog (the documented behavior).
 std::vector<LayoutPreset> enumerate_preset_files(const std::string& system_dir,
 	const std::string& user_dir);
 

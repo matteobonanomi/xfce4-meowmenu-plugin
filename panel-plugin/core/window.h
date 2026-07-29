@@ -22,6 +22,8 @@
 
 #include <gtk/gtk.h>
 
+#include "interactive-resize.h"
+#include "menu-mode-state.h"
 #include "sidebar-layout.h"
 #include "window-keyboard.h"
 
@@ -91,9 +93,15 @@ public:
 
 	void hide(bool lost_focus = false);
 	void show(const Position position);
-	void resize(int delta_x, int delta_y, int delta_width, int delta_height);
-	void resize_start();
-	void resize_end();
+	bool interactive_resize_begin(
+			InteractiveResize::Direction direction,
+			InteractiveResize::BackendPolicy policy,
+			const InteractiveResize::PointerSample& pointer);
+	bool interactive_resize_step(
+			const InteractiveResize::PointerSample& pointer);
+	bool interactive_resize_complete(
+			const InteractiveResize::PointerSample& pointer);
+	bool interactive_resize_cancel();
 	void set_child_has_focus();
 	/* detach_categories:
 	 *
@@ -148,7 +156,7 @@ private:
 	 *
 	 * Folds the live layout flags and per-zone "hidden" positions into a
 	 * Keyboard::VisibilityMask. Search and Results are forced visible
-	 * (FR-030); the Sidebar, Mode selector, and Profile bar follow the
+	 * (the documented behavior); the Sidebar, Mode selector, and Profile bar follow the
 	 * preset's per-zone position string and visibility flags.
 	 */
 	Keyboard::VisibilityMask current_visibility_mask() const;
@@ -157,7 +165,7 @@ private:
 	 *
 	 * Returns Searching iff the search entry holds at least one
 	 * character, Browsing otherwise. Used by the focus router to skip
-	 * the inert sidebar while typing (FR-046).
+	 * the inert sidebar while typing (the documented behavior).
 	 */
 	Keyboard::MenuState current_menu_state() const;
 
@@ -172,7 +180,7 @@ private:
 	 *
 	 * Returns: true iff the grab actually landed (the target was
 	 * focusable and took focus). The forward Ctrl+Tab loop uses this to
-	 * advance past a zone whose grab silently fails (FR-010).
+	 * advance past a zone whose grab silently fails (the documented behavior).
 	 */
 	bool grab_focus_in_zone(Keyboard::Zone zone);
 
@@ -207,6 +215,7 @@ private:
 	void apply_window_shape(int width, int height, int radius, bool composited);
 
 	void update_background_css();
+	void update_view_redraw_safeguards();
 	void check_scrollbar_needed();
 	void favorites_toggled();
 	void recent_toggled();
@@ -217,10 +226,22 @@ private:
 	// placement, panel-gap suppression and continuous re-centre-on-resize
 	// paths; classified defensively so an unknown value behaves as Docked.
 	bool centered_layout() const;
+	void clear_resize_handles();
+	InteractiveResize::DisplaySignature resize_display_signature(
+			GdkMonitor* monitor) const;
+	void start_resize_display_watch(GdkMonitor* monitor);
+	void stop_resize_display_watch();
+	void validate_resize_display();
+	void apply_resize_rectangle(
+			const InteractiveResize::Rectangle& rectangle);
+	void settle_resize_position();
 	bool set_size(int width, int height);
 	void reset_default_button();
 	void show_favorites();
 	void show_default_page();
+	void apply_menu_mode(MenuMode requested_mode,
+			MenuModeTransition transition);
+	MenuContentTarget current_menu_content() const;
 	void search();
 	void update_layout();
 
@@ -335,6 +356,9 @@ private:
 	bool m_keyboard_category_nav;
 	gulong m_places_property_slot;
 	gulong m_live_settings_property_slot;
+	// Contextual Modern divider immediately above the Apps/Places selector.
+	// It is hidden in every other presentation and therefore owns no spacing.
+	GtkWidget* m_mode_selector_upper_separator;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
 	// The dynamically-loaded application-category buttons, kept alongside their
@@ -344,12 +368,12 @@ private:
 
 	GtkScrolledWindow* m_sidebar;
 	// Horizontally-scrolling container for the Top/Bottom category strip
-	// (FR-012). Created lazily on the first strip layout; the switch is pinned
-	// outside it (FR-014). nullptr until the sidebar is first shown on top/bottom.
+	// (the documented behavior). Created lazily on the first strip layout; the switch is pinned
+	// outside it (the documented behavior). nullptr until the sidebar is first shown on top/bottom.
 	GtkScrolledWindow* m_strip_scroll;
 	// Expanding spacer pinned as the leading child of m_category_buttons in
 	// strip mode so the category icons sit flush-trailing while the slack falls
-	// between them and the leading toggle (FR-005). Hidden (and thus ignored in
+	// between them and the leading toggle (the documented behavior). Hidden (and thus ignored in
 	// allocation) in the vertical sidebar. Created lazily with m_strip_scroll.
 	GtkWidget* m_strip_lead_spacer;
 	// Current structural placement of the category list, so update_layout()
@@ -366,7 +390,7 @@ private:
 	GtkSizeGroup* m_category_width_group;
 	GtkSizeGroup* m_sidebar_size_group;
 	// Forces the two Apps/Places mode buttons to equal width in every layout
-	// and preset, surviving the icon↔text child swap (FR-013).
+	// and preset, surviving the icon↔text child swap (the documented behavior).
 	GtkSizeGroup* m_mode_button_size_group;
 
 	GdkRectangle m_geometry;
@@ -406,6 +430,10 @@ private:
 	bool m_shape_composited = false;
 	bool m_child_has_focus;
 	bool m_resizing;
+	InteractiveResize::Transaction m_resize_transaction;
+	GdkMonitor* m_resize_monitor;
+	gulong m_resize_monitor_notify_slot;
+	gulong m_resize_monitor_removed_slot;
 };
 
 }

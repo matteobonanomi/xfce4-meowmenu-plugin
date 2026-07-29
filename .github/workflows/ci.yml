@@ -5,8 +5,6 @@
 # strings verbatim. Renaming without updating required-checks will silently
 # break merge gating.
 #
-# Source of truth: .specify/specs/009-ci-foundation/contracts/workflow-jobs.md §2
-#
 # Required on `main`:
 #   build (ubuntu-26.04, debugoptimized)
 #   build (ubuntu-26.04, release)
@@ -18,7 +16,7 @@
 #   translations
 #   no-optional-deps
 #
-# Rename protocol (FR-023): if you rename a required job, the same PR MUST
+# If a required job is renamed, the same change must
 # update branch-protection required-checks. See docs/ci.md "Rename protocol".
 # =============================================================================
 
@@ -232,10 +230,95 @@ jobs:
       - name: Meson test
         run: xvfb-run -a meson test -C build --print-errorlogs
 
-  # Feature 010 — docs-dependency-drift advisory (FR-027, SC-013). Diffs
-  # the dep lists declared in debian/control + packaging spec against the
-  # lists embedded in docs/install-*.md and docs/build-from-source.md.
-  # Emits a workflow warning on drift (not a hard fail).
+  xfce-source-stack:
+    name: source-stack (${{ matrix.cell }})
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ['4.16', '4.18', '4.20', successor]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install source-stack bootstrap dependencies
+        env:
+          CELL: ${{ matrix.cell }}
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential meson ninja-build pkg-config python3 git \
+            curl bzip2 xz-utils gettext intltool gtk-doc-tools \
+            gobject-introspection libglib2.0-dev libgtk-3-dev \
+            libdbus-1-dev libudev-dev \
+            libwnck-3-dev libstartup-notification0-dev \
+            libx11-xcb-dev xvfb xauth ca-certificates
+          if test "$CELL" = successor; then
+            apt-get install -y --no-install-recommends libgtop2-dev
+          fi
+
+      - name: Prepare pinned Xfce source stack
+        env:
+          CELL: ${{ matrix.cell }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          prefix="$RUNNER_TEMP/xfce-${CELL}"
+          build-aux/compat/build-xfce-stack.sh "$CELL" "$prefix" | \
+            tee evidence/stack-environment.sh
+          cat evidence/stack-environment.sh >> "$GITHUB_ENV"
+
+      - name: Configure, compile, and test MeowMenu
+        env:
+          CELL: ${{ matrix.cell }}
+        run: |
+          set -euo pipefail
+          meson setup compatibility-build \
+            -Daccountsservice=disabled \
+            -Dgtk-layer-shell=disabled 2>&1 | tee evidence/setup.log
+          meson compile -C compatibility-build 2>&1 | tee evidence/compile.log
+          xvfb-run -a meson test -C compatibility-build \
+            --print-errorlogs 2>&1 | tee evidence/test-output.log
+          plugin="compatibility-build/panel-plugin/libmeowmenu.so"
+          if test "$CELL" = successor; then
+            regime=successor
+            staged_root="$RUNNER_TEMP/staged-successor"
+            DESTDIR="$staged_root" meson install -C compatibility-build
+            installed_plugin="$(find "$staged_root" \
+              -path '*/xfce4/panel/plugins/libmeowmenu.so' -print -quit)"
+            build-aux/compat/assert-dependency-regime.sh \
+              --regime "$regime" --plugin "$installed_plugin" \
+              --testlog compatibility-build/meson-logs/testlog.txt | \
+              tee evidence/regime.txt
+            build-aux/compat/installed-action-smoke.sh \
+              --regime "$regime" --staged-root "$staged_root" \
+              --plugin "$installed_plugin" | tee evidence/installed-smoke.log
+          else
+            regime=legacy
+            build-aux/compat/assert-dependency-regime.sh \
+              --regime "$regime" --plugin "$plugin" \
+              --testlog compatibility-build/meson-logs/testlog.txt | \
+              tee evidence/regime.txt
+          fi
+
+      - name: Upload source-stack evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-stack-${{ matrix.cell }}
+          path: |
+            evidence/
+            compatibility-build/meson-logs/
+          if-no-files-found: error
+          retention-days: 30
+
+  # Keep package dependency names represented in the maintained installation
+  # guide. This check is advisory because package aliases differ by distro.
   docs-dependency-drift:
     name: docs-dependency-drift
     runs-on: ubuntu-latest
@@ -261,18 +344,15 @@ jobs:
           missing_in_docs=()
           for d in $control_deps $spec_requires; do
             if [ -z "$d" ]; then continue; fi
-            if ! grep -RIqF -- "$d" docs/install-*.md docs/build-from-source.md 2>/dev/null; then
+            if ! grep -Fq -- "$d" docs/installation.md 2>/dev/null; then
               missing_in_docs+=("$d")
             fi
           done
           if [ "${#missing_in_docs[@]}" -gt 0 ]; then
-            echo "::warning::docs-dependency-drift: dependencies declared in packaging but not mentioned in docs/install-*.md or docs/build-from-source.md:"
+            echo "::warning::docs-dependency-drift: packaging dependencies missing from docs/installation.md:"
             printf '  - %s\n' "${missing_in_docs[@]}"
           else
             echo "docs dependency lists are consistent with packaging."
           fi
 
-# Action-pinning audit (FR-022, T012/T047):
-#   - actions/checkout@v7  (allowed; major pin)
-#   No `@main` / `@master` references. See
-#   .specify/specs/009-ci-foundation/notes/action-pins.md.
+# Actions use stable major-version references; no branch references are used.

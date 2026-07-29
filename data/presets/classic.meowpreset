@@ -1,6 +1,6 @@
 # Classic preset — traditional Whisker Menu layout.
 # Docked, no rounded corners, app list, sidebar on the right.
-# Source of truth for all keys: .specify/specs/003-properties-refactor/contracts/xfconf-keys.md
+# Settings use the same Xfconf keys as the graphical Preferences window.
 
 [Preset]
 Name=Classic
