@@ -2,6 +2,7 @@
 """Validate maintained repository-relative Markdown links and helper names."""
 
 import argparse
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -12,20 +13,72 @@ LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 OBSOLETE_RE = re.compile(
     r"\b(?:dev-install|dev-uninstall|dev-reload)\.sh\b|tools/news-version\.py"
 )
+FALLBACK_EXCLUDED_DIRS = {
+    ".agents",
+    ".claude",
+    ".codex",
+    ".git",
+    ".idea",
+    ".logs",
+    ".specify",
+    ".vscode",
+    ".venv",
+    "__pycache__",
+    "_build",
+    "bin",
+    "build",
+    "obj",
+    "out",
+    "venv",
+}
+
+
+def fallback_markdown_files(root: Path):
+    """Walk Markdown sources while pruning private and generated trees."""
+    for current, directories, filenames in os.walk(root):
+        current_path = Path(current)
+        kept = []
+        for directory in directories:
+            candidate = current_path / directory
+            private_docs = current_path == root / "dev" and directory == "docs"
+            meson_output = (candidate / "meson-private").is_dir()
+            if (
+                    directory not in FALLBACK_EXCLUDED_DIRS
+                    and not private_docs
+                    and not meson_output):
+                kept.append(directory)
+        directories[:] = sorted(kept)
+        for filename in sorted(filenames):
+            path = current_path / filename
+            if path.suffix == ".md" and path.is_file():
+                yield path.relative_to(root).as_posix(), path
 
 
 def markdown_files(root: Path):
-    result = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.md"],
-        cwd=root,
-        check=True,
-        text=True,
-        stdout=subprocess.PIPE,
-    )
-    for relative in result.stdout.splitlines():
-        path = root / relative
-        if path.is_file():
-            yield relative, path
+    """List Markdown from a checkout or a gitless release source tree."""
+    try:
+        result = subprocess.run(
+            [
+                "git", "ls-files", "--cached", "--others",
+                "--exclude-standard", "*.md",
+            ],
+            cwd=root,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        result = None
+
+    if result is not None and result.returncode == 0:
+        for relative in result.stdout.splitlines():
+            path = root / relative
+            if path.is_file():
+                yield relative, path
+        return
+
+    yield from fallback_markdown_files(root)
 
 
 def resolve_link(root: Path, document: Path, target: str):

@@ -2,6 +2,7 @@
 
 import importlib.util
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -16,6 +17,21 @@ SPEC.loader.exec_module(PRESENTATION)
 class RepositoryPresentationTest(unittest.TestCase):
     def test_tracked_presentation_policy(self):
         self.assertEqual(PRESENTATION.violations(ROOT), [])
+
+    def test_gitless_source_tree_ignores_build_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text("# Project\n", encoding="utf-8")
+            generated = root / "build"
+            generated.mkdir()
+            (generated / "generated.md").write_text(
+                "Spec-Kit\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [relative for relative, _path in PRESENTATION.repository_files(root)],
+                ["README.md"],
+            )
 
     def test_compiled_bug_report_route_is_current(self):
         meson = (ROOT / "meson.build").read_text(encoding="utf-8")

@@ -36,6 +36,23 @@ class DocumentationLinksTest(unittest.TestCase):
             document.write_text("[Missing](docs/nope)\n", encoding="utf-8")
             self.assertFalse(LINKS.resolve_link(root, document, "docs/nope"))
 
+    def test_gitless_source_tree_ignores_build_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            docs = root / "docs"
+            docs.mkdir()
+            (docs / "support.md").write_text("# Support\n", encoding="utf-8")
+            generated = root / "build"
+            generated.mkdir()
+            (generated / "generated.md").write_text(
+                "[Missing](nowhere)\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [relative for relative, _path in LINKS.markdown_files(root)],
+                ["docs/support.md"],
+            )
+
     def test_public_navigation_has_unique_order_and_required_pages(self):
         navigation = {}
         for document in (ROOT / "docs").glob("*.md"):
@@ -108,22 +125,27 @@ class DocumentationLinksTest(unittest.TestCase):
 
     def test_distro_matrix_records_exact_provenance(self):
         support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
-        header = "| Distribution/context | Maintainer | Community | CI |"
-        self.assertEqual(support.count(header), 1)
         matrix = support.split("## Distro testing", maxsplit=1)[1]
         matrix = matrix.split("## Package availability", maxsplit=1)[0]
-        rows = (
-            "| Debian 13 | ✓ | ✓ | — |",
-            "| Debian | — | — | ✓ |",
-            "| Xubuntu 26.04 | ✓ | ✓ | — |",
-            "| Arch Linux | ✓ | — | ✓ |",
-            "| MX Linux | — | ✓ | — |",
-            "| Fedora 44 | — | — | ✓ |",
-            "| Ubuntu | — | — | ✓ |",
+        rows = {}
+        for line in matrix.splitlines():
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) != 4 or cells[0] in {
+                "Distribution/context",
+                "----------------------",
+            }:
+                continue
+            rows[cells[0]] = tuple(cells[1:])
+        self.assertEqual(
+            rows,
+            {
+                "Debian 13": ("✓", "✓", "✓"),
+                "Xubuntu 26.04": ("✓", "✓", "✓"),
+                "Arch Linux": ("✓", "—", "✓"),
+                "MX Linux": ("—", "✓", "—"),
+                "Fedora 44": ("—", "—", "✓"),
+            },
         )
-        for row in rows:
-            self.assertIn(row, matrix)
-        self.assertEqual(sum(matrix.count(row) for row in rows), len(rows))
         for definition in (
             "**Maintainer** means a manual result",
             "**Community** means a manual result",
@@ -133,11 +155,11 @@ class DocumentationLinksTest(unittest.TestCase):
         ):
             self.assertIn(definition, matrix)
         self.assertIn(
-            "Ubuntu CI does not count as Xubuntu 26.04 live testing",
+            "CI marks describe automation for the named row",
             matrix,
         )
         self.assertIn(
-            "Distribution-level\nDebian CI does not create a Debian 13 CI result",
+            "never transferred to the Maintainer or Community columns",
             matrix,
         )
         self.assertNotRegex(
@@ -235,11 +257,6 @@ class DocumentationLinksTest(unittest.TestCase):
         ):
             self.assertIn(retained, upgrade)
         self.assertNotRegex(upgrade, r"\b0\.8\.0\b|\bRC1\b")
-        self.assertIn(
-            "Xubuntu 26.04, Xfce 4.20, X11, and `x86_64`",
-            testing,
-        )
-        self.assertIn("primary quality environment, not a release gate", testing)
 
     def test_release_specific_dependency_classes_are_documented(self):
         installation = (

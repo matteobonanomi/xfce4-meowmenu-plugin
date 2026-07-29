@@ -29,10 +29,8 @@ intended to preserve configuration.
 - **—** means no result is currently documented for that source, not a known
   failure or incompatibility.
 
-Ubuntu CI does not count as Xubuntu 26.04 live testing. Distribution-level
-Debian CI does not create a Debian 13 CI result. A row can therefore carry
-more than one mark, but evidence is never transferred to a related row or
-another provenance column.
+CI marks describe automation for the named row, not a live desktop result.
+Evidence is never transferred to the Maintainer or Community columns.
 
 ## Package availability
 

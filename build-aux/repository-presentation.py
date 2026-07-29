@@ -2,6 +2,7 @@
 """Check release-facing repository text for stale internal presentation."""
 
 import argparse
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -15,23 +16,79 @@ SELF_EXCLUDES = {
     "build-aux/repository-presentation.py",
     "tests/test_repository_presentation.py",
 }
+FALLBACK_EXCLUDED_DIRS = {
+    ".agents",
+    ".claude",
+    ".codex",
+    ".git",
+    ".idea",
+    ".logs",
+    ".specify",
+    ".vscode",
+    ".venv",
+    "__pycache__",
+    "_build",
+    "bin",
+    "build",
+    "obj",
+    "out",
+    "venv",
+}
+FALLBACK_EXCLUDED_FILES = {".codex", "AGENTS.md", "CLAUDE.md"}
+
+
+def fallback_repository_files(root: Path):
+    """Walk source text while pruning private and generated trees."""
+    for current, directories, filenames in os.walk(root):
+        current_path = Path(current)
+        kept = []
+        for directory in directories:
+            candidate = current_path / directory
+            private_docs = current_path == root / "dev" and directory == "docs"
+            meson_output = (candidate / "meson-private").is_dir()
+            if (
+                    directory not in FALLBACK_EXCLUDED_DIRS
+                    and not private_docs
+                    and not meson_output):
+                kept.append(directory)
+        directories[:] = sorted(kept)
+        for filename in sorted(filenames):
+            path = current_path / filename
+            relative = path.relative_to(root).as_posix()
+            if (
+                    relative not in FALLBACK_EXCLUDED_FILES
+                    and path.suffix in TEXT_SUFFIXES
+                    and path.is_file()):
+                yield relative, path
 
 
 def repository_files(root: Path):
     """List cached and new non-ignored text files in the current worktree."""
-    result = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-        cwd=root,
-        check=True,
-        stdout=subprocess.PIPE,
-    )
-    for raw in result.stdout.split(b"\0"):
-        if not raw:
-            continue
-        relative = raw.decode("utf-8")
-        path = root / relative
-        if path.is_file() and path.suffix in TEXT_SUFFIXES:
-            yield relative, path
+    try:
+        result = subprocess.run(
+            [
+                "git", "ls-files", "--cached", "--others",
+                "--exclude-standard", "-z",
+            ],
+            cwd=root,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        result = None
+
+    if result is not None and result.returncode == 0:
+        for raw in result.stdout.split(b"\0"):
+            if not raw:
+                continue
+            relative = raw.decode("utf-8")
+            path = root / relative
+            if path.is_file() and path.suffix in TEXT_SUFFIXES:
+                yield relative, path
+        return
+
+    yield from fallback_repository_files(root)
 
 
 def violations(root: Path):
