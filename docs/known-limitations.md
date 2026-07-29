@@ -20,11 +20,12 @@ confirmed defects.
   X11 is the primary live-resize quality path.
 - **Architecture:** published packages and live checks cover
   `x86_64`/`amd64`. Other architectures are unverified source-build candidates.
-- **Xfce versions:** source builds are continuously checked for the 4.16,
-  4.18, and 4.20 library generations, while current live validation is on Xfce
-  4.20 only. On Xfce 4.16, copied desktop launchers can be made executable but
-  cannot receive the newer trusted marker; the desktop may show its normal
-  trust confirmation before first launch.
+- **Xfce versions:** source-stack builds for the 4.16, 4.18, and 4.20 library
+  generations are available through an explicit compatibility run, while
+  routine distro CI and current live validation remain separate. Live
+  validation is on Xfce 4.20 only. On Xfce 4.16, copied desktop launchers can
+  be made executable but cannot receive the newer trusted marker; the desktop
+  may show its normal trust confirmation before first launch.
 - **Optional Wayland positioning:** an unavailable or too-old
   `gtk-layer-shell` disables that integration without blocking the core build.
   MeowMenu then uses its normal session-compatible fallback.

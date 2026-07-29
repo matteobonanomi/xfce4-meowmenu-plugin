@@ -43,6 +43,26 @@ A pass is scoped to the six recorded context fields above. File a
 [compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml);
 prefer a durable public issue or release note over a short-lived workflow link.
 
+## Routine CI and timing evidence
+
+Every pull request to `main` and every `main` push runs one full
+`debugoptimized` build and test suite on Ubuntu 26.04, Debian 13, and Fedora
+44. Three focused checks cover sanitizers, catalogs and repository
+consistency, and operation without optional build integrations or Calculator
+provider executables. These six results are routine source and test evidence,
+not live desktop results or installable package evidence.
+
+The broader Xfce 4.16, 4.18, 4.20, and successor source-stack matrix is run
+explicitly when compatibility evidence is needed. CodeQL runs independently
+on a weekly schedule or manual request. Neither is a routine required result.
+
+After a CI-shape change, timing is reviewed using the first ten consecutive
+completed routine pull-request or `main` runs. Each measurement starts with
+the run and ends when its last required result completes; at least nine should
+finish within 15 minutes. A run is replaced only if a superseding change
+cancelled it or a documented hosted-service incident overlapped it, with the
+exclusion and next consecutive replacement recorded.
+
 ## Automated dependency evidence
 
 Ubuntu 26.04 and Debian 13 build inputs are resolved from `debian/control`;
@@ -52,14 +72,17 @@ executed, skipped, failed, and timed-out tests, installs its artifact, checks
 helper ownership and linkage, and runs the dependency-sensitive action
 contract.
 
-Fresh isolated mutations remove the Exo build or helper declarations for each
-package format. Every omission must be rejected before an artifact is accepted;
-a positive job's installed dependency closure is never reused.
+Direct repository contracts check the required Exo build and helper
+declarations. The release workflow then builds each native package from the
+selected tag's canonical source, runs the product suite, installs the package
+in its target environment, and verifies its declared dependency closure and
+installed actions.
 
 Source cells cover Xfce 4.16, 4.18, and 4.20 with Exo. A separate
 libxfce4ui-4.21-or-newer cell proves Exo is absent, checks symbols and dynamic
-linkage, installs into an isolated root, and captures all ten interactions.
-This is staged-install evidence, not live desktop evidence.
+linkage, installs into an isolated root, and captures all ten interactions
+when the explicit compatibility matrix is dispatched. This is staged-install
+evidence, not routine distro CI or live desktop evidence.
 
 The ten interactions are the icon chooser, Help, the Man Pages, Web Search,
 Wikipedia, Run in Terminal, and Open URI search actions, launcher editing,

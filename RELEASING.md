@@ -1,20 +1,37 @@
 # Releasing MeowMenu
 
-This guide records the reusable release procedure and the additional gates for
-the current release candidate. Examples use `v1.0.0` so they remain clear for a
-future stable release; commands that act on a real release derive its identity
-from `NEWS`. The next planned tag is `v0.9.0-rc1`, so candidate-specific
-sections retain that exact value.
+`NEWS` is the authority for the release version, date, and public note body.
+The maintainer alone commits release metadata, creates and pushes tags, changes
+branch protection, and publishes AUR metadata.
 
-The maintainer alone merges, commits release metadata, creates and pushes tags,
-authorizes publication, and publishes AUR metadata.
+## Required checks on main
+
+Branch protection for `main` must require these six stable contexts:
+
+```text
+build (ubuntu-26.04)
+build (debian-13)
+build (fedora-44)
+sanitizers
+static-checks
+no-optional-deps
+```
+
+When these names change, add the new required contexts before removing their
+predecessors. Confirm that a representative pull request reports all six
+before completing the transition; do not knowingly leave `main` with missing
+or weaker protection.
+
+After a CI-shape change, record the first ten consecutive completed routine
+pull-request or `main` runs. Measure each from the routine-run start through
+its last required context. At least nine must complete within 15 minutes.
+Replace a run only if a superseding change cancelled it or a
+provider-documented hosted-service incident overlapped it, recording the
+exclusion and the next consecutive replacement.
 
 ## Release identity
 
-`NEWS` is the version and changelog authority. A stable-release example would
-use public version `1.0.0` and annotated tag `v1.0.0`; do not copy those
-illustrative values into release metadata. Inspect the actual shared values
-with:
+Inspect the shared identity and native package versions with:
 
 ```bash
 python3 build-aux/news-version.py --version --news NEWS
@@ -24,23 +41,18 @@ python3 build-aux/news-version.py --rpm-version --news NEWS
 python3 build-aux/news-version.py --arch-version --news NEWS
 ```
 
-For the current candidate, those commands produce public version
-`0.9.0-rc1`, annotated tag `v0.9.0-rc1`, and these native package versions:
-
-| Package | Version |
-|---|---|
-| Debian and Ubuntu | `0.9.0~rc1-1` |
-| Fedora 44 | `0.9.0~rc1-1.fc44` |
-| Arch | `0.9.0rc1-1` |
-
-The transformations preserve native upgrade ordering before RC2 and 1.0.0.
+Release tags use `v<version>` and may be annotated or lightweight. In both
+cases, the tag must match the top `NEWS` version exactly and resolve to a
+commit reachable from `main`. Release-candidate versions are published as
+prereleases and never replace the latest stable release; stable versions use
+normal release presentation.
 
 ## Before tagging
 
-1. Set a real date in the top `NEWS` entry and ensure its bullets describe all
-   changes since the previous published release.
-2. Review the package seeds, AppStream metadata, documentation, support
-   boundaries, security policy, and community routes.
+1. Set a real date in the top `NEWS` entry and make its complete body suitable
+   for publication without added headings or shell interpolation.
+2. Review package manifests, AppStream metadata, affected documentation,
+   support boundaries, and security/community routes.
 3. From a clean checkout, run:
 
    ```bash
@@ -51,8 +63,7 @@ The transformations preserve native upgrade ordering before RC2 and 1.0.0.
      data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
    ```
 
-4. Merge through the protected `main` process. Update local `main`, then create
-   an annotated tag:
+4. Merge through protected `main`, update the local branch, and derive the tag:
 
    ```bash
    git switch main
@@ -60,98 +71,90 @@ The transformations preserve native upgrade ordering before RC2 and 1.0.0.
    release_version="$(python3 build-aux/news-version.py --version --news NEWS)"
    release_tag="$(python3 build-aux/news-version.py --tag --news NEWS)"
    test "$release_tag" = "v${release_version}"
+   ```
+
+5. Create either tag kind and push it:
+
+   ```bash
+   # Annotated:
    git tag -a "$release_tag" -m "MeowMenu ${release_version}"
+
+   # Or lightweight:
+   git tag "$release_tag"
+
    git push origin "$release_tag"
    ```
 
-   A lightweight tag, a tag not reachable from `main`, or a tag different from
-   the top `NEWS` version is rejected. With a stable `1.0.0` top entry, these
-   commands create the illustrative `v1.0.0` tag; for the current candidate
-   they create `v0.9.0-rc1`.
+## Automatic publication
 
-## Private candidate workflow
+Pushing a valid tag starts `.github/workflows/packaging.yml`, the sole GitHub
+Release owner. The workflow:
 
-The tag starts `.github/workflows/packaging.yml`, the sole GitHub Release
-owner. It:
+1. resolves either tag kind to its immutable commit and checks `main`
+   ancestry and exact `NEWS` identity;
+2. creates one canonical tagged source archive;
+3. builds, runs the full product suite, installs, version-checks, and smoke
+   checks native packages for Ubuntu 26.04, Debian 13, and Fedora 44;
+4. builds, tests, reviews, installs, and version-checks the Arch recipe;
+5. runs repository, release, documentation, catalog, and AppStream checks;
+6. creates `SHA256SUMS`, verifies the exact inventory, and passes every file
+   to one publication command.
 
-1. validates the annotated tag, `main` ancestry, date, and exact `NEWS`
-   identity;
-2. creates the canonical tagged source archive with one stable top-level
-   directory;
-3. builds, tests, installs, and version-checks Ubuntu 26.04, Debian 13, and
-   Fedora 44 packages;
-4. validates the Arch recipe through build, tests, namcap review, installation,
-   and version ordering;
-5. runs blocking AppStream validation and exposes advisory lintian/rpmlint
-   output;
-6. generates structured notes and `SHA256SUMS`;
-7. creates or reuses one private draft prerelease, uploads the exact assets,
-   downloads them again, and verifies their inventory and checksums.
+After all mandatory gates pass, the release becomes public automatically. Its
+body is the complete matching `NEWS` entry. No confirmation phrase, evidence
+URL, second workflow run, or separate publication action is required.
 
-Any failure leaves the release private. A rerun may replace assets only on the
-matching draft; a pre-existing public release for the tag is an error.
-
-The expected assets are:
+For `<version>`, the public release contains exactly:
 
 ```text
-xfce4-meowmenu-plugin_0.9.0-rc1_ubuntu26.04_amd64.deb
-xfce4-meowmenu-plugin_0.9.0-rc1_debian13_amd64.deb
-xfce4-meowmenu-plugin-0.9.0-rc1-1.fc44.x86_64.rpm
-xfce4-meowmenu-plugin-0.9.0-rc1.tar.gz
+xfce4-meowmenu-plugin_<version>_ubuntu26.04_amd64.deb
+xfce4-meowmenu-plugin_<version>_debian13_amd64.deb
+xfce4-meowmenu-plugin-<version>-1.fc44.x86_64.rpm
+xfce4-meowmenu-plugin-<version>.tar.gz
 SHA256SUMS
 ```
 
-Download all five from the draft and verify:
+Download all five files into one directory and run:
 
 ```bash
 sha256sum -c SHA256SUMS
-tar -tzf xfce4-meowmenu-plugin-0.9.0-rc1.tar.gz \
-  | sed 's#/.*##' | sort -u
-dpkg-deb -f xfce4-meowmenu-plugin_0.9.0-rc1_*_amd64.deb Version
-rpm -qp --qf '%{VERSION}-%{RELEASE}\n' \
-  xfce4-meowmenu-plugin-0.9.0-rc1-1.fc44.x86_64.rpm
 ```
 
-The archive command must print only
-`xfce4-meowmenu-plugin-0.9.0-rc1`.
+The manifest must name the other four files exactly once and must not name
+itself. Inspect and install each native package in its matching clean target.
+Automated package evidence does not substitute for separately recorded live
+desktop testing.
 
-## Live release gates
+## Existing-tag recovery
 
-Using the private draft packages, complete both primary Xubuntu
-26.04/Xfce 4.20/X11/amd64 procedures in [docs/testing.md](docs/testing.md):
+Use manual dispatch only to recover an existing, unmodified annotated or
+lightweight tag that has no public GitHub Release. Select `main` as the
+workflow ref and enter the existing tag. Recovery refuses any workflow ref
+other than `main` and verifies that the workflow revision is reachable from
+`origin/main` before it can delete a stale draft or change a release.
 
-- a fresh-profile core run, including the Modern default and post-login
-  persistence;
-- a 0.8.0 upgrade, including panel item, Xfconf values, favourites, layout,
-  Calculator choices, custom preset files, a second migration pass, and
-  post-login persistence.
+Recovery uses the corrected release tools from `main` while all source and
+package content still comes from the immutable selected tag. It runs the same
+mandatory gates and automatic publication path as a pushed tag.
 
-Record the results in a durable public issue or prepared release evidence.
-Review the support matrix, known limitations, translations, notes, five
-assets, checksums, package versions, and feedback/security links as one unit.
-Enable GitHub private vulnerability reporting before publication.
+A stale private draft for the same tag may be deleted without deleting or
+moving the tag. A public release is terminal: another run fails instead of
+creating a duplicate or replacing assets. Runs for one tag are serialized,
+and a mandatory failure never publishes a partial complete release.
 
-## Publish the prerelease
-
-Manually run the packaging workflow for `v0.9.0-rc1` with:
-
-- **Publish** enabled;
-- **Authorization** exactly `publish v0.9.0-rc1`;
-- the durable primary live-evidence URL.
-
-The workflow repeats all gates before changing visibility. The public record is
-`prerelease=true` and is never selected as the latest stable release.
-
-After publication, download the public assets again, rerun `sha256sum -c`,
-inspect package versions, and recheck public links before announcing RC1.
+For hosted recovery acceptance, first dispatch a disposable existing tag from
+a non-`main` ref and confirm refusal before release mutation. Then dispatch
+the same tag from `main`, verify one successful publication, rerun to confirm
+duplicate refusal, and exercise one mandatory failure.
 
 ## Arch and AUR
 
-The in-repository `dist/arch/PKGBUILD` uses `sha256sums=('SKIP')` for
-development and CI. The separately published AUR `PKGBUILD` and `.SRCINFO`,
-prepared with a verified source checksum, are authoritative for AUR users.
+Arch validation is mandatory release evidence, but its binary package,
+`PKGBUILD`, `.SRCINFO`, and review logs are not GitHub Release assets. The
+repository recipe uses a development checksum; the separately published AUR
+metadata must use the verified public source checksum.
 
-After the public tag/archive exists:
+After the public tag and archive exist:
 
 ```bash
 ./dev/aur-release.sh ../xfce4-meowmenu-plugin-AUR

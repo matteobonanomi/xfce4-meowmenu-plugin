@@ -8,7 +8,20 @@ has_children: false
 
 Release packages are attached to the selected
 [GitHub Release](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases).
-Replace `<version>` with the version shown on that release.
+Each release contains the three native packages below, one matching source
+archive, and `SHA256SUMS`. Replace `<version>` with the version shown on that
+release.
+
+Download all five files into one directory and verify the four payloads before
+installing:
+
+```bash
+sha256sum -c SHA256SUMS
+```
+
+The manifest must report one successful check for each of the three packages
+and `xfce4-meowmenu-plugin-<version>.tar.gz`. It does not contain a checksum
+entry for itself.
 
 ## Ubuntu 26.04
 
@@ -39,9 +52,10 @@ yay -S xfce4-meowmenu-plugin
 
 The package
 ([xfce4-meowmenu-plugin](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin))
-is maintainer-published and distributed through the AUR. The repository recipe
-is built, tested, linted, and smoke-installed before publication, but the AUR
-package is published separately by the maintainer.
+is published manually by the maintainer and distributed through the AUR. The
+repository recipe is built, tested, linted, and smoke-installed as a mandatory
+release check, but no Arch binary is attached to the GitHub Release and the
+workflow does not publish AUR metadata.
 
 Uninstall with `yay -R xfce4-meowmenu-plugin`.
 

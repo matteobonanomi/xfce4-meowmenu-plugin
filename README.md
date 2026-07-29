@@ -25,11 +25,13 @@ moves among areas, and the arrow keys navigate results. See
 
 ## Install
 
-Release packages are provided for Ubuntu 26.04, Debian 13, and Fedora 44.
-Arch users can use the separately maintained
+Each GitHub Release provides native packages for Ubuntu 26.04, Debian 13, and
+Fedora 44, plus the matching source archive and `SHA256SUMS` manifest. Arch
+packaging is validated separately and is not attached as a binary; Arch users
+can use the maintainer-published
 [AUR package](https://aur.archlinux.org/packages/xfce4-meowmenu-plugin).
 Follow the [installation guide](docs/installation.md) for package commands,
-dependencies, source builds, removal, and full cleanup.
+checksum verification, dependencies, source builds, removal, and full cleanup.
 
 After installation, restart the panel with `xfce4-panel -r`, then add
 **MeowMenu** through **Add New Items**.
@@ -40,7 +42,7 @@ MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
 quality target. Package availability is listed under [Install](#install);
 testing evidence is documented separately.
 
-Continuous source builds cover the Xfce 4.16, 4.18, and 4.20 library
+On-demand source-stack builds cover the Xfce 4.16, 4.18, and 4.20 library
 generations. Xfce 4.20 on X11 and `x86_64`/`amd64` remains the primary live
 quality target. The libxfce4ui 4.21-or-newer replacement path is staged and
 tested without Exo, but is not presented as a separately live-validated

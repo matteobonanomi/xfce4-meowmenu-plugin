@@ -176,7 +176,10 @@ class DocumentationLinksTest(unittest.TestCase):
             self.assertNotIn(obsolete, support)
         package = support.split("## Package availability", maxsplit=1)[1]
         self.assertIn("[installation guide](installation)", package)
-        self.assertIn("do not\ncreate maintainer or community testing marks", package)
+        self.assertIn(
+            "do not create maintainer or community testing marks",
+            " ".join(package.split()),
+        )
 
     def test_xfce_compatibility_has_separate_evidence_boundaries(self):
         support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
@@ -192,14 +195,18 @@ class DocumentationLinksTest(unittest.TestCase):
         ):
             self.assertIn(row, section)
         self.assertIn(
-            "automated source-stack evidence, not distro\nor live desktop results",
-            section,
+            "explicit on-demand source-stack evidence, not routine distro or "
+            "live desktop results",
+            " ".join(section.split()),
         )
         self.assertIn(
-            "not a separately live-validated Xfce\n4.21 desktop",
-            section,
+            "not a separately live-validated Xfce 4.21 desktop",
+            " ".join(section.split()),
         )
-        self.assertIn("does not claim compatibility with every future", section)
+        self.assertIn(
+            "does not claim compatibility with every future",
+            " ".join(section.split()),
+        )
 
         boundaries = support.split(
             "## Sessions and architectures", maxsplit=1
@@ -277,6 +284,72 @@ class DocumentationLinksTest(unittest.TestCase):
         self.assertIn("Optional integrations on Fedora 44", installation)
         self.assertIn("Optional integrations on Arch", installation)
         self.assertIn("libxfce4ui 4.21", installation)
+
+    def test_release_artifact_and_arch_boundaries_are_documented(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        installation = (
+            ROOT / "docs/installation.md"
+        ).read_text(encoding="utf-8")
+        for document in (readme, installation):
+            normalized = " ".join(document.split())
+            self.assertIn("Ubuntu 26.04", normalized)
+            self.assertIn("Debian 13", normalized)
+            self.assertIn("Fedora 44", normalized)
+            self.assertIn("source archive", normalized)
+            self.assertIn("SHA256SUMS", normalized)
+        self.assertIn("sha256sum -c SHA256SUMS", installation)
+        self.assertIn("four payloads", installation)
+        self.assertIn("no Arch binary is attached", installation)
+        self.assertIn("published manually by the maintainer", installation)
+
+    def test_ci_package_and_live_evidence_remain_distinct(self):
+        testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
+        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
+        limitations = (
+            ROOT / "docs/known-limitations.md"
+        ).read_text(encoding="utf-8")
+        for context in (
+            "Ubuntu 26.04",
+            "Debian 13",
+            "Fedora 44",
+            "sanitizers",
+            "catalogs",
+            "Calculator",
+        ):
+            self.assertIn(context, testing)
+        self.assertIn("first ten consecutive", testing)
+        self.assertIn("at least nine should\nfinish within 15 minutes", testing)
+        self.assertIn("explicit compatibility matrix is dispatched", testing)
+        self.assertIn("not live desktop results", testing)
+        self.assertIn("explicit on-demand source-stack evidence", support)
+        self.assertIn("do not create\nmaintainer or community testing marks", support)
+        self.assertIn("explicit compatibility run", limitations)
+        self.assertNotIn("continuously checked", limitations)
+
+    def test_release_guide_matches_automatic_recovery_contract(self):
+        releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
+        normalized = " ".join(releasing.split())
+        for context in (
+            "build (ubuntu-26.04)",
+            "build (debian-13)",
+            "build (fedora-44)",
+            "sanitizers",
+            "static-checks",
+            "no-optional-deps",
+        ):
+            self.assertIn(context, releasing)
+        self.assertIn("first ten consecutive", normalized)
+        self.assertIn("At least nine must complete within 15 minutes", normalized)
+        self.assertIn("annotated or lightweight", normalized)
+        self.assertIn("other than `main`", normalized)
+        self.assertIn("exactly:", normalized)
+        self.assertIn("published AUR metadata", normalized)
+        self.assertIn("Commit and publish them manually", normalized)
+
+    def test_readme_calls_source_stack_checks_on_demand(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("On-demand source-stack builds", readme)
+        self.assertNotIn("Continuous source builds", readme)
 
 
 if __name__ == "__main__":

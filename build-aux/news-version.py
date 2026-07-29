@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 VERSION = r"\d+\.\d+\.\d+(?:-rc\d+)?"
+VERSION_RE = re.compile(rf"^{VERSION}$")
 ENTRY_RE = re.compile(
     rf"^\s*(?P<version>{VERSION})\s+\((?P<date>\d{{4}}-\d{{2}}-\d{{2}})\)\s*$"
 )
@@ -57,6 +58,8 @@ def parse_top_entry(news: Path):
 
 def native_versions(version: str):
     """Map a public version to package-native upstream versions."""
+    if not VERSION_RE.fullmatch(version):
+        raise ValueError(f"Unsupported release version: {version}")
     match = RC_RE.match(version)
     if not match:
         return {

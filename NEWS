@@ -1,7 +1,7 @@
 1.0.0-rc1 (2026-07-29)
 =====
 - UI: minor Presets and Calculator improvements
-- Release: add a draft-first publication process with canonical source archives and verified checksums
+- Release: publish verified packages, source archives, and checksums automatically from valid release tags
 - Packaging: validate Debian, Ubuntu, Fedora, and Arch package builds, installation, and version ordering
 - Packaging: declare required Exo build and runtime helpers across Debian, Fedora, and Arch packages
 - Documentation: add the support matrix, known limitations, testing procedures, and translation status
