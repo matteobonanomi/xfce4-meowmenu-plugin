@@ -6,11 +6,10 @@
 # computed checksum and the resolved version. The committed dist/arch/PKGBUILD
 # is never written (the documented behavior).
 #
-# The package version is tag-driven, exactly like the .deb/.rpm jobs: on a
-# release-tag run (push of vX.Y.Z) the tag is authoritative; the committed
-# pkgver is only a development fallback for untagged runs. This keeps the Arch
-# validation building the actual tagged source instead of requiring a
-# hand-maintained pkgver + checksum pinned into the recipe before tagging.
+# The package version is supplied explicitly by packaging CI or derived from a
+# release-tag push. The committed pkgver is only a standalone development
+# fallback. This keeps validation tied to NEWS without requiring a
+# hand-maintained pkgver + checksum before tagging.
 #
 # Emits the scratch build directory on stdout for the downstream build step.
 #
@@ -22,10 +21,21 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck disable=SC1090,SC1091,SC2154
 eval "$(source "${REPO_ROOT}/dist/arch/PKGBUILD"; printf 'pkgname=%q\npkgver=%q\nupstream_version=%q\n' "${pkgname}" "${pkgver}" "${_upstream_version}")"
 
-# Preserve the public tag for the source directory while deriving Arch's
+# Preserve the public version for the source directory while deriving Arch's
 # hyphen-free pkgver with the shared NEWS mapper.
+package_version="${MEOWMENU_PACKAGE_VERSION:-}"
 ref_name="${GITHUB_REF_NAME:-}"
-if [ "${GITHUB_EVENT_NAME:-}" = "push" ] && [[ "${ref_name}" == v[0-9]* ]]; then
+if [[ -n "${package_version}" ]]; then
+  news_version="$(python3 "${REPO_ROOT}/build-aux/news-version.py" \
+    --version --news "${REPO_ROOT}/NEWS")"
+  if [[ "${package_version}" != "${news_version}" ]]; then
+    echo "::error::Requested package version ${package_version} does not match NEWS ${news_version}" >&2
+    exit 1
+  fi
+  upstream_version="${package_version}"
+  pkgver="$(python3 "${REPO_ROOT}/build-aux/news-version.py" \
+    --arch-version --news "${REPO_ROOT}/NEWS")"
+elif [ "${GITHUB_EVENT_NAME:-}" = "push" ] && [[ "${ref_name}" == v[0-9]* ]]; then
   upstream_version="${ref_name#v}"
   pkgver="$(python3 "${REPO_ROOT}/build-aux/news-version.py" \
     --arch-version --news "${REPO_ROOT}/NEWS")"

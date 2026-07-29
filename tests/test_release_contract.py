@@ -33,6 +33,12 @@ NOTES_SPEC = importlib.util.spec_from_file_location(
 )
 NOTES = importlib.util.module_from_spec(NOTES_SPEC)
 NOTES_SPEC.loader.exec_module(NOTES)
+ARTIFACTS_SPEC = importlib.util.spec_from_file_location(
+    "release_artifacts",
+    RELEASE_HELPERS / "artifacts.py",
+)
+ARTIFACTS = importlib.util.module_from_spec(ARTIFACTS_SPEC)
+ARTIFACTS_SPEC.loader.exec_module(ARTIFACTS)
 
 
 class ReleaseContractTest(unittest.TestCase):
@@ -42,11 +48,15 @@ class ReleaseContractTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         interface = workflow.split("permissions:", maxsplit=1)[0]
         self.assertIn("- 'v*'", interface)
+        self.assertIn("branches:\n      - development", interface)
         self.assertIn("workflow_dispatch:", interface)
         self.assertEqual(
             re.findall(r"(?m)^      ([a-z_]+):$", interface),
-            ["tag"],
+            ["mode", "tag"],
         )
+        self.assertIn("default: artifact-only", interface)
+        self.assertIn("- recover-release", interface)
+        self.assertIn("required: false", interface)
         for retired in ("publish:", "authorization:", "manual_evidence:"):
             self.assertNotIn(retired, interface)
         self.assertIn(
@@ -61,7 +71,7 @@ class ReleaseContractTest(unittest.TestCase):
             ROOT / ".github/workflows/packaging.yml"
         ).read_text(encoding="utf-8")
         identity = workflow.split(
-            "- name: Validate tag, main ancestry, and NEWS identity",
+            "- name: Validate candidate identity",
             maxsplit=1,
         )[1].split("\n  source:", maxsplit=1)[0]
         self.assertGreaterEqual(
@@ -81,6 +91,7 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertIn("--news candidate/NEWS", identity)
         self.assertNotIn("cat-file -t", identity)
         self.assertIn("--repository candidate", workflow)
+        self.assertIn("ref: ${{ env.CANDIDATE_REF }}", workflow)
 
     def test_annotated_and_lightweight_tags_resolve_identically(self):
         for kind in ("annotated", "lightweight"):
@@ -115,6 +126,23 @@ class ReleaseContractTest(unittest.TestCase):
                 entries = manifest.read_text(encoding="utf-8").splitlines()
                 self.assertEqual(len(entries), 4)
                 self.assertNotIn("SHA256SUMS", manifest.read_text(encoding="utf-8"))
+
+    def test_development_source_archive_accepts_an_immutable_commit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            repository_path = Path(temporary) / "repository"
+            repository_path.mkdir()
+            repository = create_git_repository(
+                repository_path,
+                ReleaseFixture(),
+            )
+            output = Path(temporary) / f"xfce4-meowmenu-plugin-{PUBLIC_VERSION}.tar.gz"
+            ARTIFACTS.create_source_archive(
+                repository,
+                PUBLIC_VERSION,
+                output,
+                ref="HEAD",
+            )
+            VALIDATE.validate_archive(output, PUBLIC_VERSION)
 
     def test_checksum_tampering_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -200,9 +228,12 @@ class ReleaseContractTest(unittest.TestCase):
             "- name: Download and verify the published assets",
             maxsplit=1,
         )[0]
-        self.assertIn('gh release create "$RELEASE_TAG" artifacts/*', publication)
+        self.assertIn(
+            'gh release create "$RELEASE_TAG" package-set/artifacts/*',
+            publication,
+        )
         self.assertIn("--verify-tag", publication)
-        self.assertIn("--notes-file release-notes.md", publication)
+        self.assertIn("--notes-file package-set/release-notes.md", publication)
         self.assertIn("--prerelease --latest=false", publication)
         self.assertEqual(workflow.count("gh release create"), 1)
         self.assertNotIn("gh release upload", workflow)
@@ -232,8 +263,11 @@ class ReleaseContractTest(unittest.TestCase):
             self.assertIn(job, needs)
         self.assertLess(
             assembly.index("Run release, presentation, documentation, and translation gates"),
-            assembly.index("Publish one complete release"),
+            assembly.index("Upload complete package set"),
         )
+        publication = workflow.split("  publish-release:", maxsplit=1)[1]
+        self.assertIn("needs: [validate-tag, assemble-release]", publication)
+        self.assertIn("if: needs.validate-tag.outputs.publish == 'true'", publication)
 
     def test_native_package_jobs_keep_complete_candidate_gates(self):
         workflow = (
@@ -269,7 +303,7 @@ class ReleaseContractTest(unittest.TestCase):
             "appstreamcli validate --no-net",
             'rpmlint "$spec" "$package"',
             'dnf -y install "$package"',
-            "rpm -qf /usr/bin/exo-open",
+            "rpm -qf --qf '%{NAME}\\n' /usr/bin/exo-open",
             "assert-dependency-regime.sh",
             "installed-action-smoke.sh",
         ):
@@ -289,6 +323,12 @@ class ReleaseContractTest(unittest.TestCase):
             "makepkg --printsrcinfo",
         ):
             self.assertIn(required, arch)
+        self.assertIn(
+            "MEOWMENU_PACKAGE_VERSION: ${{ needs.validate-tag.outputs.version }}",
+            arch,
+        )
+        self.assertNotIn("GITHUB_EVENT_NAME:", arch)
+        self.assertNotIn("GITHUB_REF_NAME:", arch)
 
     def test_release_assembly_downloads_only_publishable_artifacts(self):
         workflow = (
@@ -304,6 +344,42 @@ class ReleaseContractTest(unittest.TestCase):
             self.assertIn(f"name: {artifact}", assembly)
         self.assertNotIn("name: arch-pkgbuild-logs\n          path: artifacts", assembly)
         self.assertIn("artifacts.py verify", assembly)
+        self.assertIn("Upload complete package set", assembly)
+        self.assertIn("artifacts/*", assembly)
+
+    def test_development_packaging_is_artifact_only_and_non_publishing(self):
+        workflow = (
+            ROOT / ".github/workflows/packaging.yml"
+        ).read_text(encoding="utf-8")
+        validation = workflow.split("  validate-tag:", maxsplit=1)[1].split(
+            "\n  source:",
+            maxsplit=1,
+        )[0]
+        assembly = workflow.split("  assemble-release:", maxsplit=1)[1].split(
+            "\n  publish-release:",
+            maxsplit=1,
+        )[0]
+        publication = workflow.split("  publish-release:", maxsplit=1)[1]
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn(
+            "test \"$GITHUB_REF\" = refs/heads/development",
+            validation,
+        )
+        self.assertIn("test -z \"$RECOVERY_TAG\"", validation)
+        self.assertIn("publish=false", validation)
+        self.assertIn("--ref \"$CANDIDATE_REF\"", workflow)
+        self.assertIn(
+            "github.event_name == 'push' "
+            "&& github.ref == 'refs/heads/development'",
+            workflow,
+        )
+        self.assertIn("Upload complete package set", assembly)
+        self.assertNotIn("gh release", assembly)
+        self.assertIn("permissions:\n      contents: write", publication)
+        self.assertIn(
+            "if: needs.validate-tag.outputs.publish == 'true'",
+            publication,
+        )
 
     def test_routine_ci_has_stable_required_contexts(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
@@ -355,7 +431,11 @@ class ReleaseContractTest(unittest.TestCase):
             "- name: Checkout immutable candidate",
             maxsplit=1,
         )[0]
-        self.assertIn("if: github.event_name == 'workflow_dispatch'", authority)
+        self.assertIn(
+            "if: github.event_name == 'workflow_dispatch' "
+            "&& inputs.mode == 'recover-release'",
+            authority,
+        )
         self.assertIn(
             "*/.github/workflows/packaging.yml@refs/heads/main",
             authority,

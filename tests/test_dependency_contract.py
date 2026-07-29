@@ -22,6 +22,7 @@ class DependencyContractTests(unittest.TestCase):
         control = (ROOT / "debian/control").read_text(encoding="utf-8")
         source, binary = control.split("\nPackage:", maxsplit=1)
         self.assertRegex(source, r"(?m)^ libexo-2-dev,$")
+        self.assertRegex(source, r"(?m)^ git,$")
         self.assertRegex(binary, r"(?m)^ exo-utils,$")
 
     def test_debian_jobs_resolve_the_manifest(self):
@@ -42,6 +43,7 @@ class DependencyContractTests(unittest.TestCase):
             ROOT / "dist/rpm/xfce4-meowmenu-plugin.spec"
         ).read_text(encoding="utf-8")
         self.assertRegex(spec, r"(?m)^BuildRequires:\s+pkgconfig\(exo-2\)$")
+        self.assertRegex(spec, r"(?m)^BuildRequires:\s+/usr/bin/git$")
         self.assertRegex(spec, r"(?m)^Requires:\s+/usr/bin/exo-open$")
 
     def test_arch_keeps_exo_in_runtime_depends(self):
@@ -51,11 +53,28 @@ class DependencyContractTests(unittest.TestCase):
         depends = re.search(r"(?ms)^depends=\((.*?)\)\n", pkgbuild)
         self.assertIsNotNone(depends)
         self.assertRegex(depends.group(1), r"'exo'")
+        makedepends = re.search(r"(?ms)^makedepends=\((.*?)\)\n", pkgbuild)
+        self.assertIsNotNone(makedepends)
+        self.assertRegex(makedepends.group(1), r"'git'")
         build_helper = (
             ROOT / "build-aux/arch/build-package.sh"
         ).read_text(encoding="utf-8")
         self.assertRegex(build_helper, r"makepkg\s+\\\n\s+--syncdeps")
         self.assertNotIn("meson test -C", build_helper)
+        self.assertIn('dirname "${BASH_SOURCE[0]}"', build_helper)
+        self.assertIn(
+            '"${script_dir}/../compat/assert-dependency-regime.sh"',
+            build_helper,
+        )
+        self.assertNotIn('dirname "$0"', build_helper)
+        source_helper = (
+            ROOT / "build-aux/arch/prepare-source.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn('package_version="${MEOWMENU_PACKAGE_VERSION:-}"', source_helper)
+        self.assertIn(
+            '"${package_version}" != "${news_version}"',
+            source_helper,
+        )
 
     def test_fedora_and_arch_keep_positive_package_checks(self):
         workflow = (
@@ -128,6 +147,39 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn('stable_debian="${DEBIAN_VERSION%%~rc*}-1"', workflow)
         self.assertIn('stable_rpm="${RPM_VERSION%%~rc*}"', workflow)
         self.assertIn('stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"', workflow)
+        self.assertIn(
+            'rpmbuild -ba --define "meowmenu_testlog ${testlog}"',
+            workflow,
+        )
+        self.assertIn('test -s "$testlog"', workflow)
+        self.assertIn(
+            "xfce4-meowmenu-plugin-${RPM_VERSION}-1.fc44.x86_64.rpm",
+            workflow,
+        )
+        self.assertIn(
+            "rpm -qf --qf '%{NAME}\\n' /usr/bin/exo-open",
+            workflow,
+        )
+        self.assertNotIn(
+            'find "$HOME/rpmbuild/BUILD" -path',
+            workflow,
+        )
+        spec = (
+            ROOT / "dist/rpm/xfce4-meowmenu-plugin.spec"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "%{?meowmenu_testlog:cp -p "
+            "redhat-linux-build/meson-logs/testlog.txt %{meowmenu_testlog}}",
+            spec,
+        )
+        self.assertIn(
+            "if rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') >= 0 then",
+            workflow,
+        )
+        self.assertNotIn(
+            "rpm.vercmp('${RPM_VERSION}', '${stable_rpm}') < 0 or",
+            workflow,
+        )
         for obsolete in ("0.9.0~rc2", "0.9.0rc2", "RC1 must precede RC2"):
             self.assertNotIn(obsolete, workflow)
 
