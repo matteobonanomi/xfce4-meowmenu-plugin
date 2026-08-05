@@ -153,6 +153,56 @@ void Page::select_first()
 	gtk_adjustment_set_value(adjustment, gtk_adjustment_get_lower(adjustment));
 }
 
+/* focus_first_result:
+ *
+ * Establishes the first current result as the complete keyboard anchor. The
+ * cursor, single selection, reveal, and view focus are applied together so a
+ * refreshed model cannot leave a stale focus indicator behind.
+ *
+ * Returns: true when a selectable first row exists.
+ */
+bool Page::focus_first_result()
+{
+	GtkTreeModel* model = m_view ? m_view->get_model() : nullptr;
+	GtkTreeIter iter;
+	if (!model || !gtk_tree_model_get_iter_first(model, &iter))
+		return false;
+
+	GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+	m_view->set_cursor(path);
+	m_view->select_path(path);
+	m_view->scroll_to_path(path);
+	gtk_widget_grab_focus(m_view->get_widget());
+	gtk_tree_path_free(path);
+	return true;
+}
+
+/* keyboard_move:
+ * @direction: physical direction requested by the window dispatcher.
+ *
+ * Asks the concrete result view for an adjacent displayed item and applies
+ * its cursor, selection, reveal, and focus transition as one operation. A
+ * missing neighbour is a boundary no-op; model order is never wrapped.
+ */
+bool Page::keyboard_move(Keyboard::PhysicalDirection direction)
+{
+	if (!m_view)
+		return false;
+	GtkTreePath* origin = m_view->get_selected_path();
+	if (!origin)
+		origin = m_view->get_cursor();
+	if (!origin)
+		return false;
+
+	GtkTreePath* target = m_view->get_directional_path(origin, direction);
+	gtk_tree_path_free(origin);
+	if (!target)
+		return false;
+	const bool moved = m_view->apply_keyboard_target(target);
+	gtk_tree_path_free(target);
+	return moved;
+}
+
 //-----------------------------------------------------------------------------
 
 void Page::update_view()

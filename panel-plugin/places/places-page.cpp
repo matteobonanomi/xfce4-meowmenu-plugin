@@ -236,11 +236,46 @@ void PlacesPage::select_first()
 	}
 }
 
+/* focus_first_result:
+ *
+ * Applies the first current Places row as a complete keyboard anchor. The
+ * method is intentionally a no-op for an empty asynchronous model, allowing
+ * Search to remain the fallback until a current result is delivered.
+ *
+ * Returns: true when a row was selected, revealed, and focused.
+ */
+bool PlacesPage::focus_first_result()
+{
+	GtkTreeModel* model = m_view ? m_view->get_model() : nullptr;
+	GtkTreeIter iter;
+	if (!model || !gtk_tree_model_get_iter_first(model, &iter))
+		return false;
+
+	GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+	m_view->set_cursor(path);
+	m_view->select_path(path);
+	m_view->scroll_to_path(path);
+	gtk_widget_grab_focus(m_view->get_widget());
+	gtk_tree_path_free(path);
+	return true;
+}
+
+void PlacesPage::note_deliberate_navigation()
+{
+	m_focus_lease.relinquish();
+}
+
+void PlacesPage::invalidate_focus_lease()
+{
+	cancel_home_search();
+	m_focus_lease.invalidate();
+}
+
 //-----------------------------------------------------------------------------
 
 void PlacesPage::set_active_section(PlacesSection* section)
 {
-	cancel_home_search();
+	invalidate_focus_lease();
 	clear_home_search_items();
 	m_active_section = section;
 	rebuild_model();
@@ -248,7 +283,7 @@ void PlacesPage::set_active_section(PlacesSection* section)
 
 void PlacesPage::refresh_active()
 {
-	cancel_home_search();
+	invalidate_focus_lease();
 	clear_home_search_items();
 	rebuild_model();
 }
@@ -277,6 +312,9 @@ void PlacesPage::set_filter(const gchar* filter)
 		// Cancel any pending debounce or in-flight worker; we'll
 		// schedule a fresh run after the debounce window.
 		cancel_home_search();
+		const std::uint64_t generation = m_focus_lease.begin(
+				m_filter, m_active_section,
+				m_window && m_window->is_places_active());
 		// Clear visible model immediately so stale results don't linger
 		// while the new walk is being prepared.
 		gtk_list_store_clear(m_model);
@@ -286,11 +324,13 @@ void PlacesPage::set_filter(const gchar* filter)
 		m_home_search_active = true;
 		m_debounce_id = g_timeout_add(150,
 				&PlacesPage::on_debounce_fired, this);
+		(void)generation;
 		return;
 	}
 
 	// Non-Home or short filter: fall back to existing visible-items filter.
 	cancel_home_search();
+	m_focus_lease.invalidate();
 	clear_home_search_items();
 	rebuild_model();
 }
@@ -314,13 +354,17 @@ void PlacesPage::start_home_search()
 	const int cap = m_settings ? (int) m_settings->places_max_items : 20;
 	if (cap <= 0)
 	{
-		on_home_search_done();
+		on_home_search_done(m_focus_lease.generation());
 		return;
 	}
 
+	const std::uint64_t generation = m_focus_lease.generation();
 	m_home->start_search(m_filter.c_str(), cap,
-			[this](PlacesItem* item) { on_home_search_result(item); },
-			[this]() { on_home_search_done(); });
+			[this, generation](PlacesItem* item)
+			{
+				on_home_search_result(item, generation);
+			},
+			[this, generation]() { on_home_search_done(generation); });
 }
 
 void PlacesPage::cancel_home_search()
@@ -335,6 +379,7 @@ void PlacesPage::cancel_home_search()
 		m_home->cancel_search();
 	}
 	m_home_search_active = false;
+	m_focus_lease.invalidate();
 }
 
 void PlacesPage::clear_home_search_items()
@@ -346,28 +391,50 @@ void PlacesPage::clear_home_search_items()
 	m_home_search_items.clear();
 }
 
-void PlacesPage::on_home_search_result(PlacesItem* item)
+void PlacesPage::on_home_search_result(PlacesItem* item,
+		std::uint64_t generation)
 {
 	if (!item)
 	{
+		return;
+	}
+	if (!m_focus_lease.matches(generation, m_filter, m_active_section,
+			m_window && m_window->is_places_active()))
+	{
+		delete item;
 		return;
 	}
 	// Take ownership and append shallow-first into the model. Use the same
 	// availability-driven markup/tooltip feed as rebuild_model() so missing
 	// home-search results render muted consistently.
 	m_home_search_items.push_back(item);
+	GtkTreeIter iter;
 	gtk_list_store_insert_with_values(
-			m_model, nullptr, G_MAXINT,
+			m_model, &iter, G_MAXINT,
 			LauncherView::COLUMN_ICON, item->get_icon(),
 			LauncherView::COLUMN_TEXT, item->get_display_markup(),
 			LauncherView::COLUMN_TOOLTIP, item->get_tooltip(),
 			LauncherView::COLUMN_LAUNCHER, static_cast<Element*>(item),
 			-1);
 	gtk_widget_set_visible(m_empty_message, false);
+	if (m_focus_lease.claim_first(generation, m_filter, m_active_section,
+			m_window && m_window->is_places_active()))
+	{
+		GtkTreePath* path = gtk_tree_model_get_path(
+				GTK_TREE_MODEL(m_model), &iter);
+		m_view->set_cursor(path);
+		m_view->select_path(path);
+		m_view->scroll_to_path(path);
+		gtk_widget_grab_focus(m_view->get_widget());
+		gtk_tree_path_free(path);
+	}
 }
 
-void PlacesPage::on_home_search_done()
+void PlacesPage::on_home_search_done(std::uint64_t generation)
 {
+	if (!m_focus_lease.matches(generation, m_filter, m_active_section,
+			m_window && m_window->is_places_active()))
+		return;
 	// Finalize the worker; safe to call from inside the worker's own
 	// done callback because HomeSection holds the worker via a
 	// raw pointer and HomeSearchWorker keeps its callbacks alive via
@@ -377,6 +444,8 @@ void PlacesPage::on_home_search_done()
 		m_home->cancel_search();
 	}
 	m_home_search_active = false;
+	m_focus_lease.settle_empty(generation, m_filter, m_active_section,
+			m_window && m_window->is_places_active());
 
 	// If the walk produced no matches at all, surface the empty-state.
 	GtkTreeIter iter;
@@ -471,6 +540,7 @@ void PlacesPage::on_button_press(GdkEventButton* event)
 	{
 		return;
 	}
+	m_focus_lease.relinquish();
 
 	GtkTreePath* path = m_view->get_path_at_pos(event->x, event->y);
 	if (!path)

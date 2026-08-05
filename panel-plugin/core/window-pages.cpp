@@ -234,6 +234,8 @@ void WhiskerMenu::Window::search()
 		// Places mode: stay on the places panel; filter the active section.
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		m_places->set_filter(text);
+		if (text)
+			m_places->focus_first_result();
 		// the documented behavior: query empty → return focus to the search entry so the
 		// user is back in Browsing-style entry focus.
 		if (!text)
@@ -264,23 +266,7 @@ void WhiskerMenu::Window::search()
 
 	if (text)
 	{
-		// the documented behavior: when the query produced at least one result, move
-		// keyboard focus to the first result so the user can press
-		// Enter to launch it or use arrows to navigate. Subsequent
-		// printable keystrokes are still routed back into the entry
-		// via the on_key_press_event_after catch-all (the documented behavior).
-		GtkTreeModel* model = m_search_results->get_view()->get_model();
-		GtkTreeIter iter;
-		if (m_search_results->has_calculator_result())
-		{
-			gtk_widget_grab_focus(
-					m_search_results->get_preferred_focus_widget());
-		}
-		else if (model && gtk_tree_model_get_iter_first(model, &iter))
-		{
-			gtk_widget_grab_focus(m_search_results->get_view()->get_widget());
-			m_search_results->select_first();
-		}
+		m_search_results->focus_first_visual_result();
 	}
 	else
 	{
@@ -356,6 +342,8 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 		inputs.transition = MenuModeTransition::Enter;
 		resolution = resolve_menu_mode(inputs);
 	}
+	if (resolution.mode != prior_mode)
+		m_places->invalidate_focus_lease();
 
 	const bool places = resolution.mode == MenuMode::Places;
 	m_places_active = places;
@@ -430,6 +418,15 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 	if (inputs.transition == MenuModeTransition::Enter)
 	{
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		if (places)
+		{
+			if (!m_places->focus_first_result())
+				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		}
+		else if (!m_search_results->focus_first_visual_result())
+		{
+			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+		}
 	}
 	m_mode_switch_in_progress = false;
 	update_favourite_drop_targets();

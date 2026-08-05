@@ -1,379 +1,147 @@
-/*
- * Headless tests for the focus-area resolution helpers declared in
- * panel-plugin/core/window-keyboard.h. No GTK widgets are instantiated;
- * only the VisibilityMask/MenuState/Zone inputs are fabricated.
- *
- * Covers the four-zone Ctrl+Tab cycle (contracts/area-cycle.md §"Test plan")
- * and the bare-Tab decision rule (contracts/tab-mode-toggle.md §"Test plan").
- */
+/* Headless coverage for physical directional scoring and eligibility. */
 
 #include "core/window-keyboard.h"
 
-#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 
-using WhiskerMenu::Keyboard::Direction;
-using WhiskerMenu::Keyboard::MenuState;
-using WhiskerMenu::Keyboard::next_zone;
-using WhiskerMenu::Keyboard::tab_action;
-using WhiskerMenu::Keyboard::TabAction;
-using WhiskerMenu::Keyboard::VisibilityMask;
-using WhiskerMenu::Keyboard::Zone;
-using WhiskerMenu::Keyboard::zone_active;
-using WhiskerMenu::Keyboard::CalculatorFocus;
-using WhiskerMenu::Keyboard::calculator_vertical_target;
+using namespace WhiskerMenu::Keyboard;
 
 namespace
 {
 
-int g_failures = 0;
+int failures = 0;
 
-#define CHECK(cond) do { \
-		if (!(cond)) { \
-			std::fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-			++g_failures; \
-		} \
-	} while (0)
+#define CHECK(condition) do { \
+	if (!(condition)) { \
+		std::fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #condition); \
+		++failures; \
+	} \
+} while (0)
 
-const char* zone_name(Zone z)
+FocusTarget target(std::size_t id, NavigationRegion region, int x, int y,
+		unsigned ordinal, bool usable = true,
+		FocusTargetKind kind = FocusTargetKind::ResultItem)
 {
-	switch (z)
-	{
-	case Zone::Search:  return "Search";
-	case Zone::Results: return "Results";
-	case Zone::Sidebar: return "Sidebar";
-	case Zone::Profile: return "Profile";
-	}
-	return "?";
+	FocusTarget result;
+	result.target_id = id;
+	result.region = region;
+	result.kind = kind;
+	result.rectangle = {x, y, 10, 10};
+	result.visual_ordinal = ordinal;
+	result.usable = usable;
+	return result;
 }
 
-#define EQZ(actual, expected) do { \
-		Zone _a = (actual); \
-		Zone _e = (expected); \
-		if (_a != _e) { \
-			std::fprintf(stderr, "FAIL %s:%d: got %s expected %s\n", \
-			             __FILE__, __LINE__, zone_name(_a), zone_name(_e)); \
-			++g_failures; \
-		} \
-	} while (0)
-
-void canonical_forward_all_visible()
+void strict_half_plane()
 {
-	VisibilityMask mask;
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Forward),
-	    Zone::Results);
+	const NavigationRect origin{50, 50, 10, 10};
+	std::vector<FocusTarget> candidates = {
+		target(1, NavigationRegion::Results, 70, 50, 0),
+		target(2, NavigationRegion::Results, 40, 50, 1),
+		target(3, NavigationRegion::Results, 50, 30, 2),
+	};
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Right,
+			candidates, false) == 0);
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Left,
+			candidates, false) == 1);
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Up,
+			candidates, false) == 2);
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Down,
+			candidates, false) == NO_TARGET);
 }
 
-void canonical_full_loop()
+void lexicographic_score()
 {
-	VisibilityMask mask;
-	Zone z = Zone::Search;
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Forward); EQZ(z, Zone::Results);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Forward); EQZ(z, Zone::Sidebar);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Forward); EQZ(z, Zone::Profile);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Forward); EQZ(z, Zone::Search);
+	const NavigationRect origin{0, 0, 10, 10};
+	std::vector<FocusTarget> candidates = {
+		target(1, NavigationRegion::Results, 30, 30, 0),
+		target(2, NavigationRegion::Results, 20, 80, 1),
+		target(3, NavigationRegion::Results, 20, 45, 2),
+	};
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Down,
+			candidates, false) == 0);
 }
 
-void reverse_full_loop()
+void rtl_tie_order()
 {
-	VisibilityMask mask;
-	Zone z = Zone::Search;
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Backward); EQZ(z, Zone::Profile);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Backward); EQZ(z, Zone::Sidebar);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Backward); EQZ(z, Zone::Results);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Backward); EQZ(z, Zone::Search);
-	z = next_zone(mask, MenuState::Browsing, z, Direction::Backward); EQZ(z, Zone::Profile);
+	const NavigationRect origin{0, 0, 10, 10};
+	std::vector<FocusTarget> candidates = {
+		target(1, NavigationRegion::Results, -20, 20, 0),
+		target(2, NavigationRegion::Results, 20, 20, 1),
+	};
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Down,
+			candidates, false) == 0);
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Down,
+			candidates, true) == 1);
 }
 
-void sidebar_skipped_when_searching()
+void eligibility_and_no_wrap()
 {
-	// Sidebar is inert while Searching, so Forward from Results skips it
-	// and lands on Profile (the mode toggle is no longer a cycle stop).
-	VisibilityMask mask;
-	EQZ(next_zone(mask, MenuState::Searching, Zone::Results, Direction::Forward),
-	    Zone::Profile);
+	const NavigationRect origin{0, 0, 10, 10};
+	std::vector<FocusTarget> candidates = {
+		target(1, NavigationRegion::Sidebar, 20, 0, 0, true),
+		target(2, NavigationRegion::Results, 20, 0, 1, false),
+		target(3, NavigationRegion::Results, -20, 0, 2, true),
+		target(4, NavigationRegion::Results, 20, 0, 3, true,
+			FocusTargetKind::Decorative),
+	};
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Right,
+			candidates, false, MenuState::Searching) == NO_TARGET);
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Left,
+			candidates, false) == 2);
 }
 
-void sidebar_rejoined_when_browsing()
+void internal_first()
 {
-	VisibilityMask mask;
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
-	    Zone::Sidebar);
+	const FocusTarget origin = target(10, NavigationRegion::Results,
+			0, 0, 0);
+	std::vector<FocusTarget> internal = {
+		target(11, NavigationRegion::Results, 20, 0, 0),
+	};
+	std::vector<FocusTarget> external = {
+		target(12, NavigationRegion::Sidebar, 12, 0, 0),
+	};
+	const NavigationDecision decision = decide_navigation(origin,
+			PhysicalDirection::Right, internal, external, false);
+	CHECK(decision.kind == NavigationDecisionKind::InternalMove);
+	CHECK(decision.target_id == 11);
 }
 
-void hidden_profile_skipped()
+void no_target_is_noop()
 {
-	// With Profile hidden, Forward from Sidebar wraps past the absent
-	// Profile back to Search.
-	VisibilityMask mask;
-	mask.profile = false;
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Forward),
-	    Zone::Search);
+	const FocusTarget origin = target(10, NavigationRegion::Search,
+			0, 0, 0);
+	const NavigationDecision decision = decide_navigation(origin,
+			PhysicalDirection::Up, {}, {}, false);
+	CHECK(decision.kind == NavigationDecisionKind::NoOp);
 }
 
-void hidden_sidebar()
+void key_normalization()
 {
-	// Sidebar hidden → Forward from Results lands on Profile.
-	VisibilityMask mask;
-	mask.sidebar = false;
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
-	    Zone::Profile);
-}
-
-void hidden_profile_searching()
-{
-	// Profile hidden and Sidebar inert (Searching) → Forward from Results
-	// wraps to Search.
-	VisibilityMask mask;
-	mask.profile = false;
-	EQZ(next_zone(mask, MenuState::Searching, Zone::Results, Direction::Forward),
-	    Zone::Search);
-}
-
-void current_is_inert_zone()
-{
-	// Sidebar just became inert (user typed first character). Forward
-	// from inert Sidebar should land on the first active zone after it
-	// in canonical order, which is Profile (Mode is no longer a stop).
-	VisibilityMask mask;
-	EQZ(next_zone(mask, MenuState::Searching, Zone::Sidebar, Direction::Forward),
-	    Zone::Profile);
-}
-
-void ltr_and_rtl_equivalence()
-{
-	// The cycle is independent of widget default direction (the documented behavior);
-	// the function takes no GTK state. Pin the property explicitly by
-	// running the same call twice with identical inputs and asserting
-	// the same output.
-	VisibilityMask mask;
-	Zone ltr = next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Forward);
-	Zone rtl = next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Forward);
-	EQZ(ltr, rtl);
-}
-
-void three_tabs_visit_every_visible()
-{
-	// the documented behavior: starting from Search in an all-visible Browsing menu, three
-	// Forward steps must visit the other three zones: Results, Sidebar,
-	// Profile (the four-zone cycle has no Mode stop).
-	VisibilityMask mask;
-	bool visited[4] = { false, false, false, false };
-	Zone z = Zone::Search;
-	visited[static_cast<unsigned>(z)] = true;
-	for (int i = 0; i < 3; ++i)
-	{
-		z = next_zone(mask, MenuState::Browsing, z, Direction::Forward);
-		visited[static_cast<unsigned>(z)] = true;
-	}
-	for (unsigned i = 0; i < 4; ++i)
-	{
-		CHECK(visited[i]);
-	}
-}
-
-void all_optional_zones_hidden()
-{
-	// Sidebar + Profile hidden → cycle reduces to Search ↔ Results.
-	VisibilityMask mask;
-	mask.sidebar = false;
-	mask.profile = false;
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Forward),
-	    Zone::Results);
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
-	    Zone::Search);
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Backward),
-	    Zone::Results);
-}
-
-void profile_unfocusable_skipped()
-{
-	// US3 / contracts/focus-cycle.md: when the Profile zone's only command
-	// button is visible but NOT focusable, current_visibility_mask() now
-	// reports profile=false (the focusability-aware availability gate). At
-	// this pure layer that is simply mask.profile == false, and the cycle must
-	// skip Profile instead of treating it as a dead-end stop.
-	//
-	// NOTE: the focusability *decision* lives in current_visibility_mask()
-	// (GTK-widget-coupled, verified manually per quickstart). next_zone is
-	// authoritative over the resulting mask and already skips an unavailable
-	// zone, so this case documents and locks that contract.
-	VisibilityMask mask;
-	mask.profile = false;
-
-	// Browsing, from Results: Profile unavailable but Sidebar is active, so
-	// the next focusable zone is Sidebar.
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
-	    Zone::Sidebar);
-
-	// Searching (Sidebar inert) + Profile unavailable: Forward from Results
-	// finds no later active zone and wraps to Search.
-	EQZ(next_zone(mask, MenuState::Searching, Zone::Results, Direction::Forward),
-	    Zone::Search);
-
-	// From Sidebar with Profile unavailable, Forward wraps past the absent
-	// Profile back to Search.
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Forward),
-	    Zone::Search);
-}
-
-void single_available_zone_noop()
-{
-	// the documented behavior / C3: when exactly one zone can receive focus, Ctrl+Tab is a
-	// harmless no-op — next_zone returns `current`. Fabricate a single-zone
-	// mask (only Search active) to exercise the no-op path directly. In the
-	// live menu Search and Results are never both hidden (the documented behavior); this is the
-	// pure-layer guarantee the runtime grab-retry loop relies on.
-	VisibilityMask mask;
-	mask.results = false;
-	mask.sidebar = false;
-	mask.profile = false;
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Search, Direction::Forward),
-	    Zone::Search);
-	EQZ(next_zone(mask, MenuState::Searching, Zone::Search, Direction::Forward),
-	    Zone::Search);
-}
-
-void tab_action_rule()
-{
-	// the documented behavior: Tab toggles the mode when Places is available and is inert
-	// otherwise — it never falls back to area cycling.
-	CHECK(tab_action(true)  == TabAction::ToggleMode);
-	CHECK(tab_action(false) == TabAction::Inert);
-}
-
-void sidebar_focus_retention_zone_invariant()
-{
-	// US1 / contracts/focus-retention.md C1. Regression guard — expected green
-	// both before and after the fix: the ejection defect lived in the
-	// widget-level activation handoff, not in this pure zone routing. Lock the
-	// zone model the retention relies on so a future change to next_zone /
-	// zone_active cannot silently reintroduce the Sidebar→Search ejection.
-	//
-	// The sidebar must be an active, focus-holding zone while browsing, and its
-	// only Ctrl+Tab neighbours are Results and Profile — never Search. An
-	// along-axis category move is not a zone transition at all (it stays in the
-	// sidebar by construction), so no along-axis press can resolve to Search
-	// through this layer.
-	VisibilityMask mask;
-	CHECK(zone_active(Zone::Sidebar, mask, MenuState::Browsing));
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Forward),
-	    Zone::Profile);
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Backward),
-	    Zone::Results);
-
-	// The keyboard-origin guard (Window::m_keyboard_category_nav) is deliberately
-	// NOT an input to the pure router: the resolved zone is identical regardless
-	// of whether a keyboard navigation is in progress. The router taking no such
-	// parameter is the structural guarantee; re-evaluating yields the same zone,
-	// locking that the resolution cannot drift to Search.
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Sidebar, Direction::Forward),
-	    Zone::Profile);
-
-	// the documented behavior single-navigable-category edge. At the widget level an along-axis
-	// move with one focusable sibling is a no-op that keeps focus on that
-	// category (verified manually per quickstart). The pure-layer analogue is
-	// the single-available-zone no-op: with only one focusable zone, resolution
-	// returns `current` rather than ejecting elsewhere.
-	VisibilityMask single;
-	single.results = false;
-	single.sidebar = false;
-	single.profile = false;
-	EQZ(next_zone(single, MenuState::Browsing, Zone::Search, Direction::Forward),
-	    Zone::Search);
-}
-
-void pointer_origin_handoff_absent_from_router()
-{
-	// US2 / contracts/focus-retention.md C2. The pointer-vs-keyboard handoff
-	// decision lives solely in the Window toggled handlers, keyed on
-	// m_keyboard_category_nav, and is intentionally absent from the pure router:
-	// the router resolves the same Sidebar zone regardless of activation origin.
-	// This locks the routing layer as origin-agnostic so the distinction can
-	// only ever live in the one auditable guard, never leak into zone routing.
-	VisibilityMask mask;
-	CHECK(zone_active(Zone::Sidebar, mask, MenuState::Browsing));
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
-	    Zone::Sidebar);
-}
-
-void sidebar_exit_paths_unchanged_by_guard()
-{
-	// US3 / contracts/focus-retention.md C4. The explicit exit paths are
-	// unchanged by the focus-retention fix. The outward-arrow grab into the
-	// results list and the printable-key redirect are widget-level (manual
-	// quickstart); at the pure layer, lock that the browsing/searching
-	// distinction and Sidebar's cross-region neighbours are exactly as before,
-	// so the new guard perturbs none of them.
-	VisibilityMask mask;
-	// Sidebar is inert while searching (a printable key began a query); the
-	// exit routing must skip it, unchanged.
-	CHECK(!zone_active(Zone::Sidebar, mask, MenuState::Searching));
-	EQZ(next_zone(mask, MenuState::Searching, Zone::Results, Direction::Forward),
-	    Zone::Profile);
-	// Browsing cross-region cycle from Results still reaches Sidebar.
-	EQZ(next_zone(mask, MenuState::Browsing, Zone::Results, Direction::Forward),
-	    Zone::Sidebar);
-}
-
-void zone_active_basic()
-{
-	VisibilityMask mask;
-	CHECK(zone_active(Zone::Sidebar, mask, MenuState::Browsing));
-	CHECK(!zone_active(Zone::Sidebar, mask, MenuState::Searching));
-	mask.profile = false;
-	CHECK(!zone_active(Zone::Profile, mask, MenuState::Browsing));
-	CHECK(zone_active(Zone::Search, mask, MenuState::Searching));
-	CHECK(zone_active(Zone::Results, mask, MenuState::Searching));
-}
-
-void calculator_banner_bridges()
-{
-	CHECK(calculator_vertical_target(true, CalculatorFocus::Search, false, false)
-		== CalculatorFocus::Banner);
-	CHECK(calculator_vertical_target(true, CalculatorFocus::Banner, true, false)
-		== CalculatorFocus::Search);
-	CHECK(calculator_vertical_target(true, CalculatorFocus::Banner, false, false)
-		== CalculatorFocus::Results);
-	CHECK(calculator_vertical_target(true, CalculatorFocus::Results, true, true)
-		== CalculatorFocus::Banner);
-	CHECK(calculator_vertical_target(true, CalculatorFocus::Results, true, false)
-		== CalculatorFocus::None);
-	CHECK(calculator_vertical_target(false, CalculatorFocus::Search, false, false)
-		== CalculatorFocus::None);
+	PhysicalDirection direction = PhysicalDirection::Up;
+	CHECK(normalize_direction(GDK_KEY_KP_Left, &direction));
+	CHECK(direction == PhysicalDirection::Left);
+	GdkEventKey event = {};
+	event.keyval = GDK_KEY_Right;
+	CHECK(is_directional_key(&event));
+	event.state = GDK_SHIFT_MASK;
+	CHECK(!is_directional_key(&event));
 }
 
 } // namespace
 
 int main()
 {
-	canonical_forward_all_visible();
-	canonical_full_loop();
-	reverse_full_loop();
-	sidebar_skipped_when_searching();
-	sidebar_rejoined_when_browsing();
-	hidden_profile_skipped();
-	hidden_sidebar();
-	hidden_profile_searching();
-	current_is_inert_zone();
-	ltr_and_rtl_equivalence();
-	three_tabs_visit_every_visible();
-	all_optional_zones_hidden();
-	profile_unfocusable_skipped();
-	single_available_zone_noop();
-	tab_action_rule();
-	sidebar_focus_retention_zone_invariant();
-	pointer_origin_handoff_absent_from_router();
-	sidebar_exit_paths_unchanged_by_guard();
-	zone_active_basic();
-	calculator_banner_bridges();
-
-	if (g_failures != 0)
-	{
-		std::fprintf(stderr, "test_focus_router: %d failure(s)\n", g_failures);
+	strict_half_plane();
+	lexicographic_score();
+	rtl_tie_order();
+	eligibility_and_no_wrap();
+	internal_first();
+	no_target_is_noop();
+	key_normalization();
+	if (failures != 0)
 		return EXIT_FAILURE;
-	}
 	std::printf("test_focus_router: ok\n");
 	return EXIT_SUCCESS;
 }

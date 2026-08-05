@@ -19,8 +19,9 @@ It adds saved presets, Places integration, flexible docked, centered, and
 full-screen layouts, drag-and-drop actions, and an optional inline Calculator
 while keeping a familiar launcher workflow.
 
-It is fully keyboard-driven: Tab switches Applications and Places, Ctrl+Tab
-moves among areas, and the arrow keys navigate results. See
+It is fully keyboard-driven: Tab switches Applications and Places, ordinary
+arrows follow the visible arrangement without wrapping, and Ctrl+Tab is a
+deliberate no-op. See
 [keyboard navigation](docs/keyboard-navigation.md).
 
 ## Install

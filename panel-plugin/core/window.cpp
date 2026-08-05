@@ -155,12 +155,50 @@ static GList* focusable_category_siblings(GtkContainer* parent)
 		GtkWidget* w = GTK_WIDGET(li->data);
 		if (!GTK_IS_RADIO_BUTTON(w))
 			continue;
-		if (!gtk_widget_get_visible(w) || !gtk_widget_get_sensitive(w))
+		if (!gtk_widget_get_visible(w) || !gtk_widget_get_sensitive(w)
+				|| !gtk_widget_get_can_focus(w))
 			continue;
 		out = g_list_append(out, w);
 	}
 	g_list_free(children);
 	return out;
+}
+
+/* widget_navigation_rect:
+ * @widget: live widget whose allocated bounds are requested.
+ * @toplevel: coordinate space receiving the translated rectangle.
+ * @rectangle: output integer geometry; unchanged when translation fails.
+ *
+ * Reads visibility, mapping, allocation, and hierarchy coordinates at the
+ * moment of one arrow event. No result is cached between events.
+ *
+ * Returns: true when the widget has a usable positive rectangle.
+ */
+bool widget_navigation_rect(GtkWidget* widget, GtkWidget* toplevel,
+		Keyboard::NavigationRect* rectangle)
+{
+	if (!widget || !rectangle || !gtk_widget_get_visible(widget)
+			|| !gtk_widget_get_mapped(widget))
+		return false;
+	GtkAllocation allocation = {};
+	gtk_widget_get_allocation(widget, &allocation);
+	if (allocation.width <= 0 || allocation.height <= 0)
+		return false;
+	int x = allocation.x;
+	int y = allocation.y;
+	if (toplevel && toplevel != widget)
+	{
+		int translated_x = 0;
+		int translated_y = 0;
+		if (!gtk_widget_translate_coordinates(widget, toplevel,
+				0, 0, &translated_x, &translated_y))
+			return false;
+		x = translated_x;
+		y = translated_y;
+	}
+	*rectangle = Keyboard::NavigationRect(x, y,
+			allocation.width, allocation.height);
+	return rectangle->is_valid();
 }
 
 } // namespace
@@ -443,78 +481,6 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 			});
 	}
 
-	// the documented behavior: ←/→ move focus between visible session buttons in physical
-	// box order with NO wrap. ↑/↓ are no-ops within the Profile bar so
-	// they do not accidentally jump to other zones (Tab is the cross-zone
-	// motion). The avatar/username are kept non-focusable below.
-	auto profile_arrow_handler = [this](GtkWidget* widget, GdkEvent* ev) -> gboolean
-	{
-		GdkEventKey* key = reinterpret_cast<GdkEventKey*>(ev);
-		const bool left  = (key->keyval == GDK_KEY_Left
-				|| key->keyval == GDK_KEY_KP_Left);
-		const bool right = (key->keyval == GDK_KEY_Right
-				|| key->keyval == GDK_KEY_KP_Right);
-		const bool up    = (key->keyval == GDK_KEY_Up
-				|| key->keyval == GDK_KEY_KP_Up);
-		const bool down  = (key->keyval == GDK_KEY_Down
-				|| key->keyval == GDK_KEY_KP_Down);
-		if (up || down)
-		{
-			return GDK_EVENT_STOP; // explicit no-op within the bar
-		}
-		if (!left && !right)
-		{
-			return GDK_EVENT_PROPAGATE;
-		}
-
-		// Walk the focusable session buttons in their CURRENT physical
-		// box order. m_commands_box may reorder children for RTL or for
-		// the alternate-commands layout (see update_layout()), so we
-		// must read the live order rather than the m_commands_button
-		// declaration order.
-		GList* kids = gtk_container_get_children(GTK_CONTAINER(m_commands_box));
-		std::vector<GtkWidget*> ordered;
-		for (GList* li = kids; li; li = li->next)
-		{
-			GtkWidget* w = GTK_WIDGET(li->data);
-			if (!GTK_IS_BUTTON(w))
-				continue;
-			if (!gtk_widget_get_visible(w) || !gtk_widget_get_sensitive(w))
-				continue;
-			ordered.push_back(w);
-		}
-		g_list_free(kids);
-		if (ordered.empty())
-			return GDK_EVENT_STOP;
-
-		auto it = std::find(ordered.begin(), ordered.end(), widget);
-		if (it == ordered.end())
-			return GDK_EVENT_PROPAGATE;
-
-		// the documented behavior: in RTL the visual left/right are swapped relative to
-		// physical box order. Use the widget's default direction to
-		// pick the move sign rather than assuming LTR.
-		const bool ltr = (gtk_widget_get_default_direction()
-				!= GTK_TEXT_DIR_RTL);
-		const bool move_next = (ltr ? right : left);
-		const bool move_prev = (ltr ? left  : right);
-
-		if (move_next && std::next(it) != ordered.end())
-		{
-			gtk_widget_grab_focus(*std::next(it));
-		}
-		else if (move_prev && it != ordered.begin())
-		{
-			gtk_widget_grab_focus(*std::prev(it));
-		}
-		// At either end: explicit no-op (the documented behavior "NO wrap").
-		return GDK_EVENT_STOP;
-	};
-	for (int i = 0; i < 9; ++i)
-	{
-		connect(m_commands_button[i], "key-press-event", profile_arrow_handler);
-	}
-
 	// The avatar event-box and username label are decorative only; keep
 	// them out of the focus chain so Tab into the Profile bar lands on
 	// the first visible session button (data-model "Entry widget mapping").
@@ -532,6 +498,14 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 		[this](GtkEditable*)
 		{
 			search();
+		});
+
+	connect(m_search_entry, "button-press-event",
+		[this](GtkWidget*, GdkEventButton*) -> gboolean
+		{
+			if (m_places_active)
+				m_places->note_deliberate_navigation();
+			return GDK_EVENT_PROPAGATE;
 		});
 
 	// the documented behavior: Enter on the search entry activates the first match (or
@@ -2068,186 +2042,12 @@ static bool user_session_row_visible(bool unified, bool profile_hidden,
 
 //-----------------------------------------------------------------------------
 
-Keyboard::VisibilityMask WhiskerMenu::Window::current_visibility_mask() const
-{
-	// the documented behavior: Search and Results are never hidden. Optional zones follow
-	// the preset's per-zone "hidden" position string and the legacy
-	// visibility flags. The Apps/Places toggle is not a focus zone (the documented behavior),
-	// so it has no entry here; Tab reads places_enabled directly.
-	Keyboard::VisibilityMask mask;
-	mask.search  = true;
-	mask.results = true;
-
-	const char* sidebar_pos  = m_settings->sidebar_position;
-	const char* commands_pos = m_settings->commands_position;
-
-	mask.sidebar = (g_strcmp0(sidebar_pos, "hidden") != 0);
-
-	// The "profile" focus zone is the session-command row: only the command
-	// buttons are focusable (the avatar/username are not), so a hidden profile
-	// contributes nothing focusable. The zone is therefore gated on
-	// commands_position != "hidden" with at least one visible command, which
-	// already keeps focus off both hidden commands and a hidden profile (the documented behavior).
-	//
-	// NOTE: availability must also require gtk_widget_get_can_focus, matching
-	// grab_focus_in_zone()'s own target predicate. A command button can be
-	// visible yet non-focusable; reporting such a Profile zone "available"
-	// would let next_zone() route Ctrl+Tab to it, the grab would silently fail,
-	// and forward cycling would stall in Results (the US3 defect). Tying
-	// availability to focusability keeps the abstract mask consistent with what
-	// the grab can actually land (the documented behavior).
-	bool any_command_focusable = false;
-	if (g_strcmp0(commands_pos, "hidden") != 0)
-	{
-		for (int i = 0; i < 9; ++i)
-		{
-			if (m_commands_button[i]
-					&& gtk_widget_get_visible(m_commands_button[i])
-					&& gtk_widget_get_can_focus(m_commands_button[i]))
-			{
-				any_command_focusable = true;
-				break;
-			}
-		}
-	}
-	mask.profile = any_command_focusable;
-
-	return mask;
-}
-
-//-----------------------------------------------------------------------------
-
 Keyboard::MenuState WhiskerMenu::Window::current_menu_state() const
 {
 	const gchar* text = gtk_entry_get_text(m_search_entry);
 	return xfce_str_is_empty(text)
 			? Keyboard::MenuState::Browsing
 			: Keyboard::MenuState::Searching;
-}
-
-//-----------------------------------------------------------------------------
-
-bool WhiskerMenu::Window::grab_focus_in_zone(Keyboard::Zone zone)
-{
-	GtkWidget* target = nullptr;
-	Page* results_page = nullptr;
-
-	switch (zone)
-	{
-	case Keyboard::Zone::Search:
-		target = GTK_WIDGET(m_search_entry);
-		break;
-
-	case Keyboard::Zone::Results:
-	{
-		// the documented behavior: on Tab entry, land on the currently selected item; if
-		// nothing is selected, select the first item so the user has a
-		// visible anchor (select_first() is called after the grab below).
-		// NOTE: in Places mode get_active_page() returns the hidden applications
-		// page; target m_places directly so the grab lands on the visible widget.
-		if (m_places_active)
-		{
-			target = m_places->get_view()->get_widget();
-		}
-		else
-		{
-			Page* page = const_cast<Window*>(this)->get_active_page();
-			if (page)
-			{
-				target = page == m_search_results
-						? m_search_results->get_preferred_focus_widget()
-						: page->get_view()->get_widget();
-				results_page = page;
-			}
-		}
-		break;
-	}
-
-	case Keyboard::Zone::Sidebar:
-		target = const_cast<Window*>(this)->get_active_category_button();
-		break;
-
-	case Keyboard::Zone::Profile:
-		// First visible+focusable command button in physical box order.
-		for (int i = 0; i < 9; ++i)
-		{
-			if (m_commands_button[i]
-					&& gtk_widget_get_visible(m_commands_button[i])
-					&& gtk_widget_get_can_focus(m_commands_button[i]))
-			{
-				target = m_commands_button[i];
-				break;
-			}
-		}
-		break;
-	}
-
-	// A grab can only land on a target that is visible, sensitive and
-	// focusable; mirror that predicate and report the outcome so the forward
-	// Ctrl+Tab loop can advance past a zone whose grab would silently fail
-	// (the documented behavior). gtk_widget_is_focus() confirms the target became the toplevel's
-	// focus widget rather than assuming the grab took effect.
-	if (target
-			&& gtk_widget_get_visible(target)
-			&& gtk_widget_get_sensitive(target)
-			&& gtk_widget_get_can_focus(target))
-	{
-		gtk_widget_grab_focus(target);
-		if (results_page)
-		{
-			GtkTreePath* sel = results_page->get_view()->get_selected_path();
-			if (!sel)
-			{
-				results_page->select_first();
-			}
-			else
-			{
-				gtk_tree_path_free(sel);
-			}
-		}
-		return gtk_widget_is_focus(target);
-	}
-	return false;
-}
-
-//-----------------------------------------------------------------------------
-
-Keyboard::Zone WhiskerMenu::Window::current_zone() const
-{
-	GtkWidget* focused = gtk_window_get_focus(m_window);
-	if (!focused)
-	{
-		return Keyboard::Zone::Search;
-	}
-
-	// Walk ancestors; the first recognised container wins. Order matters
-	// here — the search entry sits inside m_search_box which is a child
-	// of m_vbox, so test the entry directly before any box ancestor.
-	if (focused == GTK_WIDGET(m_search_entry))
-	{
-		return Keyboard::Zone::Search;
-	}
-
-	// NOTE: the Apps/Places toggle box is intentionally not matched here:
-	// its buttons are non-focusable (the documented behavior) so focus can never rest in it.
-	GtkWidget* sidebar   = m_sidebar            ? GTK_WIDGET(m_sidebar)            : nullptr;
-	GtkWidget* cats_box  = m_categories_box     ? GTK_WIDGET(m_categories_box)     : nullptr;
-	GtkWidget* cmds_box  = m_commands_box       ? GTK_WIDGET(m_commands_box)       : nullptr;
-	GtkWidget* panels    = m_panels_stack       ? GTK_WIDGET(m_panels_stack)       : nullptr;
-
-	for (GtkWidget* w = focused; w; w = gtk_widget_get_parent(w))
-	{
-		if (cmds_box && w == cmds_box)
-			return Keyboard::Zone::Profile;
-		if (sidebar && w == sidebar)
-			return Keyboard::Zone::Sidebar;
-		if (cats_box && w == cats_box)
-			return Keyboard::Zone::Sidebar;
-		if (panels && w == panels)
-			return Keyboard::Zone::Results;
-	}
-
-	return Keyboard::Zone::Search;
 }
 
 //-----------------------------------------------------------------------------
@@ -2275,6 +2075,456 @@ void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
 	m_keyboard_category_nav = false;
 }
 
+/* dispatch_directional_navigation:
+ * @direction: one normalized, unmodified physical arrow.
+ *
+ * Gives the focused region its internal move first, then scores the current
+ * live rectangles of every other eligible region. The bindings are event
+ * local so scrolling, layout changes, and asynchronous content cannot leave
+ * a stale navigation graph behind.
+ *
+ * Returns: false when a modal/unknown child should retain normal GTK input;
+ * true when the arrow was consumed, including an explicit no-op.
+ */
+bool WhiskerMenu::Window::dispatch_directional_navigation(
+		Keyboard::PhysicalDirection direction)
+{
+	auto note_places_departure = [this]()
+	{
+		if (m_places_active)
+			m_places->note_deliberate_navigation();
+	};
+	GtkWidget* focused = gtk_window_get_focus(m_window);
+	if (!focused)
+		return true;
+	for (GtkWidget* ancestor = focused; ancestor;
+			ancestor = gtk_widget_get_parent(ancestor))
+	{
+		if (GTK_IS_MENU(ancestor))
+			return false;
+		if (GTK_IS_WINDOW(ancestor)
+				&& ancestor != GTK_WIDGET(m_window)
+				&& gtk_window_get_modal(GTK_WINDOW(ancestor)))
+			return false;
+	}
+
+	Keyboard::NavigationRegion origin_region;
+	GtkWidget* origin_widget = nullptr;
+	Page* active_page = m_places_active ? nullptr : get_active_page();
+	LauncherView* active_view = m_places_active
+		? m_places->get_view() : (active_page ? active_page->get_view() : nullptr);
+	GtkTreePath* origin_path = nullptr;
+	Keyboard::NavigationRect origin_rect;
+	bool origin_found = false;
+	if (focused == GTK_WIDGET(m_search_entry))
+	{
+		origin_region = Keyboard::NavigationRegion::Search;
+		origin_widget = GTK_WIDGET(m_search_entry);
+		origin_found = widget_navigation_rect(origin_widget,
+				GTK_WIDGET(m_window), &origin_rect);
+	}
+	else
+	{
+		if (!m_places_active && active_page == m_search_results
+				&& m_search_results->has_calculator_result())
+		{
+			GtkWidget* calculator_focus =
+					m_search_results->get_preferred_focus_widget();
+			bool in_calculator = false;
+			for (GtkWidget* ancestor = focused; ancestor;
+					ancestor = gtk_widget_get_parent(ancestor))
+			{
+				if (ancestor == calculator_focus)
+				{
+					in_calculator = true;
+					break;
+				}
+			}
+			if (in_calculator)
+			{
+				origin_region = Keyboard::NavigationRegion::Results;
+				origin_widget = calculator_focus;
+				origin_found = widget_navigation_rect(calculator_focus,
+						GTK_WIDGET(m_window), &origin_rect);
+			}
+		}
+		if (origin_found)
+		{
+			/* Calculator is a separate first-result banner, so it has no
+			 * model path. Its vertical neighbours are Search and the first
+			 * ordinary result; horizontal arrows use live region geometry. */
+		}
+		else
+		{
+		for (GtkWidget* ancestor = focused; ancestor;
+				ancestor = gtk_widget_get_parent(ancestor))
+		{
+			if ((m_sidebar && ancestor == GTK_WIDGET(m_sidebar))
+					|| (m_categories_box
+						&& ancestor == GTK_WIDGET(m_categories_box))
+					|| (m_category_buttons
+						&& ancestor == GTK_WIDGET(m_category_buttons)))
+			{
+				origin_region = Keyboard::NavigationRegion::Sidebar;
+				origin_widget = focused;
+				origin_found = widget_navigation_rect(focused,
+						GTK_WIDGET(m_window), &origin_rect);
+				break;
+			}
+			if (m_commands_box && ancestor == GTK_WIDGET(m_commands_box))
+			{
+				origin_region = Keyboard::NavigationRegion::SessionControls;
+				origin_widget = focused;
+				origin_found = widget_navigation_rect(focused,
+						GTK_WIDGET(m_window), &origin_rect);
+				break;
+			}
+			if (m_panels_stack && ancestor == GTK_WIDGET(m_panels_stack))
+			{
+				origin_region = Keyboard::NavigationRegion::Results;
+				origin_widget = focused;
+				if (active_view)
+				{
+					origin_path = active_view->get_selected_path();
+					if (!origin_path)
+						origin_path = active_view->get_cursor();
+					if (origin_path)
+						origin_found = active_view->get_path_rectangle(
+								origin_path, &origin_rect);
+					if (!origin_found)
+						origin_found = widget_navigation_rect(
+								active_view->get_widget(), GTK_WIDGET(m_window),
+								&origin_rect);
+				}
+				break;
+			}
+		}
+		}
+	}
+
+	if (!origin_found)
+	{
+		if (origin_path)
+			gtk_tree_path_free(origin_path);
+		return false;
+	}
+
+	/* Search's horizontal text editing is the first internal owner. */
+	if (origin_region == Keyboard::NavigationRegion::Search
+			&& (direction == Keyboard::PhysicalDirection::Left
+					|| direction == Keyboard::PhysicalDirection::Right))
+	{
+		gint start = 0;
+		gint end = 0;
+		const bool has_selection = gtk_editable_get_selection_bounds(
+			GTK_EDITABLE(m_search_entry), &start, &end);
+		const gint position = gtk_editable_get_position(
+			GTK_EDITABLE(m_search_entry));
+		const gint length = gtk_entry_get_text_length(m_search_entry);
+		const bool rtl = gtk_widget_get_direction(GTK_WIDGET(m_search_entry))
+				== GTK_TEXT_DIR_RTL;
+		const bool can_move = has_selection
+			|| (direction == Keyboard::PhysicalDirection::Left
+					? (rtl ? position < length : position > 0)
+					: (rtl ? position > 0 : position < length));
+		if (can_move)
+		{
+			gtk_tree_path_free(origin_path);
+			return false;
+		}
+	}
+
+	if (origin_region == Keyboard::NavigationRegion::Results && active_view)
+	{
+		bool moved = false;
+		const bool calculator_origin = origin_widget
+				== m_search_results->get_preferred_focus_widget();
+		if (calculator_origin && direction == Keyboard::PhysicalDirection::Up)
+		{
+			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			moved = true;
+		}
+		else if (calculator_origin
+				&& direction == Keyboard::PhysicalDirection::Down)
+		{
+			moved = active_page && active_page->focus_first_result();
+		}
+		else if (active_page && origin_path)
+		{
+			const bool first_row = active_page == m_search_results
+					&& m_search_results->has_calculator_result()
+					&& active_view->is_first_visual_row(origin_path);
+			if (first_row && direction == Keyboard::PhysicalDirection::Up)
+			{
+				gtk_widget_grab_focus(
+						m_search_results->get_preferred_focus_widget());
+				moved = true;
+			}
+			else
+				moved = active_page->keyboard_move(direction);
+		}
+		else if (active_page && !calculator_origin)
+			moved = active_page->keyboard_move(direction);
+		else if (origin_path)
+		{
+			GtkTreePath* target = active_view->get_directional_path(
+					origin_path, direction);
+			if (target)
+			{
+				moved = active_view->apply_keyboard_target(target);
+				gtk_tree_path_free(target);
+			}
+		}
+		if (moved)
+		{
+			note_places_departure();
+			gtk_tree_path_free(origin_path);
+			return true;
+		}
+	}
+
+	/* Sidebar and Session controls have an internal physical order. */
+	if (origin_region == Keyboard::NavigationRegion::Sidebar
+			&& GTK_IS_RADIO_BUTTON(origin_widget))
+	{
+		GtkWidget* parent = gtk_widget_get_parent(origin_widget);
+		GList* siblings = parent && GTK_IS_CONTAINER(parent)
+			? focusable_category_siblings(GTK_CONTAINER(parent)) : nullptr;
+		if (siblings)
+		{
+			const bool vertical = !GTK_IS_ORIENTABLE(parent)
+					|| gtk_orientable_get_orientation(GTK_ORIENTABLE(parent))
+							== GTK_ORIENTATION_VERTICAL;
+			const bool along = vertical
+					? (direction == Keyboard::PhysicalDirection::Up
+							|| direction == Keyboard::PhysicalDirection::Down)
+					: (direction == Keyboard::PhysicalDirection::Left
+							|| direction == Keyboard::PhysicalDirection::Right);
+			if (along)
+			{
+				std::vector<GtkWidget*> category_widgets;
+				std::vector<Keyboard::FocusTarget> category_targets;
+				for (GList* sibling = siblings; sibling; sibling = sibling->next)
+				{
+					GtkWidget* category = GTK_WIDGET(sibling->data);
+					Keyboard::NavigationRect rectangle;
+					if (!widget_navigation_rect(category,
+							GTK_WIDGET(m_window), &rectangle))
+						continue;
+					Keyboard::FocusTarget target;
+					target.target_id = category_widgets.size();
+					target.kind = Keyboard::FocusTargetKind::CategoryButton;
+					target.region = Keyboard::NavigationRegion::Sidebar;
+					target.rectangle = rectangle;
+					target.visual_ordinal = category_widgets.size();
+					target.usable = true;
+					category_widgets.push_back(category);
+					category_targets.push_back(target);
+				}
+				const std::size_t selected = Keyboard::choose_spatial_target(
+						origin_rect, direction, category_targets,
+						gtk_widget_get_direction(GTK_WIDGET(m_window))
+								== GTK_TEXT_DIR_RTL,
+						current_menu_state());
+				if (selected != Keyboard::NO_TARGET)
+				{
+					keyboard_navigate_category(category_widgets[selected]);
+					note_places_departure();
+				}
+				g_list_free(siblings);
+				gtk_tree_path_free(origin_path);
+				return true;
+			}
+			g_list_free(siblings);
+		}
+	}
+
+	if (origin_region == Keyboard::NavigationRegion::SessionControls)
+	{
+		std::vector<GtkWidget*> buttons;
+		GList* children = gtk_container_get_children(
+				GTK_CONTAINER(m_commands_box));
+		for (GList* child = children; child; child = child->next)
+		{
+			GtkWidget* button = GTK_WIDGET(child->data);
+			if (button && gtk_widget_get_visible(button)
+					&& gtk_widget_get_sensitive(button)
+					&& gtk_widget_get_can_focus(button))
+				buttons.push_back(button);
+		}
+		g_list_free(children);
+		const auto current = std::find(buttons.begin(), buttons.end(),
+				origin_widget);
+		const bool horizontal = direction == Keyboard::PhysicalDirection::Left
+				|| direction == Keyboard::PhysicalDirection::Right;
+		if (horizontal && current != buttons.end())
+		{
+			std::vector<Keyboard::FocusTarget> button_targets;
+			button_targets.reserve(buttons.size());
+			for (std::size_t i = 0; i < buttons.size(); ++i)
+			{
+				Keyboard::NavigationRect rectangle;
+				if (!widget_navigation_rect(buttons[i], GTK_WIDGET(m_window),
+						&rectangle))
+					continue;
+				Keyboard::FocusTarget target;
+				target.target_id = i;
+				target.kind = Keyboard::FocusTargetKind::SessionButton;
+				target.region = Keyboard::NavigationRegion::SessionControls;
+				target.rectangle = rectangle;
+				target.visual_ordinal = i;
+				target.usable = true;
+				button_targets.push_back(target);
+			}
+			const std::size_t selected = Keyboard::choose_spatial_target(
+					origin_rect, direction, button_targets,
+					gtk_widget_get_direction(GTK_WIDGET(m_window))
+							== GTK_TEXT_DIR_RTL,
+					current_menu_state());
+			if (selected != Keyboard::NO_TARGET
+					&& button_targets[selected].target_id < buttons.size())
+			{
+				gtk_widget_grab_focus(
+						buttons[button_targets[selected].target_id]);
+				note_places_departure();
+			}
+			gtk_tree_path_free(origin_path);
+			return true;
+		}
+	}
+
+	struct Binding
+	{
+		Keyboard::FocusTarget target;
+		GtkWidget* widget = nullptr;
+		LauncherView* view = nullptr;
+		GtkTreePath* path = nullptr;
+	};
+	std::vector<Binding> bindings;
+	const Keyboard::MenuState state = current_menu_state();
+	auto add_widget = [&](Keyboard::NavigationRegion region,
+			Keyboard::FocusTargetKind kind, GtkWidget* target_widget)
+	{
+		Keyboard::NavigationRect rectangle;
+		if (!target_widget || !widget_navigation_rect(target_widget,
+				GTK_WIDGET(m_window), &rectangle)
+			|| !gtk_widget_get_sensitive(target_widget)
+			|| !gtk_widget_get_can_focus(target_widget))
+			return;
+		Binding binding;
+		binding.target.target_id = bindings.size();
+		binding.target.region = region;
+		binding.target.kind = kind;
+		binding.target.rectangle = rectangle;
+		binding.target.visual_ordinal = bindings.size();
+		binding.target.usable = true;
+		binding.widget = target_widget;
+		bindings.push_back(binding);
+	};
+	auto add_result = [&](LauncherView* view, GtkTreePath* path)
+	{
+		if (!view || !path)
+			return;
+		Keyboard::NavigationRect rectangle;
+		if (!view->get_path_rectangle(path, &rectangle))
+			return;
+		Binding binding;
+		binding.target.target_id = bindings.size();
+		binding.target.region = Keyboard::NavigationRegion::Results;
+		binding.target.kind = Keyboard::FocusTargetKind::ResultItem;
+		binding.target.rectangle = rectangle;
+		binding.target.visual_ordinal = bindings.size();
+		binding.target.usable = true;
+		binding.view = view;
+		binding.path = gtk_tree_path_copy(path);
+		bindings.push_back(binding);
+	};
+
+	if (origin_region != Keyboard::NavigationRegion::Search)
+		add_widget(Keyboard::NavigationRegion::Search,
+				Keyboard::FocusTargetKind::SearchEntry, GTK_WIDGET(m_search_entry));
+	if (origin_region != Keyboard::NavigationRegion::Sidebar
+			&& state == Keyboard::MenuState::Browsing && m_category_buttons)
+	{
+		GList* children = gtk_container_get_children(
+				GTK_CONTAINER(m_category_buttons));
+		for (GList* child = children; child; child = child->next)
+		{
+			GtkWidget* category = GTK_WIDGET(child->data);
+			if (GTK_IS_RADIO_BUTTON(category))
+				add_widget(Keyboard::NavigationRegion::Sidebar,
+						Keyboard::FocusTargetKind::CategoryButton, category);
+		}
+		g_list_free(children);
+	}
+	if (origin_region != Keyboard::NavigationRegion::SessionControls)
+	{
+		GList* children = gtk_container_get_children(
+				GTK_CONTAINER(m_commands_box));
+		for (GList* child = children; child; child = child->next)
+			add_widget(Keyboard::NavigationRegion::SessionControls,
+					Keyboard::FocusTargetKind::SessionButton,
+					GTK_WIDGET(child->data));
+		g_list_free(children);
+	}
+	if (origin_region != Keyboard::NavigationRegion::Results && active_view)
+	{
+		struct ResultPaths
+		{
+			std::vector<GtkTreePath*> paths;
+		};
+		ResultPaths result_paths;
+		GtkTreeModel* model = active_view->get_model();
+		if (model)
+		{
+			gtk_tree_model_foreach(model,
+					[](GtkTreeModel*, GtkTreePath* path, GtkTreeIter*,
+							gpointer data) -> gboolean
+					{
+						static_cast<ResultPaths*>(data)->paths.push_back(
+								gtk_tree_path_copy(path));
+						return FALSE;
+					}, &result_paths);
+		}
+		for (GtkTreePath* path : result_paths.paths)
+		{
+			add_result(active_view, path);
+			gtk_tree_path_free(path);
+		}
+	}
+	if (origin_region != Keyboard::NavigationRegion::Results
+			&& !m_places_active && m_search_results->has_calculator_result())
+		add_widget(Keyboard::NavigationRegion::Results,
+				Keyboard::FocusTargetKind::CalculatorBanner,
+				m_search_results->get_preferred_focus_widget());
+
+	std::vector<Keyboard::FocusTarget> targets;
+	for (const Binding& binding : bindings)
+		targets.push_back(binding.target);
+	const std::size_t selected = Keyboard::choose_spatial_target(origin_rect,
+		direction, targets,
+		gtk_widget_get_direction(GTK_WIDGET(m_window)) == GTK_TEXT_DIR_RTL,
+		state);
+	if (selected != Keyboard::NO_TARGET)
+	{
+		Binding& binding = bindings[selected];
+		if (binding.view && binding.path)
+			binding.view->apply_keyboard_target(binding.path);
+		else if (binding.widget)
+		{
+			if (binding.target.kind == Keyboard::FocusTargetKind::CategoryButton)
+				keyboard_navigate_category(binding.widget);
+			else
+				gtk_widget_grab_focus(binding.widget);
+		}
+		note_places_departure();
+	}
+	for (Binding& binding : bindings)
+		gtk_tree_path_free(binding.path);
+	gtk_tree_path_free(origin_path);
+	return true;
+}
+
 //-----------------------------------------------------------------------------
 
 gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey* key_event)
@@ -2293,13 +2543,52 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	// therefore cannot ride the generic printable redirect.
 	GtkWidget* entry = GTK_WIDGET(m_search_entry);
 	GtkWidget* focused = gtk_window_get_focus(m_window);
-	if (focused && focused != entry)
+	bool child_has_input_priority = false;
+	for (GtkWidget* ancestor = focused; ancestor;
+			ancestor = gtk_widget_get_parent(ancestor))
 	{
-		if (Keyboard::is_printable_for_search(key_event)
-				|| key_event->keyval == GDK_KEY_BackSpace)
+		if (GTK_IS_MENU(ancestor)
+				|| (GTK_IS_WINDOW(ancestor)
+					&& ancestor != GTK_WIDGET(m_window)
+					&& gtk_window_get_modal(GTK_WINDOW(ancestor))))
+		{
+			child_has_input_priority = true;
+			break;
+		}
+	}
+	if (focused && !child_has_input_priority
+			&& Keyboard::is_query_space_key(key_event->keyval)
+			&& !(key_event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK
+					| GDK_SUPER_MASK | GDK_META_MASK | GDK_HYPER_MASK)))
+	{
+		/* Space is a query character even when a result or button owns focus.
+		 * Insert it through the editable API so no focused control sees its
+		 * activation binding and no input-method candidate is advanced. */
+		if (focused != entry)
+			gtk_entry_grab_focus_without_selecting(m_search_entry);
+		GtkEditable* editable = GTK_EDITABLE(m_search_entry);
+		gint position = gtk_editable_get_position(editable);
+		gtk_editable_delete_selection(editable);
+		gtk_editable_insert_text(editable, " ", 1, &position);
+		gtk_editable_set_position(editable, position);
+		return GDK_EVENT_STOP;
+	}
+	if (focused && !child_has_input_priority && focused != entry)
+	{
+		if (Keyboard::is_search_text_event(key_event))
 		{
 			gtk_entry_grab_focus_without_selecting(m_search_entry);
-			gtk_window_propagate_key_event(m_window, key_event);
+			gtk_search_entry_handle_event(GTK_SEARCH_ENTRY(m_search_entry),
+					reinterpret_cast<GdkEvent*>(key_event));
+			return GDK_EVENT_STOP;
+		}
+		if (key_event->keyval == GDK_KEY_BackSpace)
+		{
+			if (xfce_str_is_empty(gtk_entry_get_text(m_search_entry)))
+				return GDK_EVENT_STOP;
+			gtk_entry_grab_focus_without_selecting(m_search_entry);
+			gtk_search_entry_handle_event(GTK_SEARCH_ENTRY(m_search_entry),
+					reinterpret_cast<GdkEvent*>(key_event));
 			return GDK_EVENT_STOP;
 		}
 	}
@@ -2308,78 +2597,45 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	// on the Control modifier:
 	//   - bare Tab / Shift+Tab        → Applications⇄Places mode toggle
 	//                                    (the documented behavior, the documented behavior, the documented behavior);
-	//   - Ctrl+Tab / Ctrl+Shift+Tab   → canonical focus-area cycling
-	//                                    (the documented behavior, the documented behavior, the documented behavior).
+	//   - Ctrl+Tab / Ctrl+Shift+Tab   → consumed no-op
 	// The two are mutually exclusive on GDK_CONTROL_MASK and both always
 	// consume the event so GTK's own Tab traversal never also fires.
 	if (key_event->keyval == GDK_KEY_Tab
 			|| key_event->keyval == GDK_KEY_ISO_Left_Tab
 			|| key_event->keyval == GDK_KEY_KP_Tab)
 	{
+		if (child_has_input_priority)
+			return GDK_EVENT_PROPAGATE;
 		if (key_event->state & GDK_CONTROL_MASK)
 		{
-			// Ctrl+Tab forward, Ctrl+Shift+Tab (or ISO_Left_Tab) backward.
-			const Keyboard::Direction dir =
-					((key_event->state & GDK_SHIFT_MASK)
-					 || key_event->keyval == GDK_KEY_ISO_Left_Tab)
-						? Keyboard::Direction::Backward
-						: Keyboard::Direction::Forward;
-			const Keyboard::Zone here = current_zone();
-			const Keyboard::VisibilityMask mask = current_visibility_mask();
-			const Keyboard::MenuState state = current_menu_state();
-
-			if (dir == Keyboard::Direction::Forward)
-			{
-				// Forward cycling is self-correcting. Advance to the next
-				// candidate zone; if its grab does not actually land (a region
-				// the mask reported available is currently unfocusable), keep
-				// advancing. Walk at most once around CANONICAL_CYCLE: if the
-				// search wraps back to `here` (or stops making progress) no
-				// other zone can take focus, so the press is a harmless no-op
-				// and focus stays put (the documented behavior, the documented behavior). With the focusability-
-				// aware mask the first grab normally lands; this loop is the
-				// defensive guarantee against any residual widget-state drift.
-				Keyboard::Zone candidate = here;
-				for (std::size_t step = 0; step < Keyboard::CANONICAL_CYCLE.size(); ++step)
-				{
-					const Keyboard::Zone next =
-							Keyboard::next_zone(mask, state, candidate, dir);
-					if (next == here || next == candidate)
-					{
-						break; // wrapped around / no progress → no-op
-					}
-					if (grab_focus_in_zone(next))
-					{
-						break; // grab landed on a focusable zone
-					}
-					candidate = next; // dead zone; try the one after it
-				}
-			}
-			else
-			{
-				// Reverse cycling (Ctrl+Shift+Tab) is out of scope and left
-				// behaviorally unchanged: a single step with no grab-retry.
-				const Keyboard::Zone next =
-						Keyboard::next_zone(mask, state, here, dir);
-				if (next != here)
-				{
-					grab_focus_in_zone(next);
-				}
-			}
+			/* Ctrl+Tab is deliberately consumed. Mode switching is the only
+			 * direct Tab transaction; GTK must not revive focus traversal. */
 			return GDK_EVENT_STOP;
 		}
 
 		// Bare Tab/Shift+Tab toggles the mode (or is inert when Places is
-		// unavailable). the documented behavior: Tab never silently falls back to area
-		// cycling, so the Inert arm consumes the event and changes nothing.
+		// unavailable). Tab never falls through to toolkit traversal, so the
+		// Inert arm consumes the event and changes nothing.
 		switch (Keyboard::tab_action(m_settings->places_enabled))
 		{
 		case Keyboard::TabAction::ToggleMode:
-			// switch_mode resets the new view to its default selection and
-			// clears the query; the Tab path then lands focus on Results so
-			// the user sees the new view's default item (the documented behavior).
 			switch_mode(!m_places_active);
-			grab_focus_in_zone(Keyboard::Zone::Results);
+			if (m_places_active)
+			{
+				if (!m_places->focus_first_result())
+					gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+			}
+			else
+			{
+				Page* destination = get_active_page();
+				if (destination)
+				{
+					if (destination == m_search_results)
+						m_search_results->focus_first_visual_result();
+					else if (!destination->focus_first_result())
+						gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
+				}
+			}
 			break;
 		case Keyboard::TabAction::Inert:
 			break;
@@ -2449,6 +2705,17 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		return GDK_EVENT_STOP;
 	}
 
+	Keyboard::PhysicalDirection direction;
+	if (Keyboard::normalize_direction(key_event->keyval, &direction))
+	{
+		/* Modified arrows belong to Search text selection, child menus, or
+		 * the toolkit. Only the unmodified event enters the menu router. */
+		if (!Keyboard::is_directional_key(key_event))
+			return GDK_EVENT_PROPAGATE;
+		return dispatch_directional_navigation(direction)
+				? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
+	}
+
 	Page* page = get_active_page();
 	// NOTE: in Places mode get_active_page() returns the hidden applications
 	// page; use m_places directly so focus and selection target the visible view.
@@ -2457,224 +2724,9 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		: page->get_view()->get_widget();
 	GtkWidget* search = GTK_WIDGET(m_search_entry);
 
-	// the documented behavior / the documented behavior: sidebar exit arrow → focus the results view. The
-	// "outward" arrow depends on sidebar side (left/right/top/bottom),
-	// which is encoded by m_layout_categories_horizontal,
-	// m_layout_categories_alternate and m_layout_ltr. Mirror is applied
-	// via gtk_widget_get_default_direction() so RTL behaves correctly.
-	// In Searching state the sidebar is inert and the exit arrow is a
-	// no-op (the documented behavior).
-	if (current_zone() == Keyboard::Zone::Sidebar
-			&& current_menu_state() == Keyboard::MenuState::Browsing)
-	{
-		guint outward = 0;
-		if (m_layout_categories_horizontal)
-		{
-			// alternate=true → sidebar at bottom → outward is Up
-			outward = m_layout_categories_alternate
-					? GDK_KEY_Up : GDK_KEY_Down;
-		}
-		else
-		{
-			// sidebar_on_left when (m_layout_ltr == m_layout_categories_alternate)
-			const bool sidebar_on_left
-					= (m_layout_ltr == m_layout_categories_alternate);
-			outward = sidebar_on_left ? GDK_KEY_Right : GDK_KEY_Left;
-		}
-		const guint kv = key_event->keyval;
-		const bool match_outward
-				= (kv == outward)
-				|| (outward == GDK_KEY_Up    && kv == GDK_KEY_KP_Up)
-				|| (outward == GDK_KEY_Down  && kv == GDK_KEY_KP_Down)
-				|| (outward == GDK_KEY_Left  && kv == GDK_KEY_KP_Left)
-				|| (outward == GDK_KEY_Right && kv == GDK_KEY_KP_Right);
-		if (match_outward)
-		{
-			// the documented behavior / C4.1: the outward arrow enters the results of the
-			// COMMITTED category. Along-axis navigation never auto-commits in
-			// hover-OFF mode, so `view` (resolved from get_active_page above)
-			// already points at the committed category's view — no implicit
-			// commit of a highlighted-but-uncommitted category happens here.
-			gtk_widget_grab_focus(view);
-			return GDK_EVENT_STOP;
-		}
-
-		// Along-axis category navigation (the documented behavior). Centralized here so
-		// the event is consumed BEFORE GTK's default radio-group key navigation,
-		// which would otherwise both move focus AND auto-activate the next radio
-		// — the activation that previously ejected focus to the search entry.
-		// The along-axis arrows are perpendicular to the outward arrow computed
-		// above: vertical sidebar → Up/Down, horizontal sidebar → Left/Right.
-		GtkWidget* sidebar_focused = gtk_window_get_focus(m_window);
-		GtkWidget* parent = sidebar_focused ? gtk_widget_get_parent(sidebar_focused) : nullptr;
-		if (parent && GTK_IS_RADIO_BUTTON(sidebar_focused))
-		{
-			const bool vertical = !GTK_IS_ORIENTABLE(parent)
-					|| gtk_orientable_get_orientation(GTK_ORIENTABLE(parent))
-							== GTK_ORIENTATION_VERTICAL;
-			const bool is_prev = vertical
-					? (kv == GDK_KEY_Up || kv == GDK_KEY_KP_Up)
-					: (kv == GDK_KEY_Left || kv == GDK_KEY_KP_Left);
-			const bool is_next = vertical
-					? (kv == GDK_KEY_Down || kv == GDK_KEY_KP_Down)
-					: (kv == GDK_KEY_Right || kv == GDK_KEY_KP_Right);
-			const bool is_home = (kv == GDK_KEY_Home || kv == GDK_KEY_KP_Home);
-			const bool is_end  = (kv == GDK_KEY_End  || kv == GDK_KEY_KP_End);
-
-			if (is_prev || is_next || is_home || is_end)
-			{
-				GList* siblings = focusable_category_siblings(GTK_CONTAINER(parent));
-				if (siblings)
-				{
-					GList* self = g_list_find(siblings, sidebar_focused);
-					GtkWidget* target = nullptr;
-					if (is_home)
-					{
-						target = GTK_WIDGET(siblings->data);
-					}
-					else if (is_end)
-					{
-						target = GTK_WIDGET(g_list_last(siblings)->data);
-					}
-					else if (self && is_next)
-					{
-						// Wrap past the last sibling back to the first.
-						target = GTK_WIDGET(self->next ? self->next->data : siblings->data);
-					}
-					else if (self && is_prev)
-					{
-						// Wrap before the first sibling round to the last.
-						target = GTK_WIDGET(self->prev ? self->prev->data
-								: g_list_last(siblings)->data);
-					}
-					g_list_free(siblings);
-
-					if (target && target != sidebar_focused)
-					{
-						keyboard_navigate_category(target);
-					}
-					// Single navigable category (or already at the Home/End
-					// target): a harmless no-op that keeps focus in the sidebar
-					// rather than falling through to the default chain (the documented behavior).
-					return GDK_EVENT_STOP;
-				}
-			}
-
-			// Enter/Space commits the highlighted category while keeping focus in
-			// the sidebar (the documented behavior). In hover-ON the target is already active, so
-			// this is a no-op activation; in hover-OFF it is the explicit commit
-			// that updates the results. Consumed under the guard either way.
-			if (kv == GDK_KEY_Return || kv == GDK_KEY_KP_Enter
-					|| kv == GDK_KEY_space || kv == GDK_KEY_KP_Space)
-			{
-				m_keyboard_category_nav = true;
-				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(sidebar_focused), true);
-				m_keyboard_category_nav = false;
-				return GDK_EVENT_STOP;
-			}
-		}
-	}
 
 	switch (key_event->keyval)
 	{
-	case GDK_KEY_Left:
-	case GDK_KEY_KP_Left:
-	case GDK_KEY_Right:
-	case GDK_KEY_KP_Right:
-		// Allow keyboard navigation out of treeview. NOTE: in Searching
-		// state the sidebar is inert (the documented behavior); the exit arrow MUST be a
-		// no-op so the user can keep refining the query with arrow keys
-		// inside the result list.
-		if (GTK_IS_TREE_VIEW(view) && ((widget == view) || (gtk_window_get_focus(m_window) == view)))
-		{
-			if (current_menu_state() == Keyboard::MenuState::Browsing)
-			{
-				gtk_widget_grab_focus(get_active_category_button());
-			}
-		}
-		// Allow keyboard navigation out of search into iconview
-		else if (GTK_IS_ICON_VIEW(view) && ((widget == search) || (gtk_window_get_focus(m_window) == search)))
-		{
-			const auto length = gtk_entry_get_text_length(m_search_entry);
-			const bool at_end = length && (gtk_editable_get_position(GTK_EDITABLE(m_search_entry)) == length);
-			const bool move_next = (gtk_widget_get_default_direction() != GTK_TEXT_DIR_RTL)
-					? (key_event->keyval == GDK_KEY_Right) : (key_event->keyval == GDK_KEY_Left);
-			if (at_end && move_next)
-			{
-				gtk_widget_grab_focus(view);
-			}
-		}
-		break;
-
-	// Make up and down keys scroll current list of applications from search
-	//
-	// NOTE: arrow navigation drives only the GTK cursor and single selection;
-	// there is no separate "highlight" state. GTK moves the cursor on Up/Down
-	// and the single-selection follows it, so the selection is the sole
-	// highlight driver for keyboard navigation (the documented behavior). With pointer prelight
-	// neutralised in the plugin CSS, exactly one row is ever painted.
-	case GDK_KEY_Up:
-	case GDK_KEY_KP_Up:
-	case GDK_KEY_Down:
-	case GDK_KEY_KP_Down:
-	{
-		const bool up = key_event->keyval == GDK_KEY_Up
-				|| key_event->keyval == GDK_KEY_KP_Up;
-		if (!m_places_active && page == m_search_results
-				&& m_search_results->has_calculator_result())
-		{
-			GtkWidget* calculator_focused = gtk_window_get_focus(m_window);
-			Keyboard::CalculatorFocus origin = Keyboard::CalculatorFocus::None;
-			bool first_row = false;
-			if (widget == search || calculator_focused == search)
-				origin = Keyboard::CalculatorFocus::Search;
-			else if (calculator_focused == view)
-			{
-				GtkTreePath* selected = page->get_view()->get_selected_path();
-				first_row = selected
-						&& page->get_view()->is_first_visual_row(selected);
-				if (selected)
-					gtk_tree_path_free(selected);
-				origin = Keyboard::CalculatorFocus::Results;
-			}
-			if (Keyboard::calculator_vertical_target(true, origin, up, first_row)
-					== Keyboard::CalculatorFocus::Banner)
-			{
-				gtk_widget_grab_focus(m_search_results->get_preferred_focus_widget());
-				return GDK_EVENT_STOP;
-			}
-		}
-		// Determine if there is a selected item
-		LauncherView* results_view = m_places_active
-			? m_places->get_view() : page->get_view();
-		bool reset = m_places_active ? true : (page != m_search_results);
-		if (reset)
-		{
-			GtkTreePath* path = results_view->get_selected_path();
-			if (path)
-			{
-				reset = false;
-				gtk_tree_path_free(path);
-			}
-		}
-		// Allow keyboard navigation out of search into view
-		if ((widget == search) || (gtk_window_get_focus(m_window) == search))
-		{
-			gtk_widget_grab_focus(view);
-		}
-		// Only select first item if there is no selected item. This anchors a
-		// single valid selection on first arrow entry; combined with the model
-		// rebuild + select_first() on every query change (SearchPage::set_filter)
-		// it guarantees the highlight resets to one valid row or none, with no
-		// stale carry-over from the prior result set (the documented behavior).
-		if ((gtk_window_get_focus(m_window) == view) && reset)
-		{
-			m_places_active ? m_places->select_first() : page->select_first();
-			return GDK_EVENT_STOP;
-		}
-		break;
-	}
-
 	// Pass PageUp and PageDown keys to current view. the documented behavior: when focus
 	// was on the search entry and no row was selected yet, also select
 	// the first row so the user sees a visual anchor for the subsequent

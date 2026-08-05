@@ -27,8 +27,150 @@
 #include <gdk/gdkkeysyms.h>
 
 #include <algorithm>
+#include <vector>
 
 using namespace WhiskerMenu;
+
+namespace
+{
+
+struct DisplayedTreeRow
+{
+	GtkTreePath* path;
+	GdkRectangle rectangle;
+};
+
+void collect_displayed_rows(GtkTreeView* view, GtkTreeModel* model,
+		GtkTreeIter* parent, std::vector<DisplayedTreeRow>* rows)
+{
+	GtkTreeIter iter;
+	bool has_iter = parent
+			? gtk_tree_model_iter_children(model, &iter, parent)
+			: gtk_tree_model_get_iter_first(model, &iter);
+	while (has_iter)
+	{
+		GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+		GtkTreeViewColumn* column = gtk_tree_view_get_column(view, 0);
+		GdkRectangle rectangle = {};
+		gtk_tree_view_get_background_area(view, path, column, &rectangle);
+
+		bool selectable = rectangle.height > 0;
+		if (selectable && gtk_tree_model_get_n_columns(model)
+				> LauncherView::COLUMN_TEXT)
+		{
+			gchar* text = nullptr;
+			gtk_tree_model_get(model, &iter, LauncherView::COLUMN_TEXT,
+					&text, -1);
+			selectable = text && *text != '\0';
+			g_free(text);
+		}
+		if (selectable)
+			rows->push_back({gtk_tree_path_copy(path), rectangle});
+
+		if (gtk_tree_view_row_expanded(view, path))
+			collect_displayed_rows(view, model, &iter, rows);
+
+		gtk_tree_path_free(path);
+		has_iter = gtk_tree_model_iter_next(model, &iter);
+	}
+}
+
+void free_displayed_rows(std::vector<DisplayedTreeRow>* rows)
+{
+	for (const DisplayedTreeRow& row : *rows)
+		gtk_tree_path_free(row.path);
+	rows->clear();
+}
+
+} // namespace
+
+/* launcher_tree_view_find_directional_path:
+ * @view: the live tree view whose displayed rows are inspected.
+ * @origin: currently selected or focused model path.
+ * @direction: physical direction; only Up and Down have list neighbours.
+ *
+ * Returns the adjacent displayed selectable row without wrapping. The caller
+ * owns the returned path.
+ */
+GtkTreePath* WhiskerMenu::launcher_tree_view_find_directional_path(
+		GtkTreeView* view, GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction)
+{
+	if (!view || !origin || (direction != Keyboard::PhysicalDirection::Up
+			&& direction != Keyboard::PhysicalDirection::Down))
+		return nullptr;
+	GtkTreeModel* model = gtk_tree_view_get_model(view);
+	if (!model)
+		return nullptr;
+
+	std::vector<DisplayedTreeRow> rows;
+	collect_displayed_rows(view, model, nullptr, &rows);
+	std::size_t index = rows.size();
+	for (std::size_t i = 0; i < rows.size(); ++i)
+	{
+		if (gtk_tree_path_compare(rows[i].path, origin) == 0)
+		{
+			index = i;
+			break;
+		}
+	}
+	GtkTreePath* result = nullptr;
+	if (index != rows.size())
+	{
+		if (direction == Keyboard::PhysicalDirection::Up && index > 0)
+			result = gtk_tree_path_copy(rows[index - 1].path);
+		else if (direction == Keyboard::PhysicalDirection::Down
+				&& index + 1 < rows.size())
+			result = gtk_tree_path_copy(rows[index + 1].path);
+	}
+	free_displayed_rows(&rows);
+	return result;
+}
+
+/* launcher_tree_view_get_path_rectangle:
+ * @view: live tree view containing @path.
+ * @path: current displayed model path.
+ * @rectangle: output rectangle in the menu toplevel coordinates.
+ *
+ * Translates the current row allocation on every call so scrolling and live
+ * layout changes cannot leave a cached navigation edge behind.
+ */
+bool WhiskerMenu::launcher_tree_view_get_path_rectangle(GtkTreeView* view,
+		GtkTreePath* path, Keyboard::NavigationRect* rectangle)
+{
+	if (!view || !path || !rectangle)
+		return false;
+	GtkTreeModel* model = gtk_tree_view_get_model(view);
+	GtkTreeIter iter;
+	if (!model || !gtk_tree_model_get_iter(model, &iter, path))
+		return false;
+	gchar* text = nullptr;
+	gtk_tree_model_get(model, &iter, LauncherView::COLUMN_TEXT, &text, -1);
+	const bool selectable = text && *text != '\0';
+	g_free(text);
+	if (!selectable)
+		return false;
+	GtkTreeViewColumn* column = gtk_tree_view_get_column(view, 0);
+	GdkRectangle local = {};
+	gtk_tree_view_get_background_area(view, path, column, &local);
+	if (local.width <= 0 || local.height <= 0)
+		return false;
+	GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(view));
+	int x = local.x;
+	int y = local.y;
+	if (toplevel && toplevel != GTK_WIDGET(view))
+	{
+		int translated_x = 0;
+		int translated_y = 0;
+		if (!gtk_widget_translate_coordinates(GTK_WIDGET(view), toplevel,
+				local.x, local.y, &translated_x, &translated_y))
+			return false;
+		x = translated_x;
+		y = translated_y;
+	}
+	*rectangle = Keyboard::NavigationRect(x, y, local.width, local.height);
+	return true;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -222,6 +364,37 @@ bool LauncherTreeView::is_first_visual_row(GtkTreePath* path) const
 {
 	return path && gtk_tree_path_get_depth(path) == 1
 			&& gtk_tree_path_get_indices(path)[0] == 0;
+}
+
+GtkTreePath* LauncherTreeView::get_directional_path(GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction) const
+{
+	return launcher_tree_view_find_directional_path(m_view, origin, direction);
+}
+
+bool LauncherTreeView::get_path_rectangle(GtkTreePath* path,
+		Keyboard::NavigationRect* rectangle) const
+{
+	return launcher_tree_view_get_path_rectangle(m_view, path, rectangle);
+}
+
+bool LauncherTreeView::apply_keyboard_target(GtkTreePath* path)
+{
+	if (!path || !m_model)
+		return false;
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter(m_model, &iter, path))
+		return false;
+
+	GtkTreeSelection* selection = gtk_tree_view_get_selection(m_view);
+	const GtkSelectionMode mode = gtk_tree_selection_get_mode(selection);
+	gtk_tree_selection_set_mode(selection, GTK_SELECTION_NONE);
+	gtk_tree_view_set_cursor(m_view, path, nullptr, false);
+	gtk_tree_selection_set_mode(selection, mode);
+	gtk_tree_selection_select_path(selection, path);
+	gtk_tree_view_scroll_to_cell(m_view, path, nullptr, FALSE, 0, 0);
+	gtk_widget_grab_focus(GTK_WIDGET(m_view));
+	return gtk_widget_is_focus(GTK_WIDGET(m_view));
 }
 
 //-----------------------------------------------------------------------------

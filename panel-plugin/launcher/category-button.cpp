@@ -120,8 +120,8 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 			return GDK_EVENT_PROPAGATE;
 		});
 
-	// NOTE: along-axis category navigation (mid-list moves, Home/End and
-	// wrap-around) is owned by Window::on_key_press_event, which consumes the
+	// NOTE: along-axis category navigation is owned by the Window dispatcher,
+	// which consumes the
 	// event before GTK's default radio-group key navigation can auto-activate
 	// the next radio. No per-button key handler is needed here; adding one would
 	// re-introduce the double-move / double-activation this fix removes.

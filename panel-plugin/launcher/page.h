@@ -20,6 +20,8 @@
 
 #include <gtk/gtk.h>
 
+#include "core/window-keyboard.h"
+
 namespace WhiskerMenu
 {
 
@@ -62,6 +64,8 @@ public:
 
 	void reset_selection();
 	void select_first();
+	bool focus_first_result();
+	bool keyboard_move(Keyboard::PhysicalDirection direction);
 	void update_view();
 
 	/* activate_first:

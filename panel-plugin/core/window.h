@@ -151,15 +151,7 @@ private:
 	 * cannot eject keyboard focus.
 	 */
 	void keyboard_navigate_category(GtkWidget* target);
-
-	/* current_visibility_mask:
-	 *
-	 * Folds the live layout flags and per-zone "hidden" positions into a
-	 * Keyboard::VisibilityMask. Search and Results are forced visible
-	 * (the documented behavior); the Sidebar, Mode selector, and Profile bar follow the
-	 * preset's per-zone position string and visibility flags.
-	 */
-	Keyboard::VisibilityMask current_visibility_mask() const;
+	bool dispatch_directional_navigation(Keyboard::PhysicalDirection direction);
 
 	/* current_menu_state:
 	 *
@@ -168,30 +160,6 @@ private:
 	 * the inert sidebar while typing (the documented behavior).
 	 */
 	Keyboard::MenuState current_menu_state() const;
-
-	/* grab_focus_in_zone:
-	 * @zone: target zone for Tab/Shift+Tab.
-	 *
-	 * Maps a logical Zone to the concrete widget that should receive
-	 * focus on entry per data-model §"Entry widget mapping" and calls
-	 * gtk_widget_grab_focus on it. If the natural entry widget is not
-	 * realized/visible/sensitive/focusable the call is a no-op and the
-	 * previously focused widget keeps focus.
-	 *
-	 * Returns: true iff the grab actually landed (the target was
-	 * focusable and took focus). The forward Ctrl+Tab loop uses this to
-	 * advance past a zone whose grab silently fails (the documented behavior).
-	 */
-	bool grab_focus_in_zone(Keyboard::Zone zone);
-
-	/* current_zone:
-	 *
-	 * Identifies which logical Zone currently holds the focus, by
-	 * walking up the focused widget's ancestor chain. Falls back to
-	 * Zone::Search when nothing matches (e.g. focus is on the menu
-	 * window itself just after open).
-	 */
-	Keyboard::Zone current_zone() const;
 	gboolean on_map_event();
 	void on_state_flags_changed(GtkWidget* widget);
 	void on_screen_changed(GtkWidget* widget);

@@ -265,6 +265,17 @@ class DocumentationLinksTest(unittest.TestCase):
             self.assertIn(retained, upgrade)
         self.assertNotRegex(upgrade, r"\b0\.8\.0\b|\bRC1\b")
 
+    def test_keyboard_surface_is_cross_linked_and_current(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        keyboard = (ROOT / "docs/keyboard-navigation.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("[keyboard navigation](docs/keyboard-navigation.md)", readme)
+        self.assertIn("`Tab` and `Shift+Tab`", keyboard)
+        self.assertIn("Ctrl+Shift+Tab", keyboard)
+        self.assertIn("Space is inserted literally", keyboard)
+        self.assertIn("Home recursive Places results", keyboard)
+
     def test_release_specific_dependency_classes_are_documented(self):
         installation = (
             ROOT / "docs/installation.md"

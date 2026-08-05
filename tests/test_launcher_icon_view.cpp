@@ -43,9 +43,12 @@ int main()
 	g_object_ref_sink(window);
 	GtkIconView* view = GTK_ICON_VIEW(view_widget);
 	GtkListStore* model = gtk_list_store_new(1, G_TYPE_STRING);
-	gtk_list_store_insert_with_values(model, nullptr, -1, 0, "Item", -1);
+	for (const char* text : {"One", "Two", "Three", "Four", "Five"})
+		gtk_list_store_insert_with_values(model, nullptr, -1, 0, text, -1);
 	gtk_icon_view_set_model(view, GTK_TREE_MODEL(model));
 	gtk_icon_view_set_text_column(view, 0);
+	gtk_icon_view_set_item_width(view, 80);
+	gtk_icon_view_set_columns(view, 2);
 	gtk_icon_view_set_selection_mode(view, GTK_SELECTION_SINGLE);
 	gtk_container_add(GTK_CONTAINER(window), view_widget);
 
@@ -54,7 +57,9 @@ int main()
 			{
 				++activations;
 			}), nullptr);
-	gtk_widget_show(view_widget);
+	gtk_widget_show_all(window);
+	while (gtk_events_pending())
+		gtk_main_iteration();
 
 	WhiskerMenu::launcher_icon_view_set_transparent_grid_style(
 			view_widget, true);
@@ -66,6 +71,56 @@ int main()
 	gtk_icon_view_set_cursor(view, first, nullptr, false);
 	gtk_container_set_focus_child(GTK_CONTAINER(window), view_widget);
 	CHECK(gtk_container_get_focus_child(GTK_CONTAINER(window)) == view_widget);
+
+	GtkTreePath* origin = gtk_tree_path_new_from_indices(0, -1);
+	GList* cells = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(view));
+	GtkCellRenderer* renderer = cells
+			? GTK_CELL_RENDERER(cells->data) : nullptr;
+	GtkTreePath* right = WhiskerMenu::launcher_icon_view_find_directional_path(
+			view, renderer, origin,
+			WhiskerMenu::Keyboard::PhysicalDirection::Right, false);
+	GtkTreePath* expected_right = gtk_tree_path_new_from_indices(1, -1);
+	CHECK(right && gtk_tree_path_compare(right, expected_right) == 0);
+	gtk_tree_path_free(right);
+	gtk_tree_path_free(expected_right);
+
+	GtkTreePath* down = WhiskerMenu::launcher_icon_view_find_directional_path(
+			view, renderer, origin,
+			WhiskerMenu::Keyboard::PhysicalDirection::Down, false);
+	GtkTreePath* expected_down = gtk_tree_path_new_from_indices(2, -1);
+	CHECK(down && gtk_tree_path_compare(down, expected_down) == 0);
+	gtk_tree_path_free(down);
+	gtk_tree_path_free(expected_down);
+
+	GtkTreePath* second = gtk_tree_path_new_from_indices(1, -1);
+	GtkTreePath* left = WhiskerMenu::launcher_icon_view_find_directional_path(
+			view, renderer, second,
+			WhiskerMenu::Keyboard::PhysicalDirection::Left, false);
+	GtkTreePath* expected_left = gtk_tree_path_new_from_indices(0, -1);
+	CHECK(left && gtk_tree_path_compare(left, expected_left) == 0);
+	gtk_tree_path_free(left);
+	gtk_tree_path_free(expected_left);
+
+	GtkTreePath* third = gtk_tree_path_new_from_indices(2, -1);
+	GtkTreePath* up = WhiskerMenu::launcher_icon_view_find_directional_path(
+			view, renderer, third,
+			WhiskerMenu::Keyboard::PhysicalDirection::Up, false);
+	CHECK(up && gtk_tree_path_compare(up, first) == 0);
+	gtk_tree_path_free(up);
+	gtk_tree_path_free(third);
+
+	GtkTreePath* wrapped = WhiskerMenu::launcher_icon_view_find_directional_path(
+			view, renderer, second,
+			WhiskerMenu::Keyboard::PhysicalDirection::Right, false);
+	CHECK(!wrapped);
+	gtk_tree_path_free(wrapped);
+	gtk_tree_path_free(second);
+
+	CHECK(WhiskerMenu::launcher_icon_view_apply_keyboard_target(
+			view, GTK_TREE_MODEL(model), origin));
+	CHECK(gtk_icon_view_path_is_selected(view, origin));
+	g_list_free(cells);
+	gtk_tree_path_free(origin);
 
 	GdkEventButton event = {};
 	event.type = GDK_BUTTON_RELEASE;

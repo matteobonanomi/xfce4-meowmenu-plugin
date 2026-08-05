@@ -33,8 +33,8 @@ session, or installation method.
 2. Add **MeowMenu** through **Add New Items**. On a fresh profile, confirm the
    Modern preset is selected.
 3. Open the menu, search for a known application, and launch it.
-4. Press Tab to switch Applications/Places, Ctrl+Tab to move among areas,
-   arrows to navigate, and Enter to activate.
+4. Press Tab to switch Applications/Places, confirm Ctrl+Tab is a harmless
+   no-op, use ordinary arrows to navigate, and press Enter to activate.
 5. Close with Escape, reopen MeowMenu, and repeat an open/search/launch cycle.
 6. Log out and in, then confirm the panel item, search, keyboard flow, and
    another startup still work.
@@ -42,6 +42,23 @@ session, or installation method.
 A pass is scoped to the six recorded context fields above. File a
 [compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml);
 prefer a durable public issue or release note over a short-lived workflow link.
+
+## Directional keyboard matrix
+
+For release-quality manual coverage, use X11 with Xfce 4.20 on `x86_64` and
+record the six context fields above. Exercise list and grid Results, Sidebar
+on the left, right, top, bottom, and hidden, Search at both edges, visible and
+hidden Session controls, Applications and Places, docked, centered, and
+fullscreen layouts, and both LTR and RTL text directions. At every edge check
+internal-first movement, one-move crossings, no-wrap no-ops, Search cursor and
+Shift selection, Space during composition, context-menu priority, Escape,
+Calculator-first anchoring, asynchronous Places focus, live layout changes,
+and focus visuals.
+
+Repeat a representative subset on Wayland after the X11 pass. Record focus
+and geometry differences separately from compositor-delivered global shortcut
+behavior; this subset is experimental evidence and does not establish X11
+parity.
 
 ## Routine CI and timing evidence
 

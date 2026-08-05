@@ -225,6 +225,10 @@ Calculator results use the normal result height and icon scale. They take one
 full-width row in list and tree views, and span the grid at one tile high. A
 successful result hides custom search actions and the Run fallback, while
 application matches remain visible. Other states keep those fallbacks available.
+For keyboard use, a visible successful Calculator result is the first visual
+anchor ahead of ordinary matches. If a current calculation finishes after the
+ordinary results, the query is re-anchored to Calculator; stale or cancelled
+calculations do not change focus.
 
 ## Xfconf reference
 

@@ -24,6 +24,7 @@ test_window_mode_integration = executable(
   [
     'test_window_mode_integration.cpp',
     '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+    '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [gtk],
@@ -49,14 +50,31 @@ test_launcher_icon_view = executable(
     '..' / 'panel-plugin' / 'ui' / 'launcher-icon-view.cpp',
     '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
     '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
+    '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
-  dependencies: [glib, gio, gtk, libxfce4util, xfconf],
+  dependencies: [exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('launcher_icon_view', test_launcher_icon_view, timeout: 30)
+
+test_launcher_tree_view = executable(
+  'test_launcher_tree_view',
+  [
+    'test_launcher_tree_view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'launcher-tree-view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
+    '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+  ],
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('launcher_tree_view', test_launcher_tree_view, timeout: 30)
 
 test_places_home_contract = executable(
   'test_places_home_contract',
@@ -69,6 +87,15 @@ test_places_home_contract = executable(
 )
 
 test('places_home_contract', test_places_home_contract)
+
+test_places_focus_policy = executable(
+  'test_places_focus_policy',
+  'test_places_focus_policy.cpp',
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('places_focus_policy', test_places_focus_policy)
 
 test(
   'release_version',
@@ -489,7 +516,7 @@ test_home_search_lifecycle = executable(
 
 test('home_search_lifecycle', test_home_search_lifecycle, timeout: 30)
 
-# test_focus_router: headless coverage of the Tab-cycle resolution
+# test_focus_router: headless coverage of physical directional resolution
 # implemented in panel-plugin/core/window-keyboard.cpp. Pulls only the
 # helper translation unit; no display server, no GTK widgets.
 test_focus_router_sources = [

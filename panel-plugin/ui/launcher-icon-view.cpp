@@ -23,6 +23,7 @@
 #include "slot.h"
 
 #include <algorithm>
+#include <vector>
 
 using namespace WhiskerMenu;
 
@@ -259,6 +260,159 @@ void LauncherIconView::set_cursor(GtkTreePath* path)
 bool LauncherIconView::is_first_visual_row(GtkTreePath* path) const
 {
 	return path && gtk_icon_view_get_item_row(m_view, path) == 0;
+}
+
+/* launcher_icon_view_find_directional_path:
+ * @view: live icon view whose realized cells are inspected.
+ * @renderer: renderer identifying the cell geometry to score.
+ * @origin: current model path.
+ * @direction: physical arrow direction.
+ * @rtl: reverses only the stable horizontal tie order.
+ *
+ * Scores actual visible cells for one internal grid move. Empty final-row
+ * positions and model-order wraparound are never synthesized.
+ *
+ * Returns: a newly allocated current model path, or NULL at an edge.
+ */
+GtkTreePath* WhiskerMenu::launcher_icon_view_find_directional_path(
+		GtkIconView* view, GtkCellRenderer* renderer, GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction, bool rtl)
+{
+	if (!view || !origin)
+		return nullptr;
+	GdkRectangle origin_rect = {};
+	if (!gtk_icon_view_get_cell_rect(view, origin, renderer,
+			&origin_rect))
+		return nullptr;
+	Keyboard::NavigationRect source(origin_rect.x, origin_rect.y,
+			origin_rect.width, origin_rect.height);
+	if (!source.is_valid())
+		return nullptr;
+
+	std::vector<Keyboard::FocusTarget> candidates;
+	std::vector<GtkTreePath*> paths;
+	GtkTreeModel* model = gtk_icon_view_get_model(view);
+	if (!model)
+		return nullptr;
+	GtkTreeIter iter;
+	if (gtk_tree_model_get_iter_first(model, &iter))
+	{
+		do
+		{
+			GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+			GdkRectangle rectangle = {};
+			if (gtk_icon_view_get_cell_rect(view, path, renderer,
+					&rectangle) && rectangle.width > 0 && rectangle.height > 0)
+			{
+				const std::size_t id = paths.size();
+				paths.push_back(path);
+				Keyboard::FocusTarget candidate;
+				candidate.target_id = id;
+				candidate.region = Keyboard::NavigationRegion::Results;
+				candidate.kind = Keyboard::FocusTargetKind::ResultItem;
+				candidate.rectangle = Keyboard::NavigationRect(rectangle.x,
+						rectangle.y, rectangle.width, rectangle.height);
+				candidate.visual_ordinal = static_cast<unsigned>(id);
+				candidate.usable = true;
+				candidates.push_back(candidate);
+			}
+			else
+			{
+				gtk_tree_path_free(path);
+			}
+		} while (gtk_tree_model_iter_next(model, &iter));
+	}
+
+	const std::size_t selected = Keyboard::choose_spatial_target(source,
+			direction, candidates, rtl);
+	GtkTreePath* result = selected == Keyboard::NO_TARGET
+			|| selected >= paths.size() ? nullptr
+			: gtk_tree_path_copy(paths[selected]);
+	for (GtkTreePath* path : paths)
+		gtk_tree_path_free(path);
+	return result;
+}
+
+/* launcher_icon_view_get_path_rectangle:
+ * @view: live icon view containing @path.
+ * @renderer: renderer whose cell bounds represent the item.
+ * @path: current model path.
+ * @rectangle: output toplevel-coordinate geometry.
+ *
+ * Reads and translates one current cell allocation without caching it.
+ *
+ * Returns: true when the cell is currently visible and translatable.
+ */
+bool WhiskerMenu::launcher_icon_view_get_path_rectangle(GtkIconView* view,
+		GtkCellRenderer* renderer, GtkTreePath* path,
+		Keyboard::NavigationRect* rectangle)
+{
+	if (!view || !path || !rectangle)
+		return false;
+	GdkRectangle local = {};
+	if (!gtk_icon_view_get_cell_rect(view, path, renderer, &local)
+			|| local.width <= 0 || local.height <= 0)
+		return false;
+	GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(view));
+	int x = local.x;
+	int y = local.y;
+	if (toplevel && toplevel != GTK_WIDGET(view))
+	{
+		int translated_x = 0;
+		int translated_y = 0;
+		if (!gtk_widget_translate_coordinates(GTK_WIDGET(view), toplevel,
+				local.x, local.y, &translated_x, &translated_y))
+			return false;
+		x = translated_x;
+		y = translated_y;
+	}
+	*rectangle = Keyboard::NavigationRect(x, y, local.width, local.height);
+	return true;
+}
+
+/* launcher_icon_view_apply_keyboard_target:
+ * @view: icon view receiving the keyboard target.
+ * @model: current model owned by the view.
+ * @path: current selectable path.
+ *
+ * Applies cursor, single selection, reveal, and focus as one keyboard move.
+ *
+ * Returns: true when the view received focus.
+ */
+bool WhiskerMenu::launcher_icon_view_apply_keyboard_target(GtkIconView* view,
+		GtkTreeModel* model, GtkTreePath* path)
+{
+	if (!view || !model || !path)
+		return false;
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter(model, &iter, path))
+		return false;
+	gtk_icon_view_unselect_all(view);
+	gtk_icon_view_set_cursor(view, path, nullptr, false);
+	gtk_icon_view_select_path(view, path);
+	gtk_icon_view_scroll_to_path(view, path, FALSE, 0, 0);
+	gtk_widget_grab_focus(GTK_WIDGET(view));
+	return gtk_widget_is_focus(GTK_WIDGET(view));
+}
+
+GtkTreePath* LauncherIconView::get_directional_path(GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction) const
+{
+	return launcher_icon_view_find_directional_path(m_view, m_icon_renderer,
+			origin, direction, gtk_widget_get_direction(GTK_WIDGET(m_view))
+				== GTK_TEXT_DIR_RTL);
+}
+
+bool LauncherIconView::get_path_rectangle(GtkTreePath* path,
+		Keyboard::NavigationRect* rectangle) const
+{
+	return launcher_icon_view_get_path_rectangle(m_view, m_icon_renderer,
+			path, rectangle);
+}
+
+bool LauncherIconView::apply_keyboard_target(GtkTreePath* path)
+{
+	return launcher_icon_view_apply_keyboard_target(m_view, m_model, path);
 }
 
 //-----------------------------------------------------------------------------

@@ -1,3 +1,8 @@
+0.8.1 (2026-08-17)
+=====
+- Keyboard: add internal-first physical arrow navigation, global search input,
+  Calculator-first anchoring, and revocable Places focus
+
 1.0.0-rc1 (2026-07-29)
 =====
 - UI: minor Presets and Calculator improvements

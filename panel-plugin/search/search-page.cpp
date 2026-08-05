@@ -61,28 +61,6 @@ SearchPage::SearchPage(Settings* settings, Window* window) :
 
 	m_calculator_result->set_activate_callback(
 			[this]() { activate_calculator_result(); });
-	connect(m_calculator_result->get_focus_widget(), "key-press-event",
-			[this, window](GtkWidget*, GdkEventKey* event) -> gboolean
-			{
-				const bool up = event->keyval == GDK_KEY_Up || event->keyval == GDK_KEY_KP_Up;
-				const bool down = event->keyval == GDK_KEY_Down || event->keyval == GDK_KEY_KP_Down;
-				if (!up && !down)
-					return GDK_EVENT_PROPAGATE;
-				const Keyboard::CalculatorFocus target = Keyboard::calculator_vertical_target(
-					true, Keyboard::CalculatorFocus::Banner, up, false);
-				if (target == Keyboard::CalculatorFocus::Search)
-				{
-					gtk_widget_grab_focus(GTK_WIDGET(window->get_search_entry()));
-					return GDK_EVENT_STOP;
-				}
-				if (target == Keyboard::CalculatorFocus::Results)
-				{
-					select_first();
-					gtk_widget_grab_focus(get_view()->get_widget());
-					return GDK_EVENT_STOP;
-				}
-				return GDK_EVENT_PROPAGATE;
-			});
 	connect(window->get_search_entry(), "stop-search",
 		[](GtkSearchEntry* entry)
 		{
@@ -127,6 +105,28 @@ GtkWidget* SearchPage::get_preferred_focus_widget() const
 bool SearchPage::has_calculator_result() const
 {
 	return m_calculator_result->is_visible();
+}
+
+/* focus_first_visual_result:
+ *
+ * Applies the shared search anchor order: Calculator first, then the first
+ * current list or grid item, and finally the Search entry when no item exists.
+ * The fallback keeps the query visible and editable without inventing a
+ * selectable result.
+ *
+ * Returns: true when Calculator or an ordinary result received focus.
+ */
+bool SearchPage::focus_first_visual_result()
+{
+	if (m_calculator_result->is_visible())
+	{
+		gtk_widget_grab_focus(m_calculator_result->get_focus_widget());
+		return true;
+	}
+	if (focus_first_result())
+		return true;
+	gtk_widget_grab_focus(GTK_WIDGET(get_window()->get_search_entry()));
+	return false;
 }
 
 bool SearchPage::activate_first()
@@ -310,6 +310,7 @@ void SearchPage::set_filter(const gchar* filter)
 							descriptor.fallback_icon_name, evaluation.value, font_size);
 						update_calculator_presentation();
 						populate_search_results();
+						focus_first_visual_result();
 						gtk_widget_hide(m_message);
 					});
 		}

@@ -42,6 +42,7 @@ public:
 	GtkWidget* get_calculator_result() const;
 	GtkWidget* get_preferred_focus_widget() const;
 	bool has_calculator_result() const;
+	bool focus_first_visual_result();
 	bool activate_first();
 	void refresh_calculator_presentation();
 

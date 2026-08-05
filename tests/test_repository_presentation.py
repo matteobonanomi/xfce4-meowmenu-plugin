@@ -101,6 +101,29 @@ class RepositoryPresentationTest(unittest.TestCase):
                 document,
             )
 
+    def test_keyboard_document_describes_the_supported_model(self):
+        keyboard = (ROOT / "docs/keyboard-navigation.md").read_text(
+            encoding="utf-8"
+        )
+        for required in (
+            "There is no wrapping",
+            "Ctrl+Tab",
+            "consumed no-ops",
+            "Calculator is the first visual result",
+            "first current result",
+            "configured global shortcut",
+            "Wayland remains experimental",
+        ):
+            self.assertIn(required, keyboard)
+        for obsolete in (
+            "moves focus through the areas",
+            "wrapping around at the ends",
+            "canonical focus-area cycling",
+            ".specify/",
+            "Spec-Kit",
+        ):
+            self.assertNotIn(obsolete, keyboard)
+
 
 if __name__ == "__main__":
     unittest.main()

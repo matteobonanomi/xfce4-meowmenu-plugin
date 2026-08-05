@@ -8,6 +8,7 @@
  */
 
 #include "core/menu-mode-state.h"
+#include "core/window-keyboard.h"
 
 #include <gtk/gtk.h>
 
@@ -182,6 +183,8 @@ int main()
 	const MenuModeResolution forced_apps = resolve_menu_mode(live);
 	CHECK(forced_apps.mode == MenuMode::Applications);
 	CHECK(!forced_apps.places_home_visible);
+	CHECK(Keyboard::tab_action(true) == Keyboard::TabAction::ToggleMode);
+	CHECK(Keyboard::tab_action(false) == Keyboard::TabAction::Inert);
 
 	if (failures != 0)
 	{

@@ -31,6 +31,14 @@ void launcher_icon_view_set_transparent_grid_style(GtkWidget* view,
 		bool enabled);
 bool launcher_icon_view_complete_empty_click(GtkIconView* view,
 		bool transparent_grid, const GdkEventButton* event);
+GtkTreePath* launcher_icon_view_find_directional_path(GtkIconView* view,
+		GtkCellRenderer* renderer, GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction, bool rtl);
+bool launcher_icon_view_get_path_rectangle(GtkIconView* view,
+		GtkCellRenderer* renderer, GtkTreePath* path,
+		Keyboard::NavigationRect* rectangle);
+bool launcher_icon_view_apply_keyboard_target(GtkIconView* view,
+		GtkTreeModel* model, GtkTreePath* path);
 
 class LauncherIconView : public LauncherView
 {
@@ -52,6 +60,11 @@ public:
 	void select_path(GtkTreePath* path) override;
 	void set_cursor(GtkTreePath* path) override;
 	bool is_first_visual_row(GtkTreePath* path) const override;
+	GtkTreePath* get_directional_path(GtkTreePath* origin,
+			Keyboard::PhysicalDirection direction) const override;
+	bool get_path_rectangle(GtkTreePath* path,
+			Keyboard::NavigationRect* rectangle) const override;
+	bool apply_keyboard_target(GtkTreePath* path) override;
 
 	void set_fixed_height_mode(bool fixed_height) override;
 	void set_selection_mode(GtkSelectionMode mode) override;
