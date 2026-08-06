@@ -41,7 +41,7 @@ static bool property_matches_any(const gchar* property, const char* const* value
 //-----------------------------------------------------------------------------
 
 /* classify_reload_intent:
- * @property: base-relative Xfconf property path such as "/profile-position".
+ * @property: base-relative Xfconf property path such as "/show-profile".
  *
  * Classifies a setting notification by the narrowest live refresh that can make
  * the current UI coherent. Layout refreshes reuse existing widgets and keep the
@@ -88,11 +88,6 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 		"/category-icon-size",
 		"/default-category",
 		"/recent-items-max",
-		"/position-profile-alternate",
-		"/position-search-alternate",
-		"/position-commands-alternate",
-		"/position-categories-alternate",
-		"/position-categories-horizontal",
 		"/stay-on-focus-out",
 		"/profile-shape",
 		"/confirm-session-command",
@@ -104,8 +99,8 @@ ReloadIntent WhiskerMenu::classify_reload_intent(const gchar* property)
 		"/sidebar-position",
 		"/sidebar-enabled",
 		"/search-bar-position",
-		"/profile-position",
-		"/commands-position",
+		"/show-profile",
+		"/show-session",
 		"/grid-density",
 		"/layout-mode",
 		"/current-preset-id",

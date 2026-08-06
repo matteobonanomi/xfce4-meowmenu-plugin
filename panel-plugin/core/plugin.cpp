@@ -24,14 +24,12 @@
 
 #include "launcher/applications-page.h"
 #include "launcher/command.h"
-#include "migration.h"
 #include "settings.h"
 #include "settings-dialog.h"
 #include "ui/slot.h"
 #include "window.h"
 #include "window-size-clamp.h"
 
-#include <glib/gstdio.h>
 #include <libxfce4ui/libxfce4ui.h>
 
 using namespace WhiskerMenu;
@@ -71,33 +69,8 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 	m_settings->load(defaults_file, true);
 	g_free(defaults_file);
 
-	gchar* rc_file = xfce_panel_plugin_lookup_rc_file(m_plugin);
-	gchar* save_file = xfce_panel_plugin_save_location(m_plugin, false);
-	if (g_strcmp0(rc_file, save_file) != 0)
-	{
-		m_settings->load(rc_file, true);
-	}
-	g_free(rc_file);
-
 	// Load user settings
 	m_settings->load(xfce_panel_plugin_get_property_base(m_plugin));
-
-	// One-shot pre-rename Xfconf migration. See migration.h/cpp for
-	// the legacy-vs-current base mapping and the Whisker-presence gate.
-	{
-		XfconfChannel* panel_channel = xfconf_channel_new(xfce_panel_get_channel_name());
-		WhiskerMenu::migrate_legacy_xfconf(panel_channel,
-				xfce_panel_plugin_get_property_base(m_plugin));
-		g_object_unref(panel_channel);
-	}
-
-	// Migrate old user settings if they exist
-	if (m_settings->channel)
-	{
-		m_settings->load(save_file, false);
-		g_remove(save_file);
-	}
-	g_free(save_file);
 
 	m_opacity = m_settings->menu_opacity;
 

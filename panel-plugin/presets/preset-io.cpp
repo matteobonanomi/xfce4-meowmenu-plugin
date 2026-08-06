@@ -23,6 +23,7 @@
 #include <map>
 
 #include <glib.h>
+#include <glib/gi18n-lib.h>
 
 using namespace WhiskerMenu;
 
@@ -41,12 +42,10 @@ struct PropDef
 	int domain_len;
 };
 
-static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "top", "bottom" };
+static const char* SIDEBAR_DOMAIN[]         = { "left", "right", "horizontal" };
 static const char* SEARCHBAR_DOMAIN[]       = { "top", "bottom" };
-static const char* PROFILE_DOMAIN[]         = { "top-left", "bottom-left", "hidden" };
-static const char* COMMANDS_DOMAIN[]        = { "top-right", "bottom-right", "hidden" };
 static const char* GRID_DENSITY_DOMAIN[]    = { "low", "medium", "high" };
-static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "fullscreen" };
+static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "centered", "fullscreen" };
 static const char* VIEW_MODE_DOMAIN[]       = { "icons", "list", "tree" };
 static const char* DEFAULT_CATEGORY_DOMAIN[] = { "favorites", "recent", "all" };
 static const char* PLACES_SWITCH_SHAPE_DOMAIN[] = { "gtk-theme", "rounded" };
@@ -62,10 +61,9 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "sidebar-position",      PresetValue::Str, 0, 0, STR_DOMAIN(SIDEBAR_DOMAIN) },
 	{ "sidebar-enabled",       PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "category-show-name",    PresetValue::Bool, 0, 0, nullptr, 0 },
-	{ "position-categories-horizontal", PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "search-bar-position",   PresetValue::Str, 0, 0, STR_DOMAIN(SEARCHBAR_DOMAIN) },
-	{ "profile-position",      PresetValue::Str, 0, 0, STR_DOMAIN(PROFILE_DOMAIN) },
-	{ "commands-position",     PresetValue::Str, 0, 0, STR_DOMAIN(COMMANDS_DOMAIN) },
+	{ "show-profile",          PresetValue::Bool, 0, 0, nullptr, 0 },
+	{ "show-session",          PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "grid-density",          PresetValue::Str, 0, 0, STR_DOMAIN(GRID_DENSITY_DOMAIN) },
 	{ "transparent-grid",      PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "layout-mode",           PresetValue::Str, 0, 0, STR_DOMAIN(LAYOUT_MODE_DOMAIN) },
@@ -73,7 +71,6 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "category-icon-size",    PresetValue::Int, INT_RANGE(-1, 6) },
 	{ "view-mode-default",     PresetValue::Str, 0, 0, STR_DOMAIN(VIEW_MODE_DOMAIN) },
 	{ "hover-switch-category", PresetValue::Bool, 0, 0, nullptr, 0 },
-	{ "unified-bar",           PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "stay-on-focus-out",     PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "menu-width",            PresetValue::Int, INT_RANGE(200, 2000) },
 	{ "menu-height",           PresetValue::Int, INT_RANGE(200, 2000) },
@@ -97,37 +94,52 @@ static const PropDef* find_prop_def(const char* name)
 	return nullptr;
 }
 
-/* normalize_str_value:
- * @key: the governed property name being parsed.
- * @sv:  the raw string read from the preset file; ownership is taken.
+/* incompatible_layout_key:
+ * @key_file: parsed preset containing a Settings group.
+ * @obsolete_key: receives the first incompatible key or value description.
  *
- * Applies forward-compatibility rewrites to a stored string before domain
- * validation. Legacy profile-position aliases are accepted on import and
- * rewritten to the canonical left-anchored storage vocabulary instead of being
- * rejected.
+ * Scans the complete layout vocabulary before conflict handling or mutation.
+ * Unknown non-layout keys remain forward-compatible and are not reported.
  *
- * Returns: a newly-allocated string the caller owns (freed with g_free), or
- *          NULL when @sv was NULL.
+ * Returns: true when the preset belongs to the retired composition model.
  */
-static gchar* normalize_str_value(const char* key, gchar* sv)
+static bool incompatible_layout_key(GKeyFile* key_file,
+	std::string& obsolete_key)
 {
-	if (sv && strcmp(key, "profile-position") == 0)
+	static const char* retired[] = {
+		"profile-position",
+		"commands-position",
+		"unified-bar",
+		"position-categories-horizontal",
+		"position-profile-alternate",
+		"position-search-alternate",
+		"position-commands-alternate",
+		"position-categories-alternate",
+	};
+	for (const char* key : retired)
 	{
-		const char* rewritten = nullptr;
-		if (strcmp(sv, "top") == 0)
-			rewritten = "top-left";
-		else if ((strcmp(sv, "bottom") == 0)
-				|| (strcmp(sv, "bottom-right") == 0))
-			rewritten = "bottom-left";
-
-		if (rewritten)
+		if (g_key_file_has_key(key_file, "Settings", key, nullptr))
 		{
-			g_free(sv);
-			return g_strdup(rewritten);
+			obsolete_key = key;
+			return true;
 		}
 	}
-	return sv;
+
+	if (g_key_file_has_key(key_file, "Settings", "sidebar-position", nullptr))
+	{
+		gchar* value = g_key_file_get_string(key_file, "Settings",
+			"sidebar-position", nullptr);
+		const bool obsolete = g_strcmp0(value, "top") == 0
+			|| g_strcmp0(value, "bottom") == 0;
+		if (obsolete)
+			obsolete_key = std::string("sidebar-position=") + value;
+		g_free(value);
+		if (obsolete)
+			return true;
+	}
+	return false;
 }
+
 
 // ---------------------------------------------------------------------------
 // export_user_preset
@@ -215,7 +227,15 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 		return result;
 	}
 
-	// Step 3: required keys. the documented behavior: only the preset identity (Name) is required.
+	if (incompatible_layout_key(kf, result.obsolete_key))
+	{
+		result.status = ImportStatus::IncompatibleLayout;
+		result.error_message = _("This preset uses layout settings from an older MeowMenu version and cannot be imported.");
+		g_key_file_free(kf);
+		return result;
+	}
+
+	// Step 3: required keys. supported behavior: only the preset identity (Name) is required.
 	// SchemaVersion is advisory — a missing version is assumed current and a newer
 	// version is accepted best-effort; neither is grounds for rejection. Per-key
 	// validation in Step 5 still drops any value that does not fit the schema.
@@ -302,8 +322,7 @@ ImportResult WhiskerMenu::import_user_preset(const std::string& file_path,
 			}
 			else // Str
 			{
-				gchar* sv = normalize_str_value(key,
-					g_key_file_get_string(kf, "Settings", key, nullptr));
+				gchar* sv = g_key_file_get_string(kf, "Settings", key, nullptr);
 				bool valid = false;
 				for (int di = 0; di < pd->domain_len; ++di)
 				{
@@ -408,6 +427,15 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 		return false;
 	}
 
+	std::string obsolete_key;
+	if (incompatible_layout_key(kf, obsolete_key))
+	{
+		g_debug("meowmenu: preset file '%s': incompatible layout setting '%s'",
+			path.c_str(), obsolete_key.c_str());
+		g_key_file_free(kf);
+		return false;
+	}
+
 	if (!g_key_file_has_key(kf, "Preset", "Name", nullptr))
 	{
 		g_debug("meowmenu: preset file '%s': missing Name", path.c_str());
@@ -415,7 +443,7 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 		return false;
 	}
 
-	// the documented behavior: SchemaVersion is advisory for seeded files. A missing version is
+	// supported behavior: SchemaVersion is advisory for seeded files. A missing version is
 	// assumed current and a newer version is accepted best-effort, so a future
 	// package shipping a newer built-in preset file is not silently dropped. The
 	// per-key validation below still discards any value that does not fit the
@@ -520,8 +548,7 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
 			}
 			else // Str
 			{
-				gchar* sv = normalize_str_value(key,
-					g_key_file_get_string(kf, "Settings", key, nullptr));
+				gchar* sv = g_key_file_get_string(kf, "Settings", key, nullptr);
 				bool valid = false;
 				for (int di = 0; di < pd->domain_len; ++di)
 				{
@@ -562,8 +589,8 @@ static bool parse_preset_file_internal(const std::string& path, LayoutPreset& ou
  * @user_dir:   path to the user-writable preset directory.
  *
  * Walks system_dir then user_dir, parsing every .meowpreset file. Entries
- * with the same id are deduplicated: user_dir wins (the documented behavior). Files that
- * fail validation are silently skipped — no error dialog, no crash (the documented behavior).
+ * with the same id are deduplicated: user_dir wins (supported behavior). Files that
+ * fail validation are silently skipped — no error dialog, no crash (supported behavior).
  *
  * Returns: list of successfully parsed LayoutPreset objects; may be empty.
  */

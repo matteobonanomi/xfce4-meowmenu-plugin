@@ -3,7 +3,7 @@
  * panel-plugin/core/sidebar-layout.h. No GTK types are used.
  *
  * Asserts every row of the layout-decision contract (ui-contract.md §3) plus
- * the "forcing removed ⇒ effective reverts to stored intent" case (the documented behavior).
+ * the "forcing removed ⇒ effective reverts to stored intent" case (supported behavior).
  */
 
 #include "core/sidebar-layout.h"
@@ -72,11 +72,11 @@ void row2_vertical_names_off()
 	CHECK(p.effective_show_category_names == false);
 }
 
-// Row 3: ON, top/bottom, any, places on → horizontal strip, icons forced ON,
-// names forced off, switch horizontal in sidebar.
+// Row 3: ON, Horizontal, any, Places on → horizontal strip, icons forced
+// on, names forced off, switch horizontal in sidebar.
 void row3_strip()
 {
-	for (SidebarPosition pos : { SidebarPosition::Top, SidebarPosition::Bottom })
+	for (SidebarPosition pos : { SidebarPosition::Horizontal })
 	{
 		for (bool names : { true, false })
 		{
@@ -103,9 +103,9 @@ void row4_places_off()
 	CHECK(!p.show_default_category_heading);
 	CHECK(p.effective_show_category_names == true);
 
-	// top/bottom with places off still forces icon-only categories.
+	// Horizontal with Places off still forces icon-only categories.
 	auto p2 = meow_compute_sidebar_layout(
-			make_state(true, SidebarPosition::Top, true, false, false));
+			make_state(true, SidebarPosition::Horizontal, true, false, false));
 	CHECK(p2.categories_horizontal);
 	CHECK(p2.switch_location == SwitchLocation::None);
 	CHECK(p2.effective_show_category_names == false);
@@ -134,7 +134,7 @@ void row6_disabled_places_off()
 	CHECK(p.show_default_category_heading);
 }
 
-// the documented behavior: a forced state never overwrites stored intent, so once the forcing
+// supported behavior: a forced state never overwrites stored intent, so once the forcing
 // layout is removed the effective value reverts to the stored value with no
 // bookkeeping. Stored switch_show_icons=false + stored names=true:
 //   top (forced icons ON, names off) → left (icons OFF, names ON).
@@ -144,7 +144,7 @@ void fr029_reversion()
 	const bool stored_names = true;
 
 	auto forced = meow_compute_sidebar_layout(
-			make_state(true, SidebarPosition::Top, stored_names, stored_icons, true));
+			make_state(true, SidebarPosition::Horizontal, stored_names, stored_icons, true));
 	CHECK(forced.effective_show_icons == true);
 	CHECK(forced.effective_show_category_names == false);
 
@@ -159,15 +159,28 @@ void parse_positions()
 {
 	CHECK(meow_parse_sidebar_position("left") == SidebarPosition::Left);
 	CHECK(meow_parse_sidebar_position("right") == SidebarPosition::Right);
-	CHECK(meow_parse_sidebar_position("top") == SidebarPosition::Top);
-	CHECK(meow_parse_sidebar_position("bottom") == SidebarPosition::Bottom);
+	CHECK(meow_parse_sidebar_position("horizontal") == SidebarPosition::Horizontal);
+	CHECK(meow_parse_sidebar_position("top") == SidebarPosition::Left);
+	CHECK(meow_parse_sidebar_position("bottom") == SidebarPosition::Left);
 	CHECK(meow_parse_sidebar_position("hidden") == SidebarPosition::Left);
 	CHECK(meow_parse_sidebar_position(nullptr) == SidebarPosition::Left);
 	CHECK(meow_parse_sidebar_position("nonsense") == SidebarPosition::Left);
 }
 
+void horizontal_edge_derivation()
+{
+	CHECK(meow_resolve_sidebar_edge(SidebarPosition::Horizontal, false, false)
+			== SidebarPosition::Bottom);
+	CHECK(meow_resolve_sidebar_edge(SidebarPosition::Horizontal, true, false)
+			== SidebarPosition::Top);
+	CHECK(meow_resolve_sidebar_edge(SidebarPosition::Horizontal, true, true)
+			== SidebarPosition::Bottom);
+	CHECK(meow_resolve_sidebar_edge(SidebarPosition::Left, true, false)
+			== SidebarPosition::Left);
+}
+
 // Top/Bottom strip stacking order, row anchoring, and width source
-// (the documented behavior). The toggle anchors leading and the category group
+// (supported behavior). The toggle anchors leading and the category group
 // trailing on a single row; the order is direction-independent and the anchors
 // are direction-relative, so both LTR and RTL resolve identically here.
 void strip_geometry_ordering()
@@ -210,7 +223,7 @@ void fullscreen_main_column_metrics()
 void fullscreen_places_disabled_strip_centers_categories()
 {
 	auto p = meow_compute_sidebar_layout(
-			make_state(true, SidebarPosition::Top, true, false, false));
+			make_state(true, SidebarPosition::Horizontal, true, false, false));
 	CHECK(p.categories_horizontal);
 	CHECK(p.switch_location == SwitchLocation::None);
 	CHECK(p.effective_show_category_names == false);
@@ -220,19 +233,25 @@ void fullscreen_places_disabled_strip_centers_categories()
 	CHECK(top.categories_anchor == StripAnchor::Trailing);
 }
 
-// Toggle icon-size source (ui-contract §1, the documented behavior): the toggle
+// Toggle icon-size source (ui-contract §1, supported behavior): the toggle
 // inherits the category icon size in a sidebar, the search-bar height in the
 // search-bar row, and is unsized (0 → not applied) when hidden.
 void toggle_icon_size_source()
 {
 	const int category_px = 48;   // e.g. /category-icon-size == Normal
 	const int search_bar_px = 22; // e.g. measured from the search entry
+	const int session_px = 16;    // effective theme size for Session actions
 
-	CHECK(meow_toggle_icon_px(SwitchLocation::InSidebar, category_px, search_bar_px)
+	CHECK(meow_toggle_icon_px(SwitchLocation::InSidebar, category_px, search_bar_px,
+			session_px)
 			== category_px);
-	CHECK(meow_toggle_icon_px(SwitchLocation::InSearchBar, category_px, search_bar_px)
+	CHECK(meow_toggle_icon_px(SwitchLocation::InSecondaryRow, category_px,
+			search_bar_px, session_px) == session_px);
+	CHECK(meow_toggle_icon_px(SwitchLocation::InSearchBar, category_px,
+			search_bar_px, session_px)
 			== search_bar_px);
-	CHECK(meow_toggle_icon_px(SwitchLocation::None, category_px, search_bar_px)
+	CHECK(meow_toggle_icon_px(SwitchLocation::None, category_px, search_bar_px,
+			session_px)
 			== 0);   // hidden — no size applied
 }
 
@@ -266,7 +285,7 @@ void default_category_order_base_decision()
 }
 
 // Embedded Apps/Places switch ordering in the standard (non-unified) search-bar
-// row. the documented behavior regression intent: no slot ever places the switch after a present
+// row. supported behavior regression intent: no slot ever places the switch after a present
 // command box. When commands share the row the switch is anchored before them
 // (commands stay trailing-most); when the switch is alone it is the trailing
 // element. The unified centring cluster is a separate, untested-here path.
@@ -276,9 +295,9 @@ void embedded_switch_slot_decision()
 	CHECK(meow_embedded_switch_slot(false) == EmbeddedSwitchSlot::Trailing);
 }
 
-// the implementation step: the single label-visibility decision is identical for Apps and Places
+// runtime implementation: the single label-visibility decision is identical for Apps and Places
 // buttons (both call meow_category_label_visible). Names show only when
-// "show names" is on AND the sidebar is not a horizontal strip (the documented behavior).
+// "show names" is on AND the sidebar is not a horizontal strip (supported behavior).
 void label_visibility_decision()
 {
 	CHECK(meow_category_label_visible(true,  false) == true);   // names on, vertical
@@ -396,6 +415,7 @@ int main()
 	row6_disabled_places_off();
 	fr029_reversion();
 	parse_positions();
+	horizontal_edge_derivation();
 	strip_geometry_ordering();
 	fullscreen_main_column_metrics();
 	fullscreen_places_disabled_strip_centers_categories();

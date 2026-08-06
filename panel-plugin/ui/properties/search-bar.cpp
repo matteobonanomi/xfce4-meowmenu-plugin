@@ -32,7 +32,7 @@ using namespace WhiskerMenu;
 /* init_search_bar_tab:
  *
  * Builds the Search Bar tab of the Properties dialog. Sections, top-to-bottom:
- *   1. Position        — search-bar-position combo.
+ *   1. Primary row     — position, Profile visibility, and avatar shape.
  *   2. Ranking         — fuzzy matching, favorites boost, recency weight
  *                        (lifted from the legacy "Advanced Search" tab).
  *   3. Aliases         — built by build_search_bar_aliases_section().
@@ -46,10 +46,10 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
 	// =========================================================================
-	// 1. Position section — combo in C1, C2 left empty (the documented behavior).
+	// 1. Primary row section
 	// =========================================================================
 	GtkWidget* pos_grid = make_two_column_section();
-	GtkWidget* pos_frame = make_aligned_frame(_("Position"), pos_grid);
+	GtkWidget* pos_frame = make_aligned_frame(_("Primary row"), pos_grid);
 	gtk_box_pack_start(page, pos_frame, false, false, 0);
 
 	GtkWidget* sbp_label = gtk_label_new_with_mnemonic(_("_Search bar position:"));
@@ -60,6 +60,8 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 		static_cast<const gchar*>(m_settings->search_bar_position));
 	add_form_row(pos_grid, COLUMN_C1, 0, sbp_label, m_search_bar_position_combo, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(sbp_label), m_search_bar_position_combo);
+	m_layout_enable_when_docked.push_back(sbp_label);
+	m_layout_enable_when_docked.push_back(m_search_bar_position_combo);
 
 	connect(m_search_bar_position_combo, "changed",
 		[this](GtkComboBox* combo)
@@ -74,12 +76,65 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			refresh_customized_indicator();
 		});
 
+	GtkWidget* show_profile_label =
+			gtk_label_new_with_mnemonic(_("Show _profile:"));
+	m_show_profile = make_form_switch();
+	gtk_switch_set_active(GTK_SWITCH(m_show_profile),
+			static_cast<bool>(m_settings->show_profile));
+	add_form_row(pos_grid, COLUMN_C2, 0, show_profile_label,
+			m_show_profile, false, nullptr);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(show_profile_label), m_show_profile);
+
+	m_profile_shape_label =
+			gtk_label_new_with_mnemonic(_("Avatar _shape:"));
+	m_profile_shape = gtk_combo_box_text_new();
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_profile_shape),
+			_("Round Picture"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(m_profile_shape),
+			_("Square Picture"));
+	gtk_combo_box_set_active(GTK_COMBO_BOX(m_profile_shape),
+			m_settings->profile_shape);
+	add_form_row(pos_grid, COLUMN_C2, 1, m_profile_shape_label,
+			m_profile_shape, false, nullptr);
+	gtk_label_set_mnemonic_widget(GTK_LABEL(m_profile_shape_label),
+			m_profile_shape);
+
+	auto apply_profile_sensitivity = [this]()
+	{
+		const bool shown = gtk_switch_get_active(GTK_SWITCH(m_show_profile));
+		gtk_widget_set_sensitive(m_profile_shape_label, shown);
+		gtk_widget_set_sensitive(m_profile_shape, shown);
+	};
+	apply_profile_sensitivity();
+
+	connect(m_show_profile, "notify::active",
+		[this, apply_profile_sensitivity](GObject* object, GParamSpec*)
+		{
+			if (m_programmatic_update)
+				return;
+			m_settings->show_profile =
+					gtk_switch_get_active(GTK_SWITCH(object));
+			apply_profile_sensitivity();
+			m_plugin->refresh_layout();
+			refresh_customized_indicator();
+		});
+
+	connect(m_profile_shape, "changed",
+		[this](GtkComboBox* combo)
+		{
+			if (m_programmatic_update)
+				return;
+			m_settings->profile_shape = gtk_combo_box_get_active(combo);
+			m_plugin->refresh_layout();
+			refresh_customized_indicator();
+		});
+
 	// =========================================================================
 	// 2. Fuzzy Search section (lifted from legacy Advanced Search tab)
 	// =========================================================================
 	// The primary switch sits in C1 and its dependent control in C2 of the same
 	// row; the former inline vertical separator is dropped because the column
-	// midpoint now divides the two (the documented behavior).
+	// midpoint now divides the two (supported behavior).
 	{
 		GtkWidget* grid = make_two_column_section();
 
@@ -126,7 +181,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 	// =========================================================================
 	// Boost switch (C1) / Boost level (C2) share one two-column row; the recency
 	// slider spans the full section width below the grid, packed directly into
-	// the section vbox so it has no phantom empty C2 (the documented behavior).
+	// the section vbox so it has no phantom empty C2 (supported behavior).
 	{
 		GtkWidget* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 		GtkWidget* grid = make_two_column_section();

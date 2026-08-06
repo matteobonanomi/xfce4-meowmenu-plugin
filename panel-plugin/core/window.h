@@ -23,6 +23,7 @@
 #include <gtk/gtk.h>
 
 #include "interactive-resize.h"
+#include "menu-composition.h"
 #include "menu-mode-state.h"
 #include "sidebar-layout.h"
 #include "window-keyboard.h"
@@ -157,7 +158,7 @@ private:
 	 *
 	 * Returns Searching iff the search entry holds at least one
 	 * character, Browsing otherwise. Used by the focus router to skip
-	 * the inert sidebar while typing (the documented behavior).
+	 * the inert sidebar while typing (supported behavior).
 	 */
 	Keyboard::MenuState current_menu_state() const;
 	gboolean on_map_event();
@@ -212,6 +213,7 @@ private:
 	MenuContentTarget current_menu_content() const;
 	void search();
 	void update_layout();
+	void apply_menu_composition(const MenuComposition& composition);
 
 	/* set_mode_button_content:
 	 * @button: one of the Apps/Places mode toggles.
@@ -269,13 +271,14 @@ private:
 	GtkSpinner* m_window_load_spinner;
 
 	GtkBox* m_vbox;
+	// Stable row containers. The historical aliases remain while the Full
+	// Screen path is replaced independently.
+	GtkBox* m_primary_row;
+	GtkBox* m_primary_middle;
+	GtkBox* m_secondary_row;
 	GtkBox* m_title_box;
 	GtkBox* m_commands_box;
 	GtkBox* m_search_box;
-	// Full-screen unified-bar only: holds the search entry and, when Places is
-	// on, the trailing Apps/Places switch, so the pair is centred as one unit.
-	// Owns a ref because it is unparented in every non-unified layout.
-	GtkWidget* m_search_cluster;
 	GtkStack* m_contents_stack;
 	GtkGrid* m_contents_box;
 	GtkBox* m_categories_box;
@@ -295,17 +298,13 @@ private:
 
 	GtkEntry* m_search_entry;
 
-	// Three void bands for FullScreen unified-bar mode.
-	GtkWidget* m_void_top;
-	GtkWidget* m_void_middle;
-	GtkWidget* m_void_bottom;
 
 	SearchPage* m_search_results;
 	FavoritesPage* m_favorites;
 	RecentPage* m_recent;
 	ApplicationsPage* m_applications;
 
-	// Places mode (milestone 005)
+	// Places mode (current behavior)
 	PlacesPage* m_places;
 	GtkBox* m_mode_selector_box;
 	GtkToggleButton* m_mode_btn_apps;
@@ -336,12 +335,12 @@ private:
 
 	GtkScrolledWindow* m_sidebar;
 	// Horizontally-scrolling container for the Top/Bottom category strip
-	// (the documented behavior). Created lazily on the first strip layout; the switch is pinned
-	// outside it (the documented behavior). nullptr until the sidebar is first shown on top/bottom.
+	// (supported behavior). Created lazily on the first strip layout; the switch is pinned
+	// outside it (supported behavior). nullptr until the sidebar is first shown on top/bottom.
 	GtkScrolledWindow* m_strip_scroll;
 	// Expanding spacer pinned as the leading child of m_category_buttons in
 	// strip mode so the category icons sit flush-trailing while the slack falls
-	// between them and the leading toggle (the documented behavior). Hidden (and thus ignored in
+	// between them and the leading toggle (supported behavior). Hidden (and thus ignored in
 	// allocation) in the vertical sidebar. Created lazily with m_strip_scroll.
 	GtkWidget* m_strip_lead_spacer;
 	// Current structural placement of the category list, so update_layout()
@@ -358,12 +357,13 @@ private:
 	GtkSizeGroup* m_category_width_group;
 	GtkSizeGroup* m_sidebar_size_group;
 	// Forces the two Apps/Places mode buttons to equal width in every layout
-	// and preset, surviving the icon↔text child swap (the documented behavior).
+	// and preset, surviving the icon↔text child swap (supported behavior).
 	GtkSizeGroup* m_mode_button_size_group;
 
 	GdkRectangle m_geometry;
 	bool m_layout_ltr;
 	bool m_layout_categories_horizontal;
+	CompositionSidebar m_layout_sidebar_position;
 	// Tracked stored intent so show() can fire update_layout() when these
 	// switch/sidebar settings change (none are legacy layout booleans).
 	bool m_layout_sidebar_enabled;
@@ -372,17 +372,11 @@ private:
 	// Tracked category icon size so show() re-runs update_layout() when it
 	// changes, keeping the Apps/Places toggle in sync with the category icons.
 	int m_layout_category_icon_size;
-	bool m_layout_categories_alternate;
-	bool m_layout_search_alternate;
-	bool m_layout_commands_alternate;
-	bool m_layout_profile_alternate;
-	// Cached hidden state of the profile/commands clusters. Tracked separately
-	// from the *_alternate edge flags because a hidden ↔ visible transition can
-	// leave both edge flags unchanged; without these, show() would skip
-	// update_layout() and the restored element would never re-render.
+	// Cached visibility state ensures live Show Profile/Session changes relayout
+	// immediately even when all other composition inputs stay unchanged.
 	bool m_layout_profile_hidden;
 	bool m_layout_commands_hidden;
-	bool m_layout_unified_bar;
+	unsigned int m_layout_available_session_actions;
 	int m_profile_shape;
 	bool m_supports_alpha;
 	// Theme-derived separator colour (luminance-nudged from the menu background),

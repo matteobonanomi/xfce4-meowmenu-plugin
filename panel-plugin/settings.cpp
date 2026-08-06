@@ -20,9 +20,9 @@
 #include "config/xfce-helpers.h"
 #include "launcher/command.h"
 #include "core/plugin.h"
-#include "core/user-session-layout.h"
 #include "presets/preset.h"
 #include "search/search-action.h"
+#include "settings-defaults.h"
 #include "ui/slot.h"
 
 #include <sstream>
@@ -74,15 +74,9 @@ Settings::Settings(Plugin* plugin) :
 	recent_items_max(this, "/recent-items-max", 10, 0, 100),
 	favorites_in_recent(this, "/favorites-in-recent", false),
 
-	position_profile_alternate(this, "/position-profile-alternate", false),
-	position_search_alternate(this, "/position-search-alternate", false),
-	position_commands_alternate(this, "/position-commands-alternate", false),
-	unified_bar(this, "/unified-bar", false),
-	position_categories_alternate(this, "/position-categories-alternate", false),
-	position_categories_horizontal(this, "/position-categories-horizontal", false),
 	stay_on_focus_out(this, "/stay-on-focus-out", false),
 
-	profile_shape(this, "/profile-shape", ProfileRound, ProfileRound, ProfileHidden),
+	profile_shape(this, "/profile-shape", ProfileRound, ProfileRound, ProfileSquare),
 
 	confirm_session_command(this, "/confirm-session-command", true),
 
@@ -127,14 +121,13 @@ Settings::Settings(Plugin* plugin) :
 	corner_radius(this, "/corner-radius", 0, 0, 24),
 	panel_gap(this, "/panel-gap", 0, 0, 50),
 
-	// NOTE: GUI/preset write domain is {left,right,top,bottom}; the legacy
-	// "hidden" value is tolerated on read (free-form String, migrated to
-	// sidebar-enabled=false) and is never honoured as a position.
+	// NOTE: GUI and preset storage use the closed left/right/horizontal domain.
+	// Unknown values render safely as Left and are reset by the pre-stable gate.
 	sidebar_position(this, "/sidebar-position", "left"),
 	sidebar_enabled(this, "/sidebar-enabled", true),
 	search_bar_position(this, "/search-bar-position", "top"),
-	profile_position(this, "/profile-position", "top-left"),
-	commands_position(this, "/commands-position", "top-right"),
+	show_profile(this, "/show-profile", true),
+	show_session(this, "/show-session", true),
 
 	grid_density(this, "/grid-density", "medium"),
 
@@ -306,12 +299,9 @@ void Settings::load(const gchar* file, bool is_default)
 	recent_items_max.load(rc, is_default);
 	favorites_in_recent.load(rc, is_default);
 
-	position_profile_alternate.load(rc, is_default);
-	position_search_alternate.load(rc, is_default);
-	position_commands_alternate.load(rc, is_default);
-	position_categories_alternate.load(rc, is_default);
-	position_categories_horizontal.load(rc, is_default);
 	stay_on_focus_out.load(rc, is_default);
+	show_profile.load(rc, is_default);
+	show_session.load(rc, is_default);
 
 	profile_shape.load(rc, is_default);
 
@@ -348,10 +338,20 @@ void Settings::load(const gchar* file, bool is_default)
 
 void Settings::load(const gchar* base)
 {
-	// Set up Xfconf channel
+	PreStableResetDecision reset_decision = PreStableResetDecision::Load;
+	bool reset_ready = true;
+
+	// Set up Xfconf channel and settle the reset boundary before old values can
+	// enter the Settings value bag.
 	if (base && xfconf_init(nullptr))
 	{
 		channel = xfconf_channel_new_with_property_base(xfce_panel_get_channel_name(), base);
+		reset_decision = inspect_pre_stable_reset(channel, base);
+		if (reset_decision == PreStableResetDecision::Reset)
+			reset_ready = reset_instance_for_composition_upgrade(channel, base);
+		if (!reset_ready)
+			reset_decision = PreStableResetDecision::Load;
+
 		m_change_slot = connect(channel, "property-changed",
 			[this](XfconfChannel*, const gchar* property, const GValue* value)
 			{
@@ -366,34 +366,35 @@ void Settings::load(const gchar* base)
 
 	// Fetch all settings
 	GHashTable* properties = xfconf_channel_get_properties(channel, nullptr);
-	if (!properties)
+	const guint loaded_property_count = properties
+		? g_hash_table_size(properties) : 0;
+	if (properties)
 	{
-		return;
+		const int base_len = strlen(base);
+		GHashTableIter iter;
+		gpointer key = nullptr;
+		gpointer value = nullptr;
+		g_hash_table_iter_init(&iter, properties);
+		while (g_hash_table_iter_next(&iter, &key, &value))
+		{
+			property_changed(static_cast<const gchar*>(key) + base_len,
+				static_cast<GValue*>(value));
+		}
+		g_hash_table_destroy(properties);
 	}
 
-	// Fetch length of property base
-	const int base_len = strlen(base);
-
-	// Load settings
-	GHashTableIter iter;
-	gpointer key, value;
-	g_hash_table_iter_init(&iter, properties);
-	while (g_hash_table_iter_next(&iter, &key, &value))
-	{
-		property_changed(static_cast<const gchar*>(key) + base_len, static_cast<GValue*>(value));
-	}
-
-	const guint loaded_property_count = g_hash_table_size(properties);
-	g_hash_table_destroy(properties);
 	prevent_invalid();
 	load_aliases(channel);
-	// NOTE: the persisted /initialized marker — not the raw property count — is
-	// the authoritative fresh-vs-upgrade signal. The count is fragile: a
-	// still-running xfconfd that served stale in-memory state (or panel-seeded
-	// keys) makes a genuine first run look non-empty. Passing both lets
-	// migrate_schema treat "marker absent AND empty channel" as the only fresh
-	// case while still back-filling the marker for existing users.
-	migrate_schema(initialized, loaded_property_count == 0);
+
+	const bool needs_modern_defaults =
+		reset_decision != PreStableResetDecision::Load;
+	migrate_schema(needs_modern_defaults ? false : static_cast<bool>(initialized),
+		needs_modern_defaults || loaded_property_count == 0);
+	if (needs_modern_defaults && !complete_pre_stable_reset(channel))
+	{
+		g_warning("meowmenu: reset for %s remains pending because defaults could not be verified",
+			base);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -449,32 +450,6 @@ void Settings::prevent_invalid()
 		}
 	}
 
-	// Normalise the Profile/Commands edge coupling toward the governing edge
-	// (the Profile edge when docked, the search-bar edge when full-screen) and
-	// persist any snapped value. The pure helper is the single authority shared
-	// with the renderer and the Preferences combos, so a stored or live-edited
-	// disallowed combination resolves the same way everywhere (the documented behavior).
-	//
-	// NOTE: the snapped value is written back through the existing
-	// /profile-position and /commands-position keys (no new key) so the stored
-	// configuration and the rendered row stay in sync — reopening Preferences
-	// shows the resolved value. A "hidden" component is never un-hidden here;
-	// only the edge of an already-visible component moves.
-	{
-		const LayoutMode mode = (g_strcmp0(layout_mode, "fullscreen") == 0)
-				? LayoutMode::FullScreen : LayoutMode::Docked;
-		const UserSessionResolution res = normalize_user_session(
-				mode, search_bar_position, profile_position, commands_position);
-		if (res.profile_changed)
-		{
-			profile_position = res.profile_position;
-		}
-		if (res.commands_changed)
-		{
-			commands_position = res.commands_position;
-		}
-	}
-
 	// NOTE: /places/switch-button-shape is a string for preset/import stability.
 	// Invalid stored values are rewritten to the safe theme-native default.
 	if (!places_switch_shape_is_valid(places_switch_button_shape))
@@ -525,12 +500,6 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| default_category.load(property, value)
 			|| recent_items_max.load(property, value)
 			|| favorites_in_recent.load(property, value)
-			|| position_profile_alternate.load(property, value)
-			|| position_search_alternate.load(property, value)
-			|| position_commands_alternate.load(property, value)
-			|| unified_bar.load(property, value)
-			|| position_categories_alternate.load(property, value)
-			|| position_categories_horizontal.load(property, value)
 			|| stay_on_focus_out.load(property, value)
 			|| profile_shape.load(property, value)
 			|| confirm_session_command.load(property, value)
@@ -551,8 +520,8 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 			|| sidebar_position.load(property, value)
 			|| sidebar_enabled.load(property, value)
 			|| search_bar_position.load(property, value)
-			|| profile_position.load(property, value)
-			|| commands_position.load(property, value)
+			|| show_profile.load(property, value)
+			|| show_session.load(property, value)
 			|| grid_density.load(property, value)
 			|| layout_mode.load(property, value)
 			|| places_enabled.load(property, value)

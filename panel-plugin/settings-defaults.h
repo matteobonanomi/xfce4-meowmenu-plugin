@@ -15,6 +15,12 @@
 #ifndef WHISKERMENU_SETTINGS_DEFAULTS_H
 #define WHISKERMENU_SETTINGS_DEFAULTS_H
 
+#include <cstddef>
+#include <cctype>
+#include <cstring>
+
+typedef struct _XfconfChannel XfconfChannel;
+
 namespace WhiskerMenu
 {
 
@@ -31,6 +37,90 @@ inline bool should_apply_fresh_preset(bool marker, bool empty_channel)
 {
 	return !marker && empty_channel;
 }
+
+constexpr int COMPOSITION_RESET_GENERATION = 1;
+constexpr const char* COMPOSITION_RESET_GENERATION_KEY =
+	"/migration/composition-reset-generation";
+constexpr const char* COMPOSITION_RESET_STATE_KEY =
+	"/migration/composition-reset-state";
+
+enum class PreStableResetDecision
+{
+	Fresh,
+	Reset,
+	Load,
+};
+
+/* decide_pre_stable_reset:
+ * @generation: persisted reset generation, or zero when absent.
+ * @state: persisted lifecycle state, or an empty string when absent.
+ * @initialized: whether the instance had completed older initialization.
+ * @non_lifecycle_properties: number of stored instance descendants excluding
+ *   the reset lifecycle keys and the bare registration value.
+ *
+ * Classifies one instance without consulting product version strings. Pending
+ * and incomplete generations retry, initialized/nonempty instances reset, and
+ * a genuinely empty instance receives fresh defaults.
+ *
+ * Returns: the startup action for this instance.
+ */
+inline PreStableResetDecision decide_pre_stable_reset(int generation,
+	const char* state,
+	bool initialized,
+	std::size_t non_lifecycle_properties)
+{
+	const char* stored_state = state ? state : "";
+	if (generation == COMPOSITION_RESET_GENERATION
+			&& std::strcmp(stored_state, "complete") == 0)
+		return PreStableResetDecision::Load;
+	if (generation == COMPOSITION_RESET_GENERATION
+			&& std::strcmp(stored_state, "pending") == 0)
+		return PreStableResetDecision::Reset;
+	return (initialized || non_lifecycle_properties > 0)
+		? PreStableResetDecision::Reset
+		: PreStableResetDecision::Fresh;
+}
+
+/* inspect_pre_stable_reset:
+ * @channel: property-base-anchored panel Xfconf channel.
+ * @property_base: concrete per-instance base such as
+ *   "/plugins/meowmenu-7".
+ *
+ * Reads only lifecycle and existence state. A malformed base fails closed and
+ * returns Load so no destructive operation can be attempted.
+ *
+ * Returns: the startup action for this instance.
+ */
+PreStableResetDecision inspect_pre_stable_reset(XfconfChannel* channel,
+	const char* property_base);
+
+inline bool valid_meowmenu_property_base(const char* property_base)
+{
+	static const char prefix[] = "/plugins/meowmenu-";
+	if (!property_base || std::strncmp(property_base, prefix,
+			sizeof(prefix) - 1) != 0)
+		return false;
+	const char* id = property_base + sizeof(prefix) - 1;
+	if (!*id)
+		return false;
+	for (const char* p = id; *p; ++p)
+	{
+		if (!std::isdigit(static_cast<unsigned char>(*p)))
+			return false;
+	}
+	return true;
+}
+
+/* complete_pre_stable_reset:
+ * @channel: property-base-anchored panel Xfconf channel.
+ *
+ * Verifies the required Modern state and records completion last. Call only
+ * after defaults have been persisted.
+ *
+ * Returns: true when the required values were readable and completion was
+ * persisted.
+ */
+bool complete_pre_stable_reset(XfconfChannel* channel);
 
 }
 

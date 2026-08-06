@@ -39,15 +39,20 @@ SidebarPosition meow_parse_sidebar_position(const char* value)
 	{
 		if (std::strcmp(value, "right") == 0)
 			return SidebarPosition::Right;
-		if (std::strcmp(value, "top") == 0)
-			return SidebarPosition::Top;
-		if (std::strcmp(value, "bottom") == 0)
-			return SidebarPosition::Bottom;
+		if (std::strcmp(value, "horizontal") == 0)
+			return SidebarPosition::Horizontal;
 	}
-	// NOTE: "left", NULL, the legacy "hidden", and any unknown value all
-	// resolve to Left — a valid Position. "hidden" is migrated to the
-	// Enable-sidebar switch, so it must never be treated as a position.
+	// NOTE: malformed or retired values fail closed to a valid supported edge.
 	return SidebarPosition::Left;
+}
+
+SidebarPosition meow_resolve_sidebar_edge(SidebarPosition position,
+		bool search_bar_bottom, bool fullscreen)
+{
+	if (position != SidebarPosition::Horizontal)
+		return position;
+	return (fullscreen || !search_bar_bottom)
+			? SidebarPosition::Bottom : SidebarPosition::Top;
 }
 
 SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
@@ -55,8 +60,7 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 	SwitchPresentation out;
 
 	const bool horizontal_strip = state.sidebar_enabled
-			&& (state.position == SidebarPosition::Top
-				|| state.position == SidebarPosition::Bottom);
+			&& state.position == SidebarPosition::Horizontal;
 
 	out.sidebar_visible = state.sidebar_enabled;
 	out.categories_horizontal = horizontal_strip;
@@ -130,7 +134,19 @@ FullscreenMainColumn meow_fullscreen_main_column(int workarea_width)
 	return out;
 }
 
-int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px)
+/* meow_toggle_icon_px:
+ * @location: effective home of the Apps/Places selector.
+ * @category_px: configured category icon allocation in a sidebar.
+ * @search_bar_px: measured search-row icon allocation.
+ * @session_px: theme allocation used by Session command icons.
+ *
+ * Selects the icon allocation that matches the selector's current containing
+ * region while keeping the size independent from user preset storage.
+ *
+ * Returns: the pixel allocation, or zero when the selector is hidden.
+ */
+int meow_toggle_icon_px(SwitchLocation location, int category_px,
+		int search_bar_px, int session_px)
 {
 	// The toggle inherits the pixel size of the region that contains it; a
 	// hidden toggle (None) gets no size, signalled by 0.
@@ -138,6 +154,8 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
 	{
 	case SwitchLocation::InSidebar:
 		return category_px;
+	case SwitchLocation::InSecondaryRow:
+		return session_px;
 	case SwitchLocation::InSearchBar:
 		return search_bar_px;
 	case SwitchLocation::None:

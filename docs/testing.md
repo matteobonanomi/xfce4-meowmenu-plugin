@@ -117,31 +117,39 @@ custom and persisted command strings remain byte-for-byte unchanged.
 - If convenient, repeat a quick open/search check with a dark theme, vertical
   panel, or scaled display. Missing optional visual evidence is not a failure.
 
-## Upgrade check
+## Destructive pre-1.0 upgrade check
 
 1. Record the exact `<source-version>` already installed and the exact
    `<target-version>` under test. In a separate profile, install the source
    version and add MeowMenu to the panel.
 2. Add representative ordered favourites; choose a non-default layout; select
    non-default preferences; select Calculator engine, result size, and
-   precision; save a custom preset.
-3. Record `xfconf-query -c meowmenu -lv` and copy the saved `.meowpreset`
-   files to a comparison directory.
+   precision; save a custom preset. Create a second MeowMenu panel instance
+   with different values.
+3. Record `xfconf-query -c xfce4-panel -lv` and copy any external
+   `.meowpreset` files to a comparison directory.
 4. Upgrade to `<target-version>` without deleting configuration.
-5. Compare the panel item, favourites and order, layout/preferences,
-   Calculator choices, Xfconf output, and preset files.
-6. Log out and in and compare again.
-7. Restart MeowMenu again to exercise another startup and confirm the values
-   remain unchanged.
+5. Start only the first instance. Confirm its preferences and managed custom
+   presets are cleared, Modern is active, and its bare panel registration plus
+   the second instance and external files are unchanged.
+6. Start the second instance and confirm it resets independently. Change a
+   setting in each completed instance, restart the panel twice, and confirm the
+   reset does not repeat.
+7. Repeat with a release-candidate profile, an initialized profile with no
+   recognizable version, an interrupted `pending` lifecycle, a fresh profile,
+   and an already-completed profile.
+8. Import a current preset containing an unknown non-layout key and confirm its
+   supported values apply. Try imports and overwrite attempts containing each
+   retired layout key and `sidebar-position=top` or `bottom`; confirm the
+   incompatible message appears and no target value changes.
 
-Expected result: no panel item, user choice, or preset is lost or silently
-reset. This result applies only to the recorded source build, target build,
-and six-field environment.
+Expected result: every eligible instance resets exactly once to Modern; fresh
+and completed instances retain later changes; panel registrations, siblings,
+other plugins, and external files remain unchanged.
 
 ## Removal and full cleanup
 
 Removing a DEB, RPM, or Arch package removes installed program files but
-normally retains the user's Xfconf settings and saved presets. This makes a
-later reinstall recover the configuration. Follow the
-[full cleanup instructions](installation#full-cleanup) only when you
-deliberately want to erase that user state.
+normally retains the user's Xfconf settings and saved presets. Follow the
+[instance cleanup instructions](installation#clean-one-meowmenu-instance) only
+when you deliberately want to erase one instance's state.

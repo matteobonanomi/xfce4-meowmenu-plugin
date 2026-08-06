@@ -23,7 +23,87 @@
 
 #include <glib/gi18n-lib.h>
 
+#include <cstring>
+#include <string>
+
 using namespace WhiskerMenu;
+
+//-----------------------------------------------------------------------------
+
+PreStableResetDecision WhiskerMenu::inspect_pre_stable_reset(
+	XfconfChannel* channel,
+	const char* property_base)
+{
+	if (!channel || !valid_meowmenu_property_base(property_base))
+		return PreStableResetDecision::Load;
+
+	const int generation = xfconf_channel_get_int(channel,
+		COMPOSITION_RESET_GENERATION_KEY, 0);
+	gchar* state = xfconf_channel_get_string(channel,
+		COMPOSITION_RESET_STATE_KEY, nullptr);
+	const bool initialized = xfconf_channel_get_bool(channel,
+		"/initialized", FALSE);
+
+	std::size_t non_lifecycle = 0;
+	GHashTable* properties = xfconf_channel_get_properties(channel, nullptr);
+	if (properties)
+	{
+		GHashTableIter iter;
+		gpointer key = nullptr;
+		gpointer value = nullptr;
+		g_hash_table_iter_init(&iter, properties);
+		while (g_hash_table_iter_next(&iter, &key, &value))
+		{
+			(void)value;
+			std::string path(static_cast<const gchar*>(key));
+			if (path.compare(0, strlen(property_base), property_base) == 0)
+				path.erase(0, strlen(property_base));
+			if (path.empty()
+					|| path == COMPOSITION_RESET_GENERATION_KEY
+					|| path == COMPOSITION_RESET_STATE_KEY)
+				continue;
+			++non_lifecycle;
+		}
+		g_hash_table_unref(properties);
+	}
+
+	const PreStableResetDecision decision = decide_pre_stable_reset(generation,
+		state ? state : "", initialized, non_lifecycle);
+	g_free(state);
+	return decision;
+}
+
+bool WhiskerMenu::complete_pre_stable_reset(XfconfChannel* channel)
+{
+	if (!channel)
+		return false;
+
+	gchar* preset = xfconf_channel_get_string(channel,
+		"/current-preset-id", nullptr);
+	gchar* mode = xfconf_channel_get_string(channel, "/layout-mode", nullptr);
+	gchar* primary = xfconf_channel_get_string(channel,
+		"/search-bar-position", nullptr);
+	gchar* sidebar = xfconf_channel_get_string(channel,
+		"/sidebar-position", nullptr);
+	const bool valid = xfconf_channel_get_bool(channel, "/initialized", FALSE)
+		&& xfconf_channel_get_int(channel, "/schema-version", 0) >= 13
+		&& g_strcmp0(preset, "modern") == 0
+		&& g_strcmp0(mode, "docked") == 0
+		&& g_strcmp0(primary, "top") == 0
+		&& g_strcmp0(sidebar, "left") == 0;
+	g_free(preset);
+	g_free(mode);
+	g_free(primary);
+	g_free(sidebar);
+
+	if (!valid)
+		return false;
+	if (!xfconf_channel_set_int(channel, COMPOSITION_RESET_GENERATION_KEY,
+			COMPOSITION_RESET_GENERATION))
+		return false;
+	return xfconf_channel_set_string(channel, COMPOSITION_RESET_STATE_KEY,
+		"complete");
+}
 
 //-----------------------------------------------------------------------------
 
@@ -38,7 +118,7 @@ using namespace WhiskerMenu;
  * truth for Xfconf key defaults seeded on schema upgrade; they MUST stay
  * aligned with the inline defaults supplied in the Settings constructor.
  *
- * Decision (contracts/fresh-vs-upgrade-decision.md):
+ * Decision (the documented interface):
  *   - marker absent AND empty channel  ⇒ FRESH: apply the Modern preset.
  *   - marker present                   ⇒ UPGRADE: preserve the user's layout.
  *   - marker absent with stored config ⇒ UPGRADE (existing user's first
@@ -100,23 +180,9 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 				xfconf_channel_set_int(channel, p.prop, p.val);
 		}
 
-		// NOTE: defaults for V1 Boolean properties not yet in the channel;
-		// /unified-bar default false matches the C++ Settings ctor and lets
-		// downstream consumers read the key explicitly after first migration.
-		struct { const char* prop; gboolean val; } bool_props[] = {
-			{ "/unified-bar", FALSE },
-		};
-		for (auto& p : bool_props)
-		{
-			if (!xfconf_channel_has_property(channel, p.prop))
-				xfconf_channel_set_bool(channel, p.prop, p.val);
-		}
-
 		struct { const char* prop; const char* val; } str_props[] = {
 			{ "/sidebar-position",     "left"      },
 			{ "/search-bar-position",  "top"       },
-			{ "/profile-position",     "top-left"  },
-			{ "/commands-position",    "top-right" },
 			{ "/grid-density",         "medium"    },
 			{ "/layout-mode",          "docked"    },
 		};
@@ -162,17 +228,14 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 			}
 			g_free(current_sidebar);
 			xfconf_channel_set_bool(channel, "/position-categories-horizontal", false);
-			position_categories_horizontal = false;
 		}
 
-		// Deprecate profile-shape = Hidden (enum value 2): subsumed by /profile-position = "hidden".
-		// HACK: we keep the ProfileHidden enum value compiled in to avoid breaking any third-party
-		// preset file that still references the integer 2, but the UI no longer exposes it.
+		// The former Hidden avatar shape now maps to the explicit visibility key.
 		if (xfconf_channel_has_property(channel, "/profile-shape")
-				&& xfconf_channel_get_int(channel, "/profile-shape", ProfileRound) == ProfileHidden)
+				&& xfconf_channel_get_int(channel, "/profile-shape", ProfileRound) == 2)
 		{
-			xfconf_channel_set_string(channel, "/profile-position", "hidden");
-			profile_position = "hidden";
+			xfconf_channel_set_bool(channel, "/show-profile", FALSE);
+			show_profile = false;
 			xfconf_channel_set_int(channel, "/profile-shape", ProfileRound);
 			profile_shape = ProfileRound;
 		}
@@ -182,7 +245,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	if (schema_version < 3)
 	{
-		// Milestone 005 — Places mode keys. Seed defaults on first upgrade so
+		// Current behavior — Places mode keys. Seed defaults on first upgrade so
 		// existing installs see consistent values without re-applying a preset.
 		// NOTE: /places/show-metadata had no consumer and is removed; it is
 		// intentionally not seeded here, and the schema-v6 block deletes any
@@ -217,7 +280,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	if (schema_version < 4)
 	{
-		// Feature 020 — "Enable sidebar" switch replaces the legacy "hidden"
+		// Sidebar behavior — "Enable sidebar" switch replaces the legacy "hidden"
 		// sidebar position. Map a stored hidden sidebar to the switch being OFF
 		// and restore a valid Position so the dropdown never shows "hidden".
 		gchar* current_sidebar = xfconf_channel_get_string(channel, "/sidebar-position", nullptr);
@@ -332,7 +395,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 	if (schema_version < 7)
 	{
 		// Collapse the three per-region opacities to one menu-wide value. Derive
-		// it from the active preset (the documented behavior): the value the preset pins, else
+		// it from the active preset (supported behavior): the value the preset pins, else
 		// fully opaque (100) when no preset governs opacity. The retired keys no
 		// longer drive rendering, so reset them — the channel then carries only
 		// /menu-opacity. Resetting an absent key is a no-op, so this block is
@@ -377,7 +440,6 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		if (rewritten)
 		{
 			xfconf_channel_set_string(channel, "/profile-position", rewritten);
-			profile_position = rewritten;
 		}
 		g_free(profile_pos);
 
@@ -418,6 +480,52 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		if (!xfconf_channel_has_property(channel, "/extras/calculator-max-decimal-places"))
 			xfconf_channel_set_int(channel, "/extras/calculator-max-decimal-places", 4);
 		schema_version = 11;
+	}
+
+	if (schema_version < 12)
+	{
+		// NOTE: both visibility keys default on so adding intent storage does not
+		// change the current renderer before it starts consuming these values.
+		for (const char* key : { "/show-profile", "/show-session" })
+		{
+			if (!xfconf_channel_has_property(channel, key))
+				xfconf_channel_set_bool(channel, key, TRUE);
+		}
+		schema_version = 12;
+	}
+
+	if (schema_version < 13)
+	{
+		const char* retired_keys[] = {
+			"/position-profile-alternate",
+			"/position-search-alternate",
+			"/position-commands-alternate",
+			"/position-categories-alternate",
+			"/position-categories-horizontal",
+			"/profile-position",
+			"/commands-position",
+			"/unified-bar",
+		};
+		for (const char* key : retired_keys)
+			xfconf_channel_reset_property(channel, key, FALSE);
+
+		gchar* sidebar = xfconf_channel_get_string(channel,
+				"/sidebar-position", nullptr);
+		if (g_strcmp0(sidebar, "top") == 0
+				|| g_strcmp0(sidebar, "bottom") == 0)
+		{
+			xfconf_channel_set_string(channel, "/sidebar-position", "horizontal");
+			sidebar_position = "horizontal";
+		}
+		else if (g_strcmp0(sidebar, "left") != 0
+				&& g_strcmp0(sidebar, "right") != 0
+				&& g_strcmp0(sidebar, "horizontal") != 0)
+		{
+			xfconf_channel_set_string(channel, "/sidebar-position", "left");
+			sidebar_position = "left";
+		}
+		g_free(sidebar);
+		schema_version = 13;
 	}
 
 	// Back-fill the marker on every path (fresh, upgrade, or already-current

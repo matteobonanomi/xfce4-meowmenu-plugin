@@ -23,6 +23,17 @@
 namespace WhiskerMenu
 {
 
+/* meow_container_contains_child:
+ * @container: a GTK container that may own @child.
+ * @child: the widget whose direct membership is being tested.
+ *
+ * Checks direct container membership without relying on a potentially stale
+ * cached parent during repeated live layout transitions.
+ *
+ * Returns: true when @child is directly owned by @container.
+ */
+bool meow_container_contains_child(GtkContainer* container, GtkWidget* child);
+
 /* meow_box_contains_child:
  * @box: a GtkBox that may own @child.
  * @child: the widget whose membership is being tested.
@@ -65,6 +76,35 @@ bool meow_box_repack_child(GtkBox* box, GtkWidget* child, bool pack_end,
 bool meow_box_reorder_child_if_present(GtkBox* box, GtkWidget* child,
                                        gint position);
 
+/* meow_grid_attach_child:
+ * @grid: target GtkGrid that should own @child.
+ * @child: widget to move or reattach.
+ * @left: destination column.
+ * @top: destination row.
+ * @width: number of columns occupied; must be positive.
+ * @height: number of rows occupied; must be positive.
+ *
+ * Moves a live child from any GTK container and attaches it to the requested
+ * grid cell while holding a temporary reference across the parent change.
+ *
+ * Returns: true when the child was attached to @grid.
+ */
+bool meow_grid_attach_child(GtkGrid* grid, GtkWidget* child, gint left,
+		gint top, gint width, gint height);
+
+/* meow_size_group_set_widget:
+ * @group: target GtkSizeGroup.
+ * @widget: widget whose membership should change.
+ * @member: true to add the widget, false to remove it.
+ *
+ * Changes membership only when necessary so repeated layout passes cannot
+ * accumulate stale width contributors or duplicate operations.
+ *
+ * Returns: true when the requested membership is valid after the call.
+ */
+bool meow_size_group_set_widget(GtkSizeGroup* group, GtkWidget* widget,
+		bool member);
+
 /* meow_widget_set_visible_if_valid:
  * @widget: widget to show or hide.
  * @visible: target visibility.
@@ -90,6 +130,14 @@ void meow_widget_set_can_focus_if_valid(GtkWidget* widget, bool can_focus);
  */
 void meow_widget_set_hexpand_if_valid(GtkWidget* widget, bool expand);
 
+/* meow_widget_set_vexpand_if_valid:
+ * @widget: widget whose vertical expansion should change.
+ * @expand: target expansion flag.
+ *
+ * Applies gtk_widget_set_vexpand() only to live GtkWidget instances.
+ */
+void meow_widget_set_vexpand_if_valid(GtkWidget* widget, bool expand);
+
 /* meow_widget_set_halign_if_valid:
  * @widget: widget whose horizontal alignment should change.
  * @align: target alignment.
@@ -97,6 +145,14 @@ void meow_widget_set_hexpand_if_valid(GtkWidget* widget, bool expand);
  * Applies gtk_widget_set_halign() only to live GtkWidget instances.
  */
 void meow_widget_set_halign_if_valid(GtkWidget* widget, GtkAlign align);
+
+/* meow_widget_set_valign_if_valid:
+ * @widget: widget whose vertical alignment should change.
+ * @align: target alignment.
+ *
+ * Applies gtk_widget_set_valign() only to live GtkWidget instances.
+ */
+void meow_widget_set_valign_if_valid(GtkWidget* widget, GtkAlign align);
 
 }
 

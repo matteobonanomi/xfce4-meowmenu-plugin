@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="plugins" type="empty">
+    <property name="meowmenu-18" type="empty">
+      <property name="schema-version" type="int" value="12"/>
+      <property name="initialized" type="bool" value="true"/>
+      <property name="current-preset-id" type="string" value="saved-rc-layout"/>
+      <property name="layout-mode" type="string" value="fullscreen"/>
+      <property name="presets" type="empty">
+        <property name="saved-rc-layout" type="empty">
+          <property name="display-name" type="string" value="RC Layout"/>
+          <property name="name" type="string" value="RC Layout"/>
+          <property name="unified-bar" type="bool" value="true"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>

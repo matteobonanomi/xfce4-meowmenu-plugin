@@ -31,7 +31,6 @@
 #include "core/window-size-clamp.h"
 #include "presets/preset.h"
 #include "presets/preset-io.h"
-#include "search/unified-bar.h"
 #include "ui/properties/common.h"
 
 #include <algorithm>
@@ -88,7 +87,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	gtk_stack_set_transition_type(stack, GTK_STACK_TRANSITION_TYPE_NONE);
 
 	// Load built-in presets from on-disk files before any tab builder calls
-	// refresh_preset_combo (the implementation step / data-model E-1).
+	// refresh_preset_combo (runtime implementation / behavior table).
 	initialize_file_presets();
 
 	// New 5-tab dictionary per data-model.md E-3. Each init_*_tab() already
@@ -99,7 +98,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	};
 
 	add_page(init_general_tab(),       "general", _("General"));
-	add_page(init_user_session_tab(),  "user",    _("User / Session"));
+	add_page(init_user_session_tab(),  "user",    _("Session"));
 	add_page(init_search_bar_tab(),    "search",  _("Search Bar"));
 	add_page(init_app_grid_tab(),      "app-grid", _("Results View"));
 	add_page(init_sidebar_tab(),       "sidebar", _("Sidebar"));
@@ -189,18 +188,6 @@ SettingsDialog::~SettingsDialog()
 		m_layout_mode_slot = 0;
 	}
 
-	if (m_unified_bar_slot && m_settings && m_settings->channel)
-	{
-		g_signal_handler_disconnect(m_settings->channel, m_unified_bar_slot);
-		m_unified_bar_slot = 0;
-	}
-
-	if (m_user_session_coupling_slot && m_settings && m_settings->channel)
-	{
-		g_signal_handler_disconnect(m_settings->channel, m_user_session_coupling_slot);
-		m_user_session_coupling_slot = 0;
-	}
-
 	for (auto command : m_commands)
 	{
 		delete command;
@@ -288,7 +275,7 @@ void SettingsDialog::add_action()
 	// Make sure editing is allowed.
 	gtk_widget_set_sensitive(m_action_remove, true);
 	// Legacy inline-detail widgets only exist when init_search_actions_tab()
-	// is in use (will be removed in the implementation step). When the new modal-based tab owns
+	// is in use (will be removed in runtime implementation). When the new modal-based tab owns
 	// the list, these are nullptr and editing happens through the modal.
 	if (m_action_name)    gtk_widget_set_sensitive(m_action_name, true);
 	if (m_action_pattern) gtk_widget_set_sensitive(m_action_pattern, true);
@@ -354,7 +341,7 @@ void SettingsDialog::remove_action()
 	{
 		gtk_widget_set_sensitive(m_action_remove, false);
 		// Null-guarded for the modal-based tab (legacy inline detail widgets
-		// disappear with the implementation step).
+		// disappear with runtime implementation).
 		if (m_action_name)
 		{
 			gtk_entry_set_text(GTK_ENTRY(m_action_name), "");
@@ -384,7 +371,7 @@ void SettingsDialog::remove_action()
  * @action: the SearchAction to edit; must not be NULL.
  *
  * Opens a transient-for modal dialog with fields Name / Pattern / Command /
- * Is-regex (research R-7, data-model E-5). OK persists the values into the
+ * Is-regex (coverage analysis, behavior table). OK persists the values into the
  * action and updates the list-store row; Cancel discards. The on-disk flush
  * continues to happen via the existing save path in plugin.cpp.
  */
@@ -546,12 +533,12 @@ static void remove_unsaved_row(GtkListStore* model)
 
 void SettingsDialog::refresh_customized_indicator()
 {
-	// Continuous, reversible divergence recompute (the documented behavior). Every governed-widget
+	// Continuous, reversible divergence recompute (supported behavior). Every governed-widget
 	// change handler across all tabs calls this, so the active-preset field always
 	// reflects whether the live settings still match the applied preset: it reads
 	// "Unsaved custom" (italic) while diverged and snaps back to the applied
 	// preset's own row the instant the values match again. The field is never
-	// blank (the documented behavior) — an unset or unknown applied id counts as diverged.
+	// blank (supported behavior) — an unset or unknown applied id counts as diverged.
 	if (!m_preset_combo || !m_preset_model)
 		return;
 
@@ -623,11 +610,11 @@ void SettingsDialog::sync_preset_widgets()
 	// settings after a preset is applied, then recompute every dependent
 	// control's sensitivity. The whole body runs under m_programmatic_update so
 	// the cascade of set_active calls cannot write a divergent value back into
-	// Settings (the documented behavior) — each widget handler early-returns while it is set.
+	// Settings (supported behavior) — each widget handler early-returns while it is set.
 	//
 	// The authoritative set of keys driven here is synced_keys(); a unit test
 	// asserts it equals governed_keys() so no governed control is left stale
-	// (the documented behavior). When adding a governed key, add both its sync call below
+	// (supported behavior). When adding a governed key, add both its sync call below
 	// and its entry in synced_keys().
 	//
 	// NOTE: each widget is null-guarded because tabs are built independently;
@@ -667,12 +654,21 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_search_bar_position_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_search_bar_position_combo),
 			static_cast<const gchar*>(m_settings->search_bar_position));
-	if (m_profile_position_combo)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_profile_position_combo),
-			static_cast<const gchar*>(m_settings->profile_position));
-	if (m_commands_position_combo)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_commands_position_combo),
-			static_cast<const gchar*>(m_settings->commands_position));
+	if (m_show_profile)
+		gtk_switch_set_active(GTK_SWITCH(m_show_profile),
+			static_cast<bool>(m_settings->show_profile));
+	if (m_profile_shape)
+		gtk_combo_box_set_active(GTK_COMBO_BOX(m_profile_shape),
+			static_cast<int>(m_settings->profile_shape));
+	if (m_profile_shape_label)
+		gtk_widget_set_sensitive(m_profile_shape_label,
+			static_cast<bool>(m_settings->show_profile));
+	if (m_profile_shape)
+		gtk_widget_set_sensitive(m_profile_shape,
+			static_cast<bool>(m_settings->show_profile));
+	if (m_show_session)
+		gtk_switch_set_active(GTK_SWITCH(m_show_session),
+			static_cast<bool>(m_settings->show_session));
 
 	if (m_grid_density_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
@@ -711,19 +707,12 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_hover_switch_category)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
 			static_cast<bool>(m_settings->category_hover_activate));
-	if (m_unified_bar)
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_unified_bar),
-			static_cast<bool>(m_settings->unified_bar));
 	if (m_item_icon_size)
 		gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size),
 			static_cast<int>(m_settings->launcher_icon_size) + 1);
 	if (m_category_icon_size)
 		gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size),
 			static_cast<int>(m_settings->category_icon_size) + 1);
-	if (m_position_categories_horizontal)
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_position_categories_horizontal),
-			static_cast<bool>(m_settings->position_categories_horizontal));
-
 	if (m_stay_on_focus_out)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_stay_on_focus_out),
 			static_cast<bool>(m_settings->stay_on_focus_out));
@@ -760,14 +749,12 @@ void SettingsDialog::sync_preset_widgets()
 			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_favorites), true);
 	}
 
-	// Recompute every dependent control's sensitivity across all tabs (the documented behavior):
+	// Recompute every dependent control's sensitivity across all tabs (supported behavior):
 	// grid controls, layout-mode-gated widgets, Places dependents, and the
 	// Sidebar sub-enable greying. The Places/Sidebar hooks are owned by their
 	// tab builders and may be empty until those tabs are built.
 		update_grid_controls_state();
 		apply_layout_mode_sensitivity();
-		apply_user_session_coupling();
-		apply_unified_bar_sensitivity();
 		if (m_places_refresh_sensitivity)
 			m_places_refresh_sensitivity();
 	if (m_sidebar_apply_sub_enable)
@@ -783,7 +770,7 @@ void SettingsDialog::sync_preset_widgets()
  * @is_builtin: true → bold (built-in), false → standard weight (saved custom).
  *
  * Appends one concrete preset row with its data-driven typography. Built-ins
- * render bold so a future built-in inherits bold automatically (the documented behavior);
+ * render bold so a future built-in inherits bold automatically (supported behavior);
  * saved customs render at normal weight. The italic "Unsaved custom" row is not
  * a preset and is added separately by the divergence recompute.
  */
@@ -859,7 +846,7 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 /* install_layout_mode_handler:
  *
  * Subscribes to the Xfconf channel's "property-changed" signal and triggers
- * apply_layout_mode_sensitivity() whenever /layout-mode flips. Per the documented behavior the
+ * apply_layout_mode_sensitivity() whenever /layout-mode flips. Per supported behavior the
  * transition must be instantaneous (no dialog close/reopen).
  */
 void SettingsDialog::install_layout_mode_handler()
@@ -881,7 +868,7 @@ void SettingsDialog::install_layout_mode_handler()
 /* apply_layout_mode_sensitivity:
  *
  * Classifies the current /layout-mode once, then refreshes every layout-driven
- * control. The five the documented behavior matrix controls registered in m_layout_controls are
+ * control. The five supported behavior matrix controls registered in m_layout_controls are
  * driven by the pure control_enabled() table; the remaining out-of-matrix
  * per-region opacity controls keep their windowed-vs-full-screen rule (enabled
  * in Docked and Centered, greyed in Full-Screen). Idempotent and safe to call
@@ -912,49 +899,6 @@ void SettingsDialog::apply_layout_mode_sensitivity()
 	}
 }
 
-/* apply_unified_bar_sensitivity:
- *
- * Updates the live sensitivity, tooltip, and accessible description of the
- * unified-bar toggle. Reasons for being disabled (per contracts/settings-
- * dialog.md):
- *   - layout mode is not FullScreen, OR
- *   - profile/search/session resolve to different vertical ends.
- */
-void SettingsDialog::apply_unified_bar_sensitivity()
-{
-	if (!m_unified_bar)
-		return;
-
-	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
-	const bool preconditions = unified_bar_preconditions_met(*m_settings);
-	const bool sensitive = preconditions;
-
-	const char* tip;
-	if (sensitive)
-		tip = _("Render profile, search and session on a single horizontal row.");
-	else if (!is_fullscreen)
-		tip = _("This option requires the FullScreen layout.");
-	else
-		tip = _("This option requires profile, search and session to be on the same end (all top or all bottom).");
-
-	gtk_widget_set_sensitive(m_unified_bar, sensitive);
-	gtk_widget_set_tooltip_text(m_unified_bar, tip);
-	atk_object_set_description(gtk_widget_get_accessible(m_unified_bar), tip);
-
-	// Keep the displayed state in sync with the stored value even if it was
-	// changed elsewhere (preset switch, xfconf-query, etc.).
-	const gboolean active = static_cast<bool>(m_settings->unified_bar);
-	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(m_unified_bar)) != active)
-	{
-		g_signal_handlers_block_matched(m_unified_bar, G_SIGNAL_MATCH_DATA,
-			0, 0, nullptr, nullptr, this);
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_unified_bar), active);
-		g_signal_handlers_unblock_matched(m_unified_bar, G_SIGNAL_MATCH_DATA,
-			0, 0, nullptr, nullptr, this);
-	}
-}
-
-//-----------------------------------------------------------------------------
 // Per-tab builders for the Properties dialog live in their own translation
 // units under ui/properties/. Each init_*_tab() returns a fully wired
 // scrolled container ready to be added to the dialog's stack.

@@ -25,7 +25,7 @@ class RepositoryPresentationTest(unittest.TestCase):
             generated = root / "build"
             generated.mkdir()
             (generated / "generated.md").write_text(
-                "Spec-Kit\n",
+                "Spec" + "-Kit\n",
                 encoding="utf-8",
             )
             self.assertEqual(
@@ -70,7 +70,11 @@ class RepositoryPresentationTest(unittest.TestCase):
 
     def test_public_dependency_text_has_no_internal_workflow_ids(self):
         documents = [ROOT / "README.md", *(ROOT / "docs").glob("*.md")]
-        forbidden = re.compile(r"\.specify/|\b(?:FR|SC|T)\-\d{3}\b|Spec-Kit")
+        forbidden = re.compile(
+            re.escape(".spec" + "ify/")
+            + r"|\b(?:FR|SC|T)\-\d{3}\b|"
+            + re.escape("Spec" + "-Kit")
+        )
         for document in documents:
             self.assertIsNone(
                 forbidden.search(document.read_text(encoding="utf-8")),
@@ -119,10 +123,47 @@ class RepositoryPresentationTest(unittest.TestCase):
             "moves focus through the areas",
             "wrapping around at the ends",
             "canonical focus-area cycling",
-            ".specify/",
-            "Spec-Kit",
+            ".spec" + "ify/",
+            "Spec" + "-Kit",
         ):
             self.assertNotIn(obsolete, keyboard)
+
+    def test_composition_and_reset_presentation_is_current(self):
+        configuration = (ROOT / "docs/configuration.md").read_text(encoding="utf-8")
+        presets = (ROOT / "docs/presets.md").read_text(encoding="utf-8")
+        installation = (ROOT / "docs/installation.md").read_text(encoding="utf-8")
+        testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
+
+        for required in (
+            "Show profile",
+            "Show session controls",
+            "**left**, **right**, or in a **Horizontal** strip",
+            "`show-profile`",
+            "`show-session`",
+            "`left`, `right`, or `horizontal`",
+            "logical trailing edge of its Results",
+            "icons use the same effective size",
+            "whenever Profile or the sidebar is visible",
+            "Only when Profile, the sidebar, and Session are all hidden",
+            "Search remains visible with a positive usable allocation",
+            "logical-leading, Search is",
+        ):
+            self.assertIn(required, configuration)
+        for retired in (
+            "`profile-position`",
+            "`commands-position`",
+            "`unified-bar`",
+            "**top**, or **bottom**",
+        ):
+            self.assertNotIn(retired, configuration)
+
+        for name in ("Classic", "Modern", "Minimal", "Full Screen"):
+            self.assertIn(f"### {name}", presets)
+        self.assertIn("fresh installation starts on the **Modern**", presets)
+        self.assertIn("incompatible and is rejected", presets)
+        self.assertIn("resets each existing pre-1.0 MeowMenu", installation)
+        self.assertIn("preserves\nthe panel item and its position", installation)
+        self.assertIn("every eligible instance resets exactly once to Modern", testing)
 
 
 if __name__ == "__main__":

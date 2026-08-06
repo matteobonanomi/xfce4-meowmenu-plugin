@@ -25,6 +25,11 @@
 namespace WhiskerMenu
 {
 
+inline bool command_effectively_available(bool shown, bool valid)
+{
+	return shown && valid;
+}
+
 class Command
 {
 public:
@@ -68,7 +73,7 @@ public:
 
 	void set_shown(bool shown);
 
-	void check();
+	bool check();
 
 	void activate();
 

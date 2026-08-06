@@ -28,7 +28,7 @@
 
 static int target_schema_version()
 {
-	return 11;
+	return 13;
 }
 
 static bool needs_migration(int current_schema_version)
@@ -86,6 +86,21 @@ static bool needs_v11_block(int current_schema_version)
 	return current_schema_version < 11;
 }
 
+static bool needs_v12_block(int current_schema_version)
+{
+	return current_schema_version < 12;
+}
+
+static bool needs_v13_block(int current_schema_version)
+{
+	return current_schema_version < 13;
+}
+
+static bool visibility_intent_default(bool has_key, bool stored_value)
+{
+	return has_key ? stored_value : true;
+}
+
 /* calculator_engine_seed:
  * @preset_id: stored built-in identity, custom id, or nullptr.
  *
@@ -137,7 +152,7 @@ static void test_calculator_v11_migration()
 
 /* fresh_install_preset_id:
  *
- * Fresh installs apply the Modern preset (the documented behavior). Pure mirror of the v1
+ * Fresh installs apply the Modern preset (supported behavior). Pure mirror of the v1
  * is_fresh_install branch for the regression guard.
  *
  * Returns: the preset id a fresh install lands on.
@@ -184,7 +199,7 @@ static bool migrate_hidden_sidebar_enabled(const char* stored_position)
  * @stored_position: pre-migration /sidebar-position string, or nullptr.
  *
  * Returns the rewritten position ("left") when the stored value was "hidden",
- * or nullptr to leave a valid position untouched (the documented behavior).
+ * or nullptr to leave a valid position untouched (supported behavior).
  */
 static const char* migrate_hidden_sidebar_position(const char* stored_position)
 {
@@ -198,7 +213,7 @@ static const char* migrate_hidden_sidebar_position(const char* stored_position)
  * @preset_value: integer 0-100 from active preset, or -1 if preset doesn't pin one.
  *
  * Returns the value to write during v2 migration, or -1 to leave the key
- * untouched. See contracts/xfconf-keys.md §Schema migration.
+ * untouched. See the documented interface migration.
  */
 static int full_screen_opacity_default(bool has_key, int preset_value)
 {
@@ -212,7 +227,7 @@ static int full_screen_opacity_default(bool has_key, int preset_value)
  * @current_sidebar: pre-migration string ("left"/"right"/"top"/"bottom"/"hidden") or nullptr.
  *
  * Returns the post-migration sidebar-position string, or nullptr if the
- * sidebar position should not be rewritten. See contracts/tab-inventory.md
+ * sidebar position should not be rewritten. See the documented interface
  * §Deprecated keys.
  */
 static const char* migrate_position_categories_horizontal(bool old_value, const char* current_sidebar)
@@ -328,7 +343,7 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 11);
+	assert(target_schema_version() == 13);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
@@ -340,7 +355,9 @@ static void test_schema_version_guard()
 	assert(needs_migration(8) == true);
 	assert(needs_migration(9) == true);
 	assert(needs_migration(10) == true);
-	assert(needs_migration(11) == false);
+	assert(needs_migration(11) == true);
+	assert(needs_migration(12) == true);
+	assert(needs_migration(13) == false);
 
 	// v0 → v10 walks through every block
 	assert(needs_v1_block(0) == true);
@@ -386,9 +403,72 @@ static void test_schema_version_guard()
 	assert(needs_v10_block(6) == true);
 }
 
+static void test_visibility_intent_v12()
+{
+	assert(needs_v12_block(11));
+	assert(!needs_v12_block(12));
+	assert(visibility_intent_default(false, false));
+	assert(visibility_intent_default(true, true));
+	assert(!visibility_intent_default(true, false));
+
+	std::ifstream settings(MEOWMENU_SETTINGS_SOURCE);
+	assert(settings.good());
+	const std::string source((std::istreambuf_iterator<char>(settings)),
+		std::istreambuf_iterator<char>());
+	for (const char* token : {
+		"show_profile(this, \"/show-profile\", true)",
+		"show_session(this, \"/show-session\", true)",
+		"show_profile.load(property, value)",
+		"show_session.load(property, value)",
+	})
+		assert(source.find(token) != std::string::npos);
+}
+
+static void test_supported_layout_v13()
+{
+	assert(needs_v13_block(12));
+	assert(!needs_v13_block(13));
+
+	std::ifstream defaults(MEOWMENU_SETTINGS_DEFAULTS_SOURCE);
+	assert(defaults.good());
+	const std::string source((std::istreambuf_iterator<char>(defaults)),
+		std::istreambuf_iterator<char>());
+	for (const char* key : {
+		"/position-profile-alternate",
+		"/position-search-alternate",
+		"/position-commands-alternate",
+		"/position-categories-alternate",
+		"/position-categories-horizontal",
+		"/profile-position",
+		"/commands-position",
+		"/unified-bar",
+	})
+		assert(source.find(key) != std::string::npos);
+	assert(source.find("\"horizontal\"") != std::string::npos);
+}
+
+static void test_pre_stable_reset_decision()
+{
+	using WhiskerMenu::PreStableResetDecision;
+	using WhiskerMenu::decide_pre_stable_reset;
+
+	assert(decide_pre_stable_reset(1, "complete", true, 8)
+		== PreStableResetDecision::Load);
+	assert(decide_pre_stable_reset(1, "pending", false, 0)
+		== PreStableResetDecision::Reset);
+	assert(decide_pre_stable_reset(0, "", true, 0)
+		== PreStableResetDecision::Reset);
+	assert(decide_pre_stable_reset(0, "", false, 1)
+		== PreStableResetDecision::Reset);
+	assert(decide_pre_stable_reset(0, "", false, 0)
+		== PreStableResetDecision::Fresh);
+	assert(decide_pre_stable_reset(99, "complete", false, 0)
+		== PreStableResetDecision::Fresh);
+}
+
 static void test_fresh_install_lands_on_modern()
 {
-	// the documented behavior regression guard: a fresh install applies Modern, not Classic.
+	// supported behavior regression guard: a fresh install applies Modern, not Classic.
 	assert(std::strcmp(fresh_install_preset_id(), "modern") == 0);
 }
 
@@ -414,7 +494,7 @@ static void test_hidden_sidebar_migration()
 	assert(migrate_hidden_sidebar_enabled("hidden") == false);
 	assert(std::strcmp(migrate_hidden_sidebar_position("hidden"), "left") == 0);
 
-	// Pre-existing left/right/top/bottom configs are untouched (the documented behavior):
+	// Pre-existing left/right/top/bottom configs are untouched (supported behavior):
 	// sidebar stays enabled and the position is not rewritten.
 	for (const char* p : { "left", "right", "top", "bottom" })
 	{
@@ -595,7 +675,7 @@ static void test_v6_cleanup()
 	assert(v6_resets_key("/grid-rows") == true);
 	assert(v6_resets_key("/places/show-metadata") == true);
 
-	// Unrelated keys are left untouched (the documented behavior).
+	// Unrelated keys are left untouched (supported behavior).
 	assert(v6_resets_key("/categories-opacity") == false);
 	assert(v6_resets_key("/profile-position") == false);
 	assert(v6_resets_key("/full-screen-opacity") == false);
@@ -640,7 +720,7 @@ static void test_v8_profile_position_canonicalization()
  * @preset_menu_opacity: that preset's menu-opacity (ignored when !has_preset).
  *
  * Returns: the value written to /menu-opacity — the preset's value, or 100 when
- * no preset governs opacity (the documented behavior).
+ * no preset governs opacity (supported behavior).
  */
 static int derive_menu_opacity_v7(bool has_preset, int preset_menu_opacity)
 {
@@ -718,7 +798,7 @@ static void test_v7_fresh_install_lands_on_100_no_old_keys()
 //
 // TODO-INTEGRATION: test_fresh_install_sets_modern()
 //   Same fixture, but empty channel.
-//   assert: current-preset-id=="modern" (the implementation step wired: apply_preset(BUILTIN_PRESETS[MODERN])
+//   assert: current-preset-id=="modern" (runtime implementation wired: apply_preset(BUILTIN_PRESETS[MODERN])
 //   is now called in migrate_schema when is_fresh_install==true).
 
 int main()
@@ -747,5 +827,8 @@ int main()
 	test_v7_idempotent_one_shot();
 	test_v7_fresh_install_lands_on_100_no_old_keys();
 	test_calculator_v11_migration();
+	test_visibility_intent_v12();
+	test_supported_layout_v13();
+	test_pre_stable_reset_decision();
 	return 0;
 }

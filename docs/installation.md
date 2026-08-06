@@ -82,6 +82,34 @@ also available when installed; none is a build or hard runtime dependency.
 2. Right-click the panel → **Add New Items** → **MeowMenu**.
 3. Right-click the MeowMenu button → **Properties** to pick a preset.
 
+## One-time reset when upgrading pre-1.0 installations
+
+The first start of this version resets each existing pre-1.0 MeowMenu panel
+instance to the **Modern** preset. The reset happens once per instance because
+the older experimental layout settings and saved custom presets are not
+compatible with the supported composition.
+
+The reset removes that instance's MeowMenu preferences, favourites, recent
+history, search customizations, and GUI-managed custom presets. It preserves
+the panel item and its position, other panel plugins, other MeowMenu instances
+until their own first start, and `.meowpreset` files stored outside Xfconf.
+
+Before upgrading, stop the panel and keep a reference copy of its configuration:
+
+```bash
+xfce4-panel --quit
+cp ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml \
+   ~/xfce4-panel-before-meowmenu-upgrade.xml
+cp -a ~/.local/share/meowmenu ~/meowmenu-preset-files-backup 2>/dev/null || true
+xfce4-panel &
+```
+
+The XML copy is for reference or whole-profile recovery; do not copy obsolete
+MeowMenu properties back into a running panel. Reconfigure the supported
+options in **Properties**, or import a preset created with the current layout
+model. An older preset containing retired layout fields is rejected with an
+incompatible-preset message and changes nothing.
+
 ## Remove the package
 
 Remove the package with the appropriate command for your distribution:
@@ -92,17 +120,29 @@ Remove the package with the appropriate command for your distribution:
 
 Package removal keeps user configuration so a later reinstall can restore it.
 
-## Full cleanup
+## Clean one MeowMenu instance
 
-To deliberately delete settings and saved custom presets after removing the
-package:
+To clear one instance without deleting its panel registration or sibling
+plugins, first find its numeric base:
 
 ```bash
-rm -rf ~/.local/share/meowmenu/
-rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
+xfconf-query -c xfce4-panel -lv | grep '/plugins/meowmenu-'
 ```
 
-This cleanup is optional and cannot be undone without a backup.
+Then replace `7` below with that exact instance number:
+
+```bash
+instance_base=/plugins/meowmenu-7
+xfconf-query -c xfce4-panel -l \
+  | awk -v prefix="$instance_base/" 'index($0, prefix) == 1' \
+  | while IFS= read -r property; do
+      xfconf-query -c xfce4-panel -p "$property" -r
+    done
+xfce4-panel -r
+```
+
+This removes only descendants of the selected instance. On restart it receives
+Modern defaults. Exported `.meowpreset` files are deliberately left alone.
 
 ## Build from source
 

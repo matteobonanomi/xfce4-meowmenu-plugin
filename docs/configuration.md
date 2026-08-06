@@ -60,59 +60,97 @@ options are greyed out and switch live as you change the mode:
 | Panel button icon | The icon used for the panel button. |
 | Use a single panel row | Force the panel button into a single row regardless of panel size. |
 
-### User / Session
+### Docked and Centered composition
 
-| Option | Description |
-|--------|-------------|
-| Show user profile picture | Display the account avatar at the top of the menu. |
-| Show username | Display the logged-in user's name. |
-| Profile position | Where the profile block appears: top left, bottom left, or hidden. **Hidden** removes the avatar and username (and keeps them out of keyboard focus). |
-| Session commands position | Where the lock/logout/suspend buttons appear: top-right, bottom-right, or hidden. **Hidden** removes the session buttons. |
+Docked and Centered use the same menu composition. Profile and Search share
+one primary row at the selected Top or Bottom edge. The avatar and username are
+one Profile block: hiding Profile removes both from allocation and keyboard
+navigation. With a vertical sidebar, Profile matches the sidebar column and
+Search matches the Results column. A right sidebar puts Profile on the right;
+without a vertical sidebar, Profile uses the logical leading side.
 
-Profile and Session commands are **independent**: hiding one always keeps the
-other on its own side (profile on the left, session buttons on the right),
-regardless of where the category list sits. The row collapses only when **both**
-are hidden. When only one cluster remains visible it keeps its natural edge:
-Profile stays left-aligned and Session commands stay right-aligned. **Hidden is
-fully reversible** — switching a hidden element back to a visible position
-restores it (and the row, if it had collapsed) immediately, with no restart and
-no need to reset to defaults.
+Apps/Places and available Session actions use a derived secondary row:
 
-The two positions are **coupled** so the row always stays coherent:
+| Sidebar | Available Session actions | Places | Apps/Places | Secondary row |
+|---------|---------------------------|--------|-------------|---------------|
+| Visible | One or more | On | Sidebar-side role in the secondary row | Visible with Session at the logical trailing edge of Results |
+| Visible | One or more | Off | Hidden | Visible with Session at the logical trailing edge of Results |
+| Visible | None | On | Secondary-row sidebar-side role | Visible |
+| Visible | None | Off | Hidden | Hidden |
+| Disabled | One or more | On | Logical leading side of the bottommost row | Visible with Session at logical trailing |
+| Disabled | One or more | Off | Hidden | Visible with Session at logical trailing |
+| Disabled | None | On | Secondary row when Profile is visible; primary Search row otherwise | Visible when Profile is visible; hidden otherwise |
+| Disabled | None | Off | Hidden | Hidden |
 
-* **Docked layout** — when both clusters are visible they always share one
-  row. Choosing Profile = *Top Left* moves Session commands to *Top Right*;
-  choosing Profile = *Bottom Left* moves Session commands to *Bottom Right*.
-  The same is true in reverse: choosing *Top Right* or *Bottom Right* from the
-  Session commands combo moves the Profile block to the matching left edge.
-  The opposite-row option stays listed but greyed in both combos as a
-  discoverable "move the whole row" action. When one cluster is *Hidden*, the
-  visible cluster keeps its own edge and the hidden one stays hidden.
-* **Full Screen layout** — both Profile and Session commands follow the
-  **search bar** edge. With the search bar on top, both sit on the top edge (the
-  bottom options are greyed); moving the search bar to the bottom moves both with
-  it. Hiding both leaves only the centred search bar, at exactly the same size and
-  position as when they are shown.
+A configured Session group counts as available only when at least one enabled
+action can currently run. An empty group reserves no row or focus target. The
+visible Session action group uses the logical trailing edge of its Results
+region, mirroring physically in right-to-left interfaces. When Apps/Places
+shares a secondary row with Session, their icons use the same effective size while
+the selector keeps its natural height and is vertically centred rather than
+stretching to the height of Session controls.
 
-Disallowed edges are shown greyed rather than removed, and if a stored
-combination is no longer valid for the current layout it is automatically snapped
-to the nearest coherent edge (the element stays visible — only its edge moves).
-| Lock screen command | Command run when the lock button is clicked. |
-| Log out command | Command run when the log out button is clicked. |
-| Suspend command | Command run when the suspend button is clicked. |
-| Switch user command | Command run when the switch user button is clicked. |
+When Places is enabled without effective Session actions, Apps/Places remains
+in the secondary row whenever Profile or the sidebar is visible. With a
+vertical sidebar it uses the sidebar-side width; otherwise it uses the logical
+leading edge. Only when Profile, the sidebar, and Session are all hidden does
+it share the primary Search row, as in Minimal.
+
+Horizontal is one sidebar choice. In Docked and Centered it appears on the
+Results edge opposite the primary row; when the secondary row is present, that
+row sits farther outward. Logical leading/trailing order and keyboard traversal
+mirror in right-to-left interfaces, while explicit Left and Right sidebars stay
+on their selected physical sides. Every hidden or unavailable control is
+removed from allocation, shared-width sizing, and focus navigation.
+
+### Full Screen composition
+
+Full Screen always uses one primary row at the top. Profile occupies the
+logical outer leading edge and available Session actions occupy the logical
+outer trailing edge. Search stays in a centred middle region whose width and
+edges exactly match the Results box.
+
+Search remains visible with a positive usable allocation for every Full Screen
+sidebar choice. A visible sidebar owns category navigation and Apps/Places only;
+it never replaces or hides Search.
+
+When the sidebar is disabled and Places is enabled, Apps/Places and Search
+share the fixed results-width middle region in Full Screen:
+the switch is logical-leading, Search is logical-trailing, and a visible gap
+separates them without overflow. In Docked and Centered, Apps/Places moves to
+the primary Search row only when Profile and Session are also hidden, as in
+Minimal; otherwise it remains in the windowed secondary row. With a visible
+sidebar, Full Screen keeps Apps/Places attached to that sidebar while Search
+remains in the same centered middle region. There is no separate
+search-row or bottom-control variant.
+
+The complete logical no-sidebar order is Profile, Apps/Places, Search,
+Session. It mirrors naturally in right-to-left interfaces, including the
+outer anchors and the two edges of the centred middle region. Hidden Profile,
+unavailable Session actions, and disabled Places reserve neither space nor a
+keyboard focus target.
 
 ### Search Bar
 
 | Option | Description |
 |--------|-------------|
-| Position | Place the search bar at the **top** or **bottom** of the menu. |
+| Search bar position | Place the primary row at the **top** or **bottom** of Docked and Centered menus. Full Screen always uses the top. |
+| Show profile | Show the avatar and username as one block in the primary row. |
+| Avatar shape | Use a round or square avatar. Available when **Show profile** is on. |
 | Placeholder text | The hint text shown when the search field is empty. |
 | Fuzzy search | Enable approximate (typo-tolerant) matching. |
 | Fuzzy threshold | Sensitivity of the fuzzy matcher (0 = automatic). |
 | Favorites boost | Rank previously-used apps higher in search results. |
 | Favorites boost level | Strength of the boost: low, medium, or high. |
 | Search actions | Custom keyword-triggered commands (e.g. type `!` to run a shell command). |
+
+### Session
+
+| Option | Description |
+|--------|-------------|
+| Show session controls | Show the configured session actions when at least one action is available. |
+| Show confirmation dialog | Ask for confirmation before a session action runs. |
+| Session commands | Configure the icon, label, executable, visibility, and confirmation behavior for each session action. |
 
 Search-action command templates are split into arguments using shell-style
 quoting, but they are launched directly rather than through a shell. In a
@@ -143,15 +181,13 @@ expects argument splitting.
 
 | Option | Description |
 |--------|-------------|
-| Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch moves to the right end of the search bar, and the results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
-| Position | Place the sidebar on the **left**, **right**, **top**, or **bottom**. Top and bottom use a horizontal, icon-only strip. In Full Screen, the strip, search bar, and results/application grid share the same width. Top sits below the search bar; Bottom sits below results. The strip scrolls when needed, and **Show category name** is unavailable. |
+| Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch stays in the secondary row unless Profile and Session are also hidden, in which case it shares the Search row. The results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
+| Position | Place the sidebar on the **left**, **right**, or in a **Horizontal** strip. In Docked and Centered, Horizontal appears on the Results edge opposite the primary row; in Full Screen it appears below Results. The strip scrolls when needed, and **Show category name** is unavailable. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (`-1` through `6`; `-1` inherits the theme size). |
 | Sort categories | Sort the category list alphabetically. |
 | Recent items max | Maximum number of recently used applications to track for the Applications **Recently Used** category. |
 | Include favorites in recent | Also show favorited apps in the Recent category. |
-| Unified bar | Render profile, search, and session controls on one horizontal row (FullScreen mode only). |
-
 Drag an application onto the visible **Favorites** sidebar item to add it once.
 The target is unavailable when the sidebar or item is hidden. The menu stays
 open and uses a small icon-only preview.
@@ -167,7 +203,7 @@ icon-only preview.
 | Option | Description |
 |--------|-------------|
 | Enable Places | Show a flat shortcut surface for Home, configured standard user folders, recent files, and bookmarks. |
-| Show icons | Render the Apps/Places switch as two icon buttons (an app-grid icon and a folder icon, with tooltips) instead of text labels. Forced on, and shown greyed in Preferences, when the sidebar is on top/bottom or disabled. |
+| Show icons | Render the Apps/Places switch as two icon buttons (an app-grid icon and a folder icon, with tooltips) instead of text labels. Forced on, and shown greyed in Properties, when the sidebar is Horizontal or disabled. |
 | Switch button shape | Choose whether the Apps/Places switch uses the active GTK theme's normal button shape or MeowMenu's rounded segmented shape. |
 | Show recent files | Include recently opened files in Places **History**. This is separate from the Applications **Recently Used** category. |
 | Show bookmarks | Include user bookmarks (from Thunar or GTK bookmarks). |
@@ -262,11 +298,10 @@ Replace `<id>` with the numeric plugin ID shown by
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `layout-mode` | string | `docked` | `docked`, `centered`, or `fullscreen`. |
-| `sidebar-position` | string | `left` | `left`, `right`, `top`, or `bottom`. (A legacy `hidden` value is migrated to `sidebar-enabled = false`.) |
+| `sidebar-position` | string | `left` | `left`, `right`, or `horizontal`. |
 | `search-bar-position` | string | `top` | `top` or `bottom`. |
-| `profile-position` | string | `top-left` | `top-left`, `bottom-left`, or `hidden`. Legacy `top`, `bottom`, and `bottom-right` values are accepted on load and rewritten to the canonical left-anchored form. |
-| `commands-position` | string | `top-right` | `top-right`, `bottom-right`, or `hidden`. |
-| `unified-bar` | bool | false | Merge profile, search, and session into one row (FullScreen only). |
+| `show-profile` | bool | true | Show the avatar and username in the primary row. |
+| `show-session` | bool | true | Show available session actions. |
 
 ### Results view
 
@@ -302,7 +337,7 @@ an arbitrary command or clamping to a different preference.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `sidebar-enabled` | bool | true | Show the category sidebar. When false the sidebar is removed and, with Places on, the Apps/Places switch moves into the search-bar row. |
+| `sidebar-enabled` | bool | true | Show the category sidebar. When false the sidebar is removed; with Places on, Apps/Places remains in the secondary row unless Profile and Session are also hidden, in which case it shares the Search row. |
 | `category-show-name` | bool | true | Show category label text. |
 | `category-icon-size` | int | -1 | Category icon size: `-1` uses the theme size; `0` through `6` select named sizes. |
 | `hover-switch-category` | bool | false | Switch category on hover instead of click. |
@@ -326,7 +361,7 @@ an arbitrary command or clamping to a different preference.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `places/enabled` | bool | false | Enable the Places shortcut surface. |
-| `places/switch-show-icons` | bool | false | Render the Apps/Places switch as icon buttons instead of text. Forced on (render-time only) when the sidebar is on top/bottom or disabled. |
+| `places/switch-show-icons` | bool | false | Render the Apps/Places switch as icon buttons instead of text. Forced on (render-time only) when the sidebar is Horizontal or disabled. |
 | `places/switch-button-shape` | string | `gtk-theme` | Apps/Places switch shape: `gtk-theme` uses normal GTK theme button radii, `rounded` uses MeowMenu's rounded segmented shape. |
 | `places/history-enabled` | bool | true | Show recently opened files in Places History. |
 | `places/favourites-enabled` | bool | true | Show bookmarks. |

@@ -26,6 +26,37 @@ int main(int argc, char** argv)
 	GtkWidget* trailing = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	GtkWidget* child = gtk_button_new();
 	GtkWidget* outsider = gtk_button_new();
+	GtkWidget* grid = gtk_grid_new();
+	GtkSizeGroup* widths = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	GtkWidget* primary = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* secondary = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* secondary_spacer = gtk_label_new(nullptr);
+	GtkWidget* secondary_session = gtk_button_new();
+	gtk_box_pack_start(GTK_BOX(secondary), secondary_spacer, true, true, 0);
+	gtk_box_pack_start(GTK_BOX(secondary), secondary_session, false, false, 0);
+	gtk_widget_set_halign(secondary_session, GTK_ALIGN_END);
+	assert(gtk_widget_get_halign(secondary_session) == GTK_ALIGN_END);
+	gtk_box_reorder_child(GTK_BOX(secondary), secondary_spacer, 0);
+	gtk_widget_set_direction(secondary, GTK_TEXT_DIR_LTR);
+	gtk_box_reorder_child(GTK_BOX(secondary), secondary_spacer, 0);
+	gtk_widget_set_direction(secondary, GTK_TEXT_DIR_RTL);
+	gtk_box_reorder_child(GTK_BOX(secondary), secondary_spacer, 1);
+	GtkWidget* profile = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* avatar = gtk_image_new();
+	GtkWidget* username = gtk_label_new("User");
+	gtk_box_pack_start(GTK_BOX(profile), avatar, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), username, true, true, 0);
+	assert(meow_box_repack_child(GTK_BOX(primary), profile,
+			false, false, false, 0));
+	assert(gtk_widget_get_parent(avatar) == profile);
+	assert(gtk_widget_get_parent(username) == profile);
+	assert(meow_box_repack_child(GTK_BOX(secondary), profile,
+			false, false, false, 0));
+	assert(gtk_widget_get_parent(profile) == secondary);
+	assert(gtk_widget_get_parent(avatar) == profile);
+	assert(gtk_widget_get_parent(username) == profile);
+	assert(meow_box_repack_child(GTK_BOX(primary), profile,
+			false, false, false, 0));
 
 	assert(meow_box_repack_child(GTK_BOX(leading), child,
 			false, false, false, 0));
@@ -40,6 +71,21 @@ int main(int argc, char** argv)
 	assert(meow_box_reorder_child_if_present(GTK_BOX(trailing), child, 0));
 	assert(!meow_box_reorder_child_if_present(GTK_BOX(trailing), outsider, 0));
 	assert(!meow_box_reorder_child_if_present(nullptr, child, 0));
+	assert(meow_container_contains_child(GTK_CONTAINER(trailing), child));
+	assert(!meow_container_contains_child(GTK_CONTAINER(grid), child));
+
+	assert(meow_grid_attach_child(GTK_GRID(grid), child, 1, 2, 2, 1));
+	assert(!meow_box_contains_child(GTK_BOX(trailing), child));
+	assert(meow_container_contains_child(GTK_CONTAINER(grid), child));
+	assert(!meow_grid_attach_child(nullptr, child, 0, 0, 1, 1));
+	assert(!meow_grid_attach_child(GTK_GRID(grid), child, 0, 0, 0, 1));
+
+	assert(meow_size_group_set_widget(widths, child, true));
+	assert(meow_size_group_set_widget(widths, child, true));
+	assert(g_slist_find(gtk_size_group_get_widgets(widths), child));
+	assert(meow_size_group_set_widget(widths, child, false));
+	assert(meow_size_group_set_widget(widths, child, false));
+	assert(!g_slist_find(gtk_size_group_get_widgets(widths), child));
 
 	gtk_widget_show(child);
 	meow_widget_set_visible_if_valid(child, false);
@@ -64,12 +110,38 @@ int main(int argc, char** argv)
 
 	meow_widget_set_hexpand_if_valid(child, true);
 	assert(gtk_widget_get_hexpand(child));
+	meow_widget_set_vexpand_if_valid(child, true);
+	assert(gtk_widget_get_vexpand(child));
 	meow_widget_set_halign_if_valid(child, GTK_ALIGN_END);
 	assert(gtk_widget_get_halign(child) == GTK_ALIGN_END);
+	meow_widget_set_valign_if_valid(child, GTK_ALIGN_CENTER);
+	assert(gtk_widget_get_valign(child) == GTK_ALIGN_CENTER);
+	meow_widget_set_vexpand_if_valid(child, false);
+	gtk_widget_set_margin_top(child, 6);
+	gtk_widget_set_margin_bottom(child, 6);
+	assert(!gtk_widget_get_vexpand(child));
+	assert(gtk_widget_get_margin_top(child) == 6);
+	assert(gtk_widget_get_margin_bottom(child) == 6);
+
+	for (int i = 0; i < 20; ++i)
+	{
+		assert(meow_box_repack_child(GTK_BOX(leading), child,
+				false, i % 2, true, 0));
+		assert(meow_box_contains_child(GTK_BOX(leading), child));
+		assert(meow_size_group_set_widget(widths, child, true));
+		assert(meow_grid_attach_child(GTK_GRID(grid), child,
+				i % 2, 0, 1, 1));
+		assert(meow_container_contains_child(GTK_CONTAINER(grid), child));
+		assert(meow_size_group_set_widget(widths, child, false));
+	}
 
 	gtk_widget_destroy(leading);
 	gtk_widget_destroy(trailing);
+	gtk_widget_destroy(grid);
+	gtk_widget_destroy(primary);
+	gtk_widget_destroy(secondary);
 	gtk_widget_destroy(outsider);
+	g_object_unref(widths);
 
 	return 0;
 }

@@ -9,9 +9,11 @@ has_children: false
 A preset is a `.meowpreset` snapshot of the menu's visual and layout settings.
 Selecting one changes the menu immediately.
 
-A fresh installation starts on the **Modern** preset. Upgrades keep your
-existing layout untouched — nothing is reset on upgrade, and the active-preset
-label reflects the layout you are actually running.
+A fresh installation starts on the **Modern** preset. The first start after
+upgrading a pre-1.0 instance also resets that instance to Modern and removes
+its GUI-managed custom presets. See the
+[installation recovery guidance](installation#one-time-reset-when-upgrading-pre-10-installations)
+before upgrading.
 
 ## Selecting a built-in preset is a full reset
 
@@ -25,8 +27,9 @@ changes create an unsaved custom state; built-in presets never change.
 
 ![Classic preset](assets/images/preset-classic.png)
 
-Traditional compact launcher look. Compact docked window, apps as a list,
-sidebar on the right, no rounded corners, fully solid (menu opacity 100%). The
+Traditional compact launcher look. Its primary row is at the top with Profile
+and Session shown. The docked window uses an application list, a right sidebar,
+square corners, and a fully solid background (menu opacity 100%). The
 Apps/Places switch uses text labels.
 
 
@@ -34,9 +37,10 @@ Apps/Places switch uses text labels.
 
 ![Modern preset](assets/images/preset-modern.png)
 
-Contemporary layout with rounded corners, a fully solid background (menu
-opacity 100%), hover-to-switch-category, and Places search enabled. The
-Apps/Places switch uses icon buttons. When it appears in a left or right
+Contemporary docked layout with its primary row at the top, Profile and Session
+shown, rounded corners, a left sidebar, a fully solid background (menu opacity
+100%), hover-to-switch-category, and Places enabled. The Apps/Places switch
+uses icon buttons. When it appears in a left or right
 sidebar and the upper profile or session area is available, a theme-native
 separator gives it a little visual breathing room from that area.
 
@@ -46,8 +50,9 @@ separator gives it a little visual breathing room from that area.
 ![Full Screen preset](assets/images/preset-fullscreen.png)
 
 Launcher fills the entire screen over a translucent backdrop (menu opacity
-80%). Ideal for touch or keyboard-first workflows. Places search enabled, and
-the category sidebar uses Small (32 px) icons. The Apps/Places switch uses text
+80%). The single primary row stays at the top with Profile and Session shown.
+Ideal for touch or keyboard-first workflows. Places is enabled, and the left
+category sidebar uses Small (32 px) icons. The Apps/Places switch uses text
 labels.
 
 
@@ -56,10 +61,10 @@ labels.
 ![Minimal preset](assets/images/preset-minimal.png)
 
 A compact, distraction-free launcher: a search bar over an app list, with no
-sidebar, no profile area, and no command buttons. Opens centred on screen in a
+sidebar, Profile, or Session controls. Opens centred on screen in a
 short window with a lightly translucent background (menu opacity 60%), Places
 enabled with icons, opening on the Recent category. Switch to any other built-in
-to bring the sidebar, profile, and commands back.
+to bring the sidebar, Profile, and Session controls back.
 
 Calculator defaults are **None / Auto / 4** for Classic and **bc / Auto / 4**
 for Modern, Full Screen, and Minimal. The Apps/Places switch uses icons in
@@ -94,8 +99,11 @@ available only for your own saved presets.
 - **Import…** can overwrite or rename a clashing custom preset. A built-in name
   can only be renamed.
 
-Imports ignore unknown settings and use defaults for omitted ones. Invalid or
-unreadable files are rejected without changing saved presets.
+Imports ignore unknown non-layout settings and use defaults for omitted ones.
+A preset containing retired layout settings, including a Top or Bottom sidebar,
+is incompatible and is rejected before conflict handling or any saved value is
+changed. Invalid or unreadable files are also rejected without changing saved
+presets.
 
 ## Advanced: hand-authored preset files
 
@@ -111,6 +119,11 @@ Description=My preset
 [Settings]
 layout-mode=docked
 corner-radius=8
+search-bar-position=top
+show-profile=true
+show-session=true
+sidebar-enabled=true
+sidebar-position=horizontal
 ```
 
 Save the file as `<id>.meowpreset` (the filename stem must match the `Id`

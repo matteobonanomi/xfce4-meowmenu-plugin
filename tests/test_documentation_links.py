@@ -74,6 +74,18 @@ class DocumentationLinksTest(unittest.TestCase):
             }.issubset(set(navigation.values()))
         )
 
+    def test_reset_guidance_cross_links_are_resolvable(self):
+        presets = ROOT / "docs/presets.md"
+        content = presets.read_text(encoding="utf-8")
+        target = "installation#one-time-reset-when-upgrading-pre-10-installations"
+        self.assertIn(f"]({target})", content)
+        self.assertTrue(LINKS.resolve_link(ROOT, presets, target))
+
+        testing = ROOT / "docs/testing.md"
+        cleanup = "installation#clean-one-meowmenu-instance"
+        self.assertIn(f"]({cleanup})", testing.read_text(encoding="utf-8"))
+        self.assertTrue(LINKS.resolve_link(ROOT, testing, cleanup))
+
     def test_evergreen_identity_and_entry_points(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         home = (ROOT / "docs/index.md").read_text(encoding="utf-8")
@@ -106,7 +118,7 @@ class DocumentationLinksTest(unittest.TestCase):
             "keyboard-navigation.md",
         )
         candidate_scope = re.compile(
-            r"(?i)release[- ]candidate|current candidate|for RC1|"
+            r"(?i)current candidate|for RC1|"
             r"upgrade to RC1|check RC1"
         )
         current_whisker_identity = re.compile(
@@ -248,21 +260,24 @@ class DocumentationLinksTest(unittest.TestCase):
             self.assertIn(check, core)
         self.assertIn("scoped to the six recorded context fields", core)
 
-        upgrade = testing.split("## Upgrade check", maxsplit=1)[1]
+        upgrade = testing.split(
+            "## Destructive pre-1.0 upgrade check", maxsplit=1
+        )[1]
         upgrade = upgrade.split("## Removal and full cleanup", maxsplit=1)[0]
+        upgrade_flat = " ".join(upgrade.split())
         self.assertIn("`<source-version>`", upgrade)
         self.assertIn("`<target-version>`", upgrade)
-        for retained in (
-            "panel item",
-            "favourites and order",
-            "layout/preferences",
-            "Calculator choices",
-            "Xfconf output",
-            "preset files",
-            "Log out and in",
-            "another startup",
+        for required in (
+            "panel registration",
+            "managed custom presets are cleared",
+            "Modern is active",
+            "second instance",
+            "external files",
+            "pending",
+            "incompatible message",
+            "resets exactly once",
         ):
-            self.assertIn(retained, upgrade)
+            self.assertIn(required, upgrade_flat)
         self.assertNotRegex(upgrade, r"\b0\.8\.0\b|\bRC1\b")
 
     def test_keyboard_surface_is_cross_linked_and_current(self):

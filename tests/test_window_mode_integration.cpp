@@ -8,7 +8,10 @@
  */
 
 #include "core/menu-mode-state.h"
+#include "core/menu-composition.h"
+#include "core/sidebar-layout.h"
 #include "core/window-keyboard.h"
+#include "launcher/command.h"
 
 #include <gtk/gtk.h>
 
@@ -185,6 +188,63 @@ int main()
 	CHECK(!forced_apps.places_home_visible);
 	CHECK(Keyboard::tab_action(true) == Keyboard::TabAction::ToggleMode);
 	CHECK(Keyboard::tab_action(false) == Keyboard::TabAction::Inert);
+	CHECK(!command_effectively_available(false, false));
+	CHECK(!command_effectively_available(false, true));
+	CHECK(!command_effectively_available(true, false));
+	CHECK(command_effectively_available(true, true));
+
+	MenuCompositionInput windowed_composition = {
+			LayoutMode::Docked, PrimaryEdge::Top, CompositionSidebar::Left,
+			true, true, 3, true, MenuDirection::LeftToRight,
+	};
+	MenuComposition composition =
+			meow_resolve_menu_composition(windowed_composition);
+	CHECK(composition.session_alignment == MenuAlignment::LogicalTrailing);
+	CHECK(composition.apps_places_location
+			== MenuControlLocation::SecondaryRow);
+	windowed_composition.direction = MenuDirection::RightToLeft;
+	composition = meow_resolve_menu_composition(windowed_composition);
+	CHECK(composition.session_alignment == MenuAlignment::LogicalTrailing);
+
+	windowed_composition.direction = MenuDirection::LeftToRight;
+	windowed_composition.sidebar = CompositionSidebar::Left;
+	windowed_composition.show_profile = true;
+	windowed_composition.show_session = true;
+	windowed_composition.available_session_actions = 0;
+	composition = meow_resolve_menu_composition(windowed_composition);
+	CHECK(composition.apps_places_location
+			== MenuControlLocation::SecondaryRow);
+	CHECK(composition.secondary_visible);
+
+	windowed_composition.sidebar = CompositionSidebar::Hidden;
+	composition = meow_resolve_menu_composition(windowed_composition);
+	CHECK(composition.apps_places_location
+			== MenuControlLocation::SecondaryRow);
+	CHECK(composition.secondary_visible);
+
+	windowed_composition.show_profile = false;
+	composition = meow_resolve_menu_composition(windowed_composition);
+	CHECK(composition.apps_places_location
+			== MenuControlLocation::PrimaryRow);
+	CHECK(!composition.secondary_visible);
+
+	const FullscreenMainColumn fullscreen_column =
+			meow_fullscreen_main_column(1920);
+	CHECK(fullscreen_column.width == 1280);
+	CHECK(fullscreen_column.margin == 320);
+	GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* middle = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* apps = gtk_button_new();
+	GtkWidget* search = gtk_search_entry_new();
+	gtk_widget_set_size_request(middle, fullscreen_column.width, -1);
+	gtk_box_pack_start(GTK_BOX(middle), apps, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(middle), search, true, true, 0);
+	gtk_box_set_center_widget(GTK_BOX(row), middle);
+	CHECK(gtk_box_get_center_widget(GTK_BOX(row)) == middle);
+	CHECK(gtk_widget_get_parent(apps) == middle);
+	CHECK(gtk_widget_get_parent(search) == middle);
+	CHECK(gtk_box_get_spacing(GTK_BOX(middle)) > 0);
+	gtk_widget_destroy(row);
 
 	if (failures != 0)
 	{

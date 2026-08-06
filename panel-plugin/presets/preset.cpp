@@ -17,6 +17,7 @@
 
 #include "preset.h"
 #include "preset-io.h"
+#include "settings-defaults.h"
 #include "settings.h"
 
 #include <cstring>
@@ -65,16 +66,12 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 			settings.sidebar_enabled = val.b;
 		else if (prop == "category-show-name" && val.kind == PresetValue::Bool)
 			settings.category_show_name = val.b;
-		else if (prop == "position-categories-horizontal" && val.kind == PresetValue::Bool)
-			settings.position_categories_horizontal = val.b;
 		else if (prop == "search-bar-position" && val.kind == PresetValue::Str)
 			settings.search_bar_position = val.s;
-		else if (prop == "profile-position" && val.kind == PresetValue::Str)
-			settings.profile_position = val.s;
-		else if (prop == "commands-position" && val.kind == PresetValue::Str)
-			settings.commands_position = val.s;
-		else if (prop == "unified-bar" && val.kind == PresetValue::Bool)
-			settings.unified_bar = val.b;
+		else if (prop == "show-profile" && val.kind == PresetValue::Bool)
+			settings.show_profile = val.b;
+		else if (prop == "show-session" && val.kind == PresetValue::Bool)
+			settings.show_session = val.b;
 		else if (prop == "grid-density" && val.kind == PresetValue::Str)
 			settings.grid_density = val.s;
 		else if (prop == "layout-mode" && val.kind == PresetValue::Str)
@@ -129,7 +126,7 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
 }
 
 // ---------------------------------------------------------------------------
-// initialize_file_presets / get_file_presets — the implementation step
+// initialize_file_presets / get_file_presets — runtime implementation
 // ---------------------------------------------------------------------------
 
 /* initialize_file_presets:
@@ -137,7 +134,7 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
  * Loads built-in .meowpreset files from the system data directory and from
  * the user-level drop-in folder. File-loaded entries shadow BUILTIN_PRESETS[]
  * by id; BUILTIN_PRESETS[] remains the fallback when files are absent or all
- * malformed (the documented behavior).
+ * malformed (supported behavior).
  *
  * Call once at startup (SettingsDialog constructor) before the preset combo
  * is populated.
@@ -241,31 +238,21 @@ bool WhiskerMenu::compute_preset_diff(const LayoutPreset& preset, const Settings
 					&& static_cast<bool>(settings.category_show_name) != val.b)
 				return true;
 		}
-		else if (prop == "position-categories-horizontal")
-		{
-			if (val.kind == PresetValue::Bool
-					&& static_cast<bool>(settings.position_categories_horizontal) != val.b)
-				return true;
-		}
 		else if (prop == "search-bar-position")
 		{
 			if (val.kind == PresetValue::Str && !(settings.search_bar_position == val.s.c_str()))
 				return true;
 		}
-		else if (prop == "profile-position")
-		{
-			if (val.kind == PresetValue::Str && !(settings.profile_position == val.s.c_str()))
-				return true;
-		}
-		else if (prop == "commands-position")
-		{
-			if (val.kind == PresetValue::Str && !(settings.commands_position == val.s.c_str()))
-				return true;
-		}
-		else if (prop == "unified-bar")
+		else if (prop == "show-profile")
 		{
 			if (val.kind == PresetValue::Bool
-					&& static_cast<bool>(settings.unified_bar) != val.b)
+					&& static_cast<bool>(settings.show_profile) != val.b)
+				return true;
+		}
+		else if (prop == "show-session")
+		{
+			if (val.kind == PresetValue::Bool
+					&& static_cast<bool>(settings.show_session) != val.b)
 				return true;
 		}
 		else if (prop == "grid-density")
@@ -546,15 +533,13 @@ std::string WhiskerMenu::save_current_as_user_preset(const std::string& display_
 		static_cast<bool>(settings.sidebar_enabled));
 	xfconf_channel_set_bool(ch, (prefix + "category-show-name").c_str(),
 		static_cast<bool>(settings.category_show_name));
-	xfconf_channel_set_bool(ch, (prefix + "position-categories-horizontal").c_str(),
-		static_cast<bool>(settings.position_categories_horizontal));
 	xfconf_channel_set_string(ch, (prefix + "search-bar-position").c_str(), settings.search_bar_position);
-	xfconf_channel_set_string(ch, (prefix + "profile-position").c_str(), settings.profile_position);
-	xfconf_channel_set_string(ch, (prefix + "commands-position").c_str(), settings.commands_position);
+	xfconf_channel_set_bool(ch, (prefix + "show-profile").c_str(),
+		static_cast<bool>(settings.show_profile));
+	xfconf_channel_set_bool(ch, (prefix + "show-session").c_str(),
+		static_cast<bool>(settings.show_session));
 	xfconf_channel_set_string(ch, (prefix + "grid-density").c_str(), settings.grid_density);
 	xfconf_channel_set_string(ch, (prefix + "layout-mode").c_str(), settings.layout_mode);
-	xfconf_channel_set_bool(ch, (prefix + "unified-bar").c_str(),
-		static_cast<bool>(settings.unified_bar));
 	xfconf_channel_set_int(ch, (prefix + "launcher-icon-size").c_str(), settings.launcher_icon_size);
 	xfconf_channel_set_int(ch, (prefix + "category-icon-size").c_str(), settings.category_icon_size);
 	xfconf_channel_set_bool(ch, (prefix + "hover-switch-category").c_str(),
@@ -634,7 +619,7 @@ bool WhiskerMenu::rename_user_preset(const std::string& uuid, const std::string&
 	// Update both the legacy display-name label and the stored identity name.
 	// The dropdown and active-preset field surface "name" (falling back to
 	// display-name only for pre-v5 presets), so a rename that touched only
-	// display-name would leave the visible label stale (the documented behavior).
+	// display-name would leave the visible label stale (supported behavior).
 	const std::string prefix = "/presets/" + uuid + "/";
 	xfconf_channel_set_string(settings.channel, (prefix + "display-name").c_str(), new_name.c_str());
 	xfconf_channel_set_string(settings.channel, (prefix + "name").c_str(), new_name.c_str());
@@ -694,9 +679,10 @@ int WhiskerMenu::reset_settings_to_defaults(XfconfChannel* channel,
 			rel.erase(0, property_base.size());
 		}
 
-		// Preserve saved user presets under /presets/<uuid>/; reset everything
-		// else (favourites, recent, custom search actions/aliases, layout keys).
-		if (g_str_has_prefix(rel.c_str(), "/presets"))
+		// Preserve saved user presets and the completed lifecycle boundary.
+		if (g_str_has_prefix(rel.c_str(), "/presets")
+				|| rel == COMPOSITION_RESET_GENERATION_KEY
+				|| rel == COMPOSITION_RESET_STATE_KEY)
 		{
 			continue;
 		}
@@ -707,4 +693,42 @@ int WhiskerMenu::reset_settings_to_defaults(XfconfChannel* channel,
 
 	g_hash_table_unref(props);
 	return reset_count;
+}
+
+bool WhiskerMenu::reset_instance_for_composition_upgrade(
+	XfconfChannel* channel,
+	const std::string& property_base)
+{
+	if (!channel || !valid_meowmenu_property_base(property_base.c_str()))
+		return false;
+	if (!xfconf_channel_set_int(channel, COMPOSITION_RESET_GENERATION_KEY,
+			COMPOSITION_RESET_GENERATION)
+			|| !xfconf_channel_set_string(channel, COMPOSITION_RESET_STATE_KEY,
+				"pending"))
+	{
+		return false;
+	}
+
+	GHashTable* props = xfconf_channel_get_properties(channel, nullptr);
+	if (!props)
+		return true;
+
+	GHashTableIter iter;
+	gpointer key_ptr = nullptr;
+	gpointer value_ptr = nullptr;
+	g_hash_table_iter_init(&iter, props);
+	while (g_hash_table_iter_next(&iter, &key_ptr, &value_ptr))
+	{
+		(void)value_ptr;
+		std::string rel(static_cast<const gchar*>(key_ptr));
+		if (rel.compare(0, property_base.size(), property_base) == 0)
+			rel.erase(0, property_base.size());
+		if (rel.empty()
+				|| rel == COMPOSITION_RESET_GENERATION_KEY
+				|| rel == COMPOSITION_RESET_STATE_KEY)
+			continue;
+		xfconf_channel_reset_property(channel, rel.c_str(), FALSE);
+	}
+	g_hash_table_unref(props);
+	return true;
 }

@@ -61,7 +61,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		"classic",
 		N_("Classic"),
 		N_("Classic"),
-		N_("Traditional Whisker Menu layout. Compact window, sidebar on the right, apps as a list."),
+		N_("Traditional compact layout with the sidebar on the right and applications in a list."),
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
@@ -70,12 +70,10 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "sidebar-position",     PresetValue::from_str("right")        },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("top-left")     },
-			{ "commands-position",    PresetValue::from_str("top-right")    },
+			{ "show-profile",         PresetValue::from_bool(true)           },
+			{ "show-session",         PresetValue::from_bool(true)           },
 			{ "layout-mode",          PresetValue::from_str("docked")       },
-			{ "unified-bar",          PresetValue::from_bool(false)         },
 			{ "launcher-icon-size",   PresetValue::from_int(2)              }, // Small
 			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
 			{ "hover-switch-category",PresetValue::from_bool(false)         },
@@ -106,12 +104,10 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "sidebar-position",     PresetValue::from_str("left")        },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)         },
 			{ "category-show-name",   PresetValue::from_bool(true)         },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
-			{ "search-bar-position",  PresetValue::from_str("bottom")      },
-			{ "profile-position",     PresetValue::from_str("top-left")    },
-			{ "commands-position",    PresetValue::from_str("top-right")   },
+			{ "search-bar-position",  PresetValue::from_str("top")         },
+			{ "show-profile",         PresetValue::from_bool(true)          },
+			{ "show-session",         PresetValue::from_bool(true)          },
 			{ "layout-mode",          PresetValue::from_str("docked")      },
-			{ "unified-bar",          PresetValue::from_bool(false)        },
 			{ "launcher-icon-size",   PresetValue::from_int(3)             }, // Normal
 			{ "category-icon-size",   PresetValue::from_int(1)             }, // Smaller
 			{ "grid-density",         PresetValue::from_str("medium")      },
@@ -150,15 +146,13 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "sidebar-position",     PresetValue::from_str("left")         },
 			{ "sidebar-enabled",      PresetValue::from_bool(true)          },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("top-left")     },
-			{ "commands-position",    PresetValue::from_str("top-right")    },
+			{ "show-profile",         PresetValue::from_bool(true)           },
+			{ "show-session",         PresetValue::from_bool(true)           },
 			{ "launcher-icon-size",   PresetValue::from_int(4)              }, // Large
 			{ "category-icon-size",   PresetValue::from_int(2)              }, // Small
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("fullscreen")   },
-			{ "unified-bar",          PresetValue::from_bool(true)          },
 			{ "hover-switch-category",PresetValue::from_bool(true)          },
 			{ "transparent-grid",     PresetValue::from_bool(true)          },
 			{ "view-mode-default",    PresetValue::from_str("icons")        },
@@ -177,7 +171,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		"minimal",
 		N_("Minimal"),
 		N_("Minimal"),
-		N_("Compact, distraction-free launcher: a search bar over an app list, with no sidebar, profile, or command buttons."),
+		N_("Compact, distraction-free launcher with no sidebar, profile, or session buttons."),
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)             },
@@ -186,17 +180,15 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "sidebar-position",     PresetValue::from_str("left")         },
 			{ "sidebar-enabled",      PresetValue::from_bool(false)         },
 			{ "category-show-name",   PresetValue::from_bool(true)          },
-			{ "position-categories-horizontal", PresetValue::from_bool(false) },
 			{ "search-bar-position",  PresetValue::from_str("top")          },
-			{ "profile-position",     PresetValue::from_str("hidden")       },
-			{ "commands-position",    PresetValue::from_str("hidden")       },
+			{ "show-profile",         PresetValue::from_bool(false)          },
+			{ "show-session",         PresetValue::from_bool(false)          },
 			{ "grid-density",         PresetValue::from_str("medium")       },
 			{ "layout-mode",          PresetValue::from_str("centered")     },
 			{ "launcher-icon-size",   PresetValue::from_int(3)              }, // Normal
 			{ "category-icon-size",   PresetValue::from_int(1)              }, // Smaller
 			{ "view-mode-default",    PresetValue::from_str("list")         },
 			{ "hover-switch-category",PresetValue::from_bool(true)          },
-			{ "unified-bar",          PresetValue::from_bool(false)         },
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)         },
 			// menu-height is non-governed: a switch to a sidebar-ful preset that
 			// omits it leaves the user's size intact. Minimal carries a compact
@@ -239,12 +231,10 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 		"sidebar-position",
 		"sidebar-enabled",
 		"category-show-name",
-		"position-categories-horizontal",
 		"search-bar-position",
-		"profile-position",
-		"commands-position",
+		"show-profile",
+		"show-session",
 		"layout-mode",
-		"unified-bar",
 		"launcher-icon-size",
 		"category-icon-size",
 		"hover-switch-category",
@@ -266,7 +256,7 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
  * The governed keys that sync_preset_widgets() drives onto Properties widgets
  * after a preset switch. This list MUST equal governed_keys() (a unit test
  * enforces it): every key a preset governs must also be re-synced into the
- * dialog so no control is left stale (the documented behavior). It is declared here, away
+ * dialog so no control is left stale (supported behavior). It is declared here, away
  * from the GTK widget-driving code, so the coverage set is inspectable without
  * a display.
  *

@@ -9,7 +9,7 @@
 
 #include "desktop-drag.h"
 
-#include "user-session-layout.h"
+#include "layout-mode.h"
 #include "ui/icon-size.h"
 
 extern "C"

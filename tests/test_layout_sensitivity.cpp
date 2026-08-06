@@ -1,11 +1,11 @@
 /*
  * Headless test for the pure Layout-control sensitivity matrix declared in
- * core/user-session-layout.h. Asserts control_enabled() returns exactly the
- * the documented behavior / data-model E-4 table for all 15 (control, mode) combinations.
+ * core/layout-mode.h. Asserts control_enabled() returns exactly the
+ * supported behavior / behavior table table for all 15 (control, mode) combinations.
  * No display, no Xfconf, no widgets.
  */
 
-#include "core/user-session-layout.h"
+#include "core/layout-mode.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -28,7 +28,7 @@ int g_failures = 0;
 		} \
 	} while (0)
 
-// The full 5x3 the documented behavior matrix, transcribed cell by cell so a regression in any
+// The full 5x3 supported behavior matrix, transcribed cell by cell so a regression in any
 // single (control, mode) pair is pinpointed.
 void matrix_matches_fr006()
 {

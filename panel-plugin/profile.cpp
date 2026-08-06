@@ -68,6 +68,15 @@ Profile::Profile(Settings* settings, Window* window) :
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_username), "profile-username");
 
+	// Avatar and username move as one block so a live composition change can
+	// never leave one half in a stale row or size group.
+	m_widget = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_pack_start(GTK_BOX(m_widget), m_container, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(m_widget), m_username, true, true, 0);
+	gtk_widget_set_hexpand(m_widget, TRUE);
+	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget),
+			"profile-block");
+
 #ifdef HAVE_ACCOUNTS_SERVICE
 	m_act_user = nullptr;
 	m_act_user_manager = act_user_manager_get_default();

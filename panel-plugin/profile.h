@@ -49,6 +49,11 @@ public:
 		return m_container;
 	}
 
+	GtkWidget* get_widget() const
+	{
+		return m_widget;
+	}
+
 	GtkWidget* get_username() const
 	{
 		return m_username;
@@ -68,6 +73,7 @@ private:
 
 private:
 	Settings* const m_settings;
+	GtkWidget* m_widget;
 	GtkWidget* m_container;
 	GtkWidget* m_image;
 	GtkWidget* m_username;

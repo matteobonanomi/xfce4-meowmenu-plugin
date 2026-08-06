@@ -129,6 +129,19 @@ void delete_user_preset(const std::string& uuid, Settings& settings);
 // Returns: the number of properties reset.
 int reset_settings_to_defaults(XfconfChannel* channel, const std::string& property_base);
 
+/* reset_instance_for_composition_upgrade:
+ * @channel: property-base-anchored panel Xfconf channel.
+ * @property_base: validated concrete MeowMenu instance base.
+ *
+ * Marks the current reset generation pending, then removes every descendant
+ * owned by this instance except the lifecycle keys. Files and sibling Xfconf
+ * bases are outside the channel scope and are never touched.
+ *
+ * Returns: true when the base was valid and the bounded reset completed.
+ */
+bool reset_instance_for_composition_upgrade(XfconfChannel* channel,
+	const std::string& property_base);
+
 } // namespace WhiskerMenu
 
 #endif // WHISKERMENU_PRESET_H

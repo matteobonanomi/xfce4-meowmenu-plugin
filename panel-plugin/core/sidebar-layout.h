@@ -21,11 +21,12 @@
 namespace WhiskerMenu
 {
 
-// Where the four stored sidebar positions place the category list.
+// Supported stored positions plus derived physical edges for Horizontal.
 enum class SidebarPosition
 {
 	Left,
 	Right,
+	Horizontal,
 	Top,
 	Bottom
 };
@@ -33,9 +34,10 @@ enum class SidebarPosition
 // Resolved placement of the Apps/Places mode switch for a layout pass.
 enum class SwitchLocation
 {
-	InSidebar,    // packed with the category list (vertical sidebar or strip)
-	InSearchBar,  // relocated into the search-bar row (sidebar disabled)
-	None          // Places mode off — no switch at all
+	InSidebar,      // packed with the category list (vertical sidebar or strip)
+	InSecondaryRow, // shared Docked/Centered secondary row with Session actions
+	InSearchBar,    // relocated into the search-bar row (sidebar disabled)
+	None            // Places mode off — no switch at all
 };
 
 enum class SwitchOrientation
@@ -111,14 +113,26 @@ bool meow_modern_divider_visible(const ModernDividerState& state);
 /* meow_parse_sidebar_position:
  * @value: a stored /sidebar-position string; may be NULL.
  *
- * Maps the stored string to a SidebarPosition. The legacy "hidden" value and
- * any unrecognised string fall back to Left (a valid position); "hidden" is
- * migrated to the Enable-sidebar switch elsewhere, so it is never honoured as
- * a Position here.
+ * Maps left, right, and horizontal to the supported positions. Any other value
+ * falls back to Left without mutating storage.
  *
  * Returns: the matching SidebarPosition (Left for unknown/NULL/"hidden").
  */
 SidebarPosition meow_parse_sidebar_position(const char* value);
+
+/* meow_resolve_sidebar_edge:
+ * @position: stored supported or tolerated legacy sidebar position.
+ * @search_bar_bottom: true when the windowed primary row is at the bottom.
+ * @fullscreen: true for the fixed Full Screen composition.
+ *
+ * Converts the single Horizontal choice to its physical edge. Windowed menus
+ * place it opposite the primary row; Full Screen always places it below
+ * Results. Explicit Left and Right pass through unchanged.
+ *
+ * Returns: Top or Bottom for Horizontal, otherwise @position.
+ */
+SidebarPosition meow_resolve_sidebar_edge(SidebarPosition position,
+		bool search_bar_bottom, bool fullscreen);
 
 /* meow_compute_sidebar_layout:
  * @state: the stored intent and environment for this layout pass.
@@ -206,17 +220,19 @@ FullscreenMainColumn meow_fullscreen_main_column(int workarea_width);
  * @location: where the Apps/Places toggle is rendered this pass.
  * @category_px: the configured category icon pixel size (sidebar source).
  * @search_bar_px: the measured search-bar-height-derived pixel size.
+ * @session_px: the effective Session icon allocation from the current theme.
  *
  * Pure decision for the toggle icon's pixel size: the toggle always inherits
  * from the region that contains it — the category icon size when it lives in a
- * sidebar (vertical or strip), the search-bar height when it lives in the
- * search-bar row. There is deliberately no independent value and no fourth
- * state.
+ * sidebar (vertical or strip), the Session icon allocation in a shared
+ * secondary row, and the search-bar height when it lives in the search-bar row.
+ * There is deliberately no independent user setting.
  *
  * Returns: the pixel size to apply with gtk_image_set_pixel_size(); 0 when the
  * toggle is hidden (SwitchLocation::None), meaning no size is applied.
  */
-int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px);
+int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px,
+		int session_px);
 
 /* meow_toggle_button_height_px:
  * @location: where the Apps/Places toggle is rendered this pass.
@@ -264,7 +280,7 @@ int meow_default_category_order_base(bool strip_spacer_visible,
  *
  * The single label-visibility decision shared by every sidebar button — Apps
  * category buttons and Places section buttons alike — so names appear or hide
- * identically in both modes (the documented behavior). A horizontal strip is always
+ * identically in both modes (supported behavior). A horizontal strip is always
  * icon-only regardless of the stored intent.
  *
  * Returns: true when sidebar buttons should show their text label.

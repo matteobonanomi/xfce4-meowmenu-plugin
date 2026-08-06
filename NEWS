@@ -1,7 +1,10 @@
 0.8.1 (2026-08-17)
 =====
-- Keyboard: add internal-first physical arrow navigation, global search input,
-  Calculator-first anchoring, and revocable Places focus
+- Keyboard: update and extend arrow-navigation and remove Ctrl+Tab action
+- UI: simplify Docked, Centered, and Full Screen composition and Properties controls
+- Presets: align all built-ins with the supported layout model and use Modern by default
+- Upgrade: reset each pre-1.0 instance once while preserving panel placement and external preset files
+- Presets: reject imports that contain retired layout settings before making changes
 
 1.0.0-rc1 (2026-07-29)
 =====

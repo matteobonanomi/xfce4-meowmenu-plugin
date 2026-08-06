@@ -16,7 +16,7 @@
  *     - the "Save as new… does not surface the new preset" defect: after a
  *       save-style write to /presets/<uuid>/, enumerate_user_presets() and
  *       find_preset_by_id() must surface that uuid (R3 hypotheses H2/H3).
- *     - schema-lenient seeded-file import (the documented behavior): a .meowpreset with a newer
+ *     - schema-lenient seeded-file import (supported behavior): a .meowpreset with a newer
  *       SchemaVersion must be accepted best-effort rather than skipped.
  *
  * If xfconfd / dbus-daemon are unavailable the test prints a TAP SKIP and
@@ -26,6 +26,7 @@
 
 #include "presets/preset.h"
 #include "presets/preset-io.h"
+#include "settings-defaults.h"
 
 #include <gio/gio.h>
 #include <glib.h>
@@ -206,10 +207,10 @@ const WhiskerMenu::LayoutPreset* find_in(const std::vector<WhiskerMenu::LayoutPr
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: save-refresh regression lock (read side).
+// runtime implementation: save-refresh regression lock (read side).
 // After a save-style write, the enumerated set and find_preset_by_id() must both
 // surface a row whose id equals the saved uuid, with the stored name. This is the
-// behaviour the "Save as new…" dropdown refresh depends on (the documented behavior).
+// behaviour the "Save as new…" dropdown refresh depends on (supported behavior).
 // ---------------------------------------------------------------------------
 
 void test_enumerate_surfaces_saved_uuid()
@@ -324,7 +325,7 @@ void test_upgrade_baseline_enumeration_is_idempotent()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: reset-to-defaults scope (the documented behavior).
+// runtime implementation: reset-to-defaults scope (supported behavior).
 // The "Reset to defaults" control must clear every non-preset property while
 // preserving saved user presets under /presets/<uuid>/. The live plugin's
 // channel is property-base-anchored, and get_properties() returns FULL paths
@@ -352,11 +353,11 @@ void test_reset_preserves_presets_clears_rest()
 	xfconf_channel_set_string(ch, "/favorites/0", "firefox.desktop");
 	xfconf_channel_set_string(ch, "/search-actions/0/name", "Web Search");
 	// A user who opted into Centered must be returned to the docked default by a
-	// reset (the documented behavior): the stored value is cleared, so a read falls back to the
+	// reset (supported behavior): the stored value is cleared, so a read falls back to the
 	// "docked" schema default.
 	xfconf_channel_set_string(ch, "/layout-mode", "centered");
 	// A user who reduced the menu opacity must be returned to fully opaque by a
-	// reset (042 the documented behavior): the stored value is cleared, so a read falls back to
+	// reset (042 supported behavior): the stored value is cleared, so a read falls back to
 	// the 100 default. This is the only headless guard against a future
 	// default-value or reset-list regression for /menu-opacity.
 	xfconf_channel_set_int(ch, "/menu-opacity", 60);
@@ -402,8 +403,105 @@ void test_reset_preserves_presets_clears_rest()
 	g_object_unref(ch);
 }
 
+void test_automatic_reset_is_bounded_and_destructive()
+{
+	const std::string base = "/plugins/meowmenu-61";
+	gchar* name = g_strdup_printf("meow-upgrade-reset-%d-%d",
+		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
+	XfconfChannel* ch = xfconf_channel_new_with_property_base(name, base.c_str());
+	g_free(name);
+
+	xfconf_channel_set_bool(ch, "/initialized", TRUE);
+	xfconf_channel_set_int(ch, "/corner-radius", 17);
+	seed_saved_preset(ch, "old-layout", "Old Layout");
+
+	assert(WhiskerMenu::reset_instance_for_composition_upgrade(ch, base));
+	assert(!xfconf_channel_has_property(ch, "/initialized"));
+	assert(!xfconf_channel_has_property(ch, "/corner-radius"));
+	assert(!xfconf_channel_has_property(ch, "/presets/old-layout/name"));
+	assert(xfconf_channel_get_int(ch,
+		WhiskerMenu::COMPOSITION_RESET_GENERATION_KEY, 0)
+		== WhiskerMenu::COMPOSITION_RESET_GENERATION);
+	gchar* state = xfconf_channel_get_string(ch,
+		WhiskerMenu::COMPOSITION_RESET_STATE_KEY, nullptr);
+	assert(state && std::strcmp(state, "pending") == 0);
+	g_free(state);
+
+	assert(!WhiskerMenu::reset_instance_for_composition_upgrade(ch, ""));
+	assert(!WhiskerMenu::reset_instance_for_composition_upgrade(ch,
+		"/plugins/meowmenu-all"));
+	g_object_unref(ch);
+}
+
+void seed_required_modern_state(XfconfChannel* channel)
+{
+	xfconf_channel_set_bool(channel, "/initialized", TRUE);
+	xfconf_channel_set_int(channel, "/schema-version", 13);
+	xfconf_channel_set_string(channel, "/current-preset-id", "modern");
+	xfconf_channel_set_string(channel, "/layout-mode", "docked");
+	xfconf_channel_set_string(channel, "/search-bar-position", "top");
+	xfconf_channel_set_string(channel, "/sidebar-position", "left");
+}
+
+void test_reset_lifecycle_is_per_instance_and_completion_last()
+{
+	using WhiskerMenu::PreStableResetDecision;
+	const std::string base_a = "/plugins/meowmenu-71";
+	const std::string base_b = "/plugins/meowmenu-72";
+	gchar* name_raw = g_strdup_printf("meow-reset-matrix-%d-%d",
+		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
+	const std::string name(name_raw);
+	g_free(name_raw);
+
+	XfconfChannel* root = xfconf_channel_new(name.c_str());
+	XfconfChannel* a = xfconf_channel_new_with_property_base(name.c_str(), base_a.c_str());
+	XfconfChannel* b = xfconf_channel_new_with_property_base(name.c_str(), base_b.c_str());
+	xfconf_channel_set_int(root, base_a.c_str(), 61);
+	xfconf_channel_set_bool(a, "/initialized", TRUE);
+	xfconf_channel_set_int(a, "/corner-radius", 19);
+	xfconf_channel_set_bool(b, "/initialized", TRUE);
+	xfconf_channel_set_int(b, "/corner-radius", 7);
+
+	assert(WhiskerMenu::inspect_pre_stable_reset(a, base_a.c_str())
+		== PreStableResetDecision::Reset);
+	assert(WhiskerMenu::reset_instance_for_composition_upgrade(a, base_a));
+	assert(xfconf_channel_has_property(root, base_a.c_str()));
+	assert(xfconf_channel_get_int(b, "/corner-radius", 0) == 7);
+	assert(WhiskerMenu::inspect_pre_stable_reset(a, base_a.c_str())
+		== PreStableResetDecision::Reset);
+
+	seed_required_modern_state(a);
+	assert(WhiskerMenu::complete_pre_stable_reset(a));
+	assert(WhiskerMenu::inspect_pre_stable_reset(a, base_a.c_str())
+		== PreStableResetDecision::Load);
+	xfconf_channel_set_int(a, "/corner-radius", 9);
+	assert(WhiskerMenu::inspect_pre_stable_reset(a, base_a.c_str())
+		== PreStableResetDecision::Load);
+	assert(xfconf_channel_get_int(a, "/corner-radius", 0) == 9);
+
+	assert(WhiskerMenu::inspect_pre_stable_reset(b, base_b.c_str())
+		== PreStableResetDecision::Reset);
+	assert(xfconf_channel_get_int(b, "/corner-radius", 0) == 7);
+
+	XfconfChannel* fresh = xfconf_channel_new_with_property_base(name.c_str(),
+		"/plugins/meowmenu-73");
+	assert(WhiskerMenu::inspect_pre_stable_reset(fresh, "/plugins/meowmenu-73")
+		== PreStableResetDecision::Fresh);
+	seed_required_modern_state(fresh);
+	assert(WhiskerMenu::complete_pre_stable_reset(fresh));
+	assert(WhiskerMenu::inspect_pre_stable_reset(fresh, "/plugins/meowmenu-73")
+		== PreStableResetDecision::Load);
+
+	assert(WhiskerMenu::inspect_pre_stable_reset(a, "/plugins/meowmenu-all")
+		== PreStableResetDecision::Load);
+	g_object_unref(fresh);
+	g_object_unref(b);
+	g_object_unref(a);
+	g_object_unref(root);
+}
+
 // ---------------------------------------------------------------------------
-// the implementation step: schema-lenient seeded-file import (the documented behavior).
+// runtime implementation: schema-lenient seeded-file import (supported behavior).
 // enumerate_preset_files() must accept a .meowpreset carrying a newer
 // SchemaVersion best-effort, while still skipping unparseable/section-missing
 // files. Built-in identity comes from the [Preset].Name key.
@@ -430,7 +528,7 @@ void test_seeded_file_accepts_newer_schema()
 	assert(dir_c != nullptr);
 	std::string dir(dir_c);
 
-	// Newer schema version than we know — must be accepted best-effort (the documented behavior).
+	// Newer schema version than we know — must be accepted best-effort (supported behavior).
 	write_meowpreset(dir, "future",
 		"[Preset]\nName=Future\nSchemaVersion=99\n\n"
 		"[Settings]\ncorner-radius=4\nsidebar-position=left\n");
@@ -476,6 +574,36 @@ void test_seeded_file_skips_section_missing()
 	g_free(tmpl);
 }
 
+void test_incompatible_user_overlay_cannot_shadow_supported_preset()
+{
+	gchar* system_template = g_strdup("/tmp/meow-system-presets-XXXXXX");
+	gchar* user_template = g_strdup("/tmp/meow-user-presets-XXXXXX");
+	gchar* system_dir_raw = g_mkdtemp(system_template);
+	gchar* user_dir_raw = g_mkdtemp(user_template);
+	assert(system_dir_raw && user_dir_raw);
+	const std::string system_dir(system_dir_raw);
+	const std::string user_dir(user_dir_raw);
+
+	write_meowpreset(system_dir, "modern",
+		"[Preset]\nName=Modern\n\n[Settings]\ncorner-radius=4\n"
+		"sidebar-position=left\nshow-profile=true\nshow-session=true\n");
+	write_meowpreset(user_dir, "modern",
+		"[Preset]\nName=Obsolete override\n\n[Settings]\ncorner-radius=21\n"
+		"profile-position=bottom-left\n");
+	write_meowpreset(user_dir, "old-horizontal",
+		"[Preset]\nName=Old Horizontal\n\n[Settings]\nsidebar-position=bottom\n");
+
+	const auto presets = WhiskerMenu::enumerate_preset_files(system_dir, user_dir);
+	const WhiskerMenu::LayoutPreset* modern = find_in(presets, "modern");
+	assert(modern);
+	assert(modern->display_name == "Modern");
+	assert(modern->values.at("corner-radius").i == 4);
+	assert(find_in(presets, "old-horizontal") == nullptr);
+
+	g_free(system_template);
+	g_free(user_template);
+}
+
 } // anonymous namespace
 
 int main()
@@ -492,8 +620,11 @@ int main()
 	test_enumerate_name_falls_back_to_display_name();
 	test_upgrade_baseline_enumeration_is_idempotent();
 	test_reset_preserves_presets_clears_rest();
+	test_automatic_reset_is_bounded_and_destructive();
+	test_reset_lifecycle_is_per_instance_and_completion_last();
 	test_seeded_file_accepts_newer_schema();
 	test_seeded_file_skips_section_missing();
+	test_incompatible_user_overlay_cannot_shadow_supported_preset();
 
 	fixture_down();
 

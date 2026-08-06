@@ -173,6 +173,9 @@ void Command::set_shown(bool shown)
 	if (m_button)
 	{
 		gtk_widget_set_visible(m_button, m_shown);
+		gtk_widget_set_can_focus(m_button,
+				command_effectively_available(m_shown,
+						m_status == CommandStatus::Valid));
 	}
 	if (m_menuitem)
 	{
@@ -182,7 +185,7 @@ void Command::set_shown(bool shown)
 
 //-----------------------------------------------------------------------------
 
-void Command::check()
+bool Command::check()
 {
 	if (m_status == CommandStatus::Unchecked)
 	{
@@ -204,12 +207,17 @@ void Command::check()
 	{
 		gtk_widget_set_visible(m_button, m_shown);
 		gtk_widget_set_sensitive(m_button, m_status == CommandStatus::Valid);
+		gtk_widget_set_can_focus(m_button,
+				command_effectively_available(m_shown,
+						m_status == CommandStatus::Valid));
 	}
 	if (m_menuitem)
 	{
 		gtk_widget_set_visible(m_menuitem, m_shown);
 		gtk_widget_set_sensitive(m_menuitem, m_status == CommandStatus::Valid);
 	}
+	return command_effectively_available(m_shown,
+			m_status == CommandStatus::Valid);
 }
 
 //-----------------------------------------------------------------------------

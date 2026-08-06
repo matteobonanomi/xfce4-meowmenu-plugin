@@ -1,12 +1,12 @@
 # Minimal preset — compact, distraction-free launcher.
-# Centered, sidebar-less, search bar on top over an app list; no profile or commands.
+# Centered, sidebar-less, search bar on top over an app list; no profile or session buttons.
 # Settings use the same Xfconf keys as the graphical Preferences window.
 
 [Preset]
 Name=Minimal
 SchemaVersion=1
 Id=minimal
-Description=Compact, distraction-free launcher: a search bar over an app list, with no sidebar, profile, or command buttons.
+Description=Compact, distraction-free launcher with no sidebar, profile, or session buttons.
 
 [Settings]
 corner-radius=12
@@ -15,17 +15,15 @@ menu-opacity=60
 sidebar-position=left
 sidebar-enabled=false
 category-show-name=true
-position-categories-horizontal=false
 search-bar-position=top
-profile-position=hidden
-commands-position=hidden
+show-profile=false
+show-session=false
 grid-density=medium
 layout-mode=centered
 launcher-icon-size=3
 category-icon-size=1
 view-mode-default=list
 hover-switch-category=true
-unified-bar=false
 stay-on-focus-out=false
 menu-width=450
 menu-height=306

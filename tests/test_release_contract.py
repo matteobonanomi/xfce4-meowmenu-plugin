@@ -42,6 +42,18 @@ ARTIFACTS_SPEC.loader.exec_module(ARTIFACTS)
 
 
 class ReleaseContractTest(unittest.TestCase):
+    def test_current_news_discloses_composition_reset_boundary(self):
+        news = (ROOT / "NEWS").read_text(encoding="utf-8")
+        current = news.split("\n\n", maxsplit=1)[0]
+        for required in (
+            "simplify Docked, Centered, and Full Screen composition",
+            "use Modern by default",
+            "reset each pre-1.0 instance once",
+            "preserving panel placement and external preset files",
+            "reject imports that contain retired layout settings",
+        ):
+            self.assertIn(required, current)
+
     def test_release_workflow_has_one_shared_tag_entry_path(self):
         workflow = (
             ROOT / ".github/workflows/packaging.yml"

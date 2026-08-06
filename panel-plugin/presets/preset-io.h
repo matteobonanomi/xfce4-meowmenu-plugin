@@ -36,6 +36,7 @@ enum class ImportStatus
 	ParseError,
 	MissingSection,
 	MissingKey,
+	IncompatibleLayout,
 };
 
 struct ImportResult
@@ -45,6 +46,7 @@ struct ImportResult
 	std::string  conflict_uuid;
 	std::string  new_uuid;
 	std::string  error_message;
+	std::string  obsolete_key;
 };
 
 // Export a user preset to a .meowpreset file.
@@ -64,7 +66,7 @@ ImportResult import_user_preset(const std::string& file_path,
 // Enumerate .meowpreset files from system_dir (first) then user_dir.
 // Files with the same id (filename stem without extension) are deduplicated: user wins.
 // Malformed or unreadable files are silently skipped (g_debug() only).
-// Never crashes, never shows an error dialog (the documented behavior).
+// Never crashes, never shows an error dialog (supported behavior).
 std::vector<LayoutPreset> enumerate_preset_files(const std::string& system_dir,
 	const std::string& user_dir);
 

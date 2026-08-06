@@ -1,5 +1,5 @@
 # Modern preset — contemporary layout with rounded corners, icon grid, sidebar on the left.
-# Docked, hover-to-switch categories, search bar at the bottom.
+# Docked, hover-to-switch categories, search bar at the top.
 # Settings use the same Xfconf keys as the graphical Preferences window.
 
 [Preset]
@@ -21,11 +21,9 @@ grid-density=medium
 sidebar-position=left
 sidebar-enabled=true
 category-show-name=true
-position-categories-horizontal=false
-search-bar-position=bottom
-profile-position=top-left
-commands-position=top-right
-unified-bar=false
+search-bar-position=top
+show-profile=true
+show-session=true
 menu-opacity=100
 hover-switch-category=true
 transparent-grid=true

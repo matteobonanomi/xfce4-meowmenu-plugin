@@ -72,10 +72,9 @@ static TestPresetDef make_classic()
 			{ "panel-gap",             PV::from_int(0)       },
 			{ "menu-opacity",          PV::from_int(100)     },
 			{ "sidebar-position",      PV::from_str("right") },
-			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")   },
-			{ "profile-position",      PV::from_str("top-left")   },
-			{ "commands-position",     PV::from_str("top-right") },
+			{ "show-profile",          PV::from_bool(true)    },
+			{ "show-session",          PV::from_bool(true)    },
 			{ "layout-mode",           PV::from_str("docked") },
 			{ "launcher-icon-size",    PV::from_int(2)       },
 			{ "hover-switch-category", PV::from_bool(false)  },
@@ -101,10 +100,9 @@ static TestPresetDef make_modern()
 			{ "panel-gap",             PV::from_int(8)        },
 			{ "menu-opacity",          PV::from_int(100)      },
 			{ "sidebar-position",      PV::from_str("left")   },
-			{ "position-categories-horizontal", PV::from_bool(false) },
-			{ "search-bar-position",   PV::from_str("bottom") },
-			{ "profile-position",      PV::from_str("top-left")    },
-			{ "commands-position",     PV::from_str("top-right") },
+			{ "search-bar-position",   PV::from_str("top")    },
+			{ "show-profile",          PV::from_bool(true)     },
+			{ "show-session",          PV::from_bool(true)     },
 			{ "layout-mode",           PV::from_str("docked") },
 			{ "launcher-icon-size",    PV::from_int(3)        },
 			{ "grid-density",          PV::from_str("medium") },
@@ -132,10 +130,9 @@ static TestPresetDef make_fullscreen()
 			{ "panel-gap",             PV::from_int(0)              },
 			{ "menu-opacity",          PV::from_int(80)             },
 			{ "sidebar-position",      PV::from_str("left")         },
-			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")          },
-			{ "profile-position",      PV::from_str("top-left")          },
-			{ "commands-position",     PV::from_str("top-right")    },
+			{ "show-profile",          PV::from_bool(true)           },
+			{ "show-session",          PV::from_bool(true)           },
 			{ "launcher-icon-size",    PV::from_int(4)              },
 			{ "grid-density",          PV::from_str("medium")       },
 			{ "layout-mode",           PV::from_str("fullscreen")   },
@@ -161,10 +158,9 @@ static TestPresetDef make_minimal()
 			{ "panel-gap",             PV::from_int(8)        },
 			{ "menu-opacity",          PV::from_int(60)       },
 			{ "sidebar-position",      PV::from_str("left")   },
-			{ "position-categories-horizontal", PV::from_bool(false) },
 			{ "search-bar-position",   PV::from_str("top")    },
-			{ "profile-position",      PV::from_str("hidden") },
-			{ "commands-position",     PV::from_str("hidden") },
+			{ "show-profile",          PV::from_bool(false)   },
+			{ "show-session",          PV::from_bool(false)   },
 			{ "grid-density",          PV::from_str("medium") },
 			{ "layout-mode",           PV::from_str("centered") },
 			{ "launcher-icon-size",    PV::from_int(3)        },
@@ -192,10 +188,9 @@ struct SettingsShadow
 	int panel_gap         = 0;
 	int menu_opacity      = 100;
 	std::string sidebar_position    = "left";
-	bool position_categories_horizontal = false;
 	std::string search_bar_position = "top";
-	std::string profile_position    = "top-left";
-	std::string commands_position   = "top-right";
+	bool show_profile = true;
+	bool show_session = true;
 	std::string grid_density = "medium";
 	std::string layout_mode  = "docked";
 	bool category_hover_activate = false;
@@ -223,11 +218,9 @@ static void apply_preset_shadow(const TestPresetDef& preset, SettingsShadow& s)
 		else if (prop == "panel-gap" && val.kind == PV::I)            s.panel_gap = val.i;
 		else if (prop == "menu-opacity" && val.kind == PV::I)         s.menu_opacity = val.i;
 		else if (prop == "sidebar-position" && val.kind == PV::S)     s.sidebar_position = val.s;
-		else if (prop == "position-categories-horizontal" && val.kind == PV::B)
-			s.position_categories_horizontal = val.b;
 		else if (prop == "search-bar-position" && val.kind == PV::S)  s.search_bar_position = val.s;
-		else if (prop == "profile-position" && val.kind == PV::S)     s.profile_position = val.s;
-		else if (prop == "commands-position" && val.kind == PV::S)    s.commands_position = val.s;
+		else if (prop == "show-profile" && val.kind == PV::B)         s.show_profile = val.b;
+		else if (prop == "show-session" && val.kind == PV::B)         s.show_session = val.b;
 		else if (prop == "grid-density" && val.kind == PV::S)         s.grid_density = val.s;
 		else if (prop == "layout-mode" && val.kind == PV::S)          s.layout_mode = val.s;
 		else if (prop == "launcher-icon-size" && val.kind == PV::I)   s.launcher_icon_size = val.i;
@@ -270,11 +263,9 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 		if (prop == "panel-gap" && val.kind == PV::I && s.panel_gap != val.i) return true;
 		if (prop == "menu-opacity" && val.kind == PV::I && s.menu_opacity != val.i) return true;
 		if (prop == "sidebar-position" && val.kind == PV::S && s.sidebar_position != val.s) return true;
-		if (prop == "position-categories-horizontal" && val.kind == PV::B
-				&& s.position_categories_horizontal != val.b) return true;
 		if (prop == "search-bar-position" && val.kind == PV::S && s.search_bar_position != val.s) return true;
-		if (prop == "profile-position" && val.kind == PV::S && s.profile_position != val.s) return true;
-		if (prop == "commands-position" && val.kind == PV::S && s.commands_position != val.s) return true;
+		if (prop == "show-profile" && val.kind == PV::B && s.show_profile != val.b) return true;
+		if (prop == "show-session" && val.kind == PV::B && s.show_session != val.b) return true;
 		if (prop == "grid-density" && val.kind == PV::S && s.grid_density != val.s) return true;
 		if (prop == "layout-mode" && val.kind == PV::S && s.layout_mode != val.s) return true;
 		if (prop == "launcher-icon-size" && val.kind == PV::I && s.launcher_icon_size != val.i) return true;
@@ -317,24 +308,30 @@ static bool compute_diff_shadow(const TestPresetDef& preset, const SettingsShado
 static void test_classic_property_count()
 {
 	auto c = make_classic();
-	assert(c.values.size() == 20);
+	assert(c.values.size() == 19);
 }
 
 static void test_modern_property_count()
 {
 	auto m = make_modern();
-	assert(m.values.size() == 22);
+	assert(m.values.size() == 21);
 }
 
 static void test_fullscreen_property_count()
 {
 	auto f = make_fullscreen();
-	assert(f.values.size() == 20);
+	assert(f.values.size() == 19);
+}
+
+static void test_minimal_property_count()
+{
+	auto m = make_minimal();
+	assert(m.values.size() == 20);
 }
 
 static void test_apply_then_no_diff()
 {
-	auto presets = { make_classic(), make_modern(), make_fullscreen() };
+	auto presets = { make_classic(), make_modern(), make_fullscreen(), make_minimal() };
 	for (const auto& preset : presets)
 	{
 		SettingsShadow s;
@@ -369,7 +366,7 @@ static void test_modern_corner_radius()
 static const WhiskerMenu::LayoutPreset* find_builtin(const char* id);
 
 // Each real built-in carries the single governed menu-opacity at its documented
-// value: Classic 100, Modern 100, Full Screen 80, Minimal 60 (the documented behavior, the documented behavior).
+// value: Classic 100, Modern 100, Full Screen 80, Minimal 60 (supported behavior, supported behavior).
 static void test_builtin_menu_opacity_values()
 {
 	struct { const char* id; int opacity; } expected[] = {
@@ -439,10 +436,10 @@ static void test_fullscreen_layout_mode()
 	assert(it_icons != f.values.end());
 	assert(it_icons->second.kind == PV::I);
 	assert(it_icons->second.i == 4);
-	auto it_horizontal = f.values.find("position-categories-horizontal");
-	assert(it_horizontal != f.values.end());
-	assert(it_horizontal->second.kind == PV::B);
-	assert(it_horizontal->second.b == false);
+	auto profile = f.values.find("show-profile");
+	assert(profile != f.values.end());
+	assert(profile->second.kind == PV::B);
+	assert(profile->second.b == true);
 }
 
 static void test_fullscreen_sidebar_left()
@@ -506,7 +503,7 @@ static void test_find_by_id()
 }
 
 // ---------------------------------------------------------------------------
-// Preset-field label resolution (contracts/preset-field-label.md).
+// Preset-field label resolution (the documented interface).
 // Pure mirror of Settings::current_preset_name(): a known id yields the
 // preset's stored name; an unset/empty id or one that resolves to no known
 // preset yields the localized "Custom" string. The result is never empty.
@@ -627,7 +624,7 @@ struct UserPresetStore
 };
 
 // ---------------------------------------------------------------------------
-// the implementation step: User preset CRUD tests
+// runtime implementation: User preset CRUD tests
 // ---------------------------------------------------------------------------
 
 static void test_user_preset_save_then_enumerate()
@@ -718,9 +715,9 @@ static void test_user_preset_delete_non_current_preserves_id()
 	assert(store.presets.size() == 1);
 }
 
-// the implementation step: empty and duplicate names are rejected, case-insensitively, against both
-// existing customs and the built-in names; the store is left unchanged (the documented behavior,
-// the documented behavior). Mirrors the real preset_name_conflicts() (g_ascii_strcasecmp).
+// runtime implementation: empty and duplicate names are rejected, case-insensitively, against both
+// existing customs and the built-in names; the store is left unchanged (supported behavior,
+// supported behavior). Mirrors the real preset_name_conflicts() (g_ascii_strcasecmp).
 static void test_user_preset_save_rejects_case_insensitive_duplicate()
 {
 	UserPresetStore store;
@@ -768,8 +765,8 @@ static void test_user_preset_rename_rejects_conflicts()
 	assert(store.find(b)->display_name == "Gamma");
 }
 
-// the implementation step: deleting the active custom clears the current id so the field falls back
-// to the Modern built-in (the documented behavior, the documented behavior). Mirrors the UI handler, which
+// runtime implementation: deleting the active custom clears the current id so the field falls back
+// to the Modern built-in (supported behavior, supported behavior). Mirrors the UI handler, which
 // applies BUILTIN_PRESETS[PRESET_MODERN] once current_preset_id is cleared.
 static std::string fallback_preset_id(const std::string& current_id)
 {
@@ -790,11 +787,11 @@ static void test_user_preset_delete_active_falls_back_to_modern()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: data-driven dropdown typography. Each preset kind maps to a fixed Pango
+// runtime implementation: data-driven dropdown typography. Each preset kind maps to a fixed Pango
 // weight/style: built-in → BOLD/NORMAL, saved custom → NORMAL/NORMAL, the
 // transient "Unsaved custom" placeholder → NORMAL/ITALIC. Classification is
 // keyed on is_builtin, so a future built-in inherits bold with no test change
-// (the documented behavior, the documented behavior).
+// (supported behavior, supported behavior).
 // NOTE: the integer literals equal the Pango constants used by the combo's cell
 // renderer — 700 = PANGO_WEIGHT_BOLD, 400 = PANGO_WEIGHT_NORMAL,
 // 0 = PANGO_STYLE_NORMAL, 2 = PANGO_STYLE_ITALIC.
@@ -821,9 +818,9 @@ static void test_preset_typography_classification()
 	assert(row_style(true) == 2);
 }
 
-// the implementation step: divergence is reversible. compute_preset_diff(applied, settings) is true
+// runtime implementation: divergence is reversible. compute_preset_diff(applied, settings) is true
 // on any governed-key divergence and false again once the value is edited back
-// to an exact match (the documented behavior snap-back).
+// to an exact match (supported behavior snap-back).
 static void test_diff_snapback()
 {
 	auto m = make_modern();
@@ -840,7 +837,7 @@ static void test_diff_snapback()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: File-seeded preset tests.
+// runtime implementation: File-seeded preset tests.
 // These shadow tests verify that if on-disk files were loaded, the resulting
 // LayoutPreset data would match the expected C++ fallback values.
 // ---------------------------------------------------------------------------
@@ -879,7 +876,7 @@ static void test_fallback_to_cpp_table_when_files_absent()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: Parity sanity check — applying from the C++ fallback table and from
+// runtime implementation: Parity sanity check — applying from the C++ fallback table and from
 // a file-equivalent preset with the same values must yield identical results.
 // This guards against future drift between the .meowpreset files and the table.
 // ---------------------------------------------------------------------------
@@ -899,8 +896,8 @@ static TestPresetDef make_classic_from_file_equivalent()
 			{ "view-mode-default",    PV::from_str("list")        },
 			{ "sidebar-position",     PV::from_str("right")       },
 			{ "search-bar-position",  PV::from_str("top")         },
-			{ "profile-position",     PV::from_str("top-left")    },
-			{ "commands-position",    PV::from_str("top-right")   },
+			{ "show-profile",        PV::from_bool(true)          },
+			{ "show-session",        PV::from_bool(true)          },
 			{ "menu-opacity",         PV::from_int(100)           },
 			{ "hover-switch-category",PV::from_bool(false)        },
 			{ "stay-on-focus-out",    PV::from_bool(false)        },
@@ -928,9 +925,9 @@ static TestPresetDef make_modern_from_file_equivalent()
 			{ "view-mode-default",    PV::from_str("icons")     },
 			{ "grid-density",         PV::from_str("medium")    },
 			{ "sidebar-position",     PV::from_str("left")      },
-			{ "search-bar-position",  PV::from_str("bottom")    },
-			{ "profile-position",     PV::from_str("top-left")   },
-			{ "commands-position",    PV::from_str("top-right") },
+			{ "search-bar-position",  PV::from_str("top")       },
+			{ "show-profile",         PV::from_bool(true)        },
+			{ "show-session",         PV::from_bool(true)        },
 			{ "menu-opacity",         PV::from_int(100)         },
 			{ "hover-switch-category",PV::from_bool(true)       },
 			{ "transparent-grid",     PV::from_bool(true)       },
@@ -958,8 +955,8 @@ static TestPresetDef make_fullscreen_from_file_equivalent()
 			{ "grid-density",         PV::from_str("medium")     },
 			{ "sidebar-position",     PV::from_str("left")       },
 			{ "search-bar-position",  PV::from_str("top")        },
-			{ "profile-position",     PV::from_str("top-left")   },
-			{ "commands-position",    PV::from_str("top-right")  },
+			{ "show-profile",         PV::from_bool(true)         },
+			{ "show-session",         PV::from_bool(true)         },
 			{ "menu-opacity",         PV::from_int(80)           },
 			{ "hover-switch-category",PV::from_bool(true)        },
 			{ "transparent-grid",     PV::from_bool(true)        },
@@ -1043,8 +1040,8 @@ static TestPresetDef make_minimal_from_file_equivalent()
 			{ "grid-density",         PV::from_str("medium")    },
 			{ "sidebar-position",     PV::from_str("left")      },
 			{ "search-bar-position",  PV::from_str("top")       },
-			{ "profile-position",     PV::from_str("hidden")    },
-			{ "commands-position",    PV::from_str("hidden")    },
+			{ "show-profile",         PV::from_bool(false)       },
+			{ "show-session",         PV::from_bool(false)       },
 			{ "menu-opacity",         PV::from_int(60)          },
 			{ "hover-switch-category",PV::from_bool(true)       },
 			{ "stay-on-focus-out",    PV::from_bool(false)      },
@@ -1055,11 +1052,6 @@ static TestPresetDef make_minimal_from_file_equivalent()
 			{ "calculator-max-decimal-places", PV::from_int(4) },
 		}
 	};
-}
-
-static bool is_legacy_profile_position(const std::string& value)
-{
-	return value == "top" || value == "bottom" || value == "bottom-right";
 }
 
 static void test_parity_minimal_cpp_vs_file()
@@ -1074,8 +1066,8 @@ static void test_parity_minimal_cpp_vs_file()
 	assert(s_cpp.panel_gap               == s_file.panel_gap);
 	assert(s_cpp.menu_opacity            == s_file.menu_opacity);
 	assert(s_cpp.sidebar_position        == s_file.sidebar_position);
-	assert(s_cpp.profile_position        == s_file.profile_position);
-	assert(s_cpp.commands_position       == s_file.commands_position);
+	assert(s_cpp.show_profile            == s_file.show_profile);
+	assert(s_cpp.show_session            == s_file.show_session);
 	assert(s_cpp.layout_mode             == s_file.layout_mode);
 	assert(s_cpp.view_mode               == s_file.view_mode);
 	assert(s_cpp.menu_width              == s_file.menu_width);
@@ -1086,13 +1078,13 @@ static void test_parity_minimal_cpp_vs_file()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: GOVERNED_KEYS completeness + file↔table agreement for all built-ins.
+// runtime implementation: GOVERNED_KEYS completeness + file↔table agreement for all built-ins.
 //
 // These exercise the REAL WhiskerMenu::BUILTIN_PRESETS table and
 // governed_keys() (linked from preset-builtins.cpp), plus the shipped
 // .meowpreset seed files parsed from MEOWMENU_TEST_PRESET_DIR. A missing key
 // or a drifted value fails the build's test stage rather than leaking at
-// runtime (the documented behavior, research R5).
+// runtime (supported behavior, coverage analysis).
 // ---------------------------------------------------------------------------
 
 static const WhiskerMenu::LayoutPreset* find_builtin(const char* id)
@@ -1168,12 +1160,11 @@ static void test_governed_keys_completeness_table()
 		const WhiskerMenu::LayoutPreset& p = WhiskerMenu::BUILTIN_PRESETS[i];
 		for (const auto& k : keys)
 			assert(p.values.find(k) != p.values.end());
-		// Every built-in carries a stored identity name (the documented behavior).
+		// Every built-in carries a stored identity name (supported behavior).
 		assert(!p.name.empty());
-		auto profile = p.values.find("profile-position");
+		auto profile = p.values.find("show-profile");
 		assert(profile != p.values.end());
-		assert(profile->second.kind == WhiskerMenu::PresetValue::Str);
-		assert(!is_legacy_profile_position(profile->second.s));
+		assert(profile->second.kind == WhiskerMenu::PresetValue::Bool);
 	}
 }
 
@@ -1225,8 +1216,6 @@ static void test_file_table_agreement()
 			{
 				gchar* fv = g_key_file_get_string(kf, "Settings", k.c_str(), nullptr);
 				assert(fv && v.s == fv);
-				if (k == "profile-position")
-					assert(!is_legacy_profile_position(fv));
 				g_free(fv);
 			}
 		}
@@ -1239,6 +1228,7 @@ int main()
 	test_classic_property_count();
 	test_modern_property_count();
 	test_fullscreen_property_count();
+	test_minimal_property_count();
 	test_apply_then_no_diff();
 	test_diff_after_modify();
 	test_modern_corner_radius();
@@ -1250,7 +1240,7 @@ int main()
 	test_fullscreen_to_docked_restores_menu_size();
 	test_find_by_id();
 	test_preset_label_resolution();
-	// the implementation step: user preset CRUD
+	// runtime implementation: user preset CRUD
 	test_user_preset_save_then_enumerate();
 	test_user_preset_saves_calculator_values();
 	test_user_preset_rename_updates_name();
@@ -1267,15 +1257,15 @@ int main()
 	test_user_preset_delete_active_falls_back_to_modern();
 	test_preset_typography_classification();
 	test_diff_snapback();
-	// the implementation step: file-seeded preset tests
+	// runtime implementation: file-seeded preset tests
 	test_file_preset_overrides_cpp_table();
 	test_fallback_to_cpp_table_when_files_absent();
-	// the implementation step: parity — C++ table vs file-equivalent preset
+	// runtime implementation: parity — C++ table vs file-equivalent preset
 	test_parity_classic_cpp_vs_file();
 	test_parity_modern_cpp_vs_file();
 	test_parity_fullscreen_cpp_vs_file();
 	test_parity_minimal_cpp_vs_file();
-	// the implementation step: real-table governed-key completeness + file↔table agreement
+	// runtime implementation: real-table governed-key completeness + file↔table agreement
 	test_builtin_layout_modes();
 	test_builtin_category_icon_sizes();
 	test_governed_keys_completeness_table();
