@@ -108,19 +108,19 @@ fi
 # ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
-# Reconfigure only when meson.build or NEWS changed since the last configure,
-# or when --reconfigure is passed explicitly.  This avoids the ~20 compiler-flag
-# checks and 73-target evaluation that meson setup triggers even when nothing
-# changed — the main source of slowness on incremental dev iterations.
+# Reconfigure only when top-level Meson inputs or NEWS changed since the last
+# configure, or when --reconfigure is passed explicitly. Meson itself catches
+# changes to subdirectory meson.build files when compilation starts.
 
 STAMP="${BUILD_DIR}/build.ninja"
 
 needs_reconfigure() {
     [[ "${FORCE_RECONFIGURE}" == true ]] && return 0
     [[ ! -f "${STAMP}" ]] && return 0
-    # Reconfigure if meson.build, meson.options, or NEWS are newer than the stamp.
+    # Reconfigure if meson.build, meson_options.txt, or NEWS are newer than the
+    # generated backend.
     local f
-    for f in "${REPO}/meson.build" "${REPO}/meson.options" "${REPO}/NEWS"; do
+    for f in "${REPO}/meson.build" "${REPO}/meson_options.txt" "${REPO}/NEWS"; do
         [[ -f "${f}" && "${f}" -nt "${STAMP}" ]] && return 0
     done
     return 1
@@ -133,97 +133,164 @@ else
     step "Reconfigure skipped (meson.build and NEWS unchanged)"
 fi
 
+# A truncated .ninja_deps file makes Ninja rebuild every C++ target on every
+# invocation while repeatedly reporting that it is recovering. Probe only the
+# dependency database and discard it when Ninja confirms that exact corruption;
+# the compile below recreates the cache from compiler-generated depfiles.
+NINJA_DEPS="${BUILD_DIR}/.ninja_deps"
+if [[ -f "${NINJA_DEPS}" ]]; then
+    NINJA_DEPS_DIAGNOSTIC="$(ninja -C "${BUILD_DIR}" -t deps 2>&1 >/dev/null || true)"
+    if [[ "${NINJA_DEPS_DIAGNOSTIC}" == *"premature end of file; recovering"* ]]; then
+        step "Reset corrupt Ninja dependency cache"
+        rm -f -- "${NINJA_DEPS}"
+    fi
+fi
+
 run "Compile" \
     meson compile -C "${BUILD_DIR}" -j"$(nproc)"
 
 # ---------------------------------------------------------------------------
-# Install
+# Resolve the install prefix
 # ---------------------------------------------------------------------------
-# Use sudo only when the install prefix is not user-writable.
 
 PREFIX="$(meson introspect --buildoptions "${BUILD_DIR}" \
     | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="prefix"][0])')"
 
+# Do not call uninstall.sh here. It deliberately removes the active plugin and
+# kills its wrapper, which makes Xfce see a configured slot with no module and
+# show the "remove plugin" prompt before the new install can complete. Meson
+# overwrites the installed files in place; the wrapper is recycled only after
+# the new files are present.
+
+# If a previous install left a copy in ~/.local, it silently wins over the
+# system prefix because XDG_DATA_DIRS is searched user-first. Keep it until
+# after the new system copy is installed so a failed install remains usable.
+USER_SO="${HOME}/.local/lib/x86_64-linux-gnu/xfce4/panel/plugins/libmeowmenu.so"
+
+# The explicit compile above is authoritative. --no-rebuild prevents Meson
+# from launching Ninja again as part of installation.
 if [[ -w "${PREFIX}" ]]; then
     run "Install to ${PREFIX}" \
-        meson install -C "${BUILD_DIR}"
+        meson install --no-rebuild -C "${BUILD_DIR}"
 else
     step "Install to ${PREFIX} (sudo)"
-    if ! sudo meson install -C "${BUILD_DIR}" >> "${LOG_FILE}" 2>&1; then
+    if ! sudo meson install --no-rebuild -C "${BUILD_DIR}" >> "${LOG_FILE}" 2>&1; then
         echo "FAILED: Install"; tail -20 "${LOG_FILE}"; exit 1
     fi
-    # sudo meson install regenerates build files as root; restore ownership so
-    # subsequent non-root meson calls (reconfigure, introspect) can write to
-    # meson-private/ without a PermissionError.
-    sudo chown -R "$(id -un):$(id -gn)" "${BUILD_DIR}"
+    # Meson may create its install log as root even when rebuilding is disabled.
+    # Restore ownership only for that metadata file, leaving build artifacts
+    # untouched.
+    INSTALL_LOG="${BUILD_DIR}/meson-logs/install-log.txt"
+    if [[ -e "${INSTALL_LOG}" ]]; then
+        sudo chown "$(id -un):$(id -gn)" "${INSTALL_LOG}"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
-# Remove stale user-prefix shadow copy
+# Reset user state after the replacement is installed
 # ---------------------------------------------------------------------------
-# If a previous install left a copy in ~/.local, it would silently win over
-# the system prefix because XDG_DATA_DIRS is searched user-first.
+# Keep the panel slot and its live wrapper valid throughout installation.
+# Resetting state here still gives every development run a clean configuration
+# while avoiding the transient missing-plugin state caused by uninstall first.
 
-USER_SO="${HOME}/.local/lib/x86_64-linux-gnu/xfce4/panel/plugins/libmeowmenu.so"
 if [[ "${PREFIX}" != "${HOME}/.local" && -e "${USER_SO}" ]]; then
     step "Remove stale ${USER_SO}"
     rm -f "${USER_SO}"
 fi
 
-# ---------------------------------------------------------------------------
-# Reset Xfconf state
-# ---------------------------------------------------------------------------
-# Wipe all MeowMenu state so the next launch behaves like a first install on a
-# clean system: no leftover preset, no /initialized marker, no stale user data.
-#
-# Order matters:
-#   1. Remove user presets from ~/.local/share/meowmenu/.
-#   2. Reset xfce4-panel channel entries for every meowmenu slot via
-#      xfconf-query while xfconfd is alive — this writes the cleaned state to
-#      xfce4-panel.xml on disk before xfconfd is stopped.
-#   3. Delete meowmenu.xml (the plugin's own channel file).
-#   4. Kill xfconfd with SIGKILL so it cannot flush any remaining in-memory
-#      state back to disk; D-Bus auto-restarts it against the clean files.
-
 step "Remove user presets"
 rm -rf "${HOME}/.local/share/meowmenu/" 2>/dev/null || true
+
+# Legacy on-disk channel file (pre-rename installs); harmless to remove if
+# present. Live settings are reset through xfconfd below.
+XFCONF_FILE="${HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml"
+if [[ -f "${XFCONF_FILE}" ]]; then
+    step "Remove legacy Xfconf channel file (meowmenu.xml)"
+    rm -f "${XFCONF_FILE}"
+fi
 
 if command -v xfconf-query >/dev/null 2>&1; then
     step "Reset MeowMenu Xfconf state (xfce4-panel channel + /initialized marker)"
     while IFS= read -r prop; do
-        # Match exactly /plugins/plugin-N (a plugin slot), not its children.
         if [[ "${prop}" =~ ^/plugins/plugin-[0-9]+$ ]]; then
             value="$(xfconf-query --channel xfce4-panel --property "${prop}" 2>/dev/null || true)"
             if [[ "${value}" == "meowmenu" ]]; then
-                step "  Reset ${prop} (recursive)"
-                # Clears every key under the base, the preset and /initialized
-                # marker included, in xfconfd's in-memory store and on disk.
-                xfconf-query --channel xfce4-panel --property "${prop}" \
-                    --reset --recursive 2>/dev/null || true
+                # The root property is the panel's slot registration. Reset
+                # only its direct children so the panel keeps this plugin ID.
+                declare -A child_roots=()
+                while IFS= read -r child; do
+                    [[ "${child}" == "${prop}/"* ]] || continue
+                    child_name="${child#${prop}/}"
+                    child_name="${child_name%%/*}"
+                    child_roots["${prop}/${child_name}"]=1
+                done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
+
+                for child in "${!child_roots[@]}"; do
+                    step "  Reset ${child} (recursive)"
+                    xfconf-query --channel xfce4-panel --property "${child}" \
+                        --reset --recursive 2>/dev/null || true
+                done
             fi
         fi
     done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
 else
-    step "xfconf-query not found — skipping channel reset (reinstall may not be detected as fresh)"
+    step "xfconf-query not found — skipping channel reset"
 fi
 
-XFCONF_FILE="${HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml"
-if [[ -f "${XFCONF_FILE}" ]]; then
-    step "Remove Xfconf channel file (meowmenu.xml)"
-    rm -f "${XFCONF_FILE}"
+# Usage statistics live outside Xfconf and the preset directory. Remove their
+# dedicated cache directory so the new plugin instance starts without ranking
+# history as well as without settings.
+USER_CACHE_ROOT="${XDG_CACHE_HOME:-${HOME}/.cache}"
+USER_CACHE_DIR="${USER_CACHE_ROOT}/xfce4/meowmenu"
+if [[ -e "${USER_CACHE_DIR}" ]]; then
+    step "Remove usage cache ${USER_CACHE_DIR}"
+    rm -rf -- "${USER_CACHE_DIR}"
 fi
-pkill -9 xfconfd 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Reload panel
 # ---------------------------------------------------------------------------
 # Kill the wrapper process that holds the old .so in memory, then ask the
-# panel to relaunch any missing plugins.  `xfce4-panel -r` alone is not
-# enough because it does not recycle live wrappers.
+# panel to relaunch any missing plugins. If the panel process is already gone,
+# --restart is only a request to a nonexistent instance, so start it directly
+# from the preserved Xfconf configuration instead.
 
 pkill -f 'wrapper-2.0.*libmeowmenu\.so' 2>/dev/null || true
-xfce4-panel -r >> "${LOG_FILE}" 2>&1 &
-disown || true
+
+# restart_panel:
+#
+# Recycle a running panel when possible, then fall back to a real launch if
+# that process disappears. The final check prevents install.sh from reporting
+# success while the saved panel configuration is not visible on screen.
+restart_panel() {
+    local panel_pid=""
+
+    panel_pid="$(pgrep -xo xfce4-panel || true)"
+    if [[ -n "${panel_pid}" ]]; then
+        step "Restart Xfce panel"
+        xfce4-panel -r >> "${LOG_FILE}" 2>&1 &
+        disown || true
+        sleep 1
+    fi
+
+    if ! pgrep -x xfce4-panel >/dev/null 2>&1; then
+        step "Start Xfce panel from saved configuration"
+        xfce4-panel --disable-wm-check >> "${LOG_FILE}" 2>&1 &
+        disown || true
+    fi
+
+    for _ in {1..20}; do
+        pgrep -x xfce4-panel >/dev/null 2>&1 && return 0
+        sleep 0.25
+    done
+
+    echo "FAILED: Xfce panel did not stay running"
+    echo "Last output (see ${LOG_FILE} for the full log):"
+    tail -20 "${LOG_FILE}"
+    exit 1
+}
+
+restart_panel
 
 echo "─────────────────────────────────────────"
 echo "  Done. MeowMenu reloaded from ${PREFIX}."
