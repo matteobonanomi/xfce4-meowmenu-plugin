@@ -203,6 +203,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
+	m_strip_trail_spacer(nullptr),
 	m_sidebar_struct(1),
 	m_switch_loc(SwitchLocation::InSidebar),
 	m_category_width_group(nullptr),
@@ -1619,8 +1620,8 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), 0);
-		// Docked: the Horizontal category strip fills the menu width and keeps its
-		// category icons anchored to the trailing edge (supported behavior).
+		// Docked and Centered: the Horizontal category strip fills the menu width;
+		// symmetric spacers center its category group.
 		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), 0);
@@ -1775,6 +1776,12 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 			{
 				category_toggled();
 			});
+	}
+	if (m_layout_categories_horizontal && m_strip_trail_spacer)
+	{
+		// Category discovery appends new buttons after the trailing spacer;
+		// restore the centered strip order before the next allocation pass.
+		gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
 	}
 
 	// Now that the application categories are known, recompute the shared
@@ -3663,24 +3670,29 @@ void WhiskerMenu::Window::update_layout()
 			}
 			if (!m_strip_lead_spacer)
 			{
-				// Leading expander that pushes the category icons to the trailing
-				// edge inside the (stretched) viewport (supported behavior). A GtkViewport
-				// stretches its child to the view width and ignores child halign,
-				// so the trailing pull must come from an expanding child rather than
-				// an alignment.
+				// GtkViewport stretches its child to the view width and ignores child
+				// halign, so equal expanding spacers provide centering without
+				// changing the strip's width authority or overflow behavior.
 				m_strip_lead_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 				gtk_widget_set_hexpand(m_strip_lead_spacer, TRUE);
 				gtk_box_pack_start(m_category_buttons, m_strip_lead_spacer, true, true, 0);
 			}
+			if (!m_strip_trail_spacer)
+			{
+				m_strip_trail_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+				gtk_widget_set_hexpand(m_strip_trail_spacer, TRUE);
+				gtk_box_pack_start(m_category_buttons, m_strip_trail_spacer, true, true, 0);
+			}
 			scroller_add_child(m_strip_scroll, GTK_WIDGET(m_category_buttons));
-			// Single row: categories flush-trailing (StripGeometry
-			// categories_anchor). The categories box
-			// fills the available width (docked = menu width); the fullscreen pass
-			// in show() applies the shared main-column margins so the strip
-			// tracks the results box. This spacer pins the icons trailing.
-				gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
-						meow_strip_spacer_order(true));
-				gtk_widget_show(m_strip_lead_spacer);
+			// Single row: the category group is centered by the symmetric spacers.
+			// The categories box fills the available width. The fullscreen pass
+			// applies the shared main-column margins so the strip
+			// tracks the results box.
+			gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
+				meow_strip_spacer_order(true));
+			gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
+			gtk_widget_show(m_strip_lead_spacer);
+			gtk_widget_show(m_strip_trail_spacer);
 			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 			// The strip's column width and its edge alignment with the results box
 			// in full-screen are owned by the FILL + symmetric-margin geometry
@@ -3701,10 +3713,12 @@ void WhiskerMenu::Window::update_layout()
 			// scroller either way; the sidebar itself is shown only when enabled.
 			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons),
 					GTK_ORIENTATION_VERTICAL);
-			// The strip-only trailing spacer must not consume space in the
-			// vertical sidebar list; hiding it removes it from allocation entirely.
+			// Strip-only spacers must not consume space in the vertical sidebar
+			// list; hiding them removes them from allocation entirely.
 			if (m_strip_lead_spacer)
 				gtk_widget_hide(m_strip_lead_spacer);
+			if (m_strip_trail_spacer)
+				gtk_widget_hide(m_strip_trail_spacer);
 			scroller_add_child(m_sidebar, GTK_WIDGET(m_category_buttons));
 			gtk_widget_set_visible(GTK_WIDGET(m_categories_box), false);
 			gtk_widget_set_visible(GTK_WIDGET(m_sidebar), want_vertical);
@@ -3712,14 +3726,16 @@ void WhiskerMenu::Window::update_layout()
 			// container imposes nothing on its size group.
 			gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		}
-			g_object_unref(m_category_buttons);
-			m_sidebar_struct = want_struct;
-		}
-		if (want_strip && m_strip_lead_spacer)
+		g_object_unref(m_category_buttons);
+		m_sidebar_struct = want_struct;
+	}
+	if (want_strip && m_strip_lead_spacer && m_strip_trail_spacer)
 		{
 			gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
 					meow_strip_spacer_order(true));
+			gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
 			gtk_widget_show(m_strip_lead_spacer);
+			gtk_widget_show(m_strip_trail_spacer);
 		}
 
 	// Re-home the Apps/Places switch to match the computed presentation.

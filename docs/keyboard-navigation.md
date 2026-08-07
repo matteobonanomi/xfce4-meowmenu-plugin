@@ -54,9 +54,13 @@ In Full Screen, Profile, Search, and available Session actions share the fixed
 top row. With no vertical sidebar, Apps/Places also belongs to that row between
 Profile and Search; with a vertical sidebar, it remains part of the sidebar.
 Horizontal category navigation stays in its strip, while Apps/Places follows
-the no-vertical-sidebar row and spans the same centred width as Results. The
-whole logical row mirrors in right-to-left interfaces. No hidden alternate
-search or bottom row participates in focus navigation.
+the no-vertical-sidebar row and spans the same centred width as Results. When
+the category entries fit, the Horizontal group is centered within its strip;
+the strip uses the full menu width in Docked/Centered and the Results-width
+column in Full Screen. Overflow remains inside the strip, and Apps/Places is
+not part of the centered category group. The whole logical row mirrors in
+right-to-left interfaces. No hidden alternate search or bottom row participates
+in focus navigation.
 
 ## Moving within an area
 

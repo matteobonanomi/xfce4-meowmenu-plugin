@@ -106,7 +106,10 @@ Centered it appears on the Results edge opposite the primary row; when the
 secondary row is present, that row sits farther outward. Apps/Places never
 belongs to the Horizontal strip: it follows the same logical row relocation as
 a disabled sidebar, including the unified Search-row placement in Minimal-style
-compositions. Logical leading/trailing order and keyboard traversal mirror in
+compositions. When the category group fits, it is centered across the complete
+menu width in Docked and Centered; in Full Screen it is centered within the
+Results-width strip. Overflow scrolls inside that width without enlarging the
+menu. Logical leading/trailing order and keyboard traversal mirror in
 right-to-left interfaces, while explicit Left and Right sidebars stay on their
 selected physical sides. Every hidden or unavailable control is removed from
 allocation, shared-width sizing, and focus navigation.
@@ -192,7 +195,7 @@ expects argument splitting.
 | Option | Description |
 |--------|-------------|
 | Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch stays in the secondary row unless Profile and Session are also hidden, in which case it shares the Search row. The results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
-| Position | Place the sidebar on the **left**, **right**, or in a **Horizontal** strip. In Docked and Centered, Horizontal appears on the Results edge opposite the primary row; in Full Screen it appears below Results. The strip contains category navigation only; Apps/Places remains in the same row home used when the sidebar is disabled. The strip scrolls when needed, and **Show category name** is unavailable. |
+| Position | Place the sidebar on the **left**, **right**, or in a **Horizontal** strip. In Docked and Centered, Horizontal appears on the Results edge opposite the primary row; in Full Screen it appears below Results. The strip contains category navigation only; a fitting category group is centered across the full menu in Docked/Centered or the Results-width column in Full Screen. Apps/Places remains in the same row home used when the sidebar is disabled. The strip scrolls when needed without widening the menu, and **Show category name** is unavailable. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (`-1` through `6`; `-1` inherits the theme size). |
 | Sort categories | Sort the category list alphabetically. |

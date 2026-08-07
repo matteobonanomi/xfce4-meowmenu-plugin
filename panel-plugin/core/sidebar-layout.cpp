@@ -103,16 +103,16 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 
 StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr)
 {
-	(void)ltr; // order is direction-independent; anchors are direction-relative
+	(void)ltr; // stacking and centered category placement are direction-independent
 	StripGeometry out;
 	out.order = (position == SidebarPosition::Bottom)
 			? StripOrder::StripBelowResults
 			: StripOrder::StripAboveResults;
-	// Single-row anchoring: toggle pinned leading, categories pinned trailing,
-	// with the slack between them. Leading/Trailing map to GTK START/END, so the
-	// physical side follows the text direction without a branch here.
+	// The selector has its own derived home; only category navigation belongs to
+	// this strip. Symmetric expansion in the GTK box centers the group without
+	// changing its physical result in RTL.
 	out.toggle_anchor = StripAnchor::Leading;
-	out.categories_anchor = StripAnchor::Trailing;
+	out.categories_anchor = StripAnchor::Center;
 	out.width_from_main_column = true;
 	return out;
 }

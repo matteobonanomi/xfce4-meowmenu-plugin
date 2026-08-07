@@ -60,6 +60,13 @@ and geometry differences separately from compositor-delivered global shortcut
 behavior; this subset is experimental evidence and does not establish X11
 parity.
 
+For every Horizontal-sidebar case whose categories fit, verify equal remaining
+space on both sides of the category group within one device pixel. In Docked
+and Centered, measure against the complete menu width; in Full Screen, measure
+against the Results-width strip. Repeat with enough categories to overflow and
+confirm that scrolling stays inside the same strip without widening or
+displacing the menu. Apps/Places must remain in its derived non-strip home.
+
 ## Routine CI and timing evidence
 
 Every pull request to `main` and every `main` push runs one full

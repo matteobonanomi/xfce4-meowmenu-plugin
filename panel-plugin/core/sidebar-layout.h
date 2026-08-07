@@ -156,28 +156,30 @@ enum class StripOrder
 };
 
 // Direction-relative anchoring of a group within the horizontal strip. Leading
-// maps to GTK START and Trailing to GTK END, so RTL is handled for free: the
-// leading edge is the left in LTR and the right in RTL.
+// and Trailing map to GTK START and GTK END; Center uses symmetric expansion
+// and is therefore unchanged by text direction.
 enum class StripAnchor
 {
 	Leading,
-	Trailing
+	Trailing,
+	Center
 };
 
 /* StripGeometry:
  *
  * The render-time geometry of a docked Top/Bottom category strip: where it sits
  * relative to the results box, where its two groups anchor on the single row,
- * and that its width tracks the Full Screen main column. The Apps/Places toggle
- * anchors to the leading edge and the category-icon group to the trailing edge,
- * with the slack between them; width_from_main_column is an invariant (always
- * true). The fields are surfaced so the unit test pins them against drift.
+ * and that its width tracks the Full Screen main column. The category-icon
+ * group is centered within the available strip width; Apps/Places remains in
+ * its independently resolved row home. width_from_main_column is an invariant
+ * (always true). The fields are surfaced so the unit test pins them against
+ * drift.
  */
 struct StripGeometry
 {
 	StripOrder order;
-	StripAnchor toggle_anchor;      // always Leading — toggle pinned to the row's leading edge
-	StripAnchor categories_anchor;  // always Trailing — categories pinned to the trailing edge
+	StripAnchor toggle_anchor;      // retained for the separate switch role
+	StripAnchor categories_anchor;  // always Center — categories are centered
 	bool width_from_main_column;    // always true — results/application column
 };
 
@@ -191,7 +193,8 @@ struct FullscreenMainColumn
  * @position: the stored sidebar position (only Top/Bottom produce a strip).
  * @ltr: text direction; passed for completeness — the vertical strip order is
  *       direction-independent (a Top strip is above the results in LTR and RTL),
- *       and the leading/trailing anchors are themselves direction-relative.
+ *       and the leading/trailing anchors are themselves direction-relative;
+ *       centered category placement is direction-independent.
  *
  * Pure decision for a Top/Bottom strip's stacking order, row anchoring, and
  * width source. Top places the strip above the results box (it sits below the
@@ -199,8 +202,8 @@ struct FullscreenMainColumn
  * and default to the Top arrangement (the caller does not render a strip for
  * them).
  *
- * Returns: the resolved StripGeometry; toggle_anchor is always Leading,
- * categories_anchor always Trailing, and width_from_main_column always true.
+ * Returns: the resolved StripGeometry; toggle_anchor remains Leading,
+ * categories_anchor is Center, and width_from_main_column is always true.
  */
 StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr);
 
@@ -252,11 +255,12 @@ int meow_toggle_button_height_px(SwitchLocation location, bool categories_horizo
 		int category_px);
 
 /* meow_strip_spacer_order:
-	 * @categories_horizontal: true when the category box is the Horizontal strip.
+ * @categories_horizontal: true when the category box is the Horizontal strip.
  *
- * The horizontal strip keeps one expanding spacer before all category buttons.
- * Reapplying this order on every layout pass keeps built-in category buttons
- * grouped with dynamic categories after hover, mode switches, close, and reopen.
+ * The horizontal strip keeps its leading expanding spacer before all category
+ * buttons. Reapplying this order on every layout pass keeps built-in category
+ * buttons grouped with dynamic categories after hover, mode switches, close,
+ * and reopen.
  *
  * Returns: child index for the spacer, or -1 when no strip spacer is active.
  */

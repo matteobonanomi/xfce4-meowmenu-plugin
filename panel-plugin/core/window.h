@@ -339,11 +339,11 @@ private:
 	// Apps/Places selector is not a child of this strip. nullptr until the
 	// sidebar is first shown horizontally.
 	GtkScrolledWindow* m_strip_scroll;
-	// Expanding spacer pinned as the leading child of m_category_buttons in
-	// strip mode so the category icons sit flush-trailing (supported behavior).
-	// Hidden (and thus ignored in allocation) in the vertical sidebar. Created
-	// lazily with m_strip_scroll.
+	// Symmetric expanding spacers around the category group in strip mode. They
+	// center fitting category lists while collapsing to the available slack when
+	// the list overflows. Hidden in the vertical sidebar.
 	GtkWidget* m_strip_lead_spacer;
+	GtkWidget* m_strip_trail_spacer;
 	// Current structural placement of the category list, so update_layout()
 	// only reparents on an actual transition: 1 = vertical sidebar,
 	// 2 = horizontal strip, 3 = hidden (sidebar disabled).

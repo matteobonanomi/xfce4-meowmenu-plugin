@@ -151,9 +151,9 @@ void WhiskerMenu::Window::reset_default_button()
 		break;
 	}
 
-	// NOTE: the default-button reorders above can push leading controls past the
-	// built-ins. Keep the strip spacer first when visible so it can continue to
-	// pin the built-ins to the trailing edge across close/reopen.
+	// NOTE: the default-button reorders above can push the strip spacers past the
+	// built-ins. Keep both ends stable so the category group stays centered
+	// across close/reopen.
 	if (m_strip_lead_spacer && gtk_widget_get_visible(m_strip_lead_spacer))
 	{
 		gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
@@ -176,6 +176,10 @@ void WhiskerMenu::Window::reset_default_button()
 					== GTK_WIDGET(m_category_buttons))
 	{
 		gtk_box_reorder_child(m_category_buttons, m_mode_selector_separator, 2);
+	}
+	if (m_strip_trail_spacer && gtk_widget_get_visible(m_strip_trail_spacer))
+	{
+		gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
 	}
 }
 

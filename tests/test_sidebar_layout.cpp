@@ -179,26 +179,25 @@ void horizontal_edge_derivation()
 			== SidebarPosition::Left);
 }
 
-// Top/Bottom strip stacking order, row anchoring, and width source
-// (supported behavior). The toggle anchors leading and the category group
-// trailing on a single row; the order is direction-independent and the anchors
-// are direction-relative, so both LTR and RTL resolve identically here.
+// Top/Bottom strip stacking order, category centering, and width source
+// (supported behavior). The category group is centered within the strip; the
+// order is direction-independent and the separate switch role remains leading.
 void strip_geometry_ordering()
 {
-	// Bottom → strip below the results box; Top → strip above. Anchoring is
-	// identical in LTR and RTL: toggle Leading, categories Trailing, always.
+	// Bottom → strip below the results box; Top → strip above. Geometry is
+	// identical in LTR and RTL: the category group is centered in either mode.
 	for (bool ltr : { true, false })
 	{
 		StripGeometry top = meow_compute_strip_geometry(SidebarPosition::Top, ltr);
 		CHECK(top.order == StripOrder::StripAboveResults);
 		CHECK(top.toggle_anchor == StripAnchor::Leading);
-		CHECK(top.categories_anchor == StripAnchor::Trailing);
+		CHECK(top.categories_anchor == StripAnchor::Center);
 		CHECK(top.width_from_main_column);
 
 		StripGeometry bottom = meow_compute_strip_geometry(SidebarPosition::Bottom, ltr);
 		CHECK(bottom.order == StripOrder::StripBelowResults);
 		CHECK(bottom.toggle_anchor == StripAnchor::Leading);
-		CHECK(bottom.categories_anchor == StripAnchor::Trailing);
+		CHECK(bottom.categories_anchor == StripAnchor::Center);
 		CHECK(bottom.width_from_main_column);
 	}
 }
@@ -230,7 +229,7 @@ void fullscreen_places_disabled_strip_centers_categories()
 
 	StripGeometry top = meow_compute_strip_geometry(SidebarPosition::Top, true);
 	CHECK(top.width_from_main_column);
-	CHECK(top.categories_anchor == StripAnchor::Trailing);
+	CHECK(top.categories_anchor == StripAnchor::Center);
 }
 
 // Toggle icon-size source (ui-contract §1, supported behavior): the toggle
@@ -271,6 +270,7 @@ void horizontal_switch_button_height_source()
 
 void strip_spacer_order_decision()
 {
+	// The matching trailing spacer is appended after every category button.
 	CHECK(meow_strip_spacer_order(true) == 0);
 	CHECK(meow_strip_spacer_order(false) == -1);
 }
