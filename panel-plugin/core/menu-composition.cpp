@@ -181,14 +181,16 @@ MenuComposition meow_resolve_menu_composition(const MenuCompositionInput& input)
 				? MenuControlLocation::PrimaryRow
 				: MenuControlLocation::SecondaryRow)
 			: MenuControlLocation::Hidden;
+	const bool no_vertical_sidebar = input.sidebar == CompositionSidebar::Hidden
+				|| input.sidebar == CompositionSidebar::Horizontal;
 
 	if (!input.places_enabled)
 		out.apps_places_location = MenuControlLocation::Hidden;
 	else if (input.layout_mode == LayoutMode::FullScreen)
-		out.apps_places_location = input.sidebar == CompositionSidebar::Hidden
+		out.apps_places_location = no_vertical_sidebar
 				? MenuControlLocation::PrimaryRow
 				: MenuControlLocation::Sidebar;
-	else if (input.sidebar == CompositionSidebar::Hidden
+	else if (no_vertical_sidebar
 				&& !out.effective_session && !out.effective_profile)
 		out.apps_places_location = MenuControlLocation::PrimaryRow;
 	else

@@ -51,12 +51,12 @@ decorative, empty, and mode-switch controls are skipped. There is no wrapping;
 an outer edge with no target is a consumed no-op.
 
 In Full Screen, Profile, Search, and available Session actions share the fixed
-top row. With no sidebar, Apps/Places also belongs to that row between Profile
-and Search; with a sidebar, it remains part of the sidebar. Search and any
-no-sidebar Apps/Places selector span the same centred width as Results, so
-directional crossings use those visible aligned edges. The whole logical row
-mirrors in right-to-left interfaces. No hidden alternate search or bottom row
-participates in focus navigation.
+top row. With no vertical sidebar, Apps/Places also belongs to that row between
+Profile and Search; with a vertical sidebar, it remains part of the sidebar.
+Horizontal category navigation stays in its strip, while Apps/Places follows
+the no-vertical-sidebar row and spans the same centred width as Results. The
+whole logical row mirrors in right-to-left interfaces. No hidden alternate
+search or bottom row participates in focus navigation.
 
 ## Moving within an area
 

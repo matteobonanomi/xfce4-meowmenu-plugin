@@ -72,8 +72,8 @@ void row2_vertical_names_off()
 	CHECK(p.effective_show_category_names == false);
 }
 
-// Row 3: ON, Horizontal, any, Places on → horizontal strip, icons forced
-// on, names forced off, switch horizontal in sidebar.
+// Row 3: ON, Horizontal, any, Places on → horizontal category strip plus a
+// unified Search-row switch, icons forced on, and names forced off.
 void row3_strip()
 {
 	for (SidebarPosition pos : { SidebarPosition::Horizontal })
@@ -84,7 +84,7 @@ void row3_strip()
 					make_state(true, pos, names, false, true));
 			CHECK(p.sidebar_visible);
 			CHECK(p.categories_horizontal);
-			CHECK(p.switch_location == SwitchLocation::InSidebar);
+			CHECK(p.switch_location == SwitchLocation::InSearchBar);
 			CHECK(p.switch_orientation == SwitchOrientation::Horizontal);
 			CHECK(p.effective_show_icons == true);            // forced
 			CHECK(p.effective_show_category_names == false);  // forced
@@ -304,6 +304,15 @@ void label_visibility_decision()
 	CHECK(meow_category_label_visible(true,  true)  == false);  // horizontal strip → icon-only
 	CHECK(meow_category_label_visible(false, false) == false);  // names off
 	CHECK(meow_category_label_visible(false, true)  == false);  // names off + strip
+
+	// The renderer must derive the strip state from the supported stored value;
+	// a forced icon-only presentation must not change the stored name intent.
+	const bool horizontal = meow_parse_sidebar_position("horizontal")
+			== SidebarPosition::Horizontal;
+	const bool left_is_horizontal = meow_parse_sidebar_position("left")
+			== SidebarPosition::Horizontal;
+	CHECK(meow_category_label_visible(true, horizontal) == false);
+	CHECK(meow_category_label_visible(true, left_is_horizontal) == true);
 }
 
 // The sidebar label cap is one fixed mode-agnostic rule (INV-3): a label is

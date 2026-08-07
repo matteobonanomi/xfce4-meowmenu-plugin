@@ -219,6 +219,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_layout_profile_hidden(false),
 	m_layout_commands_hidden(false),
 	m_layout_available_session_actions(0),
+	m_layout_needs_sync(true),
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
@@ -813,13 +814,9 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	// Show widgets
 	gtk_widget_show_all(GTK_WIDGET(m_frame));
 
-	// NOTE: gtk_widget_show_all above unconditionally reveals the apps/places
-	// mode selector. update_layout() is the source of truth for its visibility,
-	// but show() only invokes update_layout() when one of the layout booleans
-	// changed — and for presets whose layout booleans happen to match the
-	// constructor defaults (e.g. Classic), it never fires on first open. Sync
-	// the mode-selector and its separator with places_enabled here so the
-	// initial state matches the toggle even when update_layout() is skipped.
+	// NOTE: gtk_widget_show_all above unconditionally reveals the Apps/Places
+	// selector. Keep this temporary visibility aligned with Places until the
+	// authoritative layout pass at the start of the first opening.
 	if (m_mode_selector_box)
 	{
 		gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box),
@@ -1312,6 +1309,7 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 
 	// Hide window
 	gtk_widget_hide(GTK_WIDGET(m_window));
+	m_layout_needs_sync = true;
 
 	// Switch back to default page
 	show_default_page();
@@ -1505,17 +1503,20 @@ void WhiskerMenu::Window::show(const Position position)
 
 	const bool cats_horizontal = sidebar_layout
 			== CompositionSidebar::Horizontal;
-	// Sidebar behavior: these stored settings are not legacy layout booleans, but
-	// they change the switch/sidebar presentation, so include them in the
-	// relayout trigger (orientation, icon-mode, enable/disable, heading).
+	// Sidebar behavior: capture these stored settings before the authoritative
+	// opening pass so the selector presentation and category structure use one
+	// snapshot (orientation, icon mode, enable/disable, and heading).
 	const bool sidebar_enabled = m_settings->sidebar_enabled;
 	const bool switch_show_icons = m_settings->places_switch_show_icons;
 	const bool category_show_name = m_settings->category_show_name;
 	// The Apps/Places toggle inherits the category icon size when it lives in a
-	// sidebar, so a live category-icon-size edit must re-run update_layout() to
-	// resize the toggle (the category buttons reload unconditionally below).
+	// vertical sidebar, so the opening pass also refreshes its allocation after
+	// the category buttons reload below.
 	const int category_icon_size = m_settings->category_icon_size;
-	if ((m_layout_ltr != layout_ltr)
+	// A hidden menu can retain the previous selector parent and strip order;
+	// m_layout_needs_sync forces both to be resolved before this frame is shown.
+	if (m_layout_needs_sync
+			|| (m_layout_ltr != layout_ltr)
 			|| (m_layout_categories_horizontal != cats_horizontal)
 			|| (m_layout_sidebar_position != sidebar_layout)
 			|| (m_layout_sidebar_enabled != sidebar_enabled)
@@ -1540,6 +1541,7 @@ void WhiskerMenu::Window::show(const Position position)
 		m_profile->update_picture();
 		m_profile_shape = m_settings->profile_shape;
 		update_layout();
+		m_layout_needs_sync = false;
 	}
 
 	// Sidebar visibility now follows the Enable-sidebar switch (supported behavior);
@@ -1568,10 +1570,9 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_size_request(GTK_WIDGET(m_primary_middle), column.width, -1);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_primary_middle), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_primary_middle), 0);
-		// Full-screen strip parity: the Top/Bottom category strip shares the
-		// results/application column. Identical FILL + margins put the leading
-		// toggle and trailing category icons on the same edges as the results
-		// box, with the slack between them. Set on every relayout so
+		// Full-screen strip parity: the Horizontal category strip shares the
+		// results/application column. Identical FILL + margins put the category
+		// icons on the same edges as the results box. Set on every relayout so
 		// docked/full-screen and orientation flips reflow with no stale margins.
 		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), column.margin);
@@ -1589,7 +1590,7 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), sidebar_width, -1);
 		// The one-sided compensating margin is correct *only* when a vertical
 		// sidebar actually occupies one side. The sidebar is shown only when it is
-		// enabled and not laid out as a Top/Bottom strip; in every other case
+		// enabled and not laid out as a Horizontal strip; in every other case
 		// (sidebar disabled, or a horizontal strip) no widget fills that side, so a
 		// one-sided margin would shove the results box off-centre — exactly the
 		// "no void on the left" symptom. Mirror the margin on both sides there to
@@ -1618,8 +1619,8 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_size_request(GTK_WIDGET(m_sidebar), -1, -1);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_panels_stack), 0);
-		// Docked: the strip fills the menu width so the toggle reaches the leading
-		// edge and the categories the trailing edge of the menu (supported behavior).
+		// Docked: the Horizontal category strip fills the menu width and keeps its
+		// category icons anchored to the trailing edge (supported behavior).
 		gtk_widget_set_halign(GTK_WIDGET(m_categories_box), GTK_ALIGN_FILL);
 		gtk_widget_set_margin_start(GTK_WIDGET(m_categories_box), 0);
 		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), 0);
@@ -3281,9 +3282,9 @@ void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pr
 	set_mode_button_content(m_mode_btn_places, icons, MEOW_SWITCH_PLACES_ICONS,
 			_("Places"), _("Places"), icon_px);
 
-	// The horizontal strip is icon-only, so the mode switch must use the same
-	// height as the category icon buttons. Width stays natural so the segmented
-	// control remains comfortably wider than one icon.
+	// A defensive strip height request is retained for the pure presentation
+	// helper, but the supported Horizontal path relocates the selector to the
+	// unified Search row and therefore leaves its natural height untouched.
 	GtkStyleContext* selector_context =
 			gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box));
 	if (button_height_px > 0)
@@ -3367,8 +3368,7 @@ void WhiskerMenu::Window::apply_menu_composition(
 	else if (composition.apps_places_location == MenuControlLocation::SecondaryRow)
 		switch_parent = m_secondary_row;
 	else if (composition.apps_places_location == MenuControlLocation::Sidebar)
-		switch_parent = m_layout_categories_horizontal
-				? m_categories_box : m_category_buttons;
+		switch_parent = m_category_buttons;
 	if (switch_parent)
 		meow_box_repack_child(switch_parent, GTK_WIDGET(m_mode_selector_box),
 				false, false, false, 0);
@@ -3408,9 +3408,7 @@ void WhiskerMenu::Window::apply_menu_composition(
 			composition.session_alignment == MenuAlignment::Fill
 					? GTK_ALIGN_FILL : GTK_ALIGN_END);
 	const bool selector_in_row = composition.apps_places_location
-			== MenuControlLocation::SecondaryRow
-			|| (composition.apps_places_location == MenuControlLocation::Sidebar
-				&& m_layout_categories_horizontal);
+			== MenuControlLocation::SecondaryRow;
 	gtk_widget_set_margin_top(GTK_WIDGET(m_mode_selector_box),
 			selector_in_row ? 6 : 0);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(m_mode_selector_box),
@@ -3570,8 +3568,22 @@ void WhiskerMenu::Window::update_layout()
 	MenuComposition composition =
 			meow_resolve_menu_composition(composition_input);
 	SwitchPresentation effective_pres = pres;
-	if (composition.apps_places_location == MenuControlLocation::SecondaryRow)
+	switch (composition.apps_places_location)
+	{
+	case MenuControlLocation::PrimaryRow:
+		effective_pres.switch_location = SwitchLocation::InSearchBar;
+		break;
+	case MenuControlLocation::SecondaryRow:
 		effective_pres.switch_location = SwitchLocation::InSecondaryRow;
+		break;
+	case MenuControlLocation::Sidebar:
+		effective_pres.switch_location = SwitchLocation::InSidebar;
+		break;
+	case MenuControlLocation::Hidden:
+	default:
+		effective_pres.switch_location = SwitchLocation::None;
+		break;
+	}
 
 	const bool switch_visible =
 			(effective_pres.switch_location != SwitchLocation::None);
@@ -3603,8 +3615,8 @@ void WhiskerMenu::Window::update_layout()
 
 	// Arrange the category list and the Apps/Places switch structurally
 	// (sidebar behavior). Three category-list placements — vertical sidebar,
-	// horizontal Top/Bottom strip, or hidden (sidebar disabled) — and three
-	// switch homes — sidebar list, strip-leading, or the search-bar row — are
+	// Horizontal strip, or hidden (sidebar disabled) — and three switch homes —
+	// vertical sidebar list, shared secondary row, or unified Search row — are
 	// reconciled here. Transitions are guarded by m_sidebar_struct / m_switch_loc
 	// so a steady-state pass performs no reparenting.
 	const bool want_vertical = effective_pres.sidebar_visible
@@ -3652,8 +3664,7 @@ void WhiskerMenu::Window::update_layout()
 			if (!m_strip_lead_spacer)
 			{
 				// Leading expander that pushes the category icons to the trailing
-				// edge inside the (stretched) viewport, so the slack falls between
-				// the leading toggle and the trailing icons (supported behavior). A GtkViewport
+				// edge inside the (stretched) viewport (supported behavior). A GtkViewport
 				// stretches its child to the view width and ignores child halign,
 				// so the trailing pull must come from an expanding child rather than
 				// an alignment.
@@ -3662,12 +3673,11 @@ void WhiskerMenu::Window::update_layout()
 				gtk_box_pack_start(m_category_buttons, m_strip_lead_spacer, true, true, 0);
 			}
 			scroller_add_child(m_strip_scroll, GTK_WIDGET(m_category_buttons));
-			// Single row: toggle flush-leading, categories flush-trailing
-			// (StripGeometry toggle_anchor/categories_anchor). The categories box
+			// Single row: categories flush-trailing (StripGeometry
+			// categories_anchor). The categories box
 			// fills the available width (docked = menu width); the fullscreen pass
 			// in show() applies the shared main-column margins so the strip
-			// tracks the results box. The switch is pinned leading below;
-			// this spacer pins the icons trailing.
+			// tracks the results box. This spacer pins the icons trailing.
 				gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
 						meow_strip_spacer_order(true));
 				gtk_widget_show(m_strip_lead_spacer);
@@ -3720,16 +3730,9 @@ void WhiskerMenu::Window::update_layout()
 		switch (effective_pres.switch_location)
 		{
 		case SwitchLocation::InSidebar:
-			// Strip: the toggle anchors to the row's leading edge
-			// (StripGeometry.toggle_anchor == Leading). It is pack_start'd +
-			// reordered to child 0 in m_categories_box, outside the scroller
-			// (supported behavior); pack_start is direction-aware, so it follows
-			// m_layout_ltr (leading = left in LTR, right in RTL) for free, and the
-			// trailing category icons stay pinned by m_strip_lead_spacer. When the
-			// toggle is absent (None) this leading anchor is simply left empty
-			// (supported behavior). Vertical sidebar: first child of the button list.
-			target = want_strip ? GTK_WIDGET(m_categories_box)
-			                     : GTK_WIDGET(m_category_buttons);
+			// Apps/Places is owned by a vertical category list only. Horizontal
+			// category strips never use this location.
+			target = GTK_WIDGET(m_category_buttons);
 			break;
 		case SwitchLocation::InSecondaryRow:
 			// A visible Session group owns the secondary row. The composition
@@ -3753,8 +3756,8 @@ void WhiskerMenu::Window::update_layout()
 					gtk_container_remove(GTK_CONTAINER(cur), sw);
 			if (effective_pres.switch_location == SwitchLocation::InSearchBar)
 			{
-				// Plain (non-unified) search row: the embedded switch is anchored
-				// before the command buttons (the leading side), not at the very
+				// Search-row staging: the embedded switch is anchored before the
+				// command buttons (the leading side), not at the very
 				// trailing edge, so the commands stay rightmost and the search entry
 				// shrinks to make room (supported behavior). When no commands share the row the
 				// switch becomes the trailing element. The leading placement is the
@@ -3779,7 +3782,7 @@ void WhiskerMenu::Window::update_layout()
 			}
 			else
 			{
-				// Strip / vertical sidebar: the toggle anchors leading (child 0).
+				// The vertical sidebar keeps the selector before its categories.
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
 				}
@@ -3787,7 +3790,7 @@ void WhiskerMenu::Window::update_layout()
 			}
 			else if (target && cur == target
 					&& effective_pres.switch_location == SwitchLocation::InSidebar
-					&& want_strip)
+					&& want_vertical)
 			{
 				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
 			}

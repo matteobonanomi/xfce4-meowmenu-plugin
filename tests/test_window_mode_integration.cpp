@@ -95,10 +95,33 @@ struct ModeWidgets
 	}
 };
 
+void check_horizontal_selector_home()
+{
+	for (LayoutMode mode : { LayoutMode::Docked, LayoutMode::Centered,
+			LayoutMode::FullScreen })
+	{
+		MenuCompositionInput hidden = { mode, PrimaryEdge::Bottom,
+				CompositionSidebar::Hidden, false, false, 0, true,
+				MenuDirection::LeftToRight };
+		MenuCompositionInput horizontal = hidden;
+		horizontal.sidebar = CompositionSidebar::Horizontal;
+		const MenuComposition hidden_out =
+				meow_resolve_menu_composition(hidden);
+		const MenuComposition horizontal_out =
+				meow_resolve_menu_composition(horizontal);
+		CHECK(horizontal_out.apps_places_location
+				== hidden_out.apps_places_location);
+		CHECK(horizontal_out.primary_slots == hidden_out.primary_slots);
+		CHECK(horizontal_out.apps_places_location
+				== MenuControlLocation::PrimaryRow);
+	}
+}
+
 }
 
 int main()
 {
+	check_horizontal_selector_home();
 	if (!gtk_init_check(nullptr, nullptr))
 	{
 		std::printf("# SKIP: GTK could not initialise (no display)\n");

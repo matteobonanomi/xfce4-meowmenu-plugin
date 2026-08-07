@@ -143,8 +143,8 @@ class RepositoryPresentationTest(unittest.TestCase):
             "`left`, `right`, or `horizontal`",
             "logical trailing edge of its Results",
             "icons use the same effective size",
-            "whenever Profile or the sidebar is visible",
-            "Only when Profile, the sidebar, and Session are all hidden",
+            "whenever Profile or a vertical sidebar is visible",
+            "Only when Profile, the vertical sidebar, and Session are all hidden",
             "Search remains visible with a positive usable allocation",
             "logical-leading, Search is",
         ):

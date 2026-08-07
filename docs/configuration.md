@@ -73,10 +73,14 @@ Apps/Places and available Session actions use a derived secondary row:
 
 | Sidebar | Available Session actions | Places | Apps/Places | Secondary row |
 |---------|---------------------------|--------|-------------|---------------|
-| Visible | One or more | On | Sidebar-side role in the secondary row | Visible with Session at the logical trailing edge of Results |
-| Visible | One or more | Off | Hidden | Visible with Session at the logical trailing edge of Results |
-| Visible | None | On | Secondary-row sidebar-side role | Visible |
-| Visible | None | Off | Hidden | Hidden |
+| Left/Right | One or more | On | Sidebar-side role in the secondary row | Visible with Session at the logical trailing edge of Results |
+| Left/Right | One or more | Off | Hidden | Visible with Session at the logical trailing edge of Results |
+| Left/Right | None | On | Secondary-row sidebar-side role | Visible |
+| Left/Right | None | Off | Hidden | Hidden |
+| Horizontal | One or more | On | Logical leading side of the secondary row | Visible with Session at logical trailing |
+| Horizontal | One or more | Off | Hidden | Visible with Session at logical trailing |
+| Horizontal | None | On | Secondary row when Profile is visible; primary Search row otherwise | Visible when Profile is visible; hidden otherwise |
+| Horizontal | None | Off | Hidden | Hidden |
 | Disabled | One or more | On | Logical leading side of the bottommost row | Visible with Session at logical trailing |
 | Disabled | One or more | Off | Hidden | Visible with Session at logical trailing |
 | Disabled | None | On | Secondary row when Profile is visible; primary Search row otherwise | Visible when Profile is visible; hidden otherwise |
@@ -91,17 +95,21 @@ the selector keeps its natural height and is vertically centred rather than
 stretching to the height of Session controls.
 
 When Places is enabled without effective Session actions, Apps/Places remains
-in the secondary row whenever Profile or the sidebar is visible. With a
+in the secondary row whenever Profile or a vertical sidebar is visible. With a
 vertical sidebar it uses the sidebar-side width; otherwise it uses the logical
-leading edge. Only when Profile, the sidebar, and Session are all hidden does
-it share the primary Search row, as in Minimal.
+leading edge. Only when Profile, the vertical sidebar, and Session are all hidden does
+it share the primary Search row, as in Minimal. Horizontal follows
+the same no-vertical-sidebar rule.
 
-Horizontal is one sidebar choice. In Docked and Centered it appears on the
-Results edge opposite the primary row; when the secondary row is present, that
-row sits farther outward. Logical leading/trailing order and keyboard traversal
-mirror in right-to-left interfaces, while explicit Left and Right sidebars stay
-on their selected physical sides. Every hidden or unavailable control is
-removed from allocation, shared-width sizing, and focus navigation.
+Horizontal is one sidebar choice for category navigation only. In Docked and
+Centered it appears on the Results edge opposite the primary row; when the
+secondary row is present, that row sits farther outward. Apps/Places never
+belongs to the Horizontal strip: it follows the same logical row relocation as
+a disabled sidebar, including the unified Search-row placement in Minimal-style
+compositions. Logical leading/trailing order and keyboard traversal mirror in
+right-to-left interfaces, while explicit Left and Right sidebars stay on their
+selected physical sides. Every hidden or unavailable control is removed from
+allocation, shared-width sizing, and focus navigation.
 
 ### Full Screen composition
 
@@ -111,18 +119,20 @@ outer trailing edge. Search stays in a centred middle region whose width and
 edges exactly match the Results box.
 
 Search remains visible with a positive usable allocation for every Full Screen
-sidebar choice. A visible sidebar owns category navigation and Apps/Places only;
-it never replaces or hides Search.
+sidebar choice. A visible vertical sidebar owns category navigation and
+Apps/Places; a Horizontal strip owns category navigation only. Neither replaces
+or hides Search.
 
-When the sidebar is disabled and Places is enabled, Apps/Places and Search
-share the fixed results-width middle region in Full Screen:
+When the sidebar is disabled or Horizontal and Places is enabled, Apps/Places
+and Search share the fixed results-width middle region in Full Screen:
 the switch is logical-leading, Search is logical-trailing, and a visible gap
 separates them without overflow. In Docked and Centered, Apps/Places moves to
 the primary Search row only when Profile and Session are also hidden, as in
 Minimal; otherwise it remains in the windowed secondary row. With a visible
-sidebar, Full Screen keeps Apps/Places attached to that sidebar while Search
-remains in the same centered middle region. There is no separate
-search-row or bottom-control variant.
+vertical sidebar, Full Screen keeps Apps/Places attached to that sidebar while
+Search remains in the same centered middle region. The Horizontal strip keeps
+category navigation separate and never owns the selector. There is no separate
+bottom-control variant.
 
 The complete logical no-sidebar order is Profile, Apps/Places, Search,
 Session. It mirrors naturally in right-to-left interfaces, including the
@@ -182,7 +192,7 @@ expects argument splitting.
 | Option | Description |
 |--------|-------------|
 | Enable sidebar | Turn the category sidebar on or off. When off, the menu shows no sidebar; if Places is enabled the Apps/Places switch stays in the secondary row unless Profile and Session are also hidden, in which case it shares the Search row. The results view gains a heading naming the default category (FAVORITES, RECENTLY USED, or ALL APPLICATIONS). |
-| Position | Place the sidebar on the **left**, **right**, or in a **Horizontal** strip. In Docked and Centered, Horizontal appears on the Results edge opposite the primary row; in Full Screen it appears below Results. The strip scrolls when needed, and **Show category name** is unavailable. |
+| Position | Place the sidebar on the **left**, **right**, or in a **Horizontal** strip. In Docked and Centered, Horizontal appears on the Results edge opposite the primary row; in Full Screen it appears below Results. The strip contains category navigation only; Apps/Places remains in the same row home used when the sidebar is disabled. The strip scrolls when needed, and **Show category name** is unavailable. |
 | Show category name | Display the category label next to its icon. On a left/right sidebar, hiding the names also makes the Apps/Places switch vertical so the sidebar can stay narrow. |
 | Category icon size | Size of category icons (`-1` through `6`; `-1` inherits the theme size). |
 | Sort categories | Sort the category list alphabetically. |
@@ -337,7 +347,7 @@ an arbitrary command or clamping to a different preference.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `sidebar-enabled` | bool | true | Show the category sidebar. When false the sidebar is removed; with Places on, Apps/Places remains in the secondary row unless Profile and Session are also hidden, in which case it shares the Search row. |
+| `sidebar-enabled` | bool | true | Show the category sidebar. When false the sidebar is removed; with Places on, Apps/Places follows the derived secondary-row or unified Search-row placement. |
 | `category-show-name` | bool | true | Show category label text. |
 | `category-icon-size` | int | -1 | Category icon size: `-1` uses the theme size; `0` through `6` select named sizes. |
 | `hover-switch-category` | bool | false | Switch category on hover instead of click. |

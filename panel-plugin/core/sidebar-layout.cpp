@@ -66,12 +66,12 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 	out.categories_horizontal = horizontal_strip;
 	out.show_default_category_heading = !state.sidebar_enabled;
 
-	// Switch placement: none without Places; into the search bar when the
-	// sidebar is gone but Places remains; otherwise it lives with the
-	// category list (vertical sidebar or top/bottom strip).
+	// Switch placement: none without Places; into the unified Search row when
+	// there is no vertical sidebar. Horizontal is category navigation only and
+	// therefore follows the same relocation as a disabled sidebar.
 	if (!state.places_enabled)
 		out.switch_location = SwitchLocation::None;
-	else if (!state.sidebar_enabled)
+	else if (!state.sidebar_enabled || state.position == SidebarPosition::Horizontal)
 		out.switch_location = SwitchLocation::InSearchBar;
 	else
 		out.switch_location = SwitchLocation::InSidebar;
@@ -81,11 +81,9 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 	out.effective_show_category_names =
 			horizontal_strip ? false : state.category_show_name;
 
-	// The switch is forced to icon-only on a horizontal strip and in the
-	// search-bar row; on a vertical sidebar it follows the stored intent.
+	// The switch is forced to icon-only in the unified Search row; on a vertical
+	// sidebar it follows the stored intent.
 	if (out.switch_location == SwitchLocation::InSearchBar)
-		out.effective_show_icons = true;
-	else if (out.switch_location == SwitchLocation::InSidebar && horizontal_strip)
 		out.effective_show_icons = true;
 	else
 		out.effective_show_icons = state.switch_show_icons;
@@ -197,7 +195,7 @@ EmbeddedSwitchSlot meow_embedded_switch_slot(bool commands_in_row)
 
 bool meow_category_label_visible(bool category_show_name, bool horizontal)
 {
-	// A Top/Bottom strip is icon-only; otherwise the stored intent stands. This
+	// A Horizontal strip is icon-only; otherwise the stored intent stands. This
 	// is the one decision both Apps and Places sidebar buttons consult.
 	return category_show_name && !horizontal;
 }

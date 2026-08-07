@@ -334,14 +334,15 @@ private:
 	std::vector<CategoryButton*> m_app_categories;
 
 	GtkScrolledWindow* m_sidebar;
-	// Horizontally-scrolling container for the Top/Bottom category strip
-	// (supported behavior). Created lazily on the first strip layout; the switch is pinned
-	// outside it (supported behavior). nullptr until the sidebar is first shown on top/bottom.
+	// Horizontally-scrolling container for the Horizontal category strip
+	// (supported behavior). Created lazily on the first strip layout; the
+	// Apps/Places selector is not a child of this strip. nullptr until the
+	// sidebar is first shown horizontally.
 	GtkScrolledWindow* m_strip_scroll;
 	// Expanding spacer pinned as the leading child of m_category_buttons in
-	// strip mode so the category icons sit flush-trailing while the slack falls
-	// between them and the leading toggle (supported behavior). Hidden (and thus ignored in
-	// allocation) in the vertical sidebar. Created lazily with m_strip_scroll.
+	// strip mode so the category icons sit flush-trailing (supported behavior).
+	// Hidden (and thus ignored in allocation) in the vertical sidebar. Created
+	// lazily with m_strip_scroll.
 	GtkWidget* m_strip_lead_spacer;
 	// Current structural placement of the category list, so update_layout()
 	// only reparents on an actual transition: 1 = vertical sidebar,
@@ -364,19 +365,22 @@ private:
 	bool m_layout_ltr;
 	bool m_layout_categories_horizontal;
 	CompositionSidebar m_layout_sidebar_position;
-	// Tracked stored intent so show() can fire update_layout() when these
-	// switch/sidebar settings change (none are legacy layout booleans).
+	// Tracked stored intent used by the authoritative opening pass for these
+	// switch/sidebar settings (none are legacy layout booleans).
 	bool m_layout_sidebar_enabled;
 	bool m_layout_switch_show_icons;
 	bool m_layout_category_show_name;
-	// Tracked category icon size so show() re-runs update_layout() when it
-	// changes, keeping the Apps/Places toggle in sync with the category icons.
+	// Tracked category icon size used to keep the Apps/Places toggle in sync with
+	// the category icons.
 	int m_layout_category_icon_size;
 	// Cached visibility state ensures live Show Profile/Session changes relayout
 	// immediately even when all other composition inputs stay unchanged.
 	bool m_layout_profile_hidden;
 	bool m_layout_commands_hidden;
 	unsigned int m_layout_available_session_actions;
+	// Forces one complete hierarchy reconciliation before the next visible frame
+	// after the menu has been hidden or constructed.
+	bool m_layout_needs_sync;
 	int m_profile_shape;
 	bool m_supports_alpha;
 	// Theme-derived separator colour (luminance-nudged from the menu background),

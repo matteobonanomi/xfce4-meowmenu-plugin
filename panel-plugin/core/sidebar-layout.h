@@ -34,9 +34,9 @@ enum class SidebarPosition
 // Resolved placement of the Apps/Places mode switch for a layout pass.
 enum class SwitchLocation
 {
-	InSidebar,      // packed with the category list (vertical sidebar or strip)
+	InSidebar,      // packed with the vertical Left/Right category list
 	InSecondaryRow, // shared Docked/Centered secondary row with Session actions
-	InSearchBar,    // relocated into the search-bar row (sidebar disabled)
+	InSearchBar,    // unified Search-row home (sidebar disabled or Horizontal)
 	None            // Places mode off — no switch at all
 };
 
@@ -68,7 +68,7 @@ struct SidebarLayoutState
  *
  * The effective, render-time presentation derived from SidebarLayoutState.
  * The effective_* flags may differ from the corresponding stored intent when a
- * layout forces them (top/bottom strip, sidebar disabled); the stored values
+	 * layout forces them (Horizontal strip, sidebar disabled); the stored values
  * are never overwritten, so removing the forcing layout restores them for free.
  */
 struct SwitchPresentation
@@ -86,7 +86,7 @@ struct SwitchPresentation
  *
  * The resolved, display-independent inputs for the contextual Modern upper
  * divider. vertical_sidebar_switch is true only when the selector is visible
- * in a left/right sidebar, never in a top/bottom strip or search-bar row.
+	 * in a left/right sidebar, never in a Horizontal strip or Search row.
  */
 struct ModernDividerState
 {
@@ -138,9 +138,10 @@ SidebarPosition meow_resolve_sidebar_edge(SidebarPosition position,
  * @state: the stored intent and environment for this layout pass.
  *
  * Pure mapping from stored sidebar/switch intent to the effective presentation,
- * applying every forcing rule (top/bottom strip ⇒ icon-only categories and a
- * horizontal icon switch pinned leading; sidebar disabled ⇒ switch relocated to
- * the search bar, icon-only, with a default-category heading). No GTK calls.
+	 * applying every forcing rule (Horizontal strip ⇒ icon-only categories;
+	 * Horizontal or disabled sidebar ⇒ switch relocated to the unified Search row,
+	 * icon-only, with a default-category heading only when the sidebar is disabled).
+	 * No GTK calls.
  *
  * Returns: the resolved SwitchPresentation; never modifies @state.
  */
@@ -224,7 +225,7 @@ FullscreenMainColumn meow_fullscreen_main_column(int workarea_width);
  *
  * Pure decision for the toggle icon's pixel size: the toggle always inherits
  * from the region that contains it — the category icon size when it lives in a
- * sidebar (vertical or strip), the Session icon allocation in a shared
+	 * vertical sidebar, the Session icon allocation in a shared
  * secondary row, and the search-bar height when it lives in the search-bar row.
  * There is deliberately no independent user setting.
  *
@@ -236,12 +237,14 @@ int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar
 
 /* meow_toggle_button_height_px:
  * @location: where the Apps/Places toggle is rendered this pass.
- * @categories_horizontal: true for the top/bottom icon-only sidebar strip.
+	 * @categories_horizontal: true for the Horizontal icon-only category strip.
  * @category_px: the configured category icon pixel size.
  *
  * Pure decision for an explicit switch-button height. Only the horizontal
- * sidebar strip pins the buttons to the sidebar icon size; other placements keep
- * their theme/natural button allocation. Width is deliberately not constrained.
+	 * A defensive InSidebar+Horizontal combination would pin the buttons to the
+	 * sidebar icon size; the supported Horizontal presentation uses the unified
+	 * Search row and keeps its theme/natural button allocation. Width is
+	 * deliberately not constrained.
  *
  * Returns: button height in pixels, or -1 to clear the height request.
  */
@@ -249,7 +252,7 @@ int meow_toggle_button_height_px(SwitchLocation location, bool categories_horizo
 		int category_px);
 
 /* meow_strip_spacer_order:
- * @categories_horizontal: true when the category box is the top/bottom strip.
+	 * @categories_horizontal: true when the category box is the Horizontal strip.
  *
  * The horizontal strip keeps one expanding spacer before all category buttons.
  * Reapplying this order on every layout pass keeps built-in category buttons
@@ -276,7 +279,7 @@ int meow_default_category_order_base(bool strip_spacer_visible,
 
 /* meow_category_label_visible:
  * @category_show_name: the stored "show category names" intent.
- * @horizontal: whether the sidebar is a horizontal Top/Bottom strip.
+	 * @horizontal: whether the sidebar is the Horizontal category strip.
  *
  * The single label-visibility decision shared by every sidebar button — Apps
  * category buttons and Places section buttons alike — so names appear or hide

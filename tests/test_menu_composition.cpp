@@ -71,12 +71,18 @@ void check_cartesian_invariants()
 		CHECK(count(out.secondary_slots, MenuSlot::Session)
 				== (mode != LayoutMode::FullScreen && out.effective_session ? 1u : 0u));
 		CHECK(out.secondary_visible == !out.secondary_slots.empty());
+		const bool vertical_sidebar = sidebar == CompositionSidebar::Left
+				|| sidebar == CompositionSidebar::Right;
 		if (mode != LayoutMode::FullScreen && places && !out.effective_session
-				&& (sidebar != CompositionSidebar::Hidden || profile))
+				&& (vertical_sidebar || profile))
 		{
 			CHECK(out.apps_places_location
 					== MenuControlLocation::SecondaryRow);
 			CHECK(out.secondary_visible);
+		}
+		if (places && sidebar == CompositionSidebar::Horizontal)
+		{
+			CHECK(out.apps_places_location != MenuControlLocation::Sidebar);
 		}
 
 		if (mode == LayoutMode::FullScreen)
@@ -168,7 +174,53 @@ void check_switch_relocation()
 			== MenuControlLocation::PrimaryRow);
 	input.sidebar = CompositionSidebar::Horizontal;
 	CHECK(meow_resolve_menu_composition(input).apps_places_location
-			== MenuControlLocation::Sidebar);
+			== MenuControlLocation::PrimaryRow);
+}
+
+void check_horizontal_matches_hidden_selector_home()
+{
+	for (LayoutMode mode : { LayoutMode::Docked, LayoutMode::Centered,
+			LayoutMode::FullScreen })
+	for (bool profile : { false, true })
+	for (bool session : { false, true })
+	for (unsigned int actions : { 0u, 2u })
+	{
+		MenuCompositionInput hidden = { mode, PrimaryEdge::Bottom,
+				CompositionSidebar::Hidden, profile, session, actions, true,
+				MenuDirection::LeftToRight };
+		MenuCompositionInput horizontal = hidden;
+		horizontal.sidebar = CompositionSidebar::Horizontal;
+		MenuComposition hidden_out = meow_resolve_menu_composition(hidden);
+		MenuComposition horizontal_out = meow_resolve_menu_composition(horizontal);
+
+		CHECK(horizontal_out.apps_places_location
+				== hidden_out.apps_places_location);
+		CHECK(horizontal_out.secondary_slots == hidden_out.secondary_slots);
+		CHECK(horizontal_out.primary_slots == hidden_out.primary_slots);
+		if (mode == LayoutMode::FullScreen)
+		{
+			CHECK(horizontal_out.apps_places_location
+					== MenuControlLocation::PrimaryRow);
+			CHECK(contains(horizontal_out.primary_slots, MenuSlot::AppsPlaces));
+		}
+	}
+
+	MenuCompositionInput transition = { LayoutMode::FullScreen,
+			PrimaryEdge::Bottom, CompositionSidebar::Left, false, false, 0,
+			true, MenuDirection::LeftToRight };
+	for (CompositionSidebar sidebar : { CompositionSidebar::Left,
+			CompositionSidebar::Right, CompositionSidebar::Horizontal,
+			CompositionSidebar::Hidden, CompositionSidebar::Horizontal })
+	{
+		transition.sidebar = sidebar;
+		const MenuComposition first = meow_resolve_menu_composition(transition);
+		const MenuComposition repeated = meow_resolve_menu_composition(transition);
+		CHECK(first.apps_places_location == repeated.apps_places_location);
+		CHECK(first.primary_slots == repeated.primary_slots);
+		CHECK(first.secondary_slots == repeated.secondary_slots);
+		if (sidebar == CompositionSidebar::Horizontal)
+			CHECK(first.apps_places_location == MenuControlLocation::PrimaryRow);
+	}
 }
 
 void check_fullscreen_fixed_row()
@@ -208,8 +260,10 @@ void check_fullscreen_fixed_row()
 	CHECK(out.profile_column == MenuColumnRole::None);
 	input.sidebar = CompositionSidebar::Horizontal;
 	out = meow_resolve_menu_composition(input);
-	CHECK(out.apps_places_location == MenuControlLocation::Sidebar);
-	CHECK(out.apps_places_column == MenuColumnRole::Sidebar);
+	CHECK(out.apps_places_location == MenuControlLocation::PrimaryRow);
+	CHECK(out.apps_places_column == MenuColumnRole::MiddleResults);
+	CHECK((out.primary_slots == std::vector<MenuSlot>{ MenuSlot::AppsPlaces,
+			MenuSlot::Search }));
 	CHECK(out.horizontal_sidebar_edge == PrimaryEdge::Bottom);
 
 	input.show_profile = true;
@@ -217,7 +271,7 @@ void check_fullscreen_fixed_row()
 	input.direction = MenuDirection::RightToLeft;
 	out = meow_resolve_menu_composition(input);
 	CHECK((out.primary_slots == std::vector<MenuSlot>{ MenuSlot::Session,
-			MenuSlot::Search, MenuSlot::Profile }));
+			MenuSlot::Search, MenuSlot::AppsPlaces, MenuSlot::Profile }));
 	CHECK(out.profile_column == MenuColumnRole::Outer);
 }
 
@@ -228,6 +282,7 @@ int main()
 	check_cartesian_invariants();
 	check_physical_mirroring();
 	check_switch_relocation();
+	check_horizontal_matches_hidden_selector_home();
 	check_fullscreen_fixed_row();
 	return g_failures == 0 ? 0 : 1;
 }

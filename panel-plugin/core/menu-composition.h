@@ -58,7 +58,7 @@ enum class MenuControlLocation
 	Hidden,
 	PrimaryRow,
 	SecondaryRow,
-	Sidebar
+	Sidebar // Only a vertical Left/Right sidebar owns Apps/Places.
 };
 
 enum class MenuColumnRole
