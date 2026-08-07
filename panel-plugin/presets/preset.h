@@ -118,7 +118,7 @@ void delete_user_preset(const std::string& uuid, Settings& settings);
 // user presets under /presets/<uuid>/, which are preserved.
 //
 // @channel: the plugin's Xfconf channel; may be anchored on a property base.
-// @property_base: that channel's property base (e.g. "/plugins/meowmenu-N"),
+// @property_base: that channel's property base (e.g. "/plugins/plugin-N"),
 //   or "" for a base-less channel.
 //
 // xfconf_channel_get_properties() returns FULL paths that include the channel
@@ -131,7 +131,7 @@ int reset_settings_to_defaults(XfconfChannel* channel, const std::string& proper
 
 /* reset_instance_for_composition_upgrade:
  * @channel: property-base-anchored panel Xfconf channel.
- * @property_base: validated concrete MeowMenu instance base.
+ * @property_base: validated concrete panel instance base.
  *
  * Marks the current reset generation pending, then removes every descendant
  * owned by this instance except the lifecycle keys. Files and sibling Xfconf

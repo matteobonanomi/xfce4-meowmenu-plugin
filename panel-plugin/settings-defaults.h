@@ -84,7 +84,7 @@ inline PreStableResetDecision decide_pre_stable_reset(int generation,
 /* inspect_pre_stable_reset:
  * @channel: property-base-anchored panel Xfconf channel.
  * @property_base: concrete per-instance base such as
- *   "/plugins/meowmenu-7".
+ *   "/plugins/plugin-7".
  *
  * Reads only lifecycle and existence state. A malformed base fails closed and
  * returns Load so no destructive operation can be attempted.
@@ -96,12 +96,24 @@ PreStableResetDecision inspect_pre_stable_reset(XfconfChannel* channel,
 
 inline bool valid_meowmenu_property_base(const char* property_base)
 {
-	static const char prefix[] = "/plugins/meowmenu-";
-	if (!property_base || std::strncmp(property_base, prefix,
-			sizeof(prefix) - 1) != 0)
-		return false;
-	const char* id = property_base + sizeof(prefix) - 1;
-	if (!*id)
+	// Xfce assigns live panel instances the generic plugin-N base. Keep the
+	// former product-specific spelling valid for older migration fixtures.
+	static const char* const prefixes[] = {
+		"/plugins/plugin-",
+		"/plugins/meowmenu-",
+	};
+	const char* id = nullptr;
+	for (const char* prefix : prefixes)
+	{
+		const std::size_t prefix_length = std::strlen(prefix);
+		if (property_base && std::strncmp(property_base, prefix,
+				prefix_length) == 0)
+		{
+			id = property_base + prefix_length;
+			break;
+		}
+	}
+	if (!id || !*id)
 		return false;
 	for (const char* p = id; *p; ++p)
 	{

@@ -403,7 +403,7 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		const GValue* gval = static_cast<const GValue*>(value_ptr);
 
 		// Keys are "<base>/presets/<uuid>/<prop>". A property-base channel
-		// (the live plugin uses one, e.g. base "/plugins/meowmenu-N") makes
+		// (the live plugin uses one, e.g. base "/plugins/plugin-N") makes
 		// xfconf_channel_get_properties() return FULL paths that include the
 		// channel base, not base-relative ones — so anchor on the "/presets/"
 		// segment wherever it occurs rather than assuming it is at the start.
@@ -668,7 +668,7 @@ int WhiskerMenu::reset_settings_to_defaults(XfconfChannel* channel,
 		const gchar* full_path = static_cast<const gchar*>(key_ptr);
 
 		// get_properties() returns FULL paths that embed the channel's property
-		// base (the live plugin uses one, e.g. "/plugins/meowmenu-N/..."). Strip
+		// base (the live plugin uses one, e.g. "/plugins/plugin-N/..."). Strip
 		// it so the path is base-relative, because reset_property() on a based
 		// channel re-prepends the base — passing a full path double-prefixes and
 		// silently no-ops. A base-less channel leaves the path unchanged.

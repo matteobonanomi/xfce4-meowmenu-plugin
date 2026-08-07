@@ -33,11 +33,15 @@ int main()
 
 	assert(valid_meowmenu_property_base("/plugins/meowmenu-1"));
 	assert(valid_meowmenu_property_base("/plugins/meowmenu-999"));
+	assert(valid_meowmenu_property_base("/plugins/plugin-1"));
+	assert(valid_meowmenu_property_base("/plugins/plugin-999"));
 	assert(!valid_meowmenu_property_base(nullptr));
 	assert(!valid_meowmenu_property_base(""));
 	assert(!valid_meowmenu_property_base("/plugins/meowmenu-all"));
+	assert(!valid_meowmenu_property_base("/plugins/plugin-all"));
 	assert(!valid_meowmenu_property_base("/plugins/other-1"));
 	assert(!valid_meowmenu_property_base("/plugins/meowmenu-1/child"));
+	assert(!valid_meowmenu_property_base("/plugins/plugin-1/child"));
 
 	for (const char* path : { MEOWMENU_080_RESET_FIXTURE,
 			MEOWMENU_RC_RESET_FIXTURE })

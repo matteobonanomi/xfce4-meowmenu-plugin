@@ -1,4 +1,4 @@
-"/plugins/meowmenu-7"
+"/plugins/plugin-7"
 "/transparent-grid"
 "/layout-mode"
 "/search-bar-position"

@@ -35,7 +35,7 @@ int main()
 {
 	const std::vector<std::string> keys = read_snapshot();
 	for (const char* required : {
-		"/plugins/meowmenu-7",
+		"/plugins/plugin-7",
 		"/layout-mode",
 		"/search-bar-position",
 		"/show-profile",

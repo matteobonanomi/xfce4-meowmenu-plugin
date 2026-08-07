@@ -64,7 +64,7 @@ public:
 	std::string get_button_title_default() const;
 
 	// The Xfconf property base of this plugin instance (e.g.
-	// "/plugins/meowmenu-N"). Empty only if the panel reports none. Needed to
+	// "/plugins/plugin-N"). Empty only if the panel reports none. Needed to
 	// translate full property paths back to the base-relative form the channel's
 	// reset/set API expects.
 	std::string get_property_base() const;

@@ -405,7 +405,7 @@ void test_reset_preserves_presets_clears_rest()
 
 void test_automatic_reset_is_bounded_and_destructive()
 {
-	const std::string base = "/plugins/meowmenu-61";
+	const std::string base = "/plugins/plugin-61";
 	gchar* name = g_strdup_printf("meow-upgrade-reset-%d-%d",
 		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
 	XfconfChannel* ch = xfconf_channel_new_with_property_base(name, base.c_str());
@@ -430,6 +430,8 @@ void test_automatic_reset_is_bounded_and_destructive()
 	assert(!WhiskerMenu::reset_instance_for_composition_upgrade(ch, ""));
 	assert(!WhiskerMenu::reset_instance_for_composition_upgrade(ch,
 		"/plugins/meowmenu-all"));
+	assert(!WhiskerMenu::reset_instance_for_composition_upgrade(ch,
+		"/plugins/plugin-all"));
 	g_object_unref(ch);
 }
 
@@ -446,8 +448,8 @@ void seed_required_modern_state(XfconfChannel* channel)
 void test_reset_lifecycle_is_per_instance_and_completion_last()
 {
 	using WhiskerMenu::PreStableResetDecision;
-	const std::string base_a = "/plugins/meowmenu-71";
-	const std::string base_b = "/plugins/meowmenu-72";
+	const std::string base_a = "/plugins/plugin-71";
+	const std::string base_b = "/plugins/plugin-72";
 	gchar* name_raw = g_strdup_printf("meow-reset-matrix-%d-%d",
 		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
 	const std::string name(name_raw);
@@ -484,12 +486,12 @@ void test_reset_lifecycle_is_per_instance_and_completion_last()
 	assert(xfconf_channel_get_int(b, "/corner-radius", 0) == 7);
 
 	XfconfChannel* fresh = xfconf_channel_new_with_property_base(name.c_str(),
-		"/plugins/meowmenu-73");
-	assert(WhiskerMenu::inspect_pre_stable_reset(fresh, "/plugins/meowmenu-73")
+		"/plugins/plugin-73");
+	assert(WhiskerMenu::inspect_pre_stable_reset(fresh, "/plugins/plugin-73")
 		== PreStableResetDecision::Fresh);
 	seed_required_modern_state(fresh);
 	assert(WhiskerMenu::complete_pre_stable_reset(fresh));
-	assert(WhiskerMenu::inspect_pre_stable_reset(fresh, "/plugins/meowmenu-73")
+	assert(WhiskerMenu::inspect_pre_stable_reset(fresh, "/plugins/plugin-73")
 		== PreStableResetDecision::Load);
 
 	assert(WhiskerMenu::inspect_pre_stable_reset(a, "/plugins/meowmenu-all")

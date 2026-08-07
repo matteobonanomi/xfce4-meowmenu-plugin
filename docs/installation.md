@@ -126,13 +126,14 @@ To clear one instance without deleting its panel registration or sibling
 plugins, first find its numeric base:
 
 ```bash
-xfconf-query -c xfce4-panel -lv | grep '/plugins/meowmenu-'
+xfconf-query -c xfce4-panel -lv \
+  | awk '$1 ~ /^\/plugins\/plugin-[0-9]+$/ && $2 == "meowmenu" { print $1 }'
 ```
 
 Then replace `7` below with that exact instance number:
 
 ```bash
-instance_base=/plugins/meowmenu-7
+instance_base=/plugins/plugin-7
 xfconf-query -c xfce4-panel -l \
   | awk -v prefix="$instance_base/" 'index($0, prefix) == 1' \
   | while IFS= read -r property; do

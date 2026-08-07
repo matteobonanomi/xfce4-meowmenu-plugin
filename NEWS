@@ -1,7 +1,8 @@
 0.8.1 (2026-08-17)
 =====
-- Keyboard: update and extend arrow-navigation and remove Ctrl+Tab action
+- Keyboard: update and extend mirror arrow-navigation and remove Ctrl+Tab action
 - UI: simplify Docked, Centered, and Full Screen composition and Properties controls
+- Properties: consolidate profile and session settings and simplify sidebar choices to Left, Right, and Horizontal
 - Presets: align all built-ins with the supported layout model and use Modern by default
 - Upgrade: reset each pre-1.0 instance once while preserving panel placement and external preset files
 - Presets: reject imports that contain retired layout settings before making changes
