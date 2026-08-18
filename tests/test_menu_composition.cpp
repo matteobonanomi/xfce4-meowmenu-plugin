@@ -397,8 +397,15 @@ void check_horizontal_chrome_reaches_its_outer_edge()
 	CHECK(bottom.band.width == 450);
 	CHECK(bottom.band.height == 92);
 	CHECK(bottom.separator.visible);
-	CHECK(bottom.separator.y == 408);
-	CHECK(420 - bottom.separator.y == 500 - (464 + 24));
+	CHECK(bottom.separator.y == 416);
+	CHECK(bottom.secondary_separator.visible);
+	CHECK(bottom.secondary_separator.y == 452);
+	CHECK(bottom.secondary_separator.width == 450);
+	CHECK(bottom.secondary_separator.height == 1);
+	CHECK(2 * 420 + 28
+			== bottom.separator.y + bottom.secondary_separator.y);
+	CHECK(2 * 464 + 24
+			== bottom.secondary_separator.y + 500);
 
 	input.primary_edge = PrimaryEdge::Bottom;
 	const MenuChromeGeometry top = meow_resolve_chrome_geometry(
@@ -413,8 +420,14 @@ void check_horizontal_chrome_reaches_its_outer_edge()
 	CHECK(top.band.width == 450);
 	CHECK(top.band.height == 92);
 	CHECK(top.separator.visible);
-	CHECK(top.separator.y == 91);
-	CHECK(top.separator.y + 1 - (52 + 28) == 12);
+	CHECK(top.separator.y == 84);
+	CHECK(top.secondary_separator.visible);
+	CHECK(top.secondary_separator.y == 48);
+	CHECK(top.secondary_separator.width == 450);
+	CHECK(top.secondary_separator.height == 1);
+	CHECK(2 * 12 + 24 == top.secondary_separator.y);
+	CHECK(2 * 52 + 28
+			== top.secondary_separator.y + top.separator.y);
 
 	input.show_session = false;
 	input.places_enabled = false;
@@ -426,6 +439,7 @@ void check_horizontal_chrome_reaches_its_outer_edge()
 			{ 0, 0, 0, 0, false });
 	CHECK(strip_only.band.visible);
 	CHECK(!strip_only.separator.visible);
+	CHECK(!strip_only.secondary_separator.visible);
 }
 
 }

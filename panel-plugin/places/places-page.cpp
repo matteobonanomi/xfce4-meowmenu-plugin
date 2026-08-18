@@ -14,6 +14,7 @@
 #include "history-section.h"
 #include "home-section.h"
 #include "launcher/page.h"
+#include "ui/grid-cell-metrics.h"
 #include "ui/grid-presentation.h"
 #include "ui/image-menu-item.h"
 #include "ui/launcher-icon-view.h"
@@ -24,6 +25,7 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "core/window.h"
+#include "core/window-frame.h"
 
 #include <cstring>
 
@@ -51,6 +53,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_widget(nullptr),
 	m_empty_message(nullptr),
 	m_model(nullptr),
+	m_viewport_width(0),
 	m_item_dragged(false),
 	m_pressed_drag_item(nullptr),
 	m_pressed_drag_info(0),
@@ -69,12 +72,25 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_widget = gtk_scrolled_window_new(nullptr, nullptr);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_widget),
 			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_propagate_natural_width(
+			GTK_SCROLLED_WINDOW(m_widget), FALSE);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(m_widget),
 			MEOWMENU_LAUNCHER_SHADOW_TYPE);
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	g_object_ref_sink(m_widget);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget), "launchers-pane");
+	connect(m_widget, "draw",
+			[](GtkWidget* widget, cairo_t* cr) -> gboolean
+			{
+				return meow::meowmenu_draw_widget_with_bounds(widget, cr)
+						? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
+			});
+	connect(m_widget, "size-allocate",
+			[this](GtkWidget*, GtkAllocation*)
+			{
+				sync_viewport_width();
+			});
 
 	m_empty_message = gtk_label_new(_("No items to show."));
 	gtk_widget_set_halign(m_empty_message, GTK_ALIGN_CENTER);
@@ -215,6 +231,68 @@ void PlacesPage::reload_view()
 	create_view();
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	gtk_widget_show_all(m_widget);
+	sync_viewport_width();
+}
+
+//-----------------------------------------------------------------------------
+
+/* sync_viewport_width:
+ *
+ * Supplies the Places grid with the same effective Results allocation used by
+ * application pages. Toplevel overshoot is removed so explicit grid columns
+ * cannot feed their current requisition back into the next allocation.
+ */
+void PlacesPage::sync_viewport_width()
+{
+	if (!m_view || !GTK_IS_SCROLLED_WINDOW(m_widget))
+		return;
+	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+	int requested_width = -1;
+	if (GTK_IS_WIDGET(toplevel)
+			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
+	{
+		gtk_widget_get_size_request(toplevel, &requested_width, nullptr);
+	}
+	m_viewport_width = meow_grid_effective_viewport_width(
+			gtk_widget_get_allocated_width(m_widget),
+			GTK_IS_WIDGET(toplevel)
+					? gtk_widget_get_allocated_width(toplevel) : 0,
+			requested_width);
+	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* prepare_viewport_resize:
+ * @current_toplevel_width: launcher width before the resize step.
+ * @requested_toplevel_width: launcher width requested by the step.
+ *
+ * Pushes the predicted Results width into a Places icon grid before GTK
+ * allocates the resized toplevel. List views and height-only steps are no-ops.
+ */
+void PlacesPage::prepare_viewport_resize(int current_toplevel_width,
+		int requested_toplevel_width)
+{
+	if (!m_view || m_viewport_width < 1
+			|| m_view->get_minimum_viewport_width() < 1)
+	{
+		return;
+	}
+
+	const int viewport_width = meow_grid_resized_viewport_width(
+			m_viewport_width, current_toplevel_width,
+			requested_toplevel_width);
+	if (viewport_width == m_viewport_width)
+		return;
+	m_viewport_width = viewport_width;
+	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+int PlacesPage::get_minimum_viewport_width() const
+{
+	return m_view ? m_view->get_minimum_viewport_width() : 0;
 }
 
 //-----------------------------------------------------------------------------

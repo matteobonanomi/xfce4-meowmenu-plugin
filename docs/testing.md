@@ -84,6 +84,12 @@ hidden regions must leave neither an empty patch nor a doubled or orphaned
 gap. Results and scrollbar troughs must have no persistent frame, while the
 slider, selection, hover, press, disabled, and keyboard-focus states remain
 clear. Full Screen must remain one uniform surface in every sidebar state.
+For Horizontal navigation with a visible secondary row, verify equal thin
+theme-derived boundaries at both strip edges; the boundaries must add no
+spacing or change the measured rhythm. Scroll Results far enough to move icons
+and labels across every viewport edge using the wheel, keyboard, scrollbar,
+and touchpad, and confirm no result pixels appear in the strip, secondary row,
+or outer frame.
 
 Repeat representative cases at normal and high display scale and at 100, 125,
 150, 175, and 200 percent text scale. Check the Apps/Places selector with icons

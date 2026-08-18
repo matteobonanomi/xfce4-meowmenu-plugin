@@ -16,8 +16,11 @@
 #include "window-geometry.h"
 #include "window.h"
 
+#include "launcher/page.h"
+#include "places/places-page.h"
 #include "plugin.h"
 #include "settings.h"
+#include "ui/grid-cell-metrics.h"
 
 #ifdef HAVE_GTK_LAYER_SHELL
 #include <gtk-layer-shell.h>
@@ -96,6 +99,20 @@ bool WhiskerMenu::Window::interactive_resize_begin(
 	int content_minimum = 0;
 	gtk_widget_get_preferred_width(
 			GTK_WIDGET(m_frame), &content_minimum, nullptr);
+	if (m_places_active)
+	{
+		content_minimum = meow_grid_release_resize_minimum(
+				content_minimum,
+				m_places->get_viewport_width(),
+				m_places->get_minimum_viewport_width());
+	}
+	else if (Page* page = get_active_page())
+	{
+		content_minimum = meow_grid_release_resize_minimum(
+				content_minimum,
+				page->get_viewport_width(),
+				page->get_minimum_viewport_width());
+	}
 	minimum_width = CLAMP(content_minimum, 10, maximum_width);
 	gtk_widget_get_preferred_height(
 			GTK_WIDGET(m_frame), &content_minimum, nullptr);
@@ -294,6 +311,11 @@ bool WhiskerMenu::Window::set_size(int width, int height)
 	height = CLAMP(height, 10, m_monitor.height);
 	if ((m_geometry.width != width) || (m_geometry.height != height))
 	{
+		const int current_width = m_geometry.width;
+		if (current_width > 0 && current_width != width)
+		{
+			prepare_results_width_resize(current_width, width);
+		}
 		m_geometry.width = width;
 		m_geometry.height = height;
 		gtk_widget_set_size_request(GTK_WIDGET(m_window), m_geometry.width, m_geometry.height);

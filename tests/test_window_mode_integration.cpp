@@ -11,6 +11,7 @@
 #include "core/menu-composition.h"
 #include "core/sidebar-layout.h"
 #include "core/window-keyboard.h"
+#include "core/window-frame.h"
 #include "launcher/command.h"
 #include "launcher/page.h"
 
@@ -118,11 +119,94 @@ void check_horizontal_selector_home()
 	}
 }
 
+void check_horizontal_secondary_boundary_keeps_layout_geometry()
+{
+	MenuCompositionInput input = {
+		LayoutMode::Centered, PrimaryEdge::Top,
+		CompositionSidebar::Horizontal, true, true, 2, true,
+		MenuDirection::LeftToRight
+	};
+	const MenuChromeGeometry geometry = meow_resolve_chrome_geometry(
+			meow_resolve_menu_composition(input), 450, 500, 6,
+			{ 0, 0, 0, 0, false },
+			{ 0, 0, 0, 0, false },
+			{ 12, 420, 426, 28, true },
+			{ 12, 464, 426, 24, true });
+	CHECK(geometry.secondary_separator.visible);
+	CHECK(geometry.secondary_separator.y == 452);
+	CHECK(geometry.secondary_separator.height == 1);
+	CHECK(geometry.separator.y == 416);
+	CHECK(2 * 420 + 28
+			== geometry.separator.y + geometry.secondary_separator.y);
+	CHECK(2 * 464 + 24
+			== geometry.secondary_separator.y + 500);
+	CHECK(geometry.band.y == 408);
+	CHECK(geometry.band.height == 92);
+}
+
+void check_results_clip_tracks_viewport_allocation()
+{
+	if (!gtk_init_check(nullptr, nullptr))
+		return;
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	GtkWidget* fixed = gtk_fixed_new();
+	GtkWidget* scroller = gtk_scrolled_window_new(nullptr, nullptr);
+	GtkWidget* result = gtk_drawing_area_new();
+	gtk_widget_set_size_request(result, 320, 640);
+	gtk_widget_set_size_request(scroller, 320, 180);
+	gtk_container_add(GTK_CONTAINER(scroller), result);
+	g_signal_connect(scroller, "draw",
+			G_CALLBACK(+[](GtkWidget* widget, cairo_t* cr, gpointer) -> gboolean
+			{
+				return meow::meowmenu_draw_widget_with_bounds(widget, cr)
+						? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
+			}), nullptr);
+	gtk_fixed_put(GTK_FIXED(fixed), scroller, 40, 30);
+	gtk_container_add(GTK_CONTAINER(window), fixed);
+	gtk_window_set_default_size(GTK_WINDOW(window), 420, 280);
+	gtk_widget_show_all(window);
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	GtkAllocation allocation = {};
+	gtk_widget_get_allocation(scroller, &allocation);
+	CHECK(allocation.x == 40);
+	CHECK(allocation.y == 30);
+	CHECK(allocation.width == 320);
+	CHECK(allocation.height == 180);
+	GtkAllocation clip = {};
+	gtk_widget_get_clip(scroller, &clip);
+	CHECK(clip.x == allocation.x);
+	CHECK(clip.y == allocation.y);
+	CHECK(clip.width == 320);
+	CHECK(clip.height == 180);
+	GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(
+			GTK_SCROLLED_WINDOW(scroller));
+	gtk_adjustment_set_value(adjustment, 120.0);
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	GtkAllocation after_allocation = {};
+	gtk_widget_get_allocation(scroller, &after_allocation);
+	GtkAllocation after_scroll = {};
+	gtk_widget_get_clip(scroller, &after_scroll);
+	CHECK(after_allocation.x == allocation.x);
+	CHECK(after_allocation.y == allocation.y);
+	CHECK(after_allocation.width == allocation.width);
+	CHECK(after_allocation.height == allocation.height);
+	CHECK(after_scroll.x == clip.x);
+	CHECK(after_scroll.y == clip.y);
+	CHECK(after_scroll.width == clip.width);
+	CHECK(after_scroll.height == clip.height);
+	gtk_widget_destroy(window);
+	g_object_unref(window);
+}
+
 }
 
 int main()
 {
 	check_horizontal_selector_home();
+	check_horizontal_secondary_boundary_keeps_layout_geometry();
+	check_results_clip_tracks_viewport_allocation();
 	if (!gtk_init_check(nullptr, nullptr))
 	{
 		std::printf("# SKIP: GTK could not initialise (no display)\n");

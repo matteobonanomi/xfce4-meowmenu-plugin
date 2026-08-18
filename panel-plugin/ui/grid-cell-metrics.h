@@ -47,6 +47,18 @@ struct GridCellWidth
 	int natural;
 };
 
+/* GridColumnLayout:
+ *
+ * Whole-column layout for one current icon-grid viewport. @item_width is the
+ * GtkIconView item-width property, excluding the separate item padding GTK
+ * adds on both sides. Any trailing remainder is smaller than one column.
+ */
+struct GridColumnLayout
+{
+	int columns;
+	int item_width;
+};
+
 /* meow_grid_cell_metrics:
  * @padding: the per-cell padding in px (one side; the cell adds it twice).
  * @icon_size: the requested icon pixel size in px.
@@ -75,6 +87,62 @@ GridCellMetrics meow_grid_cell_metrics(int padding, int icon_size, int spacing,
  * Returns: the cell's minimum and natural width in px.
  */
 GridCellWidth meow_grid_cell_width(int padding, int icon_size, bool stretch);
+
+/* meow_grid_column_layout:
+ * @viewport_width: current visible grid width in logical pixels.
+ * @margin: grid margin on one side in logical pixels.
+ * @spacing: gap between adjacent columns in logical pixels.
+ * @item_padding: padding GTK adds on each side of item-width.
+ * @minimum_item_width: smallest complete cell width in logical pixels.
+ *
+ * Fits the maximum number of complete cells, then distributes the remaining
+ * width evenly so no avoidable trailing void or partial column remains.
+ *
+ * Returns: at least one column and a positive item width.
+ */
+GridColumnLayout meow_grid_column_layout(int viewport_width, int margin,
+		int spacing, int item_padding, int minimum_item_width);
+
+/* meow_grid_effective_viewport_width:
+ * @scroller_width: allocated Results scroller width.
+ * @toplevel_width: allocated launcher toplevel width.
+ * @requested_toplevel_width: explicit launcher width, or non-positive when
+ * uncapped.
+ *
+ * Removes toplevel natural-size overshoot from the apparent Results width so
+ * child requisitions cannot feed a larger viewport back into themselves.
+ *
+ * Returns: a positive effective Results viewport width.
+ */
+int meow_grid_effective_viewport_width(int scroller_width,
+		int toplevel_width, int requested_toplevel_width);
+
+/* meow_grid_resized_viewport_width:
+ * @current_viewport_width: last effective Results width.
+ * @current_toplevel_width: launcher width before the resize step.
+ * @requested_toplevel_width: launcher width requested by the resize step.
+ *
+ * Applies the toplevel width delta to the Results viewport before GTK has
+ * allocated the new window. This lets an icon grid change columns during a
+ * live drag instead of waiting for the next size allocation.
+ *
+ * Returns: the positive predicted Results viewport width.
+ */
+int meow_grid_resized_viewport_width(int current_viewport_width,
+		int current_toplevel_width, int requested_toplevel_width);
+
+/* meow_grid_release_resize_minimum:
+ * @frame_minimum_width: GTK minimum width of the complete launcher frame.
+ * @current_viewport_width: last effective Results width.
+ * @minimum_viewport_width: smallest complete Results grid width.
+ *
+ * Removes only the grid's width above its one-column minimum from the frame
+ * requisition. Other controls continue to define the interactive resize floor.
+ *
+ * Returns: a positive launcher minimum width.
+ */
+int meow_grid_release_resize_minimum(int frame_minimum_width,
+		int current_viewport_width, int minimum_viewport_width);
 
 } // namespace WhiskerMenu
 

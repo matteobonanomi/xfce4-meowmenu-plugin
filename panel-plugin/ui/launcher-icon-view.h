@@ -39,6 +39,8 @@ bool launcher_icon_view_get_path_rectangle(GtkIconView* view,
 		Keyboard::NavigationRect* rectangle);
 bool launcher_icon_view_apply_keyboard_target(GtkIconView* view,
 		GtkTreeModel* model, GtkTreePath* path);
+void launcher_icon_view_apply_grid_width(GtkIconView* view, int icon_size,
+		int viewport_width);
 
 class LauncherIconView : public LauncherView
 {
@@ -84,6 +86,8 @@ public:
 	void unset_drag_dest() override;
 
 	void reload_icon_size() override;
+	void set_viewport_width(int viewport_width) override;
+	int get_minimum_viewport_width() const override;
 	int get_item_height() const override;
 	int get_icon_size() const override { return m_icon_size; }
 	bool is_grid_view() const override { return true; }
@@ -96,6 +100,7 @@ private:
 	GtkIconView* m_view;
 	GtkCellRenderer* m_icon_renderer;
 	int m_icon_size;
+	int m_viewport_width;
 	std::string m_grid_density;
 	std::string m_layout_mode;
 	bool m_transparent_grid;

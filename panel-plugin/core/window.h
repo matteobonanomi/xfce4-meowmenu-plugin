@@ -188,6 +188,8 @@ private:
 	void schedule_style_refresh();
 	void refresh_theme_metrics();
 	void update_view_redraw_safeguards();
+	void prepare_results_width_resize(int current_width,
+			int requested_width);
 	void check_scrollbar_needed();
 	void favorites_toggled();
 	void recent_toggled();

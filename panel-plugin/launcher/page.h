@@ -69,6 +69,19 @@ public:
 	bool keyboard_move(Keyboard::PhysicalDirection direction);
 	void update_view();
 
+	/* prepare_viewport_resize:
+	 * @current_toplevel_width: launcher width before the resize step.
+	 * @requested_toplevel_width: launcher width requested by the step.
+	 *
+	 * Prepares an icon grid for a live horizontal resize before GTK allocates
+	 * the new window. List views and height-only steps are left unchanged.
+	 */
+	void prepare_viewport_resize(int current_toplevel_width,
+			int requested_toplevel_width);
+
+	int get_viewport_width() const { return m_viewport_width; }
+	int get_minimum_viewport_width() const;
+
 	/* activate_first:
 	 *
 	 * Launches the launcher in the first row of the current view, if
@@ -103,6 +116,7 @@ protected:
 
 private:
 	void create_view();
+	void sync_viewport_width();
 	virtual bool remember_launcher(Launcher* launcher);
 	void launcher_activated(GtkTreePath* path);
 	void launcher_action_activated(GtkMenuItem* menuitem, DesktopAction* action);
@@ -128,6 +142,7 @@ private:
 	bool m_launcher_dragged;
 	bool m_favourite_drag_payload_delivered;
 	bool m_reorderable;
+	int m_viewport_width;
 };
 
 }

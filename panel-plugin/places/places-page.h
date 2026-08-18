@@ -159,6 +159,10 @@ public:
 	void set_filter(const gchar* filter);
 	void refresh_active();
 	void reload_view();
+	void prepare_viewport_resize(int current_toplevel_width,
+			int requested_toplevel_width);
+	int get_viewport_width() const { return m_viewport_width; }
+	int get_minimum_viewport_width() const;
 	void select_first();
 	bool focus_first_result();
 	void note_deliberate_navigation();
@@ -166,6 +170,7 @@ public:
 
 private:
 	void create_view();
+	void sync_viewport_width();
 	void on_row_activated(GtkTreePath* path);
 	void on_button_press(GdkEventButton* event);
 	gboolean on_button_release(GdkEventButton* event);
@@ -198,6 +203,7 @@ private:
 	GtkWidget* m_widget;        // GtkScrolledWindow wrapping the view
 	GtkWidget* m_empty_message; // GtkLabel shown when model has zero rows
 	GtkListStore* m_model;
+	int m_viewport_width;
 	bool m_item_dragged;
 	PlacesItem* m_pressed_drag_item;
 	guint m_pressed_drag_info;

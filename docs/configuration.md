@@ -120,14 +120,18 @@ secondary Apps/Places and Session row form the chrome surface. Profile follows
 the surface of the column it occupies. The distinction comes from the active
 theme rather than the selected preset, so changing themes updates both
 surfaces while the menu is open. A thin theme-derived line separates a visible
-secondary row from Content. The controls sit vertically centred between that
-line and the launcher edge, using the same outer inset on both sides.
+secondary row from Content. When a Horizontal strip and secondary row are both
+visible, an equal thin line also separates those two Chrome bands. These lines
+do not add spacing; the controls remain vertically centred between the existing
+boundaries and launcher edge.
 
 Outer insets and gaps between major regions use one spacing rhythm derived
 from the active GTK theme. Hiding a region removes its gap as well as its
 allocation, avoiding doubled spacing and empty seams. Results and the
 scrollbar trough have no persistent inner frame; result selection, keyboard
-focus, and the scrollbar slider keep their normal theme feedback.
+focus, and the scrollbar slider keep their normal theme feedback. While
+scrolling, Results icons and labels remain clipped inside the Results box and
+never paint over the Horizontal strip or secondary row.
 
 ### Full Screen composition
 

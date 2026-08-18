@@ -18,6 +18,11 @@
 #ifndef MEOWMENU_CORE_WINDOW_FRAME_H
 #define MEOWMENU_CORE_WINDOW_FRAME_H
 
+struct _cairo;
+typedef struct _cairo cairo_t;
+struct _GtkWidget;
+typedef struct _GtkWidget GtkWidget;
+
 namespace meow
 {
 
@@ -56,6 +61,31 @@ bool meowmenu_frame_draws_border(bool is_fullscreen, bool supports_alpha);
  * returned string is static and must not be freed.
  */
 const char* meowmenu_frameless_launcher_css();
+
+/* meowmenu_clip_cairo_to_bounds:
+ * @cr: widget-local Cairo context from a draw signal.
+ * @width: visible Results width in logical pixels.
+ * @height: visible Results height in logical pixels.
+ *
+ * Intersects the current draw clip with the visible Results bounds without
+ * changing GTK allocation or damage geometry. The caller leaves the clip in
+ * place for the widget's default draw handler and its descendants.
+ *
+ * Returns: true when a positive clip was applied.
+ */
+bool meowmenu_clip_cairo_to_bounds(cairo_t* cr, int width, int height);
+
+/* meowmenu_draw_widget_with_bounds:
+ * @widget: Results scroller whose class draw handler should run once.
+ * @cr: widget-local Cairo context from the scroller's draw signal.
+ *
+ * Runs the widget's normal class draw handler inside its current allocation
+ * bounds. Call this from a regular draw-signal handler and stop emission when
+ * it returns true, since the default handler has already been invoked.
+ *
+ * Returns: true when the widget was drawn under the bounded clip.
+ */
+bool meowmenu_draw_widget_with_bounds(GtkWidget* widget, cairo_t* cr);
 
 } // namespace meow
 

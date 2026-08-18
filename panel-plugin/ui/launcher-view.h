@@ -134,6 +134,10 @@ public:
 	}
 
 	virtual void reload_icon_size()=0;
+	virtual void set_viewport_width(int)
+	{
+	}
+	virtual int get_minimum_viewport_width() const { return 0; }
 
 	virtual int get_item_height() const { return 32; }
 	virtual int get_icon_size() const { return 0; }

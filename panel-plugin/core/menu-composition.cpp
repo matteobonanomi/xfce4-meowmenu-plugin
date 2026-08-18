@@ -376,6 +376,47 @@ MenuChromeGeometry meow_resolve_chrome_geometry(
 					: MenuSurfaceRectangle{ 0, band_bottom - 1,
 							window_width, 1, true };
 		}
+		if (composition.sidebar == CompositionSidebar::Horizontal
+				&& composition.horizontal_sidebar_surface == MenuSurfaceRole::Chrome
+				&& composition.secondary_surface == MenuSurfaceRole::Chrome
+				&& usable_rectangle(horizontal)
+				&& usable_rectangle(secondary))
+		{
+			const int horizontal_end = horizontal.y + horizontal.height;
+			const int secondary_end = secondary.y + secondary.height;
+			if (horizontal_end <= secondary.y)
+			{
+				// Balance both control centres against their painted boundaries.
+				// Clamping keeps each line inside the existing allocation gap, so
+				// this changes no widget size or spacing owner.
+				const int secondary_boundary = std::max(horizontal_end,
+						std::min(secondary.y,
+								2 * secondary.y + secondary.height
+								- window_height));
+				const int results_boundary = std::max(band_top,
+						std::min(horizontal.y,
+								2 * horizontal.y + horizontal.height
+								- secondary_boundary));
+				out.separator.y = results_boundary;
+				out.secondary_separator = { 0,
+						secondary_boundary,
+						window_width, 1, true };
+			}
+			else if (secondary_end <= horizontal.y)
+			{
+				const int secondary_boundary = std::max(secondary_end,
+						std::min(horizontal.y,
+								2 * secondary.y + secondary.height));
+				const int results_boundary = std::max(horizontal_end,
+						std::min(band_bottom - 1,
+								2 * horizontal.y + horizontal.height
+								- secondary_boundary));
+				out.separator.y = results_boundary;
+				out.secondary_separator = { 0,
+						secondary_boundary,
+						window_width, 1, true };
+			}
+		}
 	}
 
 	return out;

@@ -53,6 +53,37 @@ void WhiskerMenu::launcher_icon_view_set_transparent_grid_style(
 
 //-----------------------------------------------------------------------------
 
+/* launcher_icon_view_apply_grid_width:
+ * @view: icon grid receiving a complete whole-column layout.
+ * @icon_size: current launcher icon size in logical pixels.
+ * @viewport_width: current visible Results width in logical pixels.
+ *
+ * Derives the minimum complete cell from the live density properties, fits the
+ * maximum whole-column count, and distributes remaining width evenly. Explicit
+ * columns prevent GtkIconView's natural-width preference from leaving a large
+ * trailing void at intermediate menu widths.
+ */
+void WhiskerMenu::launcher_icon_view_apply_grid_width(GtkIconView* view,
+		int icon_size, int viewport_width)
+{
+	if (!GTK_IS_ICON_VIEW(view) || viewport_width <= 0)
+		return;
+	const GridCellMetrics cell = meow_grid_cell_metrics(
+			gtk_icon_view_get_item_padding(view), std::max(0, icon_size),
+			gtk_icon_view_get_row_spacing(view), true, 2);
+	const GridColumnLayout layout = meow_grid_column_layout(viewport_width,
+			gtk_icon_view_get_margin(view),
+			gtk_icon_view_get_column_spacing(view),
+			gtk_icon_view_get_item_padding(view), cell.minimum_width);
+	gtk_widget_set_hexpand(GTK_WIDGET(view), TRUE);
+	if (gtk_icon_view_get_columns(view) != layout.columns)
+		gtk_icon_view_set_columns(view, layout.columns);
+	if (gtk_icon_view_get_item_width(view) != layout.item_width)
+		gtk_icon_view_set_item_width(view, layout.item_width);
+}
+
+//-----------------------------------------------------------------------------
+
 /* launcher_icon_view_complete_empty_click:
  * @view: concrete icon view after GTK default button processing.
  * @transparent_grid: whether transparent resting cells are enabled.
@@ -96,12 +127,14 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	m_settings(settings),
 	m_icon_renderer(nullptr),
 	m_icon_size(-1),
+	m_viewport_width(0),
 	m_grid_density(),
 	m_layout_mode(),
 	m_transparent_grid(false)
 {
 	// Create the view
 	m_view = GTK_ICON_VIEW(gtk_icon_view_new());
+	gtk_widget_set_hexpand(GTK_WIDGET(m_view), TRUE);
 
 	m_icon_renderer = whiskermenu_icon_renderer_new();
 	g_object_set(m_icon_renderer,
@@ -583,8 +616,14 @@ void LauncherIconView::reload_icon_size()
 			"label-lines", 2,
 			nullptr);
 
-	// Let GtkIconView adapt the number of columns to the available width.
+	// Clear stale density geometry before applying the externally owned Results
+	// viewport. The icon view's own allocation is deliberately never used here:
+	// its requisition includes these columns and would create positive feedback.
 	gtk_icon_view_set_columns(m_view, -1);
+	gtk_icon_view_set_item_width(m_view, -1);
+	if (m_viewport_width > 0)
+		launcher_icon_view_apply_grid_width(m_view, m_icon_size,
+				m_viewport_width);
 }
 
 //-----------------------------------------------------------------------------
@@ -624,6 +663,43 @@ void LauncherIconView::sync_transparent_grid_style()
 
 	launcher_icon_view_set_transparent_grid_style(GTK_WIDGET(m_view),
 			transparent_grid);
+}
+
+//-----------------------------------------------------------------------------
+
+/* set_viewport_width:
+ * @viewport_width: current visible Results width in logical pixels.
+ *
+ * Caches and reapplies the complete grid-width decision supplied by the owning
+ * scroller. Keeping this authority outside GtkIconView prevents its requested
+ * column width from becoming the input to the next allocation.
+ */
+void LauncherIconView::set_viewport_width(int viewport_width)
+{
+	if (viewport_width <= 0)
+		return;
+	m_viewport_width = viewport_width;
+	launcher_icon_view_apply_grid_width(m_view, m_icon_size,
+			m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* get_minimum_viewport_width:
+ *
+ * Computes the narrowest viewport that contains one complete grid cell. GTK's
+ * current multi-column requisition must not become the interactive resize
+ * floor after the user has enlarged the launcher.
+ *
+ * Returns: the one-column Results viewport width in logical pixels.
+ */
+int LauncherIconView::get_minimum_viewport_width() const
+{
+	const GridCellMetrics cell = meow_grid_cell_metrics(
+			gtk_icon_view_get_item_padding(m_view),
+			std::max(0, m_icon_size),
+			gtk_icon_view_get_row_spacing(m_view), true, 2);
+	return (gtk_icon_view_get_margin(m_view) * 2) + cell.minimum_width;
 }
 
 //-----------------------------------------------------------------------------

@@ -21,6 +21,7 @@
 #include "core/desktop-drag.h"
 #include "launcher/category-button.h"
 #include "favorites-page.h"
+#include "ui/grid-cell-metrics.h"
 #include "ui/image-menu-item.h"
 #include "ui/grid-presentation.h"
 #include "launcher.h"
@@ -31,6 +32,7 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "core/window.h"
+#include "core/window-frame.h"
 #include "core/window-keyboard.h"
 
 #include <cstring>
@@ -86,7 +88,8 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	m_drag_enabled(true),
 	m_launcher_dragged(false),
 	m_favourite_drag_payload_delivered(false),
-	m_reorderable(false)
+	m_reorderable(false),
+	m_viewport_width(0)
 {
 	// Create button
 	if (icon && text)
@@ -101,13 +104,27 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 
 	// Add scrolling to view
 	m_widget = gtk_scrolled_window_new(nullptr, nullptr);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_widget), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_widget),
+			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_propagate_natural_width(
+			GTK_SCROLLED_WINDOW(m_widget), FALSE);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(m_widget),
 			MEOWMENU_LAUNCHER_SHADOW_TYPE);
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	g_object_ref_sink(m_widget);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget), "launchers-pane");
+	connect(m_widget, "draw",
+			[](GtkWidget* widget, cairo_t* cr) -> gboolean
+			{
+				return meow::meowmenu_draw_widget_with_bounds(widget, cr)
+						? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
+			});
+	connect(m_widget, "size-allocate",
+			[this](GtkWidget*, GtkAllocation*)
+			{
+				sync_viewport_width();
+			});
 }
 
 //-----------------------------------------------------------------------------
@@ -222,8 +239,70 @@ void Page::update_view()
 
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	gtk_widget_show_all(m_widget);
+	sync_viewport_width();
 
 	view_created();
+}
+
+/* sync_viewport_width:
+ *
+ * Supplies the launcher view with the scroller's allocation after removing any
+ * natural-size overshoot GTK has already added beyond the requested toplevel
+ * width. Full Screen has no windowed cap, while interactive resize remains
+ * authoritative because it updates the toplevel size request.
+ */
+void Page::sync_viewport_width()
+{
+	if (!m_view || !GTK_IS_SCROLLED_WINDOW(m_widget))
+		return;
+	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+	int requested_width = -1;
+	if (GTK_IS_WIDGET(toplevel)
+			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
+	{
+		gtk_widget_get_size_request(toplevel, &requested_width, nullptr);
+	}
+	m_viewport_width = meow_grid_effective_viewport_width(
+			gtk_widget_get_allocated_width(m_widget),
+			GTK_IS_WIDGET(toplevel)
+					? gtk_widget_get_allocated_width(toplevel) : 0,
+			requested_width);
+	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* prepare_viewport_resize:
+ * @current_toplevel_width: launcher width before the resize step.
+ * @requested_toplevel_width: launcher width requested by the step.
+ *
+ * Pushes the predicted Results width into icon grids before the toplevel size
+ * request changes. This breaks the requisition/allocation cycle that otherwise
+ * hides results during a drag and delays column changes until button release.
+ */
+void Page::prepare_viewport_resize(int current_toplevel_width,
+		int requested_toplevel_width)
+{
+	if (!m_view || m_viewport_width < 1
+			|| m_view->get_minimum_viewport_width() < 1)
+	{
+		return;
+	}
+
+	const int viewport_width = meow_grid_resized_viewport_width(
+			m_viewport_width, current_toplevel_width,
+			requested_toplevel_width);
+	if (viewport_width == m_viewport_width)
+		return;
+	m_viewport_width = viewport_width;
+	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+int Page::get_minimum_viewport_width() const
+{
+	return m_view ? m_view->get_minimum_viewport_width() : 0;
 }
 
 //-----------------------------------------------------------------------------

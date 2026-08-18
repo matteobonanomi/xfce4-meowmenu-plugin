@@ -27,6 +27,7 @@ test_window_mode_integration = executable(
 	'..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
 	'..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
 	'..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [gtk, libxfce4util, xfconf],
@@ -635,8 +636,8 @@ test('layout_sensitivity', test_layout_sensitivity)
 
 # test_window_frame: headless coverage of the pure window-frame helpers in
 # panel-plugin/core/window-frame.cpp (radius clamp [0,24] + the composited
-# rounded-border predicate). Pulls only the GTK-free helper translation unit;
-# no display server, no GTK widgets.
+# rounded-border predicate and local Cairo Results clip). No display server or
+# GTK widgets.
 test_window_frame_sources = [
   'test_window_frame.cpp',
   '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
@@ -646,7 +647,7 @@ test_window_frame = executable(
   'test_window_frame',
   test_window_frame_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
+  dependencies: [gtk],
 )
 
 test('window_frame', test_window_frame)

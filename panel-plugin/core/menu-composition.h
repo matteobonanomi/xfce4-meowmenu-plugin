@@ -165,6 +165,7 @@ struct MenuChromeGeometry
 	MenuSurfaceRectangle vertical;
 	MenuSurfaceRectangle band;
 	MenuSurfaceRectangle separator;
+	MenuSurfaceRectangle secondary_separator;
 };
 
 /* meow_resolve_menu_composition:
@@ -194,7 +195,10 @@ MenuComposition meow_resolve_menu_composition(const MenuCompositionInput& input)
  * when available; @region_gap is its safe pre-allocation fallback. Horizontal
  * and secondary bands on the same edge are returned as one continuous
  * rectangle. A visible secondary band also returns one one-pixel separator on
- * its Content edge.
+ * its Content edge. Horizontal navigation with a visible secondary band
+ * returns a second one-pixel separator in the existing allocation gap. The two
+ * boundary positions balance the live Horizontal and secondary control centres
+ * between their visible edges without changing either allocation.
  *
  * Returns: at most one vertical column, one full-width edge band, and its
  * Content-edge separator.

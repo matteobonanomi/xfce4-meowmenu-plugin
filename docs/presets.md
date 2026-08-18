@@ -84,6 +84,11 @@ start at the application list's top anchor. No divider follows Favourites when
 there is no lower group, and the three navigation icons share an aligned,
 optically consistent presentation across presets.
 
+In a Horizontal sidebar, the Results/strip and strip/secondary-row edges each
+have one equal thin theme-derived boundary when the lower control row is shown.
+The boundaries do not change the preset's spacing. Results content remains
+clipped to its visible box while scrolling.
+
 ## The Unsaved custom state
 
 Changing a governed setting shows **Unsaved custom** in **Properties → General**.

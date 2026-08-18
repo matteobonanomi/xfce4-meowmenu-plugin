@@ -2646,6 +2646,40 @@ void WhiskerMenu::Window::update_view_redraw_safeguards()
 
 //-----------------------------------------------------------------------------
 
+/* Window::prepare_results_width_resize:
+ * @current_width: launcher width before the resize step.
+ * @requested_width: launcher width requested by the resize step.
+ *
+ * Supplies every page with the horizontal delta before GTK allocates the new
+ * window. Updating inactive pages as well keeps their grid geometry ready for
+ * a category or Apps/Places switch during the same menu session.
+ */
+void WhiskerMenu::Window::prepare_results_width_resize(int current_width,
+		int requested_width)
+{
+	Page* pages[] = {
+		m_search_results,
+		m_favorites,
+		m_recent,
+		m_applications
+	};
+	for (Page* page : pages)
+	{
+		if (page)
+		{
+			page->prepare_viewport_resize(current_width,
+					requested_width);
+		}
+	}
+	if (m_places)
+	{
+		m_places->prepare_viewport_resize(current_width,
+				requested_width);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 /* Window::schedule_style_refresh:
  *
  * Coalesces GTK style invalidations into one idle transaction. Reloading the
@@ -3161,6 +3195,12 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		if (geometry.separator.visible)
 			paint_rectangle({ geometry.separator.x, geometry.separator.y,
 					geometry.separator.width, geometry.separator.height },
+					m_separator_rgba, alpha);
+		if (geometry.secondary_separator.visible)
+			paint_rectangle({ geometry.secondary_separator.x,
+					geometry.secondary_separator.y,
+					geometry.secondary_separator.width,
+					geometry.secondary_separator.height },
 					m_separator_rgba, alpha);
 	};
 

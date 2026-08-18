@@ -216,6 +216,65 @@ void layout_and_density_matrix_is_deterministic()
 	}
 }
 
+void viewport_width_uses_maximum_complete_columns()
+{
+	const GridColumnLayout narrow = meow_grid_column_layout(260, 6, 4, 4, 120);
+	CHECK(narrow.columns == 2);
+	CHECK(narrow.item_width == 114);
+
+	const GridColumnLayout vertical_sidebar =
+			meow_grid_column_layout(420, 6, 4, 4, 120);
+	CHECK(vertical_sidebar.columns == 3);
+	CHECK(vertical_sidebar.item_width == 125);
+
+	const GridColumnLayout horizontal_sidebar =
+			meow_grid_column_layout(568, 6, 4, 4, 120);
+	CHECK(horizontal_sidebar.columns == 4);
+	CHECK(horizontal_sidebar.item_width == 128);
+
+	for (int item_padding : { 0, 2, 4, 8, 10 })
+	{
+		const int minimum_complete_width = 112 + (item_padding * 2);
+		for (int width = 240; width <= 1200; ++width)
+		{
+			const GridColumnLayout layout = meow_grid_column_layout(
+					width, 6, 4, item_padding,
+					minimum_complete_width);
+			const int complete_item_width = layout.item_width
+					+ (item_padding * 2);
+			const int used = 12 + (layout.columns * complete_item_width)
+					+ ((layout.columns - 1) * 4);
+			CHECK(layout.columns >= 1);
+			CHECK(layout.item_width >= 1);
+			CHECK(used <= width);
+			CHECK(width - used < layout.columns);
+			if (layout.columns > 1)
+				CHECK(complete_item_width >= minimum_complete_width);
+		}
+	}
+}
+
+void viewport_width_rejects_toplevel_natural_size_overshoot()
+{
+	CHECK(meow_grid_effective_viewport_width(282, 450, 450) == 282);
+	for (int overshoot = 1; overshoot <= 1000; ++overshoot)
+	{
+		CHECK(meow_grid_effective_viewport_width(282 + overshoot,
+				450 + overshoot, 450) == 282);
+	}
+	CHECK(meow_grid_effective_viewport_width(432, 600, 600) == 432);
+	CHECK(meow_grid_effective_viewport_width(900, 1920, -1) == 900);
+}
+
+void live_resize_releases_the_current_grid_floor()
+{
+	CHECK(meow_grid_resized_viewport_width(282, 450, 550) == 382);
+	CHECK(meow_grid_resized_viewport_width(382, 550, 400) == 232);
+	CHECK(meow_grid_resized_viewport_width(232, 400, 400) == 232);
+	CHECK(meow_grid_release_resize_minimum(450, 282, 132) == 300);
+	CHECK(meow_grid_release_resize_minimum(300, 132, 132) == 300);
+}
+
 } // namespace
 
 int main()
@@ -227,6 +286,9 @@ int main()
 	height_never_uses_source_or_label_text();
 	app_and_places_share_height();
 	layout_and_density_matrix_is_deterministic();
+	viewport_width_uses_maximum_complete_columns();
+	viewport_width_rejects_toplevel_natural_size_overshoot();
+	live_resize_releases_the_current_grid_floor();
 
 	if (g_failures != 0)
 	{
