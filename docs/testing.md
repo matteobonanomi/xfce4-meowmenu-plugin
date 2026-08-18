@@ -93,6 +93,16 @@ sizes must match the host region within one device pixel; and accessible names,
 checked state, Tab order, mouse switching, and LTR/RTL behavior must remain
 correct.
 
+With Places active in each Left and Right sidebar, compare the first Home row
+with the first Applications navigation row in the otherwise identical layout.
+Their top edges must match within one device pixel, with unused vertical space
+below the Places group. Confirm no divider or reserved divider gap follows
+Favourites when no lower group is visible. Compare the Home, History, and
+Favourites artwork at normal and high display scale: the star should have a
+consistent optical footprint while all three icons and labels remain in the
+same columns. Repeat after moving through Horizontal navigation and after a
+live theme change to catch stale first-frame spacer or icon state.
+
 Open Full Screen 20 times for Left, Right, Horizontal, and disabled sidebars,
 then repeat after changing layout, sidebar state, Places, primary edge, text
 direction, and available Session actions. The selector must be in its final

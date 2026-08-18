@@ -249,6 +249,13 @@ and disabled feedback remain theme-native. Icons follow the size of their
 current host region, while text labels use their natural height so they remain
 readable with enlarged text.
 
+With Places active in a left or right sidebar, **Home**, **History**, and
+**Favourites** start at the same top edge used by application categories. Any
+unused sidebar space remains below them. A divider appears only when another
+visible group follows, so no trailing line is shown below Favourites. The three
+icons keep one aligned column, with the star optically balanced against the
+Home and History artwork.
+
 Places **Home** always starts with Home, followed by configured standard user
 folders such as Documents, Downloads, Music, Pictures, and Videos when those
 directories exist. It does not list every folder under Home and is not an

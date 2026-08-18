@@ -362,6 +362,21 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 		gtk_widget_set_visible(widget,
 				resolution.application_categories_visible);
 	}
+	const bool fixed_group_visible =
+			resolution.applications_favourites_visible
+			|| resolution.applications_recent_visible
+			|| resolution.applications_all_visible
+			|| resolution.places_home_visible
+			|| resolution.places_history_visible
+			|| resolution.places_favourites_visible;
+	const bool following_group_visible =
+			resolution.application_categories_visible
+			&& !m_app_category_widgets.empty();
+	// A terminal line below Favourites is not a group separator. Re-evaluate
+	// this with asynchronous category replacement as well as mode switches.
+	gtk_widget_set_visible(m_category_group_separator,
+			meow_sidebar_group_separator_visible(fixed_group_visible,
+					following_group_visible));
 
 	gtk_entry_set_placeholder_text(m_search_entry, places
 			? _("Search places\xe2\x80\xa6")

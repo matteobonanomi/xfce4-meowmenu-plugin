@@ -79,6 +79,11 @@ with one selected mode and GTK-native interaction feedback. Icon sizes follow
 the selector's current sidebar, Search, or Session host. Text choices keep
 their natural height for translated labels and enlarged text.
 
+When Places is active in a vertical sidebar, Home, History, and Favourites
+start at the application list's top anchor. No divider follows Favourites when
+there is no lower group, and the three navigation icons share an aligned,
+optically consistent presentation across presets.
+
 ## The Unsaved custom state
 
 Changing a governed setting shows **Unsaved custom** in **Properties → General**.

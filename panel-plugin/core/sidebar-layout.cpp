@@ -153,6 +153,27 @@ int meow_strip_spacer_order(bool categories_horizontal)
 	return categories_horizontal ? 0 : -1;
 }
 
+bool meow_strip_spacers_visible(bool categories_horizontal)
+{
+	return categories_horizontal;
+}
+
+bool meow_sidebar_group_separator_visible(bool leading_group_visible,
+		bool following_group_visible)
+{
+	return leading_group_visible && following_group_visible;
+}
+
+int meow_favourites_icon_render_size(int category_icon_px)
+{
+	if (category_icon_px <= 1)
+		return category_icon_px;
+
+	const int optical_px = ((category_icon_px * 2) + 1) / 3;
+	const int visible_px = optical_px < 16 ? 16 : optical_px;
+	return visible_px > category_icon_px ? category_icon_px : visible_px;
+}
+
 int meow_default_category_order_base(bool strip_spacer_visible,
 		bool vertical_switch_controls)
 {

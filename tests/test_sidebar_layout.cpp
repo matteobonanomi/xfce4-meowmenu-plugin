@@ -338,6 +338,29 @@ void sidebar_max_label_width_decision()
 	CHECK(meow_sidebar_max_label_width(a, 3) == meow_sidebar_max_label_width(b, 3));
 }
 
+void places_sidebar_chrome_decision()
+{
+	// Expanding spacers belong only to the Horizontal strip. Reapplying the
+	// decision to a steady vertical layout is what keeps sparse Places rows at
+	// the same top anchor as Applications rows after initial show-all.
+	CHECK(!meow_strip_spacers_visible(false));
+	CHECK(meow_strip_spacers_visible(true));
+
+	// A divider is meaningful only when it has visible content on both sides.
+	CHECK(!meow_sidebar_group_separator_visible(false, false));
+	CHECK(!meow_sidebar_group_separator_visible(true, false));
+	CHECK(!meow_sidebar_group_separator_visible(false, true));
+	CHECK(meow_sidebar_group_separator_visible(true, true));
+
+	// The dense star is optically reduced while its category-sized slot remains
+	// unchanged. None stays hidden and the smallest visible size is not reduced.
+	CHECK(meow_favourites_icon_render_size(1) == 1);
+	CHECK(meow_favourites_icon_render_size(16) == 16);
+	CHECK(meow_favourites_icon_render_size(24) == 16);
+	CHECK(meow_favourites_icon_render_size(32) == 21);
+	CHECK(meow_favourites_icon_render_size(48) == 32);
+}
+
 } // namespace
 
 int main()
@@ -358,6 +381,7 @@ int main()
 	label_visibility_decision();
 	label_cap_decision();
 	sidebar_max_label_width_decision();
+	places_sidebar_chrome_decision();
 	embedded_switch_slot_decision();
 
 	if (g_failures != 0)

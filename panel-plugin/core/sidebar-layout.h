@@ -249,6 +249,39 @@ FullscreenMainColumn meow_fullscreen_main_column(int workarea_width);
  */
 int meow_strip_spacer_order(bool categories_horizontal);
 
+/* meow_strip_spacers_visible:
+ * @categories_horizontal: true when category navigation is a Horizontal strip.
+ *
+ * Keeps expanding strip spacers out of vertical sidebars on every layout pass,
+ * including steady-state passes that do not reparent the category box.
+ *
+ * Returns: true only when the Horizontal strip needs its centering spacers.
+ */
+bool meow_strip_spacers_visible(bool categories_horizontal);
+
+/* meow_sidebar_group_separator_visible:
+ * @leading_group_visible: whether the fixed navigation group has visible rows.
+ * @following_group_visible: whether a non-empty visible group follows it.
+ *
+ * A separator is useful only between two visible groups. Keeping this decision
+ * independent of menu mode also covers temporary empty category replacements.
+ *
+ * Returns: true when the separator has visible content on both sides.
+ */
+bool meow_sidebar_group_separator_visible(bool leading_group_visible,
+		bool following_group_visible);
+
+/* meow_favourites_icon_render_size:
+ * @category_icon_px: configured category icon slot size in logical pixels.
+ *
+ * Optically reduces the dense Favourites star to two thirds of its slot while
+ * retaining the 16-pixel smallest visible size. The caller keeps the original
+ * slot allocation so all Places labels remain aligned.
+ *
+ * Returns: the render size; values at or below 1 remain unchanged for None.
+ */
+int meow_favourites_icon_render_size(int category_icon_px);
+
 /* meow_default_category_order_base:
  * @strip_spacer_visible: true when the horizontal strip spacer is visible.
  * @vertical_switch_controls: true when the vertical sidebar owns its upper

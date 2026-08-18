@@ -200,6 +200,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_places_property_slot(0),
 	m_live_settings_property_slot(0),
 	m_mode_selector_separator(nullptr),
+	m_category_group_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
 	m_strip_trail_spacer(nullptr),
@@ -717,7 +718,9 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	gtk_box_pack_start(m_category_buttons, m_places_home_btn->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, m_places_history_btn->get_widget(), false, false, 0);
 	gtk_box_pack_start(m_category_buttons, m_places_fav_btn->get_widget(), false, false, 0);
-	gtk_box_pack_start(m_category_buttons, gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 4);
+	m_category_group_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	gtk_box_pack_start(m_category_buttons, m_category_group_separator,
+			false, false, 4);
 
 	// Equalise the width of all category buttons within a mode so the icons and
 	// labels line up. NOTE: this size group does NOT by itself keep the sidebar
@@ -1415,7 +1418,10 @@ void WhiskerMenu::Window::show(const Position position)
 	m_applications->get_button()->reload_icon_size();
 	m_places_home_btn->reload_icon_size();
 	m_places_history_btn->reload_icon_size();
-	m_places_fav_btn->reload_icon_size();
+	const int category_icon_px = m_settings->category_icon_size.get_size();
+	m_places_fav_btn->reload_icon_size(
+			meow_favourites_icon_render_size(category_icon_px),
+			category_icon_px);
 
 	m_applications->reload_category_icon_size();
 
@@ -3778,14 +3784,22 @@ void WhiskerMenu::Window::update_layout()
 		g_object_unref(m_category_buttons);
 		m_sidebar_struct = want_struct;
 	}
-	if (want_strip && m_strip_lead_spacer && m_strip_trail_spacer)
+	if (m_strip_lead_spacer && m_strip_trail_spacer)
+	{
+		const bool spacers_visible =
+				meow_strip_spacers_visible(want_strip);
+		if (spacers_visible)
 		{
 			gtk_box_reorder_child(m_category_buttons, m_strip_lead_spacer,
 					meow_strip_spacer_order(true));
 			gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
-			gtk_widget_show(m_strip_lead_spacer);
-			gtk_widget_show(m_strip_trail_spacer);
 		}
+		// Apply visibility even when the structural parent is unchanged. Initial
+		// show-all reveals both spacers, so transition-only updates would leave a
+		// sparse vertical Places group centred between them.
+		gtk_widget_set_visible(m_strip_lead_spacer, spacers_visible);
+		gtk_widget_set_visible(m_strip_trail_spacer, spacers_visible);
+	}
 
 	// Re-home the Apps/Places switch to match the computed presentation.
 	{

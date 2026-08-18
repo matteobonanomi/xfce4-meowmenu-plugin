@@ -58,6 +58,16 @@ public:
 
 	void reload_icon_size();
 
+	/* reload_icon_size:
+	 * @render_size: icon artwork size in logical pixels; 1 hides the icon.
+	 * @slot_size: aligned icon allocation in logical pixels.
+	 *
+	 * Applies an optical artwork size without moving the shared sidebar label
+	 * column. The no-argument overload uses the configured category size for
+	 * both values.
+	 */
+	void reload_icon_size(int render_size, int slot_size);
+
 	/* measure_label_width:
 	 *
 	 * Measure the label's natural width in pixels in its current font, capped to

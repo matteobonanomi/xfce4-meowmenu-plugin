@@ -169,9 +169,22 @@ CategoryButton::~CategoryButton()
 
 void CategoryButton::reload_icon_size()
 {
-	int size = m_settings->category_icon_size.get_size();
-	gtk_image_set_pixel_size(GTK_IMAGE(m_icon), size);
-	gtk_widget_set_visible(m_icon, size > 1);
+	const int size = m_settings->category_icon_size.get_size();
+	reload_icon_size(size, size);
+}
+
+//-----------------------------------------------------------------------------
+
+void CategoryButton::reload_icon_size(int render_size, int slot_size)
+{
+	const int bounded_slot = slot_size > 1 ? slot_size : 1;
+	const int bounded_render = render_size > bounded_slot
+			? bounded_slot : render_size;
+	gtk_image_set_pixel_size(GTK_IMAGE(m_icon), bounded_render);
+	gtk_widget_set_size_request(m_icon,
+			bounded_slot > 1 ? bounded_slot : -1,
+			bounded_slot > 1 ? bounded_slot : -1);
+	gtk_widget_set_visible(m_icon, bounded_render > 1);
 
 	// NOTE: schema v2 — categories are rendered icon-only whenever the sidebar is
 	// laid out horizontally (sidebar-position = horizontal); the legacy

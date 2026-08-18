@@ -196,6 +196,42 @@ int main()
 		}
 	}
 
+	GtkWidget* navigation = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* lead_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* home = gtk_button_new_with_label("Home");
+	GtkWidget* favourites = gtk_button_new_with_label("Favourites");
+	GtkWidget* group_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	GtkWidget* trail_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_widget_set_vexpand(lead_spacer, TRUE);
+	gtk_widget_set_vexpand(trail_spacer, TRUE);
+	gtk_box_pack_start(GTK_BOX(navigation), lead_spacer, true, true, 0);
+	gtk_box_pack_start(GTK_BOX(navigation), home, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(navigation), favourites, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(navigation), group_separator, false, false, 4);
+	gtk_box_pack_start(GTK_BOX(navigation), trail_spacer, true, true, 0);
+	gtk_widget_show_all(navigation);
+
+	const bool vertical_spacers = meow_strip_spacers_visible(false);
+	gtk_widget_set_visible(lead_spacer, vertical_spacers);
+	gtk_widget_set_visible(trail_spacer, vertical_spacers);
+	gtk_widget_set_visible(group_separator,
+			meow_sidebar_group_separator_visible(true, false));
+	CHECK(!gtk_widget_get_visible(lead_spacer));
+	CHECK(!gtk_widget_get_visible(trail_spacer));
+	CHECK(!gtk_widget_get_visible(group_separator));
+	CHECK(gtk_widget_get_visible(home));
+	CHECK(gtk_widget_get_visible(favourites));
+
+	const bool horizontal_spacers = meow_strip_spacers_visible(true);
+	gtk_widget_set_visible(lead_spacer, horizontal_spacers);
+	gtk_widget_set_visible(trail_spacer, horizontal_spacers);
+	gtk_widget_set_visible(group_separator,
+			meow_sidebar_group_separator_visible(true, true));
+	CHECK(gtk_widget_get_visible(lead_spacer));
+	CHECK(gtk_widget_get_visible(trail_spacer));
+	CHECK(gtk_widget_get_visible(group_separator));
+	gtk_widget_destroy(navigation);
+
 	MenuModeInputs live;
 	live.requested_mode = MenuMode::Places;
 	live.transition = MenuModeTransition::Reevaluate;
