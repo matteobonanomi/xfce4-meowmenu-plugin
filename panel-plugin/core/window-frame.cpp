@@ -44,4 +44,23 @@ bool meowmenu_frame_draws_border(bool is_fullscreen, bool supports_alpha)
 	return !is_fullscreen && supports_alpha;
 }
 
+/* meowmenu_frameless_launcher_css:
+ *
+ * Keeps the complete Results scrollbar chrome transparent while deliberately
+ * leaving its slider outside the rule.
+ *
+ * Returns: static CSS owned by this module.
+ */
+const char* meowmenu_frameless_launcher_css()
+{
+	// Themes may paint the hairline on the scrollbar rather than its trough.
+	return
+			".meowmenu scrolledwindow.launchers-pane,"
+			".meowmenu scrolledwindow.launchers-pane > viewport,"
+			".meowmenu scrolledwindow.launchers-pane scrollbar,"
+			".meowmenu scrolledwindow.launchers-pane scrollbar trough"
+			"{ background-color: transparent; background-image: none;"
+			"  border: none; outline: none; box-shadow: none; }";
+}
+
 } // namespace meow

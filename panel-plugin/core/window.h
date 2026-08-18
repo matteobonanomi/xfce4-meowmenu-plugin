@@ -228,10 +228,9 @@ private:
 	 *         used for the tooltip + accessible name in both modes, so the full
 	 *         meaning survives even in icon-only mode.
 	 * @icon_size: GTK theme size role used for the image request.
-	 * @icon_px: pixel size for the icon child, derived from the toggle's region
-	 *         (category icon size in a sidebar, search-bar height otherwise).
-	 *         A negative value preserves @icon_size exactly; this is used beside
-	 *         Session buttons so both controls follow the same GTK theme metric.
+	 * @icon_px: pixel size for the icon child, derived from the toggle's region.
+	 *         A negative value preserves @icon_size exactly when no usable
+	 *         region metric is available.
 	 *
 	 * Swaps the toggle's child between a GtkLabel and a GtkImage in place,
 	 * leaving the toggle's active state and styling untouched. When the child is

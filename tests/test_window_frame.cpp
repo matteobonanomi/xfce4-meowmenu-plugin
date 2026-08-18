@@ -10,10 +10,12 @@
 
 #include "core/window-frame.h"
 
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 
 using meow::meowmenu_clamp_corner_radius;
+using meow::meowmenu_frameless_launcher_css;
 using meow::meowmenu_frame_draws_border;
 
 namespace
@@ -64,6 +66,20 @@ void border_predicate_truth_table()
 	CHECK(meowmenu_frame_draws_border(/*is_fullscreen=*/true,  /*supports_alpha=*/false) == false);
 }
 
+// The scrollbar container owns the theme-drawn edge beside the trough. Both
+// nodes must be neutralised, while the slider remains entirely theme-owned.
+void frameless_launcher_css_targets_scrollbar_chrome()
+{
+	const char* css = meowmenu_frameless_launcher_css();
+	CHECK(std::strstr(css,
+			"scrolledwindow.launchers-pane scrollbar,") != nullptr);
+	CHECK(std::strstr(css,
+			"scrolledwindow.launchers-pane scrollbar trough") != nullptr);
+	CHECK(std::strstr(css, "scrollbar slider") == nullptr);
+	CHECK(std::strstr(css, "border: none") != nullptr);
+	CHECK(std::strstr(css, "background-color: transparent") != nullptr);
+}
+
 } // namespace
 
 int main()
@@ -71,6 +87,7 @@ int main()
 	radius_clamped_to_range();
 	radius_clamp_is_monotonic();
 	border_predicate_truth_table();
+	frameless_launcher_css_targets_scrollbar_chrome();
 
 	if (g_failures != 0)
 	{

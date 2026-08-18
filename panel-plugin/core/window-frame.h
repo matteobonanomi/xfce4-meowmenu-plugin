@@ -49,6 +49,14 @@ int meowmenu_clamp_corner_radius(int radius);
  */
 bool meowmenu_frame_draws_border(bool is_fullscreen, bool supports_alpha);
 
+/* meowmenu_frameless_launcher_css:
+ *
+ * Returns the scoped GTK CSS rule that removes persistent Results viewport,
+ * scrollbar, and trough chrome without selecting the scrollbar slider. The
+ * returned string is static and must not be freed.
+ */
+const char* meowmenu_frameless_launcher_css();
+
 } // namespace meow
 
 #endif // MEOWMENU_CORE_WINDOW_FRAME_H

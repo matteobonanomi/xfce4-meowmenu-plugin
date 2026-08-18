@@ -78,9 +78,16 @@ GtkIconTheme* make_theme(const char* root)
 
 int main()
 {
-	// Secondary-row selector images and Session buttons share one theme role;
-	// neither side may substitute an independently forced pixel size.
+	// The Session role remains the source metric. Selector glyphs use a small
+	// canvas compensation because Apps/Places artwork fills more of the nominal
+	// icon square than the symbolic Session artwork beside it.
 	CHECK(MEOWMENU_SESSION_BUTTON_ICON_SIZE == GTK_ICON_SIZE_LARGE_TOOLBAR);
+	CHECK(meow_selector_session_icon_px(-1) == -1);
+	CHECK(meow_selector_session_icon_px(0) == -1);
+	CHECK(meow_selector_session_icon_px(16) == 13);
+	CHECK(meow_selector_session_icon_px(20) == 16);
+	CHECK(meow_selector_session_icon_px(24) == 19);
+	CHECK(meow_selector_session_icon_px(32) == 26);
 
 	// GtkIconTheme lookups work without a display; gtk_init_check just primes
 	// any global state and stays headless-safe if no display is present.

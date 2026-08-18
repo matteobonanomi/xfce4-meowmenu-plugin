@@ -71,6 +71,19 @@ struct ModeButtonLabels
 ModeButtonLabels meow_mode_button_labels(bool show_icons, const char* short_label,
 		const char* long_label);
 
+/* meow_selector_session_icon_px:
+ * @session_px: resolved Session toolbar icon canvas in logical pixels.
+ *
+ * Compensates for Apps/Places artwork filling more of its icon canvas than
+ * adjacent symbolic Session glyphs. The rounded four-fifths request keeps the
+ * visible glyph footprints proportionate; an unavailable metric preserves the
+ * GTK icon-size role by returning -1.
+ *
+ * Returns: a positive compensated pixel size, or -1 when @session_px is not
+ * usable.
+ */
+int meow_selector_session_icon_px(int session_px);
+
 } // namespace WhiskerMenu
 
 #endif // MEOWMENU_UI_SWITCH_ICONS_H

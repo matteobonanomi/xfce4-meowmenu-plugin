@@ -2870,13 +2870,10 @@ void WhiskerMenu::Window::update_background_css()
 		"{ background: none; background-color: transparent;"
 		"  background-image: none; border: none; border-color: transparent;"
 		"  box-shadow: none; }"
-		// Launcher content has no persistent internal frame. The scrollbar slider
-		// and every GTK interaction state remain outside this scoped rule.
-		".meowmenu scrolledwindow.launchers-pane,"
-		".meowmenu scrolledwindow.launchers-pane > viewport,"
-		".meowmenu scrolledwindow.launchers-pane scrollbar trough"
-		"{ background-color: transparent; background-image: none;"
-		"  border: none; outline: none; box-shadow: none; }"
+		// Launcher content has no persistent internal frame. The scoped rule also
+		// clears theme chrome on the scrollbar container; its slider and every GTK
+		// interaction state remain outside the selector.
+		"%s"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2906,7 +2903,8 @@ void WhiskerMenu::Window::update_background_css()
 		"{ background: transparent; border: none; box-shadow: none; }"
 		".meowmenu .places-mode-selector button:not(:checked):not(:hover):not(:active):not(:disabled):not(:focus)"
 		"{ background: transparent; border-color: transparent; box-shadow: none; }",
-		red, green, blue, alpha_shell);
+		red, green, blue, alpha_shell,
+		meow::meowmenu_frameless_launcher_css());
 
 	// Capture the parse error from our own generated stylesheet. Passing nullptr
 	// here discards all diagnostics, which is why a malformed declaration (such
@@ -3338,9 +3336,9 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 			gtk_container_add(GTK_CONTAINER(button), GTK_WIDGET(image));
 			gtk_widget_show(GTK_WIDGET(image));
 		}
-		// Raw pixel requests are appropriate for category/Search references. A
-		// negative value deliberately clears the override so a secondary-row
-		// selector and its Session neighbours use the identical GTK size role.
+		// Raw pixel requests preserve category/Search references and allow the
+		// Session-row visual compensation to follow its live GTK source metric. A
+		// negative value clears the override when that metric is unavailable.
 		gtk_image_set_pixel_size(image, icon_px);
 	}
 	else
@@ -3366,8 +3364,9 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
  * @presentation: final-home selector presentation for this pass.
  *
  * Applies icon/text content and region-derived sizing to the Apps/Places
- * selector. Shared secondary rows use the Session command icon allocation;
- * sidebar and search-row homes retain their own natural sources.
+ * selector. Shared secondary rows start from the Session command allocation
+ * and compensate for their fuller icon artwork; sidebar and search-row homes
+ * retain their own natural sources.
  */
 void WhiskerMenu::Window::apply_switch_presentation(
 		const SelectorPresentation& presentation)
@@ -3377,7 +3376,9 @@ void WhiskerMenu::Window::apply_switch_presentation(
 			== SelectorIconSizeSource::SessionToolbar;
 	const GtkIconSize icon_size = session_size
 			? MEOWMENU_SESSION_BUTTON_ICON_SIZE : GTK_ICON_SIZE_BUTTON;
-	const int icon_px = session_size ? -1 : presentation.icon_px;
+	const int icon_px = session_size
+			? meow_selector_session_icon_px(presentation.icon_px)
+			: presentation.icon_px;
 
 	// Text↔icon child swap (supported behavior): the visible text label is the short
 	// "Apps"/"Places"; the long "Applications"/"Places" stays as tooltip and

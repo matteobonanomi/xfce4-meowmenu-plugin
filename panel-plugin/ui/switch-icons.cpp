@@ -57,4 +57,18 @@ ModeButtonLabels meow_mode_button_labels(bool show_icons, const char* short_labe
 	return out;
 }
 
+/* meow_selector_session_icon_px:
+ * @session_px: resolved Session toolbar icon canvas in logical pixels.
+ *
+ * Returns: the rounded four-fifths selector size, or -1 when GTK did not
+ * provide a usable reference metric.
+ */
+int meow_selector_session_icon_px(int session_px)
+{
+	if (session_px <= 0)
+		return -1;
+
+	return ((session_px * 4) + 2) / 5;
+}
+
 } // namespace WhiskerMenu

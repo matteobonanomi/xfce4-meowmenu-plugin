@@ -25,8 +25,8 @@
 namespace WhiskerMenu
 {
 
-// Session buttons and selector icons that share an auxiliary row must request
-// the same GTK size role. Themes may map that role to a different pixel size.
+// Session buttons define the GTK size role from which neighbouring selector
+// icon proportions are derived. Themes may map it to a different pixel size.
 constexpr GtkIconSize MEOWMENU_SESSION_BUTTON_ICON_SIZE =
 		GTK_ICON_SIZE_LARGE_TOOLBAR;
 
