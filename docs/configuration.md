@@ -114,6 +114,21 @@ right-to-left interfaces, while explicit Left and Right sidebars stay on their
 selected physical sides. Every hidden or unavailable control is removed from
 allocation, shared-width sizing, and focus navigation.
 
+Docked and Centered menus use two related GTK-theme surfaces. Search and
+Results form the content surface; visible category navigation and the
+secondary Apps/Places and Session row form the chrome surface. Profile follows
+the surface of the column it occupies. The distinction comes from the active
+theme rather than the selected preset, so changing themes updates both
+surfaces while the menu is open. A thin theme-derived line separates a visible
+secondary row from Content. The controls sit vertically centred between that
+line and the launcher edge, using the same outer inset on both sides.
+
+Outer insets and gaps between major regions use one spacing rhythm derived
+from the active GTK theme. Hiding a region removes its gap as well as its
+allocation, avoiding doubled spacing and empty seams. Results and the
+scrollbar trough have no persistent inner frame; result selection, keyboard
+focus, and the scrollbar slider keep their normal theme feedback.
+
 ### Full Screen composition
 
 Full Screen always uses one primary row at the top. Profile occupies the
@@ -142,6 +157,11 @@ Session. It mirrors naturally in right-to-left interfaces, including the
 outer anchors and the two edges of the centred middle region. Hidden Profile,
 unavailable Session actions, and disabled Places reserve neither space nor a
 keyboard focus target.
+
+Unlike Docked and Centered, Full Screen deliberately uses one uniform surface
+for Profile, Search, Results, categories, and Session controls. Theme changes
+and menu opacity still apply uniformly without introducing windowed surface
+boundaries.
 
 ### Search Bar
 
@@ -217,12 +237,17 @@ icon-only preview.
 |--------|-------------|
 | Enable Places | Show a flat shortcut surface for Home, configured standard user folders, recent files, and bookmarks. |
 | Show icons | Render the Apps/Places switch as two icon buttons (an app-grid icon and a folder icon, with tooltips) instead of text labels. Forced on, and shown greyed in Properties, when the sidebar is Horizontal or disabled. |
-| Switch button shape | Choose whether the Apps/Places switch uses the active GTK theme's normal button shape or MeowMenu's rounded segmented shape. |
 | Show recent files | Include recently opened files in Places **History**. This is separate from the Applications **Recently Used** category. |
 | Show bookmarks | Include user bookmarks (from Thunar or GTK bookmarks). |
 | Bookmark sync | Keep the Places bookmarks in sync with **MeowMenu** or **Thunar**. |
 | Max items | Maximum number of items shown in the Places view. |
 | Remember last mode | Reopen MeowMenu in the last-used top-level mode: Applications or Places. Entering Places starts on Home. |
+
+Apps/Places is always shown as two flat, trackless choices. Exactly one mode
+is selected, using the active GTK theme's checked state; hover, press, focus,
+and disabled feedback remain theme-native. Icons follow the size of their
+current host region, while text labels use their natural height so they remain
+readable with enlarged text.
 
 Places **Home** always starts with Home, followed by configured standard user
 folders such as Documents, Downloads, Music, Pictures, and Videos when those
@@ -375,7 +400,6 @@ an arbitrary command or clamping to a different preference.
 |-----|------|---------|-------------|
 | `places/enabled` | bool | false | Enable the Places shortcut surface. |
 | `places/switch-show-icons` | bool | false | Render the Apps/Places switch as icon buttons instead of text. Forced on (render-time only) when the sidebar is Horizontal or disabled. |
-| `places/switch-button-shape` | string | `gtk-theme` | Apps/Places switch shape: `gtk-theme` uses normal GTK theme button radii, `rounded` uses MeowMenu's rounded segmented shape. |
 | `places/history-enabled` | bool | true | Show recently opened files in Places History. |
 | `places/favourites-enabled` | bool | true | Show bookmarks. |
 | `places/favourite-sync` | string | `meowmenu` | Keep bookmarks in sync with `meowmenu` or `thunar`. |

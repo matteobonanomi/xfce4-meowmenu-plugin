@@ -79,6 +79,14 @@ enum class MenuAlignment
 	LogicalTrailing
 };
 
+enum class MenuSurfaceRole
+{
+	None,
+	Chrome,
+	Content,
+	FullScreen
+};
+
 /* MenuCompositionInput:
  *
  * One immutable snapshot of stored layout intent and current action
@@ -106,6 +114,7 @@ struct MenuCompositionInput
  */
 struct MenuComposition
 {
+	CompositionSidebar sidebar;
 	PrimaryEdge primary_edge;
 	PrimaryEdge horizontal_sidebar_edge;
 	bool horizontal_sidebar_visible;
@@ -131,6 +140,31 @@ struct MenuComposition
 	MenuAlignment search_alignment;
 	MenuAlignment apps_places_alignment;
 	MenuAlignment session_alignment;
+
+	MenuSurfaceRole baseline_surface;
+	MenuSurfaceRole primary_surface;
+	MenuSurfaceRole profile_surface;
+	MenuSurfaceRole search_surface;
+	MenuSurfaceRole results_surface;
+	MenuSurfaceRole sidebar_surface;
+	MenuSurfaceRole horizontal_sidebar_surface;
+	MenuSurfaceRole secondary_surface;
+};
+
+struct MenuSurfaceRectangle
+{
+	int x;
+	int y;
+	int width;
+	int height;
+	bool visible;
+};
+
+struct MenuChromeGeometry
+{
+	MenuSurfaceRectangle vertical;
+	MenuSurfaceRectangle band;
+	MenuSurfaceRectangle separator;
 };
 
 /* meow_resolve_menu_composition:
@@ -143,6 +177,74 @@ struct MenuComposition
  * Returns: a complete composition by value.
  */
 MenuComposition meow_resolve_menu_composition(const MenuCompositionInput& input);
+
+/* meow_resolve_chrome_geometry:
+ * @composition: resolved semantic surface and band ordering.
+ * @window_width: allocated launcher width.
+ * @window_height: allocated launcher height.
+ * @region_gap: resolved theme spacing between adjacent major regions.
+ * @profile: allocated Profile block in launcher coordinates.
+ * @sidebar: allocated vertical sidebar in launcher coordinates.
+ * @horizontal: allocated Horizontal navigation in launcher coordinates.
+ * @secondary: allocated Apps/Places and Session row in launcher coordinates.
+ *
+ * Extends semantic Chrome through the outer layout inset and the gap beside a
+ * secondary row, so auxiliary controls have equal space toward the launcher
+ * edge and toward the Content boundary. The allocated outer inset is reused
+ * when available; @region_gap is its safe pre-allocation fallback. Horizontal
+ * and secondary bands on the same edge are returned as one continuous
+ * rectangle. A visible secondary band also returns one one-pixel separator on
+ * its Content edge.
+ *
+ * Returns: at most one vertical column, one full-width edge band, and its
+ * Content-edge separator.
+ */
+MenuChromeGeometry meow_resolve_chrome_geometry(
+		const MenuComposition& composition, int window_width, int window_height,
+		int region_gap,
+		const MenuSurfaceRectangle& profile,
+		const MenuSurfaceRectangle& sidebar,
+		const MenuSurfaceRectangle& horizontal,
+		const MenuSurfaceRectangle& secondary);
+
+struct MenuLayoutSnapshotInput
+{
+	MenuCompositionInput composition;
+	bool category_names_visible;
+	bool selector_icons_requested;
+	int category_icon_px;
+	int search_icon_px;
+	int session_icon_px;
+};
+
+struct MenuLayoutSnapshot
+{
+	MenuLayoutSnapshotInput input;
+	MenuComposition composition;
+};
+
+/* meow_resolve_layout_snapshot:
+ * @input: complete stored and ephemeral state for one presentation.
+ *
+ * Captures the composition and selector metric inputs in one immutable value so
+ * every show and live relayout can reconcile without a second cache predicate.
+ *
+ * Returns: a complete snapshot by value.
+ */
+MenuLayoutSnapshot meow_resolve_layout_snapshot(
+		const MenuLayoutSnapshotInput& input);
+
+/* meow_layout_snapshot_equal:
+ * @first: first complete snapshot.
+ * @second: second complete snapshot.
+ *
+ * Compares every raw and resolved field used by the presentation transaction.
+ *
+ * Returns: true only when repeated reconciliation has identical inputs and
+ * outputs.
+ */
+bool meow_layout_snapshot_equal(const MenuLayoutSnapshot& first,
+		const MenuLayoutSnapshot& second);
 
 }
 

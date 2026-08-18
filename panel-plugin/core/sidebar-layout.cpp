@@ -22,15 +22,57 @@
 namespace WhiskerMenu
 {
 
-bool meow_modern_divider_visible(const ModernDividerState& state)
+SelectorPresentation meow_resolve_selector_presentation(
+		MenuControlLocation location, LayoutMode layout_mode,
+		bool category_names_visible, bool icons_requested, bool places_active,
+		int category_px, int search_px, int session_px)
 {
-	// The separator marks a live vertical sidebar boundary. A horizontal strip,
-	// embedded switch, inactive Modern identity, or empty upper region has no
-	// matching boundary and must not receive an empty visual allocation.
-	return state.modern_preset
-			&& state.docked_or_centered
-			&& state.vertical_sidebar_switch
-			&& (state.profile_visible || state.visible_command_count > 0);
+	SelectorPresentation result = {};
+	const bool show_icons = icons_requested
+			|| location == MenuControlLocation::PrimaryRow;
+	result.content = show_icons ? SelectorContent::Icons : SelectorContent::Labels;
+	result.active_mode = places_active
+			? SelectorActiveMode::Places : SelectorActiveMode::Applications;
+	result.natural_height = true;
+	result.orientation = SwitchOrientation::Horizontal;
+
+	switch (location)
+	{
+	case MenuControlLocation::Sidebar:
+		result.home = SelectorHome::Sidebar;
+		result.icon_size_source = SelectorIconSizeSource::Category;
+		result.icon_px = category_px;
+		if (!category_names_visible)
+			result.orientation = SwitchOrientation::Vertical;
+		break;
+	case MenuControlLocation::SecondaryRow:
+		result.home = SelectorHome::SecondaryRow;
+		result.icon_size_source = SelectorIconSizeSource::SessionToolbar;
+		result.icon_px = session_px;
+		break;
+	case MenuControlLocation::PrimaryRow:
+		if (layout_mode == LayoutMode::FullScreen)
+		{
+			result.home = SelectorHome::FullScreenSearch;
+			result.icon_size_source = SelectorIconSizeSource::SessionToolbar;
+			result.icon_px = session_px;
+		}
+		else
+		{
+			result.home = SelectorHome::WindowedPrimary;
+			result.icon_size_source = SelectorIconSizeSource::Search;
+			result.icon_px = search_px;
+		}
+		break;
+	case MenuControlLocation::Hidden:
+	default:
+		result.home = SelectorHome::Hidden;
+		result.icon_size_source = SelectorIconSizeSource::None;
+		result.icon_px = 0;
+		break;
+	}
+
+	return result;
 }
 
 SidebarPosition meow_parse_sidebar_position(const char* value)
@@ -55,9 +97,10 @@ SidebarPosition meow_resolve_sidebar_edge(SidebarPosition position,
 			? SidebarPosition::Bottom : SidebarPosition::Top;
 }
 
-SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
+SidebarPresentation meow_compute_sidebar_presentation(
+		const SidebarLayoutState& state)
 {
-	SwitchPresentation out;
+	SidebarPresentation out;
 
 	const bool horizontal_strip = state.sidebar_enabled
 			&& state.position == SidebarPosition::Horizontal;
@@ -66,37 +109,10 @@ SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state)
 	out.categories_horizontal = horizontal_strip;
 	out.show_default_category_heading = !state.sidebar_enabled;
 
-	// Switch placement: none without Places; into the unified Search row when
-	// there is no vertical sidebar. Horizontal is category navigation only and
-	// therefore follows the same relocation as a disabled sidebar.
-	if (!state.places_enabled)
-		out.switch_location = SwitchLocation::None;
-	else if (!state.sidebar_enabled || state.position == SidebarPosition::Horizontal)
-		out.switch_location = SwitchLocation::InSearchBar;
-	else
-		out.switch_location = SwitchLocation::InSidebar;
-
 	// Category names are suppressed on a horizontal strip; otherwise the
 	// stored intent stands (left/right honour the user's choice).
 	out.effective_show_category_names =
 			horizontal_strip ? false : state.category_show_name;
-
-	// The switch is forced to icon-only in the unified Search row; on a vertical
-	// sidebar it follows the stored intent.
-	if (out.switch_location == SwitchLocation::InSearchBar)
-		out.effective_show_icons = true;
-	else
-		out.effective_show_icons = state.switch_show_icons;
-
-	// Orientation: horizontal everywhere except a vertical sidebar whose
-	// category names are hidden, where a vertical switch keeps the sidebar
-	// from being forced wider.
-	if (out.switch_location == SwitchLocation::InSidebar
-			&& !horizontal_strip
-			&& !state.category_show_name)
-		out.switch_orientation = SwitchOrientation::Vertical;
-	else
-		out.switch_orientation = SwitchOrientation::Horizontal;
 
 	return out;
 }
@@ -132,45 +148,6 @@ FullscreenMainColumn meow_fullscreen_main_column(int workarea_width)
 	return out;
 }
 
-/* meow_toggle_icon_px:
- * @location: effective home of the Apps/Places selector.
- * @category_px: configured category icon allocation in a sidebar.
- * @search_bar_px: measured search-row icon allocation.
- * @session_px: theme allocation used by Session command icons.
- *
- * Selects the icon allocation that matches the selector's current containing
- * region while keeping the size independent from user preset storage.
- *
- * Returns: the pixel allocation, or zero when the selector is hidden.
- */
-int meow_toggle_icon_px(SwitchLocation location, int category_px,
-		int search_bar_px, int session_px)
-{
-	// The toggle inherits the pixel size of the region that contains it; a
-	// hidden toggle (None) gets no size, signalled by 0.
-	switch (location)
-	{
-	case SwitchLocation::InSidebar:
-		return category_px;
-	case SwitchLocation::InSecondaryRow:
-		return session_px;
-	case SwitchLocation::InSearchBar:
-		return search_bar_px;
-	case SwitchLocation::None:
-	default:
-		return 0;
-	}
-}
-
-int meow_toggle_button_height_px(SwitchLocation location, bool categories_horizontal,
-		int category_px)
-{
-	if (location == SwitchLocation::InSidebar && categories_horizontal)
-		return category_px;
-
-	return -1;
-}
-
 int meow_strip_spacer_order(bool categories_horizontal)
 {
 	return categories_horizontal ? 0 : -1;
@@ -181,7 +158,7 @@ int meow_default_category_order_base(bool strip_spacer_visible,
 {
 	if (strip_spacer_visible)
 		return 1;
-	return vertical_switch_controls ? 3 : 0;
+	return vertical_switch_controls ? 2 : 0;
 }
 
 EmbeddedSwitchSlot meow_embedded_switch_slot(bool commands_in_row)

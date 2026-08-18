@@ -48,7 +48,6 @@ static const char* GRID_DENSITY_DOMAIN[]    = { "low", "medium", "high" };
 static const char* LAYOUT_MODE_DOMAIN[]     = { "docked", "centered", "fullscreen" };
 static const char* VIEW_MODE_DOMAIN[]       = { "icons", "list", "tree" };
 static const char* DEFAULT_CATEGORY_DOMAIN[] = { "favorites", "recent", "all" };
-static const char* PLACES_SWITCH_SHAPE_DOMAIN[] = { "gtk-theme", "rounded" };
 static const char* CALCULATOR_ENGINE_DOMAIN[] = { "none", "bc", "qalc", "gcalccmd" };
 
 #define STR_DOMAIN(arr) (arr), (int)(sizeof(arr)/sizeof(arr[0]))
@@ -77,7 +76,6 @@ static const PropDef GOVERNED_PROPS[] = {
 	{ "default-category",      PresetValue::Str, 0, 0, STR_DOMAIN(DEFAULT_CATEGORY_DOMAIN) },
 	{ "places-enabled",        PresetValue::Bool, 0, 0, nullptr, 0 },
 	{ "places-show-icons",     PresetValue::Bool, 0, 0, nullptr, 0 },
-	{ "places-switch-button-shape", PresetValue::Str, 0, 0, STR_DOMAIN(PLACES_SWITCH_SHAPE_DOMAIN) },
 	{ "calculator-engine", PresetValue::Str, 0, 0, STR_DOMAIN(CALCULATOR_ENGINE_DOMAIN) },
 	{ "calculator-result-font-size", PresetValue::Int, INT_RANGE(-1, 6) },
 	{ "calculator-max-decimal-places", PresetValue::Int, INT_RANGE(0, 10) },

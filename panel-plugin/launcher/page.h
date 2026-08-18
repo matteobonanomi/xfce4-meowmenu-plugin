@@ -28,6 +28,7 @@ namespace WhiskerMenu
 static const char WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET[] =
 		"application/x-meowmenu-application-favourite";
 static const guint WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO = 2;
+constexpr GtkShadowType MEOWMENU_LAUNCHER_SHADOW_TYPE = GTK_SHADOW_NONE;
 
 class CategoryButton;
 class DesktopAction;

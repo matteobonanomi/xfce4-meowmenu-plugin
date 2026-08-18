@@ -105,6 +105,22 @@ bool meow_grid_attach_child(GtkGrid* grid, GtkWidget* child, gint left,
 bool meow_size_group_set_widget(GtkSizeGroup* group, GtkWidget* widget,
 		bool member);
 
+/* meow_configure_vertical_sidebar_width:
+ * @sidebar: vertical category-navigation scroller.
+ * @profile: Profile block aligned above the sidebar.
+ * @active: whether the window currently uses a vertical sidebar.
+ * @profile_visible: whether Profile participates in the current composition.
+ *
+ * Resolves one content-derived width before allocation and pins the sidebar and
+ * visible Profile to it. This avoids a GtkSizeGroup allocation cycle in which
+ * surplus window width can flow back from the primary row into the navigation
+ * column. When inactive, clears the windowed width requests.
+ *
+ * Returns: the applied logical width, or -1 when inactive/invalid.
+ */
+int meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
+		GtkWidget* profile, bool active, bool profile_visible);
+
 /* meow_widget_set_visible_if_valid:
  * @widget: widget to show or hide.
  * @visible: target visibility.

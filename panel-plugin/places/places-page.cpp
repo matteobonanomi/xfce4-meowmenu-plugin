@@ -13,6 +13,7 @@
 #include "favourites-section.h"
 #include "history-section.h"
 #include "home-section.h"
+#include "launcher/page.h"
 #include "ui/grid-presentation.h"
 #include "ui/image-menu-item.h"
 #include "ui/launcher-icon-view.h"
@@ -69,7 +70,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_widget),
 			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(m_widget),
-			GTK_SHADOW_ETCHED_IN);
+			MEOWMENU_LAUNCHER_SHADOW_TYPE);
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	g_object_ref_sink(m_widget);
 

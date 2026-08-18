@@ -73,6 +73,28 @@ void check_cartesian_invariants()
 		CHECK(out.secondary_visible == !out.secondary_slots.empty());
 		const bool vertical_sidebar = sidebar == CompositionSidebar::Left
 				|| sidebar == CompositionSidebar::Right;
+		const MenuSurfaceRole main_role = mode == LayoutMode::FullScreen
+				? MenuSurfaceRole::FullScreen : MenuSurfaceRole::Content;
+		CHECK(out.baseline_surface == main_role);
+		CHECK(out.primary_surface == main_role);
+		CHECK(out.search_surface == main_role);
+		CHECK(out.results_surface == main_role);
+		CHECK(out.profile_surface == (!profile ? MenuSurfaceRole::None
+				: (mode == LayoutMode::FullScreen
+					? MenuSurfaceRole::FullScreen
+					: (vertical_sidebar ? MenuSurfaceRole::Chrome
+						: MenuSurfaceRole::Content))));
+		CHECK(out.sidebar_surface == (!vertical_sidebar
+				? MenuSurfaceRole::None
+				: (mode == LayoutMode::FullScreen
+					? MenuSurfaceRole::FullScreen : MenuSurfaceRole::Chrome)));
+		CHECK(out.horizontal_sidebar_surface
+				== (sidebar != CompositionSidebar::Horizontal
+					? MenuSurfaceRole::None
+					: (mode == LayoutMode::FullScreen
+						? MenuSurfaceRole::FullScreen : MenuSurfaceRole::Chrome)));
+		CHECK(out.secondary_surface == (out.secondary_visible
+				? MenuSurfaceRole::Chrome : MenuSurfaceRole::None));
 		if (mode != LayoutMode::FullScreen && places && !out.effective_session
 				&& (vertical_sidebar || profile))
 		{
@@ -91,6 +113,8 @@ void check_cartesian_invariants()
 			CHECK(out.vertical_bands.front() == MenuBand::Primary);
 			CHECK(out.horizontal_sidebar_edge == PrimaryEdge::Bottom);
 			CHECK(out.search_column == MenuColumnRole::MiddleResults);
+			CHECK(out.primary_surface == MenuSurfaceRole::FullScreen);
+			CHECK(out.results_surface == MenuSurfaceRole::FullScreen);
 		}
 		else if (sidebar == CompositionSidebar::Hidden && out.effective_session)
 		{
@@ -275,6 +299,135 @@ void check_fullscreen_fixed_row()
 	CHECK(out.profile_column == MenuColumnRole::Outer);
 }
 
+void check_complete_snapshot_transitions()
+{
+	MenuLayoutSnapshotInput input = {
+		{ LayoutMode::FullScreen, PrimaryEdge::Top,
+			CompositionSidebar::Left, true, true, 3, true,
+			MenuDirection::LeftToRight },
+		true, true, 32, 22, 16
+	};
+	const MenuLayoutSnapshot baseline = meow_resolve_layout_snapshot(input);
+	CHECK(meow_layout_snapshot_equal(baseline,
+			meow_resolve_layout_snapshot(input)));
+
+	auto differs = [&](const MenuLayoutSnapshotInput& changed)
+	{
+		CHECK(!meow_layout_snapshot_equal(baseline,
+				meow_resolve_layout_snapshot(changed)));
+	};
+	MenuLayoutSnapshotInput changed = input;
+	changed.composition.layout_mode = LayoutMode::Docked; differs(changed);
+	changed = input; changed.composition.primary_edge = PrimaryEdge::Bottom; differs(changed);
+	changed = input; changed.composition.sidebar = CompositionSidebar::Right; differs(changed);
+	changed = input; changed.composition.show_profile = false; differs(changed);
+	changed = input; changed.composition.show_session = false; differs(changed);
+	changed = input; changed.composition.available_session_actions = 0; differs(changed);
+	changed = input; changed.composition.places_enabled = false; differs(changed);
+	changed = input; changed.composition.direction = MenuDirection::RightToLeft; differs(changed);
+	changed = input; changed.category_names_visible = false; differs(changed);
+	changed = input; changed.selector_icons_requested = false; differs(changed);
+	changed = input; changed.category_icon_px = 48; differs(changed);
+	changed = input; changed.search_icon_px = 24; differs(changed);
+	changed = input; changed.session_icon_px = 20; differs(changed);
+}
+
+void check_windowed_chrome_reaches_outer_edges()
+{
+	MenuCompositionInput input = {
+		LayoutMode::Docked, PrimaryEdge::Top, CompositionSidebar::Left,
+		true, true, 3, true, MenuDirection::LeftToRight
+	};
+	const MenuComposition composition = meow_resolve_menu_composition(input);
+	const MenuChromeGeometry geometry = meow_resolve_chrome_geometry(
+			composition, 450, 500, 6,
+			{ 12, 12, 132, 36, true },
+			{ 12, 54, 132, 402, true },
+			{ 0, 0, 0, 0, false },
+			{ 12, 464, 426, 24, true });
+
+	CHECK(geometry.vertical.visible);
+	CHECK(geometry.vertical.x == 0);
+	CHECK(geometry.vertical.y == 0);
+	CHECK(geometry.vertical.width == 144);
+	CHECK(geometry.vertical.height == 500);
+	CHECK(geometry.band.visible);
+	CHECK(geometry.band.x == 0);
+	CHECK(geometry.band.y == 452);
+	CHECK(geometry.band.width == 450);
+	CHECK(geometry.band.height == 48);
+	CHECK(geometry.separator.visible);
+	CHECK(geometry.separator.x == 0);
+	CHECK(geometry.separator.y == 452);
+	CHECK(geometry.separator.width == 450);
+	CHECK(geometry.separator.height == 1);
+	CHECK(464 - geometry.separator.y == 500 - (464 + 24));
+
+	input.sidebar = CompositionSidebar::Right;
+	const MenuComposition right = meow_resolve_menu_composition(input);
+	const MenuChromeGeometry mirrored = meow_resolve_chrome_geometry(
+			right, 450, 500, 6,
+			{ 306, 12, 132, 36, true },
+			{ 306, 54, 132, 402, true },
+			{ 0, 0, 0, 0, false },
+			{ 12, 464, 426, 24, true });
+	CHECK(mirrored.vertical.visible);
+	CHECK(mirrored.vertical.x == 306);
+	CHECK(mirrored.vertical.width == 144);
+	CHECK(mirrored.vertical.height == 500);
+}
+
+void check_horizontal_chrome_reaches_its_outer_edge()
+{
+	MenuCompositionInput input = {
+		LayoutMode::Centered, PrimaryEdge::Top,
+		CompositionSidebar::Horizontal, true, true, 2, true,
+		MenuDirection::LeftToRight
+	};
+	const MenuChromeGeometry bottom = meow_resolve_chrome_geometry(
+			meow_resolve_menu_composition(input), 450, 500, 6,
+			{ 0, 0, 0, 0, false },
+			{ 0, 0, 0, 0, false },
+			{ 12, 420, 426, 28, true },
+			{ 12, 464, 426, 24, true });
+	CHECK(!bottom.vertical.visible);
+	CHECK(bottom.band.visible);
+	CHECK(bottom.band.x == 0);
+	CHECK(bottom.band.y == 408);
+	CHECK(bottom.band.width == 450);
+	CHECK(bottom.band.height == 92);
+	CHECK(bottom.separator.visible);
+	CHECK(bottom.separator.y == 408);
+	CHECK(420 - bottom.separator.y == 500 - (464 + 24));
+
+	input.primary_edge = PrimaryEdge::Bottom;
+	const MenuChromeGeometry top = meow_resolve_chrome_geometry(
+			meow_resolve_menu_composition(input), 450, 500, 6,
+			{ 0, 0, 0, 0, false },
+			{ 0, 0, 0, 0, false },
+			{ 12, 52, 426, 28, true },
+			{ 12, 12, 426, 24, true });
+	CHECK(top.band.visible);
+	CHECK(top.band.x == 0);
+	CHECK(top.band.y == 0);
+	CHECK(top.band.width == 450);
+	CHECK(top.band.height == 92);
+	CHECK(top.separator.visible);
+	CHECK(top.separator.y == 91);
+	CHECK(top.separator.y + 1 - (52 + 28) == 12);
+
+	input.show_session = false;
+	input.places_enabled = false;
+	const MenuChromeGeometry strip_only = meow_resolve_chrome_geometry(
+			meow_resolve_menu_composition(input), 450, 500, 6,
+			{ 0, 0, 0, 0, false },
+			{ 0, 0, 0, 0, false },
+			{ 12, 52, 426, 28, true },
+			{ 0, 0, 0, 0, false });
+	CHECK(strip_only.band.visible);
+	CHECK(!strip_only.separator.visible);
+}
+
 }
 
 int main()
@@ -284,5 +437,8 @@ int main()
 	check_switch_relocation();
 	check_horizontal_matches_hidden_selector_home();
 	check_fullscreen_fixed_row();
+	check_complete_snapshot_transitions();
+	check_windowed_chrome_reaches_outer_edges();
+	check_horizontal_chrome_reaches_its_outer_edge();
 	return g_failures == 0 ? 0 : 1;
 }

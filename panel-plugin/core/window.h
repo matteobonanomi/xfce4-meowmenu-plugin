@@ -26,6 +26,7 @@
 #include "menu-composition.h"
 #include "menu-mode-state.h"
 #include "sidebar-layout.h"
+#include "theme-fallback.h"
 #include "window-keyboard.h"
 
 namespace WhiskerMenu
@@ -184,6 +185,8 @@ private:
 	void apply_window_shape(int width, int height, int radius, bool composited);
 
 	void update_background_css();
+	void schedule_style_refresh();
+	void refresh_theme_metrics();
 	void update_view_redraw_safeguards();
 	void check_scrollbar_needed();
 	void favorites_toggled();
@@ -224,10 +227,11 @@ private:
 	 * @long_label: gettext-translated descriptive name ("Applications"/"Places")
 	 *         used for the tooltip + accessible name in both modes, so the full
 	 *         meaning survives even in icon-only mode.
+	 * @icon_size: GTK theme size role used for the image request.
 	 * @icon_px: pixel size for the icon child, derived from the toggle's region
-	 *         (category icon size in a sidebar, search-bar height otherwise);
-	 *         <= 0 leaves the themed default and is used when the toggle is
-	 *         hidden.
+	 *         (category icon size in a sidebar, search-bar height otherwise).
+	 *         A negative value preserves @icon_size exactly; this is used beside
+	 *         Session buttons so both controls follow the same GTK theme metric.
 	 *
 	 * Swaps the toggle's child between a GtkLabel and a GtkImage in place,
 	 * leaving the toggle's active state and styling untouched. When the child is
@@ -236,7 +240,7 @@ private:
 	 */
 	void set_mode_button_content(GtkToggleButton* button, bool show_icons,
 			const char* const* icon_chain, const char* short_label,
-			const char* long_label, int icon_px);
+			const char* long_label, GtkIconSize icon_size, int icon_px);
 
 	/* apply_switch_presentation:
 	 * @pres: the computed presentation for this layout pass.
@@ -246,7 +250,7 @@ private:
 	 * search-bar row (using per-pass g_object_ref guards). Reflects computed
 	 * state only — the stored switch/sidebar intent is never written.
 	 */
-	void apply_switch_presentation(const SwitchPresentation& pres);
+	void apply_switch_presentation(const SelectorPresentation& presentation);
 	void update_favourite_drop_targets();
 	bool application_favourites_drop_available() const;
 	bool places_favourites_drop_available() const;
@@ -323,9 +327,6 @@ private:
 	bool m_keyboard_category_nav;
 	gulong m_places_property_slot;
 	gulong m_live_settings_property_slot;
-	// Contextual Modern divider immediately above the Apps/Places selector.
-	// It is hidden in every other presentation and therefore owns no spacing.
-	GtkWidget* m_mode_selector_upper_separator;
 	GtkWidget* m_mode_selector_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
 	// The dynamically-loaded application-category buttons, kept alongside their
@@ -348,15 +349,11 @@ private:
 	// only reparents on an actual transition: 1 = vertical sidebar,
 	// 2 = horizontal strip, 3 = hidden (sidebar disabled).
 	int m_sidebar_struct;
-	// Where the Apps/Places switch currently lives, to avoid redundant
-	// reparenting across passes.
-	SwitchLocation m_switch_loc;
 	GtkBox* m_category_buttons;
 	CategoryButton* m_default_button;
 	// NOTE: ignore_hidden=FALSE keeps the sidebar at the widest button's
 	// width even while some buttons are hidden during an Apps↔Places switch.
 	GtkSizeGroup* m_category_width_group;
-	GtkSizeGroup* m_sidebar_size_group;
 	// Forces the two Apps/Places mode buttons to equal width in every layout
 	// and preset, surviving the icon↔text child swap (supported behavior).
 	GtkSizeGroup* m_mode_button_size_group;
@@ -365,27 +362,19 @@ private:
 	bool m_layout_ltr;
 	bool m_layout_categories_horizontal;
 	CompositionSidebar m_layout_sidebar_position;
-	// Tracked stored intent used by the authoritative opening pass for these
-	// switch/sidebar settings (none are legacy layout booleans).
 	bool m_layout_sidebar_enabled;
-	bool m_layout_switch_show_icons;
-	bool m_layout_category_show_name;
-	// Tracked category icon size used to keep the Apps/Places toggle in sync with
-	// the category icons.
-	int m_layout_category_icon_size;
-	// Cached visibility state ensures live Show Profile/Session changes relayout
-	// immediately even when all other composition inputs stay unchanged.
-	bool m_layout_profile_hidden;
-	bool m_layout_commands_hidden;
 	unsigned int m_layout_available_session_actions;
-	// Forces one complete hierarchy reconciliation before the next visible frame
-	// after the menu has been hidden or constructed.
-	bool m_layout_needs_sync;
+	MenuComposition m_composition;
+	MenuLayoutSnapshot m_layout_snapshot;
+	ThemeSurfacePalette m_surface_palette;
+	ThemeLayoutMetrics m_layout_metrics;
+	guint m_style_refresh_source;
+	bool m_style_refresh_running;
 	int m_profile_shape;
 	bool m_supports_alpha;
 	// Theme-derived separator colour (luminance-nudged from the menu background),
 	// computed once in update_background_css() and reused by on_draw_event so the
-	// single window border and the CSS region styling cannot diverge in colour.
+	// single window border and secondary-row divider cannot diverge in colour.
 	GdkRGBA m_separator_rgba = { 0.0, 0.0, 0.0, 1.0 };
 	// Cached signature of the last shape mask applied to the toplevel window, so
 	// apply_window_shape() re-masks only when the rounded silhouette changes.

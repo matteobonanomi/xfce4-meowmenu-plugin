@@ -87,6 +87,56 @@ int main(int argc, char** argv)
 	assert(meow_size_group_set_widget(widths, child, false));
 	assert(!g_slist_find(gtk_size_group_get_widgets(widths), child));
 
+	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* selector = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* wide_category = gtk_label_new("All Applications");
+	gtk_widget_set_size_request(wide_category, 180, -1);
+	gtk_box_pack_start(GTK_BOX(sidebar), wide_category, false, false, 0);
+	gtk_widget_show_all(sidebar);
+	const int sidebar_width = meow_configure_vertical_sidebar_width(
+			sidebar, profile, true, true);
+	int sidebar_request = -1;
+	int profile_request = -1;
+	gtk_widget_get_size_request(sidebar, &sidebar_request, nullptr);
+	gtk_widget_get_size_request(profile, &profile_request, nullptr);
+	assert(sidebar_width >= 180);
+	assert(sidebar_request == sidebar_width);
+	assert(profile_request == sidebar_width);
+	assert(!gtk_widget_get_hexpand(sidebar));
+	assert(!gtk_widget_get_hexpand(profile));
+
+	// Re-running the policy after a parent becomes much wider must retain the
+	// same content-derived column width; only changed contents may widen it.
+	GtkAllocation oversized = {0, 0, sidebar_width + 400, 200};
+	gtk_widget_size_allocate(sidebar, &oversized);
+	assert(meow_configure_vertical_sidebar_width(sidebar, profile, true, true)
+			== sidebar_width);
+	assert(meow_configure_vertical_sidebar_width(sidebar, profile, true, false)
+			== sidebar_width);
+	gtk_widget_get_size_request(profile, &profile_request, nullptr);
+	assert(profile_request == -1);
+	assert(meow_configure_vertical_sidebar_width(sidebar, profile, false, false)
+			== -1);
+	gtk_widget_get_size_request(sidebar, &sidebar_request, nullptr);
+	assert(sidebar_request == -1);
+
+	GtkWidget* allocation_grid = gtk_grid_new();
+	GtkWidget* results = gtk_label_new("Results");
+	gtk_widget_set_hexpand(results, TRUE);
+	gtk_grid_attach(GTK_GRID(allocation_grid), sidebar, 0, 0, 1, 1);
+	gtk_grid_attach(GTK_GRID(allocation_grid), results, 1, 0, 1, 1);
+	gtk_widget_show_all(allocation_grid);
+	assert(meow_configure_vertical_sidebar_width(
+			sidebar, profile, true, true) == sidebar_width);
+	GtkAllocation compact = {0, 0, sidebar_width + 240, 200};
+	gtk_widget_size_allocate(allocation_grid, &compact);
+	const int compact_sidebar = gtk_widget_get_allocated_width(sidebar);
+	const int compact_results = gtk_widget_get_allocated_width(results);
+	GtkAllocation wide = {0, 0, sidebar_width + 640, 200};
+	gtk_widget_size_allocate(allocation_grid, &wide);
+	assert(gtk_widget_get_allocated_width(sidebar) == compact_sidebar);
+	assert(gtk_widget_get_allocated_width(results) == compact_results + 400);
+
 	gtk_widget_show(child);
 	meow_widget_set_visible_if_valid(child, false);
 	assert(!gtk_widget_get_visible(child));
@@ -140,6 +190,8 @@ int main(int argc, char** argv)
 	gtk_widget_destroy(grid);
 	gtk_widget_destroy(primary);
 	gtk_widget_destroy(secondary);
+	gtk_widget_destroy(allocation_grid);
+	gtk_widget_destroy(selector);
 	gtk_widget_destroy(outsider);
 	g_object_unref(widths);
 

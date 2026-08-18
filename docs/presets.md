@@ -9,6 +9,12 @@ has_children: false
 A preset is a `.meowpreset` snapshot of the menu's visual and layout settings.
 Selecting one changes the menu immediately.
 
+In Docked and Centered layouts, every preset uses the active GTK theme to
+distinguish category and auxiliary chrome from the Search and Results content
+surface. Major-region spacing follows the same theme-derived rhythm, and the
+Results view and scrollbar trough remain frameless. Full Screen intentionally
+keeps one uniform surface.
+
 A fresh installation starts on the **Modern** preset. The first start after
 upgrading a pre-1.0 instance also resets that instance to Modern and removes
 its GUI-managed custom presets. See the
@@ -40,9 +46,7 @@ Apps/Places switch uses text labels.
 Contemporary docked layout with its primary row at the top, Profile and Session
 shown, rounded corners, a left sidebar, a fully solid background (menu opacity
 100%), hover-to-switch-category, and Places enabled. The Apps/Places switch
-uses icon buttons. When it appears in a left or right
-sidebar and the upper profile or session area is available, a theme-native
-separator gives it a little visual breathing room from that area.
+uses icon buttons.
 
 
 ### Full Screen
@@ -69,6 +73,11 @@ to bring the sidebar, Profile, and Session controls back.
 Calculator defaults are **None / Auto / 4** for Classic and **bc / Auto / 4**
 for Modern, Full Screen, and Minimal. The Apps/Places switch uses icons in
 Modern and Minimal, and text labels in Classic and Full Screen.
+
+All presets use the same trackless Apps/Places presentation: two equal choices
+with one selected mode and GTK-native interaction feedback. Icon sizes follow
+the selector's current sidebar, Search, or Session host. Text choices keep
+their natural height for translated labels and enlarged text.
 
 ## The Unsaved custom state
 

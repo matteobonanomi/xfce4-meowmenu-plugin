@@ -209,7 +209,6 @@ private:
 	// Held for preset sync and for the forced-ON greying applied when the
 	// sidebar is on Top/Bottom or disabled.
 	GtkWidget* m_places_switch_show_icons = nullptr;
-	GtkWidget* m_places_switch_button_shape = nullptr;
 	GtkWidget* m_calculator_engine = nullptr;
 	GtkWidget* m_calculator_result_font_size = nullptr;
 	GtkWidget* m_calculator_max_decimal_places = nullptr;

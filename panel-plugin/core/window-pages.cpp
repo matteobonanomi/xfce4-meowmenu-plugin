@@ -106,11 +106,8 @@ void WhiskerMenu::Window::category_toggled()
 
 void WhiskerMenu::Window::reset_default_button()
 {
-	const bool vertical_switch_controls = m_mode_selector_upper_separator
-			&& m_mode_selector_box
+	const bool vertical_switch_controls = m_mode_selector_box
 			&& m_mode_selector_separator
-			&& gtk_widget_get_parent(m_mode_selector_upper_separator)
-					== GTK_WIDGET(m_category_buttons)
 			&& gtk_widget_get_parent(GTK_WIDGET(m_mode_selector_box))
 					== GTK_WIDGET(m_category_buttons)
 			&& gtk_widget_get_parent(m_mode_selector_separator)
@@ -163,19 +160,13 @@ void WhiskerMenu::Window::reset_default_button()
 			&& gtk_widget_get_parent(GTK_WIDGET(m_mode_selector_box))
 					== GTK_WIDGET(m_category_buttons))
 	{
-		gtk_box_reorder_child(m_category_buttons, GTK_WIDGET(m_mode_selector_box), 1);
-	}
-	if (m_mode_selector_upper_separator
-			&& gtk_widget_get_parent(m_mode_selector_upper_separator)
-					== GTK_WIDGET(m_category_buttons))
-	{
-		gtk_box_reorder_child(m_category_buttons, m_mode_selector_upper_separator, 0);
+		gtk_box_reorder_child(m_category_buttons, GTK_WIDGET(m_mode_selector_box), 0);
 	}
 	if (m_mode_selector_separator
 			&& gtk_widget_get_parent(m_mode_selector_separator)
 					== GTK_WIDGET(m_category_buttons))
 	{
-		gtk_box_reorder_child(m_category_buttons, m_mode_selector_separator, 2);
+		gtk_box_reorder_child(m_category_buttons, m_mode_selector_separator, 1);
 	}
 	if (m_strip_trail_spacer && gtk_widget_get_visible(m_strip_trail_spacer))
 	{

@@ -44,29 +44,6 @@ enum class ReloadIntent
 
 ReloadIntent classify_reload_intent(const gchar* property);
 
-constexpr const char* PLACES_SWITCH_SHAPE_GTK_THEME = "gtk-theme";
-constexpr const char* PLACES_SWITCH_SHAPE_ROUNDED = "rounded";
-
-inline bool places_switch_shape_is_valid(const char* value)
-{
-	return (g_strcmp0(value, PLACES_SWITCH_SHAPE_GTK_THEME) == 0)
-			|| (g_strcmp0(value, PLACES_SWITCH_SHAPE_ROUNDED) == 0);
-}
-
-inline const char* places_switch_shape_or_default(const char* value)
-{
-	return places_switch_shape_is_valid(value)
-			? value
-			: PLACES_SWITCH_SHAPE_GTK_THEME;
-}
-
-inline bool places_switch_shape_is_rounded(const char* value)
-{
-	return g_strcmp0(places_switch_shape_or_default(value),
-			PLACES_SWITCH_SHAPE_ROUNDED) == 0;
-}
-
-
 // Boolean setting
 class Boolean
 {
@@ -479,9 +456,6 @@ public:
 	// (supported behavior). Stored value is the user's intent; layouts that force
 	// icon-only mode never overwrite it.
 	Boolean places_switch_show_icons;
-	// Outer shape of the Apps/Places switch. Unknown stored values fall back to
-	// PLACES_SWITCH_SHAPE_GTK_THEME in prevent_invalid().
-	String places_switch_button_shape;
 
 	// Optional calculator settings. Engine is a closed identifier; numeric
 	// values reject malformed/out-of-range persisted input to safe defaults.

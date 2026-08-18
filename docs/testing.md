@@ -67,6 +67,47 @@ against the Results-width strip. Repeat with enough categories to overflow and
 confirm that scrolling stays inside the same strip without widening or
 displacing the menu. Apps/Places must remain in its derived non-strip home.
 
+## Launcher surface and selector matrix
+
+For release-quality visual evidence, test one compact, one ordinary, and one
+spacious GTK theme in light and dark variants, plus a high-contrast theme.
+Record display scale, text scale, compositor state, layout, primary-row edge,
+sidebar position, Places state, and available Session actions with the six
+context fields above.
+
+In Docked and Centered, verify that Search and Results share the content
+surface while visible category navigation and secondary controls share the
+chrome surface. Check Left, Right, Horizontal, and disabled sidebars with the
+primary row at both Top and Bottom. Every outer inset and major-region gap
+must use one consistent theme-responsive rhythm within one device pixel;
+hidden regions must leave neither an empty patch nor a doubled or orphaned
+gap. Results and scrollbar troughs must have no persistent frame, while the
+slider, selection, hover, press, disabled, and keyboard-focus states remain
+clear. Full Screen must remain one uniform surface in every sidebar state.
+
+Repeat representative cases at normal and high display scale and at 100, 125,
+150, 175, and 200 percent text scale. Check the Apps/Places selector with icons
+and labels in each of its sidebar, secondary-row, Search-row, and Full Screen
+homes. Exactly one mode must be selected; labels must not clip or overlap; icon
+sizes must match the host region within one device pixel; and accessible names,
+checked state, Tab order, mouse switching, and LTR/RTL behavior must remain
+correct.
+
+Open Full Screen 20 times for Left, Right, Horizontal, and disabled sidebars,
+then repeat after changing layout, sidebar state, Places, primary edge, text
+direction, and available Session actions. The selector must be in its final
+parent and order before the first visible frame, with no duplicate, missing,
+or post-map-corrected frame.
+
+Test opacity at 0, 60, 80, and 100 percent on composited X11. Background
+surfaces must fade uniformly without compounded overlap, while foreground
+labels, icons, selection, and focus remain opaque. Repeat without a compositor
+and confirm every surface remains solid and readable. Import representative
+older presets alongside current fields, save and export again, and confirm
+unknown fields stay inert while supported values and unrelated Xfconf settings
+are preserved. Run the complete matrix on X11 and a representative subset on
+Wayland, recording any platform-specific visual differences.
+
 ## Routine CI and timing evidence
 
 Every pull request to `main` and every `main` push runs one full

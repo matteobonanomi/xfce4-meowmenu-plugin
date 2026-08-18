@@ -458,12 +458,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	if (schema_version < 10)
 	{
-		// NOTE: default to the active GTK theme's button shape. The explicit
-		// rounded shape remains available for users who prefer the older pill.
-		if (!xfconf_channel_has_property(channel, "/places/switch-button-shape"))
-			xfconf_channel_set_string(channel, "/places/switch-button-shape",
-					PLACES_SWITCH_SHAPE_GTK_THEME);
-
+		// Preserve the historical version step without seeding its retired key.
 		schema_version = 10;
 	}
 

@@ -1,5 +1,10 @@
 0.8.1 (2026-08-17)
 =====
+- UI: distinguish windowed launcher chrome from Search and Results with a theme-derived footer divider
+- UI: use one theme-responsive spacing rhythm and remove persistent Results and scrollbar-trough frames
+- Places: present Applications and Places as a flat, trackless pair with one clear selected mode
+- Full Screen: place the Applications/Places control deterministically before the first visible frame
+- Properties: remove the obsolete Applications/Places shape choice from settings and presets
 - Keyboard: update and extend mirror arrow-navigation and remove Ctrl+Tab action
 - UI: simplify Docked, Centered, and Full Screen composition and Properties controls
 - Properties: consolidate profile and session settings and simplify sidebar choices to Left, Right, and Horizontal

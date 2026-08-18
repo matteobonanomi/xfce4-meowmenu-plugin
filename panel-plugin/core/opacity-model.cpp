@@ -43,6 +43,11 @@ bool meowmenu_background_translucent(int menu_opacity)
 	return meowmenu_opacity_alpha(menu_opacity) < 1.0;
 }
 
+double meowmenu_effective_background_alpha(int menu_opacity, bool composited)
+{
+	return composited ? meowmenu_opacity_alpha(menu_opacity) : 1.0;
+}
+
 /* meowmenu_format_css_alpha:
  * g_ascii_formatd formats the double exactly as printf would under the "C"
  * locale, so the separator is always '.' regardless of the active LC_NUMERIC,

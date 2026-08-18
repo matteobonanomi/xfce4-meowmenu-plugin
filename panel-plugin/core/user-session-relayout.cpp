@@ -100,6 +100,51 @@ WhiskerMenu::meow_size_group_set_widget(GtkSizeGroup* group,
 			!= nullptr);
 }
 
+/* meow_configure_vertical_sidebar_width:
+ * @sidebar: vertical navigation scroller that owns the width source.
+ * @profile: optional visible header aligned with the navigation column.
+ * @active: whether windowed vertical-column sizing is active.
+ * @profile_visible: whether @profile contributes its natural width.
+ *
+ * Measures with stale requests cleared, then fixes both column owners to the
+ * larger natural width. Explicitly disabling expansion keeps later surplus
+ * window allocation in the Results column rather than feeding it back through
+ * a cross-parent GtkSizeGroup.
+ *
+ * Returns: the applied width, or -1 when inactive or given invalid widgets.
+ */
+int
+WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
+                                                   GtkWidget* profile,
+                                                   bool active,
+                                                   bool profile_visible)
+{
+	if (!GTK_IS_WIDGET(sidebar) || !GTK_IS_WIDGET(profile))
+		return -1;
+
+	int sidebar_height = -1;
+	int profile_height = -1;
+	gtk_widget_get_size_request(sidebar, nullptr, &sidebar_height);
+	gtk_widget_get_size_request(profile, nullptr, &profile_height);
+	gtk_widget_set_size_request(sidebar, -1, sidebar_height);
+	gtk_widget_set_size_request(profile, -1, profile_height);
+	gtk_widget_set_hexpand(sidebar, FALSE);
+	gtk_widget_set_hexpand(profile, FALSE);
+	if (!active)
+		return -1;
+
+	int sidebar_natural = 0;
+	int profile_natural = 0;
+	gtk_widget_get_preferred_width(sidebar, nullptr, &sidebar_natural);
+	if (profile_visible)
+		gtk_widget_get_preferred_width(profile, nullptr, &profile_natural);
+	const int width = MAX(sidebar_natural, profile_natural);
+	gtk_widget_set_size_request(sidebar, width, sidebar_height);
+	if (profile_visible)
+		gtk_widget_set_size_request(profile, width, profile_height);
+	return width;
+}
+
 bool
 WhiskerMenu::meow_box_reorder_child_if_present(GtkBox* box, GtkWidget* child,
                                                gint position)

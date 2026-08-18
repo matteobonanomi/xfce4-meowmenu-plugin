@@ -424,6 +424,24 @@ static void test_visibility_intent_v12()
 		assert(source.find(token) != std::string::npos);
 }
 
+static void test_retired_selector_shape_stays_dormant()
+{
+	std::ifstream settings(MEOWMENU_SETTINGS_SOURCE);
+	std::ifstream defaults(MEOWMENU_SETTINGS_DEFAULTS_SOURCE);
+	assert(settings.good());
+	assert(defaults.good());
+	const std::string settings_source((std::istreambuf_iterator<char>(settings)),
+			std::istreambuf_iterator<char>());
+	const std::string defaults_source((std::istreambuf_iterator<char>(defaults)),
+			std::istreambuf_iterator<char>());
+	assert(settings_source.find("/places/switch-button-shape")
+			== std::string::npos);
+	assert(defaults_source.find("/places/switch-button-shape")
+			== std::string::npos);
+	assert(needs_v10_block(9));
+	assert(!needs_v10_block(10));
+}
+
 static void test_supported_layout_v13()
 {
 	assert(needs_v13_block(12));
@@ -828,6 +846,7 @@ int main()
 	test_v7_fresh_install_lands_on_100_no_old_keys();
 	test_calculator_v11_migration();
 	test_visibility_intent_v12();
+	test_retired_selector_shape_stays_dormant();
 	test_supported_layout_v13();
 	test_pre_stable_reset_decision();
 	return 0;

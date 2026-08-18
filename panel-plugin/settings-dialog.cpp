@@ -683,9 +683,6 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_places_switch_show_icons)
 		gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
 			static_cast<bool>(m_settings->places_switch_show_icons));
-	if (m_places_switch_button_shape)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_places_switch_button_shape),
-			places_switch_shape_or_default(m_settings->places_switch_button_shape));
 	if (m_calculator_engine)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_calculator_engine),
 			static_cast<const gchar*>(m_settings->calculator_engine));

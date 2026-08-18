@@ -30,7 +30,6 @@ menu-height=306
 default-category=recent
 places-enabled=true
 places-show-icons=true
-places-switch-button-shape=gtk-theme
 calculator-engine=bc
 calculator-result-font-size=-1
 calculator-max-decimal-places=4

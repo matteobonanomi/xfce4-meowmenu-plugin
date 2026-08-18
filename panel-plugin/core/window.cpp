@@ -199,28 +199,25 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_keyboard_category_nav(false),
 	m_places_property_slot(0),
 	m_live_settings_property_slot(0),
-	m_mode_selector_upper_separator(nullptr),
 	m_mode_selector_separator(nullptr),
 	m_strip_scroll(nullptr),
 	m_strip_lead_spacer(nullptr),
 	m_strip_trail_spacer(nullptr),
 	m_sidebar_struct(1),
-	m_switch_loc(SwitchLocation::InSidebar),
 	m_category_width_group(nullptr),
-	m_sidebar_size_group(nullptr),
 	m_mode_button_size_group(nullptr),
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
 	m_layout_categories_horizontal(false),
 	m_layout_sidebar_position(CompositionSidebar::Left),
 	m_layout_sidebar_enabled(true),
-	m_layout_switch_show_icons(false),
-	m_layout_category_show_name(true),
-	m_layout_category_icon_size(-2),
-	m_layout_profile_hidden(false),
-	m_layout_commands_hidden(false),
 	m_layout_available_session_actions(0),
-	m_layout_needs_sync(true),
+	m_composition{},
+	m_layout_snapshot{},
+	m_surface_palette{},
+	m_layout_metrics{6, ThemeMetricsSource::SafeFallback},
+	m_style_refresh_source(0),
+	m_style_refresh_running(false),
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
@@ -569,10 +566,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Mode selector: two toggle buttons forming a manual radio group.
 	m_mode_selector_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0));
+	g_object_ref_sink(m_mode_selector_box);
 	gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box)),
 			"places-mode-selector");
 	m_mode_btn_apps = GTK_TOGGLE_BUTTON(gtk_toggle_button_new_with_label(_("Apps")));
 	m_mode_btn_places = GTK_TOGGLE_BUTTON(gtk_toggle_button_new_with_label(_("Places")));
+	gtk_button_set_relief(GTK_BUTTON(m_mode_btn_apps), GTK_RELIEF_NONE);
+	gtk_button_set_relief(GTK_BUTTON(m_mode_btn_places), GTK_RELIEF_NONE);
 	// supported behavior: no Alt-mnemonic activation on the mode toggles — the labels
 	// "Apps"/"Places" must render verbatim, not as "_Apps"/"_Places".
 	gtk_button_set_use_underline(GTK_BUTTON(m_mode_btn_apps),   FALSE);
@@ -708,11 +708,6 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create box for packing sidebar
 	m_category_buttons = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
-	m_mode_selector_upper_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-	// Keep the line itself at the results-row origin, then add the same small
-	// breathing space the lower boundary gives the selector on its other side.
-	gtk_widget_set_margin_bottom(m_mode_selector_upper_separator, 4);
-	gtk_box_pack_start(m_category_buttons, m_mode_selector_upper_separator, false, false, 0);
 	gtk_box_pack_start(m_category_buttons, GTK_WIDGET(m_mode_selector_box), false, false, 0);
 	m_mode_selector_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_box_pack_start(m_category_buttons, m_mode_selector_separator, false, false, 4);
@@ -760,6 +755,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		[this](GtkWidget*)
 		{
 			sync_category_label_width();
+			schedule_style_refresh();
 		});
 
 	m_sidebar = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
@@ -768,6 +764,27 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	gtk_scrolled_window_set_shadow_type(m_sidebar, GTK_SHADOW_NONE);
 	gtk_scrolled_window_set_policy(m_sidebar, GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 	gtk_container_add(GTK_CONTAINER(m_sidebar), GTK_WIDGET(m_category_buttons));
+
+	// Construct the alternate Horizontal host up front. Layout reconciliation
+	// only reparents existing widgets, so opening a new layout never rebuilds the
+	// selector or category widget tree after the opening snapshot is captured.
+	m_strip_scroll = GTK_SCROLLED_WINDOW(
+			gtk_scrolled_window_new(nullptr, nullptr));
+	gtk_scrolled_window_set_shadow_type(m_strip_scroll, GTK_SHADOW_NONE);
+	gtk_scrolled_window_set_policy(m_strip_scroll,
+			GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+	gtk_scrolled_window_set_overlay_scrolling(m_strip_scroll, TRUE);
+	gtk_scrolled_window_set_propagate_natural_width(m_strip_scroll, FALSE);
+	gtk_box_pack_start(m_categories_box, GTK_WIDGET(m_strip_scroll),
+			true, true, 0);
+	m_strip_lead_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	m_strip_trail_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_widget_set_hexpand(m_strip_lead_spacer, TRUE);
+	gtk_widget_set_hexpand(m_strip_trail_spacer, TRUE);
+	gtk_box_pack_start(m_category_buttons, m_strip_lead_spacer, true, true, 0);
+	gtk_box_pack_start(m_category_buttons, m_strip_trail_spacer, true, true, 0);
+	gtk_widget_hide(m_strip_lead_spacer);
+	gtk_widget_hide(m_strip_trail_spacer);
 
 	// supported behavior: keep the focused category in view as Tab/arrow keys move
 	// through the sidebar. GtkScrolledWindow wraps m_category_buttons in
@@ -806,7 +823,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		css_screen ? css_screen : gdk_screen_get_default(),
 		GTK_STYLE_PROVIDER(m_css_provider),
 		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-	update_background_css();
+	schedule_style_refresh();
 
 	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_category_buttons));
 	gtk_style_context_add_class(context, "categories");
@@ -828,13 +845,6 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		gtk_widget_set_visible(m_mode_selector_separator,
 			m_settings->places_enabled);
 	}
-	if (m_mode_selector_upper_separator)
-	{
-		// update_layout() resolves the full Modern predicate after live command
-		// availability is known. Keep this hidden until that pass runs.
-		gtk_widget_set_visible(m_mode_selector_upper_separator, false);
-	}
-
 	m_default_button->set_active(true);
 
 	// Handle transparency
@@ -1118,6 +1128,11 @@ WhiskerMenu::Window::~Window()
 {
 	if (m_resizing)
 		interactive_resize_cancel();
+	if (m_style_refresh_source != 0)
+	{
+		g_source_remove(m_style_refresh_source);
+		m_style_refresh_source = 0;
+	}
 
 	for (int i = 0; i < 9; ++i)
 	{
@@ -1165,6 +1180,7 @@ WhiskerMenu::Window::~Window()
 		g_object_unref(m_css_provider);
 	}
 	gtk_widget_destroy(GTK_WIDGET(m_window));
+	g_object_unref(m_mode_selector_box);
 	g_object_unref(m_primary_middle);
 	g_object_unref(m_window);
 }
@@ -1310,7 +1326,6 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 
 	// Hide window
 	gtk_widget_hide(GTK_WIDGET(m_window));
-	m_layout_needs_sync = true;
 
 	// Switch back to default page
 	show_default_page();
@@ -1360,14 +1375,6 @@ void WhiskerMenu::Window::show(const Position position)
 		m_places->get_view()->hide_tooltips();
 	}
 	m_profile->reset_tooltip();
-
-	// Make sure commands are valid and visible
-	unsigned int available_session_actions = 0;
-	for (auto command : m_settings->command)
-	{
-		if (command->check())
-			++available_session_actions;
-	}
 
 	// Make sure recent item count is within max
 	m_recent->enforce_item_count();
@@ -1498,52 +1505,21 @@ void WhiskerMenu::Window::show(const Position position)
 		else
 			sidebar_layout = CompositionSidebar::Left;
 	}
-	const bool profile_hidden = !m_settings->show_profile;
-	const bool commands_hidden = !m_settings->show_session
-			|| available_session_actions == 0;
-
 	const bool cats_horizontal = sidebar_layout
 			== CompositionSidebar::Horizontal;
-	// Sidebar behavior: capture these stored settings before the authoritative
-	// opening pass so the selector presentation and category structure use one
-	// snapshot (orientation, icon mode, enable/disable, and heading).
 	const bool sidebar_enabled = m_settings->sidebar_enabled;
-	const bool switch_show_icons = m_settings->places_switch_show_icons;
-	const bool category_show_name = m_settings->category_show_name;
-	// The Apps/Places toggle inherits the category icon size when it lives in a
-	// vertical sidebar, so the opening pass also refreshes its allocation after
-	// the category buttons reload below.
-	const int category_icon_size = m_settings->category_icon_size;
-	// A hidden menu can retain the previous selector parent and strip order;
-	// m_layout_needs_sync forces both to be resolved before this frame is shown.
-	if (m_layout_needs_sync
-			|| (m_layout_ltr != layout_ltr)
-			|| (m_layout_categories_horizontal != cats_horizontal)
-			|| (m_layout_sidebar_position != sidebar_layout)
-			|| (m_layout_sidebar_enabled != sidebar_enabled)
-			|| (m_layout_switch_show_icons != switch_show_icons)
-			|| (m_layout_category_show_name != category_show_name)
-			|| (m_layout_category_icon_size != category_icon_size)
-			|| (m_layout_profile_hidden != profile_hidden)
-			|| (m_layout_commands_hidden != commands_hidden)
-			|| (m_layout_available_session_actions != available_session_actions)
-			|| (m_profile_shape != m_settings->profile_shape))
+	// Reconcile once before every presentation. The transaction is bounded and
+	// idempotent, so no parallel cache predicate can omit a new layout input.
+	m_layout_ltr = layout_ltr;
+	m_layout_categories_horizontal = cats_horizontal;
+	m_layout_sidebar_position = sidebar_layout;
+	m_layout_sidebar_enabled = sidebar_enabled;
+	if (m_profile_shape != m_settings->profile_shape)
 	{
-		m_layout_ltr = layout_ltr;
-		m_layout_categories_horizontal = cats_horizontal;
-		m_layout_sidebar_position = sidebar_layout;
-		m_layout_sidebar_enabled = sidebar_enabled;
-		m_layout_switch_show_icons = switch_show_icons;
-		m_layout_category_show_name = category_show_name;
-		m_layout_category_icon_size = category_icon_size;
-		m_layout_profile_hidden = profile_hidden;
-		m_layout_commands_hidden = commands_hidden;
-		m_layout_available_session_actions = available_session_actions;
 		m_profile->update_picture();
 		m_profile_shape = m_settings->profile_shape;
-		update_layout();
-		m_layout_needs_sync = false;
 	}
+	update_layout();
 
 	// Sidebar visibility now follows the Enable-sidebar switch (supported behavior);
 	// update_layout() owns the in-strip/relocated cases, this is the docked
@@ -1627,6 +1603,7 @@ void WhiskerMenu::Window::show(const Position position)
 		gtk_widget_set_margin_end(GTK_WIDGET(m_categories_box), 0);
 	}
 
+	refresh_theme_metrics();
 	update_background_css();
 
 	// Resize window according to current layout mode
@@ -1733,9 +1710,8 @@ void WhiskerMenu::Window::detach_categories()
 /* Window::refresh_layout:
  *
  * Applies current layout and presentation settings to the existing menu window
- * without changing the application/category content epoch. A visible menu reuses
- * the normal show pass because that already handles size, icon, view and
- * placement refreshes; a hidden menu waits until the next show.
+ * without changing the application/category content epoch. A visible menu
+ * reconciles its existing hierarchy directly; a hidden menu waits until show.
  */
 void WhiskerMenu::Window::refresh_layout()
 {
@@ -1744,12 +1720,14 @@ void WhiskerMenu::Window::refresh_layout()
 	if (m_resizing)
 		interactive_resize_cancel();
 
-	update_background_css();
+	schedule_style_refresh();
 	m_search_results->refresh_calculator_presentation();
 
 	if (gtk_widget_get_visible(GTK_WIDGET(m_window)))
 	{
-		show(m_position);
+		update_layout();
+		gtk_widget_queue_resize(GTK_WIDGET(m_window));
+		gtk_widget_queue_draw(GTK_WIDGET(m_window));
 	}
 }
 
@@ -2629,7 +2607,7 @@ void WhiskerMenu::Window::on_state_flags_changed(GtkWidget* widget)
 		gtk_window_present(m_window);
 	}
 
-	update_background_css();
+	schedule_style_refresh();
 }
 
 //-----------------------------------------------------------------------------
@@ -2662,23 +2640,70 @@ void WhiskerMenu::Window::update_view_redraw_safeguards()
 
 //-----------------------------------------------------------------------------
 
+/* Window::schedule_style_refresh:
+ *
+ * Coalesces GTK style invalidations into one idle transaction. Reloading the
+ * application CSS provider can itself emit style-updated, so callbacks raised
+ * while the transaction is active are deliberately ignored.
+ */
+void WhiskerMenu::Window::schedule_style_refresh()
+{
+	if (!meow_style_refresh_should_schedule(m_style_refresh_source,
+			m_style_refresh_running))
+		return;
+
+	m_style_refresh_source = g_idle_add_full(G_PRIORITY_DEFAULT_IDLE,
+			+[](gpointer data) -> gboolean
+			{
+				auto* self = static_cast<Window*>(data);
+				self->m_style_refresh_source = 0;
+				self->m_style_refresh_running = true;
+				self->refresh_theme_metrics();
+				self->update_background_css();
+				self->update_layout();
+				gtk_widget_queue_resize(GTK_WIDGET(self->m_window));
+				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
+				self->m_style_refresh_running = false;
+				return G_SOURCE_REMOVE;
+			}, this, nullptr);
+}
+
+/* Window::refresh_theme_metrics:
+ *
+ * Samples normal-state padding from the long-lived Search entry and first
+ * Session button. The pure resolver discards unusable values and supplies one
+ * bounded rhythm for every major-region boundary.
+ */
+void WhiskerMenu::Window::refresh_theme_metrics()
+{
+	int values[8];
+	std::size_t count = 0;
+	GtkWidget* widgets[] = {
+		GTK_WIDGET(m_search_entry),
+		m_commands_button[0]
+	};
+	for (GtkWidget* widget : widgets)
+	{
+		if (!GTK_IS_WIDGET(widget))
+			continue;
+		GtkBorder padding = {};
+		gtk_style_context_get_padding(gtk_widget_get_style_context(widget),
+				GTK_STATE_FLAG_NORMAL, &padding);
+		values[count++] = padding.left;
+		values[count++] = padding.right;
+		values[count++] = padding.top;
+		values[count++] = padding.bottom;
+	}
+	m_layout_metrics = meow_resolve_layout_metrics(values, count);
+}
+
+//-----------------------------------------------------------------------------
+
 void WhiskerMenu::Window::update_background_css()
 {
 	if (!m_css_provider || !m_window)
 	{
 		return;
-	}
-
-	if (m_mode_selector_box)
-	{
-		GtkStyleContext* switch_context =
-				gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box));
-		const bool rounded =
-				places_switch_shape_is_rounded(m_settings->places_switch_button_shape);
-		if (rounded)
-			gtk_style_context_add_class(switch_context, "rounded");
-		else
-			gtk_style_context_remove_class(switch_context, "rounded");
 	}
 
 	GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_window));
@@ -2714,24 +2739,28 @@ void WhiskerMenu::Window::update_background_css()
 
 		bg = meow_choose_background_fallback(have_fg, &fg, prefer_dark);
 	}
+	GdkRGBA base = {};
+	gboolean base_found = gtk_style_context_lookup_color(
+			context, "theme_base_color", &base);
+	if (!base_found)
+		base_found = gtk_style_context_lookup_color(context, "base_color", &base);
+	m_surface_palette = meow_resolve_surface_palette(
+			bg_found, &bg, base_found, &base, bg);
 
-	const int red   = CLAMP(static_cast<int>(bg.red   * 255.0 + 0.5), 0, 255);
-	const int green = CLAMP(static_cast<int>(bg.green * 255.0 + 0.5), 0, 255);
-	const int blue  = CLAMP(static_cast<int>(bg.blue  * 255.0 + 0.5), 0, 255);
-	// Separator colour for the single menu border. on_draw_event strokes one
-	// 1 px outline along the rounded clip (docked only); this seeds its colour
-	// from the theme background, nudged toward or away from black by a fixed step
-	// depending on the theme's lightness so the line reads on both dark and light
-	// themes.
+	const GdkRGBA& css_background = m_surface_palette.content;
+	const int red = CLAMP(static_cast<int>(css_background.red * 255.0 + 0.5), 0, 255);
+	const int green = CLAMP(static_cast<int>(css_background.green * 255.0 + 0.5), 0, 255);
+	const int blue = CLAMP(static_cast<int>(css_background.blue * 255.0 + 0.5), 0, 255);
+	// Separator colour for the single menu border and the secondary-row divider.
+	// Seed it from the theme background and nudge it toward or away from black so
+	// both lines read on dark and light themes without a literal fixed colour.
 	const double sep_luma = 0.299 * red + 0.587 * green + 0.114 * blue;
 	const int sep_step = 45;
 	const int sep_r = (sep_luma < 128.0) ? CLAMP(red   + sep_step, 0, 255) : CLAMP(red   - sep_step, 0, 255);
 	const int sep_g = (sep_luma < 128.0) ? CLAMP(green + sep_step, 0, 255) : CLAMP(green - sep_step, 0, 255);
 	const int sep_b = (sep_luma < 128.0) ? CLAMP(blue  + sep_step, 0, 255) : CLAMP(blue  - sep_step, 0, 255);
-	// Publish the seed for on_draw_event: the single window border stroke reuses
-	// exactly this theme-derived colour, so the boundary keeps its previous hue
-	// even though it is now drawn once along the rounded path instead of as a
-	// per-region CSS outline.
+	// Publish the seed for on_draw_event so the outer silhouette and the one
+	// auxiliary-row boundary share the same theme-derived line colour.
 	m_separator_rgba.red   = sep_r / 255.0;
 	m_separator_rgba.green = sep_g / 255.0;
 	m_separator_rgba.blue  = sep_b / 255.0;
@@ -2741,7 +2770,11 @@ void WhiskerMenu::Window::update_background_css()
 	// inside it stays transparent. There is no per-region model and nothing
 	// compounds, so the background fades uniformly in docked, centered, and
 	// full-screen modes while all foreground content stays fully opaque.
-	const double menu_alpha = meowmenu_opacity_alpha(m_settings->menu_opacity);
+	const double menu_alpha = meowmenu_effective_background_alpha(
+			m_settings->menu_opacity,
+			gdk_screen_is_composited(
+					gtk_widget_get_screen(GTK_WIDGET(m_window)))
+					&& m_supports_alpha);
 
 	// NOTE: the results area no longer emits its own 1 px outline. The single
 	// intentional menu border is drawn once in on_draw_event along the rounded
@@ -2837,6 +2870,13 @@ void WhiskerMenu::Window::update_background_css()
 		"{ background: none; background-color: transparent;"
 		"  background-image: none; border: none; border-color: transparent;"
 		"  box-shadow: none; }"
+		// Launcher content has no persistent internal frame. The scrollbar slider
+		// and every GTK interaction state remain outside this scoped rule.
+		".meowmenu scrolledwindow.launchers-pane,"
+		".meowmenu scrolledwindow.launchers-pane > viewport,"
+		".meowmenu scrolledwindow.launchers-pane scrollbar trough"
+		"{ background-color: transparent; background-image: none;"
+		"  border: none; outline: none; box-shadow: none; }"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2860,23 +2900,12 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu treeview:focus-visible,"
 		".meowmenu iconview:focus-visible"
 		"{ outline: 1px solid @theme_selected_bg_color; outline-offset: -1px; }"
-		// NOTE: the Apps/Places switch's rounded option is an opt-in class on
-		// the selector box. Without it, GTK theme button radii are left alone.
-		// The rounded class changes only the outer radii and single seam; strip
-		// sizing is handled by its own class so the shape choice stays independent.
-		".meowmenu .places-mode-selector.strip button"
-		"{ min-height: 0; padding-top: 0; padding-bottom: 0; }"
-		".meowmenu .places-mode-selector.rounded button { border-radius: 0; }"
-		".meowmenu .places-mode-selector.rounded button:dir(ltr):first-child"
-		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px;"
-		"  border-right: 1px solid alpha(@theme_fg_color, 0.2); }"
-		".meowmenu .places-mode-selector.rounded button:dir(ltr):last-child"
-		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px; }"
-		".meowmenu .places-mode-selector.rounded button:dir(rtl):first-child"
-		"{ border-top-right-radius: 9999px; border-bottom-right-radius: 9999px;"
-		"  border-left: 1px solid alpha(@theme_fg_color, 0.2); }"
-		".meowmenu .places-mode-selector.rounded button:dir(rtl):last-child"
-		"{ border-top-left-radius: 9999px; border-bottom-left-radius: 9999px; }",
+		// The selector has no enclosing track. Idle inactive choices are flat;
+		// checked, hover, active, disabled, and focus states stay theme-owned.
+		".meowmenu .places-mode-selector"
+		"{ background: transparent; border: none; box-shadow: none; }"
+		".meowmenu .places-mode-selector button:not(:checked):not(:hover):not(:active):not(:disabled):not(:focus)"
+		"{ background: transparent; border-color: transparent; box-shadow: none; }",
 		red, green, blue, alpha_shell);
 
 	// Capture the parse error from our own generated stylesheet. Passing nullptr
@@ -2917,7 +2946,7 @@ void WhiskerMenu::Window::on_screen_changed(GtkWidget* widget)
 		m_supports_alpha = true;
 	}
 	gtk_widget_set_visual(widget, visual);
-	update_background_css();
+	schedule_style_refresh();
 }
 
 //-----------------------------------------------------------------------------
@@ -2984,7 +3013,6 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		gtk_widget_realize(widget);
 	}
 
-	GtkStyleContext* context = gtk_widget_get_style_context(widget);
 	const double width = gtk_widget_get_allocated_width(widget);
 	const double height = gtk_widget_get_allocated_height(widget);
 
@@ -3044,6 +3072,93 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 	GtkWidget* child = gtk_bin_get_child(GTK_BIN(widget));
+	const double menu_alpha = meowmenu_opacity_alpha(m_settings->menu_opacity);
+
+	auto widget_rectangle = [&](GtkWidget* target, GdkRectangle* rectangle) -> bool
+	{
+		if (!GTK_IS_WIDGET(target) || !gtk_widget_get_visible(target)
+				|| !rectangle)
+			return false;
+		GtkAllocation allocation = {};
+		gtk_widget_get_allocation(target, &allocation);
+		if (allocation.width <= 0 || allocation.height <= 0)
+			return false;
+		int x = 0;
+		int y = 0;
+		if (!gtk_widget_translate_coordinates(target, widget, 0, 0, &x, &y))
+			return false;
+		*rectangle = { x, y, allocation.width, allocation.height };
+		return true;
+	};
+
+	auto paint_rectangle = [&](const GdkRectangle& rectangle,
+			const GdkRGBA& colour, double alpha)
+	{
+		GdkRGBA source = colour;
+		source.alpha = alpha;
+		cairo_save(cr);
+		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+		cairo_rectangle(cr, rectangle.x, rectangle.y,
+				rectangle.width, rectangle.height);
+		cairo_clip(cr);
+		gdk_cairo_set_source_rgba(cr, &source);
+		cairo_paint(cr);
+		cairo_restore(cr);
+	};
+
+	auto paint_chrome_geometry = [&](const MenuChromeGeometry& geometry,
+			const GdkRGBA& colour, double alpha)
+	{
+		if (!geometry.vertical.visible && !geometry.band.visible)
+			return;
+		GdkRGBA source = colour;
+		source.alpha = alpha;
+		cairo_save(cr);
+		cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+		if (geometry.vertical.visible)
+			cairo_rectangle(cr, geometry.vertical.x, geometry.vertical.y,
+					geometry.vertical.width, geometry.vertical.height);
+		if (geometry.band.visible)
+			cairo_rectangle(cr, geometry.band.x, geometry.band.y,
+					geometry.band.width, geometry.band.height);
+		cairo_clip(cr);
+		gdk_cairo_set_source_rgba(cr, &source);
+		cairo_paint(cr);
+		cairo_restore(cr);
+	};
+
+	auto paint_surfaces = [&](double alpha)
+	{
+		const GdkRGBA& baseline = is_fullscreen
+				? m_surface_palette.fullscreen : m_surface_palette.content;
+		paint_rectangle({ 0, 0, static_cast<int>(width),
+				static_cast<int>(height) }, baseline, alpha);
+		if (is_fullscreen)
+			return;
+
+		auto surface_rectangle = [&](GtkWidget* target) -> MenuSurfaceRectangle
+		{
+			GdkRectangle rectangle = {};
+			if (!widget_rectangle(target, &rectangle))
+				return { 0, 0, 0, 0, false };
+			return { rectangle.x, rectangle.y, rectangle.width,
+					rectangle.height, true };
+		};
+		const MenuChromeGeometry geometry = meow_resolve_chrome_geometry(
+				m_composition, static_cast<int>(width), static_cast<int>(height),
+				m_layout_metrics.region_gap_px,
+				surface_rectangle(m_profile->get_widget()),
+				surface_rectangle(GTK_WIDGET(m_sidebar)),
+				surface_rectangle(GTK_WIDGET(m_categories_box)),
+				surface_rectangle(GTK_WIDGET(m_secondary_row)));
+		// Both rectangles enter one SOURCE clip, so their L-shaped intersection
+		// is painted once at the resolved menu alpha rather than compounded.
+		paint_chrome_geometry(geometry, m_surface_palette.chrome, alpha);
+		if (geometry.separator.visible)
+			paint_rectangle({ geometry.separator.x, geometry.separator.y,
+					geometry.separator.width, geometry.separator.height },
+					m_separator_rgba, alpha);
+	};
 
 	if (enabled && m_supports_alpha)
 	{
@@ -3062,10 +3177,10 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 		cairo_save(cr);
 		clip_rounded(cr);
 		cairo_clip(cr);
-		// One fill covers the entire silhouette, the resizer ring included, so no
-		// separate ring fill is needed; a second fill at the same alpha would
-		// composite 1-(1-a)² and show as a forbidden double-opacity band.
-		gtk_render_background(context, cr, 0.0, 0.0, width, height);
+		// Paint one baseline, then source-replace only disjoint Chrome regions.
+		// SOURCE keeps every pixel at the single menu alpha even where semantic
+		// rectangles meet the baseline.
+		paint_surfaces(menu_alpha);
 		if (child)
 			gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
 		cairo_restore(cr);
@@ -3093,7 +3208,7 @@ gboolean WhiskerMenu::Window::on_draw_event(GtkWidget* widget, cairo_t* cr)
 	// then a single SQUARE border — gated on docked only (not the composited
 	// predicate, which requires supports_alpha), so a non-composited full-screen
 	// menu stays one seamless square surface with no outline.
-	gtk_render_background(context, cr, 0.0, 0.0, width, height);
+	paint_surfaces(1.0);
 	if (child)
 		gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
 	if (!is_fullscreen)
@@ -3190,7 +3305,7 @@ void WhiskerMenu::Window::move_window()
 
 void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 		bool show_icons, const char* const* icon_chain, const char* short_label,
-		const char* long_label, int icon_px)
+		const char* long_label, GtkIconSize icon_size, int icon_px)
 {
 	GtkWidget* child = gtk_bin_get_child(GTK_BIN(button));
 
@@ -3213,21 +3328,20 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 		if (GTK_IS_IMAGE(child))
 		{
 			image = GTK_IMAGE(child);
-			gtk_image_set_from_icon_name(image, name, GTK_ICON_SIZE_BUTTON);
+			gtk_image_set_from_icon_name(image, name, icon_size);
 		}
 		else
 		{
-			image = GTK_IMAGE(gtk_image_new_from_icon_name(name, GTK_ICON_SIZE_BUTTON));
+			image = GTK_IMAGE(gtk_image_new_from_icon_name(name, icon_size));
 			if (child)
 				gtk_container_remove(GTK_CONTAINER(button), child);
 			gtk_container_add(GTK_CONTAINER(button), GTK_WIDGET(image));
 			gtk_widget_show(GTK_WIDGET(image));
 		}
-		// Size the toggle icon from its containing region (supported behavior): the
-		// category icon size in a sidebar, the search-bar height in the search
-		// row. icon_px <= 0 means the toggle is hidden, so keep the themed size.
-		if (icon_px > 0)
-			gtk_image_set_pixel_size(image, icon_px);
+		// Raw pixel requests are appropriate for category/Search references. A
+		// negative value deliberately clears the override so a secondary-row
+		// selector and its Session neighbours use the identical GTK size role.
+		gtk_image_set_pixel_size(image, icon_px);
 	}
 	else
 	{
@@ -3249,62 +3363,40 @@ void WhiskerMenu::Window::set_mode_button_content(GtkToggleButton* button,
 //-----------------------------------------------------------------------------
 
 /* Window::apply_switch_presentation:
- * @pres: effective selector location and presentation flags for this pass.
+ * @presentation: final-home selector presentation for this pass.
  *
  * Applies icon/text content and region-derived sizing to the Apps/Places
  * selector. Shared secondary rows use the Session command icon allocation;
  * sidebar and search-row homes retain their own natural sources.
  */
-void WhiskerMenu::Window::apply_switch_presentation(const SwitchPresentation& pres)
+void WhiskerMenu::Window::apply_switch_presentation(
+		const SelectorPresentation& presentation)
 {
-	const bool icons = pres.effective_show_icons;
-
-	// Resolve the toggle icon size from its region (supported behavior). The
-	// sidebar source is the category icon size, the secondary-row source is the
-	// Session command icon size, and the search-bar source is measured live.
-	const int category_px = m_settings->category_icon_size.get_size();
-	int session_icon_px = 0;
-	gtk_icon_size_lookup(GTK_ICON_SIZE_LARGE_TOOLBAR, &session_icon_px, nullptr);
-
-	// NOTE: the search-bar height is not stored anywhere; the search entry's
-	// natural height is the only authoritative measure. Reduce it by a small
-	// fixed inset so the icon sits inside the control rather than touching its
-	// edges, and clamp to the icon-size ladder's sane range (16..128 px).
-	int search_entry_h = 0;
-	gtk_widget_get_preferred_height(GTK_WIDGET(m_search_entry), nullptr, &search_entry_h);
-	const int SEARCH_BAR_ICON_INSET = 8;
-	const int search_bar_px = CLAMP(search_entry_h - SEARCH_BAR_ICON_INSET, 16, 128);
-
-	const int icon_px =
-			meow_toggle_icon_px(pres.switch_location, category_px, search_bar_px,
-					session_icon_px);
-	const int button_height_px = meow_toggle_button_height_px(pres.switch_location,
-			pres.categories_horizontal, category_px);
+	const bool icons = presentation.content == SelectorContent::Icons;
+	const bool session_size = presentation.icon_size_source
+			== SelectorIconSizeSource::SessionToolbar;
+	const GtkIconSize icon_size = session_size
+			? MEOWMENU_SESSION_BUTTON_ICON_SIZE : GTK_ICON_SIZE_BUTTON;
+	const int icon_px = session_size ? -1 : presentation.icon_px;
 
 	// Text↔icon child swap (supported behavior): the visible text label is the short
 	// "Apps"/"Places"; the long "Applications"/"Places" stays as tooltip and
 	// accessible name in both modes.
 	set_mode_button_content(m_mode_btn_apps, icons, MEOW_SWITCH_APPS_ICONS,
-			_("Apps"), _("Applications"), icon_px);
+			_("Apps"), _("Applications"), icon_size, icon_px);
 	set_mode_button_content(m_mode_btn_places, icons, MEOW_SWITCH_PLACES_ICONS,
-			_("Places"), _("Places"), icon_px);
+			_("Places"), _("Places"), icon_size, icon_px);
 
-	// A defensive strip height request is retained for the pure presentation
-	// helper, but the supported Horizontal path relocates the selector to the
-	// unified Search row and therefore leaves its natural height untouched.
 	GtkStyleContext* selector_context =
 			gtk_widget_get_style_context(GTK_WIDGET(m_mode_selector_box));
-	if (button_height_px > 0)
-		gtk_style_context_add_class(selector_context, "strip");
-	else
-		gtk_style_context_remove_class(selector_context, "strip");
-	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_apps), -1, button_height_px);
-	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_places), -1, button_height_px);
+	gtk_style_context_remove_class(selector_context, "strip");
+	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_apps), -1, -1);
+	gtk_widget_set_size_request(GTK_WIDGET(m_mode_btn_places), -1, -1);
 
 	// Switch-box orientation (supported behavior): vertical only on a vertical
 	// sidebar with category names hidden; horizontal everywhere else.
 	gtk_orientable_set_orientation(GTK_ORIENTABLE(m_mode_selector_box),
-			pres.switch_orientation == SwitchOrientation::Vertical
+			presentation.orientation == SwitchOrientation::Vertical
 					? GTK_ORIENTATION_VERTICAL
 					: GTK_ORIENTATION_HORIZONTAL);
 }
@@ -3379,6 +3471,13 @@ void WhiskerMenu::Window::apply_menu_composition(
 	if (switch_parent)
 		meow_box_repack_child(switch_parent, GTK_WIDGET(m_mode_selector_box),
 				false, false, false, 0);
+	else if (GtkWidget* parent = gtk_widget_get_parent(
+			GTK_WIDGET(m_mode_selector_box)))
+	{
+		if (GTK_IS_CONTAINER(parent))
+			gtk_container_remove(GTK_CONTAINER(parent),
+					GTK_WIDGET(m_mode_selector_box));
+	}
 	if (fullscreen_middle
 			&& composition.apps_places_location
 					== MenuControlLocation::PrimaryRow)
@@ -3414,12 +3513,8 @@ void WhiskerMenu::Window::apply_menu_composition(
 	meow_widget_set_halign_if_valid(GTK_WIDGET(m_commands_box),
 			composition.session_alignment == MenuAlignment::Fill
 					? GTK_ALIGN_FILL : GTK_ALIGN_END);
-	const bool selector_in_row = composition.apps_places_location
-			== MenuControlLocation::SecondaryRow;
-	gtk_widget_set_margin_top(GTK_WIDGET(m_mode_selector_box),
-			selector_in_row ? 6 : 0);
-	gtk_widget_set_margin_bottom(GTK_WIDGET(m_mode_selector_box),
-			selector_in_row ? 6 : 0);
+	gtk_widget_set_margin_top(GTK_WIDGET(m_mode_selector_box), 0);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(m_mode_selector_box), 0);
 	meow_widget_set_visible_if_valid(GTK_WIDGET(m_primary_row), true);
 	meow_widget_set_visible_if_valid(GTK_WIDGET(m_secondary_row),
 			composition.secondary_visible);
@@ -3476,33 +3571,19 @@ void WhiskerMenu::Window::apply_menu_composition(
 				|| g_strcmp0(sidebar_value, "right") == 0);
 	if (vertical_sidebar)
 	{
-		if (!m_sidebar_size_group)
-			m_sidebar_size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-		meow_size_group_set_widget(m_sidebar_size_group, GTK_WIDGET(m_sidebar), true);
-		meow_size_group_set_widget(m_sidebar_size_group, profile,
-				composition.effective_profile);
-		meow_size_group_set_widget(m_sidebar_size_group,
-				GTK_WIDGET(m_mode_selector_box),
-				composition.apps_places_location
-						== MenuControlLocation::SecondaryRow);
-		meow_size_group_set_widget(m_sidebar_size_group,
-				GTK_WIDGET(m_commands_box), false);
+		// Profile and navigation share one content-derived width, but not a
+		// GtkSizeGroup: a group spanning the primary row and Results grid can feed
+		// surplus to the sidebar when the window grows.
+		meow_configure_vertical_sidebar_width(GTK_WIDGET(m_sidebar), profile,
+				true, composition.effective_profile);
 		meow_widget_set_halign_if_valid(profile, GTK_ALIGN_FILL);
 		meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
-				composition.apps_places_location
-						== MenuControlLocation::SecondaryRow
-					? GTK_ALIGN_FILL : GTK_ALIGN_START);
+				GTK_ALIGN_START);
 	}
-	else if (m_sidebar_size_group)
+	else if (!fullscreen_middle)
 	{
-		meow_size_group_set_widget(m_sidebar_size_group, GTK_WIDGET(m_sidebar), false);
-		meow_size_group_set_widget(m_sidebar_size_group, profile, false);
-		meow_size_group_set_widget(m_sidebar_size_group,
-				GTK_WIDGET(m_mode_selector_box), false);
-		meow_size_group_set_widget(m_sidebar_size_group,
-				GTK_WIDGET(m_commands_box), false);
-		g_object_unref(m_sidebar_size_group);
-		m_sidebar_size_group = nullptr;
+		meow_configure_vertical_sidebar_width(GTK_WIDGET(m_sidebar), profile,
+				false, false);
 		meow_widget_set_halign_if_valid(profile, GTK_ALIGN_START);
 		meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
 				GTK_ALIGN_START);
@@ -3519,23 +3600,17 @@ void WhiskerMenu::Window::apply_menu_composition(
  */
 void WhiskerMenu::Window::update_layout()
 {
-	// Places mode (current behavior) — mode selector and sidebar section buttons.
-	const bool places_enabled = m_settings->places_enabled;
+	m_layout_ltr = gtk_widget_get_default_direction() != GTK_TEXT_DIR_RTL;
+	m_layout_sidebar_enabled = m_settings->sidebar_enabled;
 
-	// Sidebar behavior: resolve the effective sidebar/switch presentation from the
-	// stored intent. Forcing rules live in the pure helper; nothing here writes
-	// back to settings, so removing a forcing layout restores intent (supported behavior).
+	// Resolve category navigation from stored sidebar intent. Selector placement
+	// remains undecided until the complete menu composition is available.
 	SidebarLayoutState layout_state;
 	layout_state.sidebar_enabled = m_settings->sidebar_enabled;
 	layout_state.position = meow_parse_sidebar_position(m_settings->sidebar_position);
 	layout_state.category_show_name = m_settings->category_show_name;
-	layout_state.switch_show_icons = m_settings->places_switch_show_icons;
-	layout_state.search_bar_bottom =
-			(g_strcmp0(m_settings->search_bar_position, "bottom") == 0);
-	layout_state.fullscreen =
-			(g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
-	layout_state.places_enabled = places_enabled;
-	const SwitchPresentation pres = meow_compute_sidebar_layout(layout_state);
+	const SidebarPresentation sidebar_presentation =
+			meow_compute_sidebar_presentation(layout_state);
 
 	// Session availability is transient, so refresh it before resolving the
 	// selector presentation. This keeps the selector's sizing source aligned
@@ -3561,9 +3636,13 @@ void WhiskerMenu::Window::update_layout()
 		else
 			composition_sidebar = CompositionSidebar::Left;
 	}
+	m_layout_sidebar_position = composition_sidebar;
+	m_layout_categories_horizontal = composition_sidebar
+			== CompositionSidebar::Horizontal;
 	MenuCompositionInput composition_input = {
 			layout_mode_from_key(m_settings->layout_mode),
-			layout_state.search_bar_bottom ? PrimaryEdge::Bottom : PrimaryEdge::Top,
+			g_strcmp0(m_settings->search_bar_position, "bottom") == 0
+					? PrimaryEdge::Bottom : PrimaryEdge::Top,
 			composition_sidebar,
 			m_settings->show_profile,
 			m_settings->show_session,
@@ -3572,64 +3651,65 @@ void WhiskerMenu::Window::update_layout()
 			m_layout_ltr ? MenuDirection::LeftToRight
 					: MenuDirection::RightToLeft,
 	};
-	MenuComposition composition =
-			meow_resolve_menu_composition(composition_input);
-	SwitchPresentation effective_pres = pres;
-	switch (composition.apps_places_location)
-	{
-	case MenuControlLocation::PrimaryRow:
-		effective_pres.switch_location = SwitchLocation::InSearchBar;
-		break;
-	case MenuControlLocation::SecondaryRow:
-		effective_pres.switch_location = SwitchLocation::InSecondaryRow;
-		break;
-	case MenuControlLocation::Sidebar:
-		effective_pres.switch_location = SwitchLocation::InSidebar;
-		break;
-	case MenuControlLocation::Hidden:
-	default:
-		effective_pres.switch_location = SwitchLocation::None;
-		break;
-	}
-
-	const bool switch_visible =
-			(effective_pres.switch_location != SwitchLocation::None);
+	int session_icon_px = 0;
+	gtk_icon_size_lookup(MEOWMENU_SESSION_BUTTON_ICON_SIZE,
+			&session_icon_px, nullptr);
+	int search_entry_h = 0;
+	gtk_widget_get_preferred_height(GTK_WIDGET(m_search_entry), nullptr,
+			&search_entry_h);
+	const int search_bar_px = CLAMP(search_entry_h - 8, 16, 128);
+	const MenuLayoutSnapshotInput snapshot_input = {
+		composition_input,
+			sidebar_presentation.effective_show_category_names,
+			m_settings->places_switch_show_icons,
+		m_settings->category_icon_size.get_size(),
+		search_bar_px,
+		session_icon_px
+	};
+	m_layout_snapshot = meow_resolve_layout_snapshot(snapshot_input);
+	MenuComposition composition = m_layout_snapshot.composition;
+	m_composition = composition;
+	const SelectorPresentation selector_presentation =
+			meow_resolve_selector_presentation(
+					composition.apps_places_location,
+					composition_input.layout_mode,
+					sidebar_presentation.effective_show_category_names,
+					m_settings->places_switch_show_icons,
+					m_places_active,
+					m_settings->category_icon_size.get_size(),
+					search_bar_px, session_icon_px);
+	const bool switch_visible = selector_presentation.home != SelectorHome::Hidden;
 	gtk_widget_set_visible(GTK_WIDGET(m_mode_selector_box), switch_visible);
 	if (m_mode_selector_separator)
 	{
 		// The separator only belongs under the switch in the vertical sidebar
-		// list; the horizontal strip and the relocated (search-bar) switch
-		// drop it.
+		// list; every row presentation drops it.
 		gtk_widget_set_visible(m_mode_selector_separator,
 				switch_visible
-				&& effective_pres.switch_location == SwitchLocation::InSidebar
-				&& !effective_pres.categories_horizontal);
+				&& selector_presentation.home == SelectorHome::Sidebar);
 	}
 	// Visibility is owned by the same transaction used for opening and mode
 	// switches, so layout changes cannot reintroduce a divergent matrix.
 	apply_menu_mode(m_places_active ? MenuMode::Places
 			: MenuMode::Applications, MenuModeTransition::Reevaluate);
-
-	// Apply the Apps/Places switch presentation (icon vs text, orientation,
-	// tooltips). Structural relocation/strip placement is handled further down
-	// once the category containers have been arranged.
-	apply_switch_presentation(effective_pres);
+	apply_switch_presentation(selector_presentation);
 
 	// Default-category heading: visible only when the sidebar is disabled
 	// (supported behavior); text follows the configured default category.
-	m_applications->set_default_heading(pres.show_default_category_heading,
+	m_applications->set_default_heading(
+			sidebar_presentation.show_default_category_heading,
 			m_settings->default_category);
 
 	// Arrange the category list and the Apps/Places switch structurally
 	// (sidebar behavior). Three category-list placements — vertical sidebar,
 	// Horizontal strip, or hidden (sidebar disabled) — and three switch homes —
 	// vertical sidebar list, shared secondary row, or unified Search row — are
-	// reconciled here. Transitions are guarded by m_sidebar_struct / m_switch_loc
-	// so a steady-state pass performs no reparenting.
-	const bool want_vertical = effective_pres.sidebar_visible
-			&& !effective_pres.categories_horizontal;
-	const bool want_strip    = effective_pres.sidebar_visible
-			&& effective_pres.categories_horizontal;
+	// reconciled here. A steady-state pass observes the current parent and
+	// performs no reparenting.
+	const bool want_vertical = sidebar_presentation.sidebar_visible
+			&& !sidebar_presentation.categories_horizontal;
+	const bool want_strip = sidebar_presentation.sidebar_visible
+			&& sidebar_presentation.categories_horizontal;
 	const int  want_struct   = want_vertical ? 1 : (want_strip ? 2 : 3);
 
 	if (want_struct != m_sidebar_struct)
@@ -3648,41 +3728,9 @@ void WhiskerMenu::Window::update_layout()
 		{
 			gtk_orientable_set_orientation(GTK_ORIENTABLE(m_category_buttons),
 					GTK_ORIENTATION_HORIZONTAL);
-			if (!m_strip_scroll)
-			{
-				// Lazily build the horizontal strip scroller: overlay
-				// horizontal scrollbar, no vertical scroll, no arrow chrome
-				// (supported behavior). Keyboard focus auto-scroll is provided by GTK.
-				m_strip_scroll = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(nullptr, nullptr));
-				gtk_scrolled_window_set_shadow_type(m_strip_scroll, GTK_SHADOW_NONE);
-				gtk_scrolled_window_set_policy(m_strip_scroll,
-						GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
-				gtk_scrolled_window_set_overlay_scrolling(m_strip_scroll, TRUE);
-				// NOTE: the spurious scrollbar was a symptom of the old centred
-				// collapse, not real overflow; the fix is the width source (the
-				// FILL row below), not the policy. AUTOMATIC is retained so a
-				// genuinely icon-heavy strip still scrolls (many-categories edge
-				// case); propagate_natural_width stays FALSE so the strip can never
-				// widen the menu — it scrolls within the main-column width
-				// instead.
-				gtk_scrolled_window_set_propagate_natural_width(m_strip_scroll, FALSE);
-				gtk_box_pack_start(m_categories_box, GTK_WIDGET(m_strip_scroll), true, true, 0);
-			}
-			if (!m_strip_lead_spacer)
-			{
-				// GtkViewport stretches its child to the view width and ignores child
-				// halign, so equal expanding spacers provide centering without
-				// changing the strip's width authority or overflow behavior.
-				m_strip_lead_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_hexpand(m_strip_lead_spacer, TRUE);
-				gtk_box_pack_start(m_category_buttons, m_strip_lead_spacer, true, true, 0);
-			}
-			if (!m_strip_trail_spacer)
-			{
-				m_strip_trail_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_hexpand(m_strip_trail_spacer, TRUE);
-				gtk_box_pack_start(m_category_buttons, m_strip_trail_spacer, true, true, 0);
-			}
+			// GtkViewport stretches its child to the view width and ignores child
+			// halign, so the prebuilt expanding spacers provide centering without
+			// changing the strip's width authority or overflow behavior.
 			scroller_add_child(m_strip_scroll, GTK_WIDGET(m_category_buttons));
 			// Single row: the category group is centered by the symmetric spacers.
 			// The categories box fills the available width. The fullscreen pass
@@ -3743,34 +3791,36 @@ void WhiskerMenu::Window::update_layout()
 		GtkWidget* sw = GTK_WIDGET(m_mode_selector_box);
 		GtkWidget* cur = gtk_widget_get_parent(sw);
 		GtkWidget* target = nullptr;
-		switch (effective_pres.switch_location)
+		switch (selector_presentation.home)
 		{
-		case SwitchLocation::InSidebar:
+		case SelectorHome::Sidebar:
 			// Apps/Places is owned by a vertical category list only. Horizontal
 			// category strips never use this location.
 			target = GTK_WIDGET(m_category_buttons);
 			break;
-		case SwitchLocation::InSecondaryRow:
+		case SelectorHome::SecondaryRow:
 			// A visible Session group owns the secondary row. The composition
 			// pass below performs the final logical leading/trailing reorder.
 			target = GTK_WIDGET(m_secondary_row);
 			break;
-		case SwitchLocation::InSearchBar:
+		case SelectorHome::WindowedPrimary:
+		case SelectorHome::FullScreenSearch:
 			// The resolver performs the final row placement below. Park the switch
 			// in the ordinary row until that atomic pass chooses its supported home.
 			target = GTK_WIDGET(m_search_box);
 			break;
-		case SwitchLocation::None:
+		case SelectorHome::Hidden:
 		default:
 			break;
 		}
 
-			if (target && cur != target)
-			{
-				g_object_ref(sw);
-				if (cur)
-					gtk_container_remove(GTK_CONTAINER(cur), sw);
-			if (effective_pres.switch_location == SwitchLocation::InSearchBar)
+		if (target && cur != target)
+		{
+			g_object_ref(sw);
+			if (cur)
+				gtk_container_remove(GTK_CONTAINER(cur), sw);
+			if (selector_presentation.home == SelectorHome::WindowedPrimary
+					|| selector_presentation.home == SelectorHome::FullScreenSearch)
 			{
 				// Search-row staging: the embedded switch is anchored before the
 				// command buttons (the leading side), not at the very
@@ -3801,17 +3851,21 @@ void WhiskerMenu::Window::update_layout()
 				// The vertical sidebar keeps the selector before its categories.
 				gtk_box_pack_start(GTK_BOX(target), sw, false, false, 0);
 				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
-				}
-				g_object_unref(sw);
 			}
-			else if (target && cur == target
-					&& effective_pres.switch_location == SwitchLocation::InSidebar
-					&& want_vertical)
-			{
-				gtk_box_reorder_child(GTK_BOX(target), sw, 0);
-			}
-			m_switch_loc = effective_pres.switch_location;
+			g_object_unref(sw);
 		}
+		else if (target && cur == target
+				&& selector_presentation.home == SelectorHome::Sidebar
+				&& want_vertical)
+		{
+			gtk_box_reorder_child(GTK_BOX(target), sw, 0);
+		}
+		else if (!target && cur)
+		{
+			// A hidden selector owns no parent, allocation, or focus target.
+			gtk_container_remove(GTK_CONTAINER(cur), sw);
+		}
+	}
 
 	// Visibility follows the supported boolean controls and effective action
 	// availability in every layout mode.
@@ -3830,43 +3884,14 @@ void WhiskerMenu::Window::update_layout()
 		meow_widget_set_can_focus_if_valid(m_commands_button[i], !commands_hidden);
 	}
 
-	ModernDividerState divider_state;
-	divider_state.modern_preset = (g_strcmp0(m_settings->current_preset_id, "modern") == 0);
-	divider_state.docked_or_centered = (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0);
-	divider_state.vertical_sidebar_switch = switch_visible
-			&& effective_pres.switch_location == SwitchLocation::InSidebar
-			&& !effective_pres.categories_horizontal;
-	divider_state.profile_visible = !profile_hidden;
-	divider_state.visible_command_count = 0;
-	if (m_settings->show_session)
-	{
-		for (int i = 0; i < 9; ++i)
-		{
-			// Command::check() resolves availability before the derived divider
-			// decides whether a command supplies upper-region content.
-			if (m_settings->command[i]->check())
-			{
-				++divider_state.visible_command_count;
-			}
-		}
-	}
-	m_layout_available_session_actions = divider_state.visible_command_count;
-	if (m_mode_selector_upper_separator)
-	{
-		gtk_widget_set_visible(m_mode_selector_upper_separator,
-				meow_modern_divider_visible(divider_state));
-	}
-
-	// Reparenting the selector during a layout transition can move it ahead of
-	// the divider. Restore the stable vertical-sidebar order on every pass.
+	// Reparenting the selector during a layout transition can move it after a
+	// category. Restore the stable vertical-sidebar order on every pass.
 	if (want_vertical)
 	{
 		gtk_box_reorder_child(m_category_buttons,
-				m_mode_selector_upper_separator, 0);
+				GTK_WIDGET(m_mode_selector_box), 0);
 		gtk_box_reorder_child(m_category_buttons,
-				GTK_WIDGET(m_mode_selector_box), 1);
-		gtk_box_reorder_child(m_category_buttons,
-				m_mode_selector_separator, 2);
+				m_mode_selector_separator, 1);
 	}
 
 	// Command buttons follow the physical row direction while the resolver
@@ -3907,7 +3932,7 @@ void WhiskerMenu::Window::update_layout()
 	const SidebarPosition strip_position = meow_resolve_sidebar_edge(
 			meow_parse_sidebar_position(m_settings->sidebar_position),
 			g_strcmp0(m_settings->search_bar_position, "bottom") == 0,
-			layout_state.fullscreen);
+			g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 	const StripGeometry strip_geom = meow_compute_strip_geometry(
 			strip_position, m_layout_ltr);
 	const bool strip_below_results = m_layout_categories_horizontal
@@ -3916,36 +3941,32 @@ void WhiskerMenu::Window::update_layout()
 			? !strip_below_results
 			: true;
 
-	// Rhythm-matched symmetric gap: equal space before and after the strip
-	// (one gap is the inter-row spacing, the other the strip's outer margin),
-	// so the strip is not flush against the menu edge (supported behavior).
-	const int STRIP_GAP = 6;
-	gtk_widget_set_margin_top(GTK_WIDGET(m_categories_box),
-			m_layout_categories_horizontal && !strip_below_results ? STRIP_GAP : 0);
-	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box),
-			m_layout_categories_horizontal && strip_below_results ? STRIP_GAP : 0);
-
-	// Docked mode paints a transparent window shell, so any spacing between
-	// regions would be a transparent band rather than the frame grey the window
-	// background used to supply. Collapse the inter-region spacing to 0 in docked
-	// mode and let the results-area outline (update_background_css) draw the
-	// boundaries; full-screen keeps the 6 px rhythm because its single window
-	// alpha fills the gaps and the centring math depends on the column gap.
-	const bool docked = !layout_state.fullscreen;
-	gtk_box_set_spacing(m_vbox, docked ? 0 : 6);
+	const int region_gap = m_layout_metrics.region_gap_px;
+	gtk_container_set_border_width(GTK_CONTAINER(m_vbox), region_gap);
+	gtk_box_set_spacing(m_vbox, region_gap);
+	gtk_box_set_spacing(m_primary_row, region_gap);
+	gtk_box_set_spacing(m_primary_middle, region_gap);
+	gtk_box_set_spacing(m_secondary_row, region_gap);
+	// The grid owns the strip/results or sidebar/results boundary. Widget
+	// margins stay zero so adjacent regions can never sum two gaps.
+	gtk_widget_set_margin_top(GTK_WIDGET(m_categories_box), 0);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box), 0);
 
 	gtk_grid_remove_row(m_contents_box, 1);
 	gtk_grid_remove_row(m_contents_box, 0);
 	if (m_layout_categories_horizontal)
 	{
 		gtk_grid_set_column_spacing(m_contents_box, 0);
-		gtk_grid_set_row_spacing(m_contents_box, STRIP_GAP);
+		gtk_grid_set_row_spacing(m_contents_box,
+				meow_resolve_boundary_gap(true, true, region_gap));
 
 		gtk_style_context_add_class(context, strip_below_results ? "bottom" : "top");
 	}
 	else
 	{
-		gtk_grid_set_column_spacing(m_contents_box, docked ? 0 : 6);
+		gtk_grid_set_column_spacing(m_contents_box,
+				meow_resolve_boundary_gap(m_layout_sidebar_enabled,
+						true, region_gap));
 		gtk_grid_set_row_spacing(m_contents_box, 0);
 
 		gtk_style_context_add_class(context,

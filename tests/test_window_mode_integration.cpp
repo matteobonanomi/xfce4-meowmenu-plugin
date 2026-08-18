@@ -12,6 +12,7 @@
 #include "core/sidebar-layout.h"
 #include "core/window-keyboard.h"
 #include "launcher/command.h"
+#include "launcher/page.h"
 
 #include <gtk/gtk.h>
 
@@ -225,6 +226,12 @@ int main()
 	CHECK(composition.session_alignment == MenuAlignment::LogicalTrailing);
 	CHECK(composition.apps_places_location
 			== MenuControlLocation::SecondaryRow);
+	CHECK(composition.baseline_surface == MenuSurfaceRole::Content);
+	CHECK(composition.profile_surface == MenuSurfaceRole::Chrome);
+	CHECK(composition.sidebar_surface == MenuSurfaceRole::Chrome);
+	CHECK(composition.search_surface == MenuSurfaceRole::Content);
+	CHECK(composition.results_surface == MenuSurfaceRole::Content);
+	CHECK(composition.secondary_surface == MenuSurfaceRole::Chrome);
 	windowed_composition.direction = MenuDirection::RightToLeft;
 	composition = meow_resolve_menu_composition(windowed_composition);
 	CHECK(composition.session_alignment == MenuAlignment::LogicalTrailing);
@@ -267,6 +274,57 @@ int main()
 	CHECK(gtk_widget_get_parent(apps) == middle);
 	CHECK(gtk_widget_get_parent(search) == middle);
 	CHECK(gtk_box_get_spacing(GTK_BOX(middle)) > 0);
+	CHECK(MEOWMENU_LAUNCHER_SHADOW_TYPE == GTK_SHADOW_NONE);
+
+	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* secondary = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* selector = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkToggleButton* apps_mode = GTK_TOGGLE_BUTTON(
+			gtk_toggle_button_new_with_label("Applications"));
+	GtkToggleButton* places_mode = GTK_TOGGLE_BUTTON(
+			gtk_toggle_button_new_with_label("Places"));
+	gtk_box_pack_start(GTK_BOX(selector), GTK_WIDGET(apps_mode), true, true, 0);
+	gtk_box_pack_start(GTK_BOX(selector), GTK_WIDGET(places_mode), true, true, 0);
+	gtk_toggle_button_set_active(places_mode, TRUE);
+	gtk_entry_set_text(GTK_ENTRY(search), "persistent query");
+	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(apps_mode)),
+			"Applications");
+	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(places_mode)),
+			"Places");
+	g_object_ref_sink(selector);
+	gtk_box_pack_start(GTK_BOX(sidebar), selector, false, false, 0);
+	for (int cycle = 0; cycle < 20; ++cycle)
+	{
+		GtkWidget* target = (cycle % 2) == 0 ? secondary : sidebar;
+		g_object_ref(selector);
+		GtkWidget* parent = gtk_widget_get_parent(selector);
+		if (parent)
+			gtk_container_remove(GTK_CONTAINER(parent), selector);
+		gtk_box_pack_start(GTK_BOX(target), selector, false, false, 0);
+		gtk_box_reorder_child(GTK_BOX(target), selector, 0);
+		g_object_unref(selector);
+		CHECK(gtk_widget_get_parent(selector) == target);
+		CHECK(!gtk_toggle_button_get_active(apps_mode));
+		CHECK(gtk_toggle_button_get_active(places_mode));
+		CHECK(g_strcmp0(gtk_entry_get_text(GTK_ENTRY(search)),
+				"persistent query") == 0);
+		CHECK(g_strcmp0(atk_object_get_name(
+				gtk_widget_get_accessible(GTK_WIDGET(places_mode))),
+				"Places") == 0);
+		GList* children = gtk_container_get_children(GTK_CONTAINER(target));
+		CHECK(children && children->data == selector);
+		g_list_free(children);
+	}
+	GtkWidget* parent = gtk_widget_get_parent(selector);
+	gtk_container_remove(GTK_CONTAINER(parent), selector);
+	CHECK(gtk_widget_get_parent(selector) == nullptr);
+	gtk_widget_set_can_focus(GTK_WIDGET(apps_mode), FALSE);
+	gtk_widget_set_can_focus(GTK_WIDGET(places_mode), FALSE);
+	CHECK(!gtk_widget_get_can_focus(GTK_WIDGET(apps_mode)));
+	CHECK(!gtk_widget_get_can_focus(GTK_WIDGET(places_mode)));
+	g_object_unref(selector);
+	gtk_widget_destroy(sidebar);
+	gtk_widget_destroy(secondary);
 	gtk_widget_destroy(row);
 
 	if (failures != 0)

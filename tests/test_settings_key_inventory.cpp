@@ -43,7 +43,6 @@ int main()
 		"/sidebar-enabled",
 		"/sidebar-position",
 		"/transparent-grid",
-		"/places/switch-button-shape",
 		"/extras/calculator-engine",
 		"/extras/calculator-result-font-size",
 		"/extras/calculator-max-decimal-places",
@@ -55,6 +54,7 @@ int main()
 		"/profile-position",
 		"/commands-position",
 		"/unified-bar",
+		"/places/switch-button-shape",
 	})
 		assert(!contains(keys, retired));
 	return 0;

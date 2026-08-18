@@ -58,7 +58,6 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "default-category",      PropKind::Str,  0,   0,    {"favorites","recent","all"} },
 	{ "places-enabled",        PropKind::Bool, 0,   0,    {} },
 	{ "places-show-icons",     PropKind::Bool, 0,   0,    {} },
-	{ "places-switch-button-shape", PropKind::Str, 0, 0,  {"gtk-theme","rounded"} },
 	{ "calculator-engine",      PropKind::Str,  0,   0,    {"none","bc","qalc","gcalccmd"} },
 	{ "calculator-result-font-size", PropKind::Int, -1, 6, {} },
 	{ "calculator-max-decimal-places", PropKind::Int, 0, 10, {} },
@@ -220,7 +219,6 @@ static RawSettings make_valid_modern_raw()
 	r.put("view-mode-default",  "icons");
 	r.put("places-enabled",     "true");
 	r.put("places-show-icons",  "true");
-	r.put("places-switch-button-shape", "gtk-theme");
 	r.put("calculator-engine", "bc");
 	r.put("calculator-result-font-size", "-1");
 	r.put("calculator-max-decimal-places", "4");
@@ -302,6 +300,21 @@ static void test_unknown_keys_skipped()
 	assert(result.find("another-unknown") == result.end());
 	// All the valid keys still made it through
 	assert(result.size() == raw.entries.size() - 2);
+}
+
+static void test_retired_selector_shape_is_unknown()
+{
+	for (const char* value : { "gtk-theme", "rounded", "future-shape" })
+	{
+		RawSettings raw = make_valid_modern_raw();
+		raw.put("places-switch-button-shape", value);
+		std::vector<std::string> skipped;
+		const ShadowValueMap result = validate_settings(raw, skipped);
+		assert(result.count("places-switch-button-shape") == 0);
+		assert(result.count("layout-mode") == 1);
+		assert(std::find(skipped.begin(), skipped.end(),
+				"places-switch-button-shape") != skipped.end());
+	}
 }
 
 static void test_out_of_range_int_skipped_others_survive()
@@ -756,6 +769,7 @@ int main()
 	test_retired_layout_keys_are_not_supported();
 	test_calculator_domains_and_bounds();
 	test_unknown_keys_skipped();
+	test_retired_selector_shape_is_unknown();
 	test_out_of_range_int_skipped_others_survive();
 	test_invalid_str_domain_skipped_others_survive();
 	test_invalid_bool_skipped();

@@ -6,7 +6,6 @@
 "/show-session"
 "/sidebar-enabled"
 "/sidebar-position"
-"/places/switch-button-shape"
 "/extras/calculator-engine"
 "/extras/calculator-result-font-size"
 "/extras/calculator-max-decimal-places"

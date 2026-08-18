@@ -10,7 +10,6 @@
  */
 
 #include "ui/properties/common.h"
-#include "settings.h"
 
 #include <glib.h>
 #include <gtk/gtk.h>
@@ -33,17 +32,6 @@ int g_failures = 0;
 	} while (0)
 
 } // namespace
-
-static GtkWidget* make_shape_combo_for_test()
-{
-	GtkWidget* combo = gtk_combo_box_text_new();
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo),
-			PLACES_SWITCH_SHAPE_GTK_THEME, "GTK theme");
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo),
-			PLACES_SWITCH_SHAPE_ROUNDED, "Rounded");
-	gtk_combo_box_set_active_id(GTK_COMBO_BOX(combo), PLACES_SWITCH_SHAPE_GTK_THEME);
-	return combo;
-}
 
 /* source_contains:
  * @path: source file to inspect.
@@ -88,18 +76,6 @@ int main()
 	g_object_ref_sink(w);
 	g_object_unref(w);
 
-	GtkWidget* combo = make_shape_combo_for_test();
-	CHECK(GTK_IS_COMBO_BOX_TEXT(combo));
-	CHECK(g_strcmp0(gtk_combo_box_get_active_id(GTK_COMBO_BOX(combo)),
-			PLACES_SWITCH_SHAPE_GTK_THEME) == 0);
-	GtkTreeModel* model = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
-	CHECK(gtk_tree_model_iter_n_children(model, nullptr) == 2);
-	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 1);
-	CHECK(g_strcmp0(gtk_combo_box_get_active_id(GTK_COMBO_BOX(combo)),
-			PLACES_SWITCH_SHAPE_ROUNDED) == 0);
-	g_object_ref_sink(combo);
-	g_object_unref(combo);
-
 	CHECK(source_contains(MEOWMENU_SEARCH_BAR_SOURCE, "show_profile"));
 	CHECK(source_contains(MEOWMENU_SEARCH_BAR_SOURCE, "profile_shape"));
 	CHECK(!source_contains(MEOWMENU_SEARCH_BAR_SOURCE, "profile_position"));
@@ -116,6 +92,10 @@ int main()
 			"\"bottom\", _(\"Bottom\")"));
 	CHECK(source_contains(MEOWMENU_PLACES_SOURCE,
 			"g_strcmp0(sp, \"horizontal\")"));
+	CHECK(!source_contains(MEOWMENU_PLACES_SOURCE,
+			"switch-button-shape"));
+	CHECK(!source_contains(MEOWMENU_PLACES_SOURCE,
+			"Switch button _shape"));
 
 	if (g_failures != 0)
 	{

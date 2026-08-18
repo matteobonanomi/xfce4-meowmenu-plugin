@@ -18,6 +18,8 @@
 #ifndef MEOWMENU_CORE_SIDEBAR_LAYOUT_H
 #define MEOWMENU_CORE_SIDEBAR_LAYOUT_H
 
+#include "menu-composition.h"
+
 namespace WhiskerMenu
 {
 
@@ -31,84 +33,99 @@ enum class SidebarPosition
 	Bottom
 };
 
-// Resolved placement of the Apps/Places mode switch for a layout pass.
-enum class SwitchLocation
-{
-	InSidebar,      // packed with the vertical Left/Right category list
-	InSecondaryRow, // shared Docked/Centered secondary row with Session actions
-	InSearchBar,    // unified Search-row home (sidebar disabled or Horizontal)
-	None            // Places mode off — no switch at all
-};
-
 enum class SwitchOrientation
 {
 	Horizontal,
 	Vertical
 };
 
+enum class SelectorHome
+{
+	Hidden,
+	Sidebar,
+	SecondaryRow,
+	WindowedPrimary,
+	FullScreenSearch
+};
+
+enum class SelectorIconSizeSource
+{
+	None,
+	Category,
+	Search,
+	SessionToolbar
+};
+
+enum class SelectorContent
+{
+	Icons,
+	Labels
+};
+
+enum class SelectorActiveMode
+{
+	Applications,
+	Places
+};
+
+struct SelectorPresentation
+{
+	SelectorHome home;
+	SwitchOrientation orientation;
+	SelectorContent content;
+	SelectorIconSizeSource icon_size_source;
+	int icon_px;
+	bool natural_height;
+	SelectorActiveMode active_mode;
+};
+
+/* meow_resolve_selector_presentation:
+ * @location: final selector home from the resolved menu composition.
+ * @layout_mode: current effective layout mode.
+ * @category_names_visible: whether a vertical sidebar shows category labels.
+ * @icons_requested: stored selector icon/text choice.
+ * @places_active: true when Places is the selected mode.
+ * @category_px: configured category icon allocation.
+ * @search_px: measured windowed Search-row control allocation.
+ * @session_px: effective Session toolbar allocation.
+ *
+ * Derives orientation and sizing only after the authoritative composition has
+ * selected a home. Row homes retain natural height; only an icon-only vertical
+ * sidebar may orient the choices vertically.
+ *
+ * Returns: a complete selector presentation by value.
+ */
+SelectorPresentation meow_resolve_selector_presentation(
+		MenuControlLocation location, LayoutMode layout_mode,
+		bool category_names_visible, bool icons_requested, bool places_active,
+		int category_px, int search_px, int session_px);
+
 /* SidebarLayoutState:
  *
- * The stored user intent plus the environmental inputs that determine how the
- * sidebar and Apps/Places switch are presented. All fields are the *stored*
- * values; forcing rules are applied by meow_compute_sidebar_layout() at render
- * time only, so nothing here is ever mutated to encode a forced state.
+ * The stored user intent that determines category-navigation presentation.
+ * Horizontal forcing is applied at render time only, so nothing here is
+ * mutated to encode a forced state.
  */
 struct SidebarLayoutState
 {
 	bool sidebar_enabled;       // /sidebar-enabled
 	SidebarPosition position;   // /sidebar-position
 	bool category_show_name;    // /category-show-name (intent)
-	bool switch_show_icons;     // /places/switch-show-icons (intent)
-	bool search_bar_bottom;     // /search-bar-position == "bottom"
-	bool fullscreen;            // /layout-mode == "fullscreen"
-	bool places_enabled;        // /places/enabled
 };
 
-/* SwitchPresentation:
+/* SidebarPresentation:
  *
- * The effective, render-time presentation derived from SidebarLayoutState.
- * The effective_* flags may differ from the corresponding stored intent when a
-	 * layout forces them (Horizontal strip, sidebar disabled); the stored values
- * are never overwritten, so removing the forcing layout restores them for free.
+ * The effective category-navigation presentation derived from stored sidebar
+ * intent. Selector placement and styling are deliberately absent: they are
+ * resolved only from the final menu composition.
  */
-struct SwitchPresentation
+struct SidebarPresentation
 {
 	bool sidebar_visible;
 	bool categories_horizontal;
-	SwitchLocation switch_location;
-	SwitchOrientation switch_orientation;
-	bool effective_show_icons;          // Apps/Places switch shows icons not text
 	bool effective_show_category_names;
 	bool show_default_category_heading;
 };
-
-/* ModernDividerState:
- *
- * The resolved, display-independent inputs for the contextual Modern upper
- * divider. vertical_sidebar_switch is true only when the selector is visible
-	 * in a left/right sidebar, never in a Horizontal strip or Search row.
- */
-struct ModernDividerState
-{
-	bool modern_preset;
-	bool docked_or_centered;
-	bool vertical_sidebar_switch;
-	bool profile_visible;
-	unsigned int visible_command_count;
-};
-
-/* meow_modern_divider_visible:
- * @state: resolved Modern identity, layout, selector placement, and upper-row
- *         content availability for the current layout pass.
- *
- * Determines whether the contextual upper separator belongs before the
- * Apps/Places selector. This stays independent of GTK and settings so all
- * presentation paths share one exhaustive visibility rule.
- *
- * Returns: true when the separator is visible and must be packed; false when
- *          it must be hidden without reserving space.
- */
-bool meow_modern_divider_visible(const ModernDividerState& state);
 
 /* meow_parse_sidebar_position:
  * @value: a stored /sidebar-position string; may be NULL.
@@ -134,18 +151,18 @@ SidebarPosition meow_parse_sidebar_position(const char* value);
 SidebarPosition meow_resolve_sidebar_edge(SidebarPosition position,
 		bool search_bar_bottom, bool fullscreen);
 
-/* meow_compute_sidebar_layout:
- * @state: the stored intent and environment for this layout pass.
+/* meow_compute_sidebar_presentation:
+ * @state: stored category-navigation intent for this layout pass.
  *
- * Pure mapping from stored sidebar/switch intent to the effective presentation,
-	 * applying every forcing rule (Horizontal strip ⇒ icon-only categories;
-	 * Horizontal or disabled sidebar ⇒ switch relocated to the unified Search row,
-	 * icon-only, with a default-category heading only when the sidebar is disabled).
-	 * No GTK calls.
+ * Applies the Horizontal strip's icon-only category rule and exposes the
+ * default-category heading only while the sidebar is disabled. Selector
+ * presentation is resolved separately from the final composition. No GTK
+ * calls are made.
  *
- * Returns: the resolved SwitchPresentation; never modifies @state.
+ * Returns: the resolved SidebarPresentation; never modifies @state.
  */
-SwitchPresentation meow_compute_sidebar_layout(const SidebarLayoutState& state);
+SidebarPresentation meow_compute_sidebar_presentation(
+		const SidebarLayoutState& state);
 
 // Vertical stacking of a docked Top/Bottom category strip relative to the
 // results box.
@@ -220,40 +237,6 @@ StripGeometry meow_compute_strip_geometry(SidebarPosition position, bool ltr);
  */
 FullscreenMainColumn meow_fullscreen_main_column(int workarea_width);
 
-/* meow_toggle_icon_px:
- * @location: where the Apps/Places toggle is rendered this pass.
- * @category_px: the configured category icon pixel size (sidebar source).
- * @search_bar_px: the measured search-bar-height-derived pixel size.
- * @session_px: the effective Session icon allocation from the current theme.
- *
- * Pure decision for the toggle icon's pixel size: the toggle always inherits
- * from the region that contains it — the category icon size when it lives in a
-	 * vertical sidebar, the Session icon allocation in a shared
- * secondary row, and the search-bar height when it lives in the search-bar row.
- * There is deliberately no independent user setting.
- *
- * Returns: the pixel size to apply with gtk_image_set_pixel_size(); 0 when the
- * toggle is hidden (SwitchLocation::None), meaning no size is applied.
- */
-int meow_toggle_icon_px(SwitchLocation location, int category_px, int search_bar_px,
-		int session_px);
-
-/* meow_toggle_button_height_px:
- * @location: where the Apps/Places toggle is rendered this pass.
-	 * @categories_horizontal: true for the Horizontal icon-only category strip.
- * @category_px: the configured category icon pixel size.
- *
- * Pure decision for an explicit switch-button height. Only the horizontal
-	 * A defensive InSidebar+Horizontal combination would pin the buttons to the
-	 * sidebar icon size; the supported Horizontal presentation uses the unified
-	 * Search row and keeps its theme/natural button allocation. Width is
-	 * deliberately not constrained.
- *
- * Returns: button height in pixels, or -1 to clear the height request.
- */
-int meow_toggle_button_height_px(SwitchLocation location, bool categories_horizontal,
-		int category_px);
-
 /* meow_strip_spacer_order:
  * @categories_horizontal: true when the category box is the Horizontal strip.
  *
@@ -274,7 +257,7 @@ int meow_strip_spacer_order(bool categories_horizontal);
  *
  * Default-category reordering must leave fixed leading children ahead of the
  * built-in category buttons. The strip keeps its spacer at index 0; a vertical
- * sidebar keeps its upper separator, selector, and lower separator at 0..2.
+ * sidebar keeps its selector and lower separator at 0..1.
  *
  * Returns: the first child index available for default-category buttons.
  */
