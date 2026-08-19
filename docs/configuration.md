@@ -64,10 +64,12 @@ options are greyed out and switch live as you change the mode:
 
 Docked and Centered use the same menu composition. Profile and Search share
 one primary row at the selected Top or Bottom edge. The avatar and username are
-one Profile block: hiding Profile removes both from allocation and keyboard
-navigation. With a vertical sidebar, Profile matches the sidebar column and
-Search matches the Results column. A right sidebar puts Profile on the right;
-without a vertical sidebar, Profile uses the logical leading side.
+one Profile block: hiding Profile removes both from keyboard navigation and
+leaves no visible Profile content. With a vertical sidebar, that column remains
+reserved as sidebar chrome so Search still matches the Results column and does
+not cover the sidebar. A right sidebar puts the reserved column on the right;
+without a vertical sidebar, Search may use the complete row and Profile uses
+the logical leading side when visible.
 
 Apps/Places and available Session actions use a derived secondary row:
 
@@ -110,12 +112,14 @@ name use the category button's theme border and padding, so their leading edge
 matches the category icon column. With category names hidden, the complete
 avatar/name group and the category icons are centred on the same sidebar axis;
 if Profile is widest, it determines the sidebar width with equal tolerance on
-both sides. The initial width also reserves the theme's vertical scrollbar, so
-category overflow or hover does not widen the launcher. Applications mode
-opens at the top of the category viewport with Favorites, enabled Recently
-Used, and All Applications painted on the first frame. These rules apply only
-to Docked and Centered layouts; Full Screen keeps its established selector,
-Session, and sidebar sizing arrangement.
+both sides. When Profile is hidden, icon-only category rows expand across the
+sidebar allocation so their controls retain equal space on both sides in Left
+and Right layouts. The initial width also reserves the theme's vertical
+scrollbar, so category overflow or hover does not widen the launcher.
+Applications mode opens at the top of the category viewport with Favorites,
+enabled Recently Used, and All Applications painted on the first frame. These
+rules apply only to Docked and Centered layouts; Full Screen keeps its
+established selector, Session, and sidebar sizing arrangement.
 
 Horizontal is one sidebar choice for category navigation only. In Docked and
 Centered it appears on the Results edge opposite the primary row; when the
@@ -145,9 +149,17 @@ Outer insets and gaps between major regions use one spacing rhythm derived
 from the active GTK theme. Hiding a region removes its gap as well as its
 allocation, avoiding doubled spacing and empty seams. Results and the
 scrollbar trough have no persistent inner frame; result selection, keyboard
-focus, and the scrollbar slider keep their normal theme feedback. While
+focus, and the scrollbar slider keep their normal theme feedback. List rows
+and grid tiles use the same GTK theme selection colours, including while focus
+moves by keyboard. While
 scrolling, Results icons and labels remain clipped inside the Results box and
 never paint over the Horizontal strip or secondary row.
+
+Printable typing and Backspace outside a text-capable child are routed to
+Search, including immediately after a live layout change has temporarily left
+no child focused. Arrow keys recover through Search in the same condition and
+then continue the normal one-step navigation model across Search, list or grid
+Results, the sidebar, and Session controls.
 
 ### Full Screen composition
 

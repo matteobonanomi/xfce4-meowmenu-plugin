@@ -173,6 +173,37 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 	return width;
 }
 
+/* meow_configure_vertical_sidebar_content:
+ *
+ * See the public declaration for the cross-axis allocation contract.
+ */
+bool
+WhiskerMenu::meow_configure_vertical_sidebar_content(GtkWidget* categories,
+                                                     bool active)
+{
+	if (!GTK_IS_CONTAINER(categories))
+		return false;
+
+	gtk_widget_set_hexpand(categories, active);
+	gtk_widget_set_halign(categories, GTK_ALIGN_FILL);
+	GList* children = gtk_container_get_children(GTK_CONTAINER(categories));
+	for (GList* child = children; child; child = child->next)
+	{
+		GtkWidget* widget = GTK_WIDGET(child->data);
+		if (!GTK_IS_RADIO_BUTTON(widget))
+			continue;
+		gtk_widget_set_hexpand(widget, active);
+		gtk_widget_set_halign(widget, GTK_ALIGN_FILL);
+		if (!active)
+		{
+			gtk_widget_set_margin_start(widget, 0);
+			gtk_widget_set_margin_end(widget, 0);
+		}
+	}
+	g_list_free(children);
+	return true;
+}
+
 /* meow_session_spacer_position:
  * @right_sidebar: true when Session shares a row with a Right sidebar.
  * @left_to_right: true for a left-to-right interface direction.

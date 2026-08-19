@@ -662,9 +662,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_title_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6));
 	m_primary_row = m_title_box;
 	m_primary_middle = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6));
+	m_sidebar_header_reserve = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_widget_set_can_focus(m_sidebar_header_reserve, FALSE);
 	g_object_ref_sink(m_primary_middle);
 	gtk_box_pack_start(m_vbox, GTK_WIDGET(m_title_box), false, false, 0);
 	gtk_box_pack_start(m_title_box, m_profile->get_widget(), false, false, 0);
+	gtk_box_pack_start(m_title_box, m_sidebar_header_reserve,
+			false, false, 0);
 	gtk_box_pack_start(m_title_box, GTK_WIDGET(m_commands_box), false, false, 0);
 
 	// Add search to layout
@@ -766,6 +770,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 	gtk_scrolled_window_set_propagate_natural_height(m_sidebar, true);
 	gtk_scrolled_window_set_shadow_type(m_sidebar, GTK_SHADOW_NONE);
 	gtk_scrolled_window_set_policy(m_sidebar, GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_overlay_scrolling(m_sidebar, TRUE);
 	gtk_container_add(GTK_CONTAINER(m_sidebar), GTK_WIDGET(m_category_buttons));
 
 	// Construct the alternate Horizontal host up front. Layout reconciliation
@@ -1775,6 +1780,11 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 		// restore the centered strip order before the next allocation pass.
 		gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
 	}
+	const bool windowed_vertical_sidebar = m_layout_sidebar_enabled
+			&& !m_layout_categories_horizontal
+			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0;
+	meow_configure_vertical_sidebar_content(
+			GTK_WIDGET(m_category_buttons), windowed_vertical_sidebar);
 
 	// Now that the application categories are known, recompute the shared
 	// minimum label width so the sidebar floor accounts for them too.
@@ -1935,7 +1945,15 @@ bool WhiskerMenu::Window::dispatch_directional_navigation(
 	};
 	GtkWidget* focused = gtk_window_get_focus(m_window);
 	if (!focused)
-		return true;
+	{
+		/* Stable row reparenting can briefly leave GtkWindow without a focus
+		 * child. Search is the documented neutral origin, so recover it before
+		 * classifying the arrow instead of consuming a dead first keypress. */
+		gtk_entry_grab_focus_without_selecting(m_search_entry);
+		focused = gtk_window_get_focus(m_window);
+		if (!focused)
+			return true;
+	}
 	for (GtkWidget* ancestor = focused; ancestor;
 			ancestor = gtk_widget_get_parent(ancestor))
 	{
@@ -2076,8 +2094,11 @@ bool WhiskerMenu::Window::dispatch_directional_navigation(
 	if (origin_region == Keyboard::NavigationRegion::Results && active_view)
 	{
 		bool moved = false;
-		const bool calculator_origin = origin_widget
-				== m_search_results->get_preferred_focus_widget();
+		const bool calculator_origin =
+				Keyboard::is_calculator_navigation_origin(
+						m_search_results->has_calculator_result(),
+						origin_widget
+								== m_search_results->get_preferred_focus_widget());
 		if (calculator_origin && direction == Keyboard::PhysicalDirection::Up)
 		{
 			gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
@@ -2241,6 +2262,8 @@ bool WhiskerMenu::Window::dispatch_directional_navigation(
 	};
 	std::vector<Binding> bindings;
 	const Keyboard::MenuState state = current_menu_state();
+	const bool sidebar_targets_allowed =
+			Keyboard::allows_results_sidebar_exit(state, origin_region, direction);
 	auto add_widget = [&](Keyboard::NavigationRegion region,
 			Keyboard::FocusTargetKind kind, GtkWidget* target_widget)
 	{
@@ -2283,7 +2306,7 @@ bool WhiskerMenu::Window::dispatch_directional_navigation(
 		add_widget(Keyboard::NavigationRegion::Search,
 				Keyboard::FocusTargetKind::SearchEntry, GTK_WIDGET(m_search_entry));
 	if (origin_region != Keyboard::NavigationRegion::Sidebar
-			&& state == Keyboard::MenuState::Browsing && m_category_buttons)
+			&& sidebar_targets_allowed && m_category_buttons)
 	{
 		GList* children = gtk_container_get_children(
 				GTK_CONTAINER(m_category_buttons));
@@ -2343,7 +2366,7 @@ bool WhiskerMenu::Window::dispatch_directional_navigation(
 	const std::size_t selected = Keyboard::choose_spatial_target(origin_rect,
 		direction, targets,
 		gtk_widget_get_direction(GTK_WIDGET(m_window)) == GTK_TEXT_DIR_RTL,
-		state);
+		sidebar_targets_allowed ? Keyboard::MenuState::Browsing : state);
 	if (selected != Keyboard::NO_TARGET)
 	{
 		Binding& binding = bindings[selected];
@@ -2395,6 +2418,15 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 			break;
 		}
 	}
+	if (Keyboard::should_recover_search_focus(focused != nullptr,
+			child_has_input_priority))
+	{
+		/* GTK may clear the focus child between a stable-row reparent and map.
+		 * Recover Search early so the current event follows its ordinary entry
+		 * path and is neither lost nor delivered twice. */
+		gtk_entry_grab_focus_without_selecting(m_search_entry);
+		focused = gtk_window_get_focus(m_window);
+	}
 	if (focused && !child_has_input_priority
 			&& Keyboard::is_query_space_key(key_event->keyval)
 			&& !(key_event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK
@@ -2416,7 +2448,6 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 	{
 		if (Keyboard::is_search_text_event(key_event))
 		{
-			gtk_entry_grab_focus_without_selecting(m_search_entry);
 			gtk_search_entry_handle_event(GTK_SEARCH_ENTRY(m_search_entry),
 					reinterpret_cast<GdkEvent*>(key_event));
 			return GDK_EVENT_STOP;
@@ -2425,7 +2456,6 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		{
 			if (xfce_str_is_empty(gtk_entry_get_text(m_search_entry)))
 				return GDK_EVENT_STOP;
-			gtk_entry_grab_focus_without_selecting(m_search_entry);
 			gtk_search_entry_handle_event(GTK_SEARCH_ENTRY(m_search_entry),
 					reinterpret_cast<GdkEvent*>(key_event));
 			return GDK_EVENT_STOP;
@@ -2955,6 +2985,10 @@ void WhiskerMenu::Window::update_background_css()
 		// clears theme chrome on the scrollbar container; its slider and every GTK
 		// interaction state remain outside the selector.
 		"%s"
+		// GtkTreeView themes vary widely in how strongly they paint an inactive
+		// selection. Pin only selected list rows to the theme's selected tokens so
+		// list and grid results have equivalent keyboard/pointer emphasis.
+		"%s"
 		".meowmenu .category-button,"
 		".meowmenu .category-button *,"
 		".meowmenu .category-button image,"
@@ -2985,7 +3019,8 @@ void WhiskerMenu::Window::update_background_css()
 		".meowmenu .places-mode-selector button:not(:checked):not(:hover):not(:active):not(:disabled):not(:focus)"
 		"{ background: transparent; border-color: transparent; box-shadow: none; }",
 		red, green, blue, alpha_shell,
-		meow::meowmenu_frameless_launcher_css());
+		meow::meowmenu_frameless_launcher_css(),
+		meow::meowmenu_list_selection_css());
 
 	// Capture the parse error from our own generated stylesheet. Passing nullptr
 	// here discards all diagnostics, which is why a malformed declaration (such
@@ -3503,6 +3538,7 @@ void WhiskerMenu::Window::apply_menu_composition(
 		const MenuComposition& composition)
 {
 	GtkWidget* profile = m_profile ? m_profile->get_widget() : nullptr;
+	GtkWidget* sidebar_reserve = m_sidebar_header_reserve;
 	GtkWidget* profile_content = m_profile ? m_profile->get_content() : nullptr;
 	GtkWidget* profile_leading = m_profile
 			? m_profile->get_leading_spacer() : nullptr;
@@ -3583,6 +3619,11 @@ void WhiskerMenu::Window::apply_menu_composition(
 	}
 
 	meow_widget_set_visible_if_valid(profile, composition.effective_profile);
+	const bool reserve_sidebar_header = !fullscreen_middle
+			&& !composition.effective_profile
+			&& (composition.sidebar == CompositionSidebar::Left
+				|| composition.sidebar == CompositionSidebar::Right);
+	meow_widget_set_visible_if_valid(sidebar_reserve, reserve_sidebar_header);
 	meow_widget_set_visible_if_valid(picture, composition.effective_profile);
 	meow_widget_set_visible_if_valid(username, composition.effective_profile);
 	meow_widget_set_visible_if_valid(GTK_WIDGET(m_commands_box),
@@ -3628,6 +3669,8 @@ void WhiskerMenu::Window::apply_menu_composition(
 		GtkWidget* widget = nullptr;
 		if (slot == MenuSlot::Profile)
 			widget = profile;
+		else if (slot == MenuSlot::SidebarReserve)
+			widget = sidebar_reserve;
 		else if (slot == MenuSlot::Search && !fullscreen_middle)
 			widget = GTK_WIDGET(m_search_entry);
 		else if (slot == MenuSlot::AppsPlaces && !fullscreen_middle)
@@ -3681,8 +3724,13 @@ void WhiskerMenu::Window::apply_menu_composition(
 				profile_leading, profile_trailing,
 				m_applications->get_button()->get_widget(), true,
 				m_settings->category_show_name);
-		meow_configure_vertical_sidebar_width(GTK_WIDGET(m_sidebar), profile,
+		const int sidebar_width = meow_configure_vertical_sidebar_width(
+				GTK_WIDGET(m_sidebar), profile,
 				true, composition.effective_profile);
+		gtk_widget_set_size_request(sidebar_reserve,
+				reserve_sidebar_header ? sidebar_width : -1, -1);
+		meow_configure_vertical_sidebar_content(
+				GTK_WIDGET(m_category_buttons), true);
 		meow_widget_set_halign_if_valid(profile, GTK_ALIGN_FILL);
 		meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
 				GTK_ALIGN_START);
@@ -3703,6 +3751,9 @@ void WhiskerMenu::Window::apply_menu_composition(
 			meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
 					GTK_ALIGN_START);
 		}
+		gtk_widget_set_size_request(sidebar_reserve, -1, -1);
+		meow_configure_vertical_sidebar_content(
+				GTK_WIDGET(m_category_buttons), false);
 	}
 }
 

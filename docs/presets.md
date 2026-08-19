@@ -98,7 +98,16 @@ wider. Applications mode starts at the top of the category viewport and paints
 Favorites, enabled Recently Used, and All Applications on its first frame.
 When category names are hidden and Profile is wider than the icons, Profile
 sets the sidebar width with equal tolerance on both sides and both groups remain
-centred. Full Screen keeps its independent fixed geometry.
+centred. If Profile is hidden, Search still stops at the Results edge while the
+visible sidebar keeps its own chrome column; icon-only category controls fill
+and centre within that column on either side. Full Screen keeps its independent
+fixed geometry.
+
+All presets share the same keyboard recovery behavior: ordinary typing starts
+or extends Search even after a live relayout, and arrow movement continues
+across Search, list or grid Results, sidebar controls, and Session controls.
+Selected list rows and grid tiles both use the active GTK theme's selection
+colours.
 
 ## The Unsaved custom state
 

@@ -220,6 +220,43 @@ bool is_printable_for_search(const GdkEventKey* event);
  */
 bool is_search_text_event(const GdkEventKey* event);
 
+/* should_recover_search_focus:
+ * @has_focused_child: whether GTK currently reports a focused menu child.
+ * @child_has_input_priority: whether a child menu or modal owns input.
+ *
+ * Treats a transient missing focus child as Search ownership without stealing
+ * events from a modal surface.
+ *
+ * Returns: true when the live router should focus Search before dispatch.
+ */
+bool should_recover_search_focus(bool has_focused_child,
+		bool child_has_input_priority);
+
+/* is_calculator_navigation_origin:
+ * @calculator_visible: whether Calculator currently owns the leading result.
+ * @preferred_widget_focused: whether its preferred focus widget is active.
+ *
+ * Keeps the ordinary list/grid view out of Calculator-only vertical routing
+ * when that view is also the Search page's fallback preferred widget.
+ *
+ * Returns: true only when the visible Calculator result owns focus.
+ */
+bool is_calculator_navigation_origin(bool calculator_visible,
+		bool preferred_widget_focused);
+
+/* allows_results_sidebar_exit:
+ * @state: whether the menu is browsing or filtering results.
+ * @origin: region that currently owns focus.
+ * @direction: physical arrow direction being routed.
+ *
+ * Keeps the normal searching-state Sidebar exclusion except for the explicit
+ * horizontal exit from a focused Results item to a visible vertical sidebar.
+ *
+ * Returns: true when Sidebar targets may participate in this boundary scan.
+ */
+bool allows_results_sidebar_exit(MenuState state, NavigationRegion origin,
+		PhysicalDirection direction);
+
 /* is_query_space_key:
  * @keyval: ordinary or keypad space keysym.
  *

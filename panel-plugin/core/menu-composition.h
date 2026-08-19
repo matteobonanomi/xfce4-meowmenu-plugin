@@ -48,6 +48,7 @@ enum class MenuBand
 enum class MenuSlot
 {
 	Profile,
+	SidebarReserve,
 	AppsPlaces,
 	Search,
 	Session
@@ -110,7 +111,9 @@ struct MenuCompositionInput
  * Complete GTK-independent instructions for one menu layout pass. Slot lists
  * are stored in physical left-to-right order; logical leading/trailing roles
  * are mirrored by the resolver for right-to-left interfaces. Explicit Left
- * and Right sidebars remain on their selected physical sides.
+ * and Right sidebars remain on their selected physical sides. SidebarReserve
+ * is a non-interactive header column used only above a visible windowed
+ * vertical sidebar when Profile is hidden.
  */
 struct MenuComposition
 {

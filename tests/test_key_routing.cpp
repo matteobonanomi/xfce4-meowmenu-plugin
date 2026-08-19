@@ -18,9 +18,11 @@
 
 using WhiskerMenu::Keyboard::classify_key;
 using WhiskerMenu::Keyboard::is_directional_key;
+using WhiskerMenu::Keyboard::is_calculator_navigation_origin;
 using WhiskerMenu::Keyboard::is_printable_for_search;
 using WhiskerMenu::Keyboard::is_query_space_key;
 using WhiskerMenu::Keyboard::is_search_text_event;
+using WhiskerMenu::Keyboard::should_recover_search_focus;
 using WhiskerMenu::Keyboard::tab_action;
 using WhiskerMenu::Keyboard::TabAction;
 using WhiskerMenu::Keyboard::KeyClass;
@@ -144,6 +146,20 @@ void query_space_accepts_both_keypads()
 	CHECK(is_query_space_key(GDK_KEY_space));
 	CHECK(is_query_space_key(GDK_KEY_KP_Space));
 	CHECK(!is_query_space_key(GDK_KEY_Return));
+}
+
+void missing_focus_recovers_search_without_stealing_modal_input()
+{
+	CHECK(should_recover_search_focus(false, false));
+	CHECK(!should_recover_search_focus(true, false));
+	CHECK(!should_recover_search_focus(false, true));
+}
+
+void ordinary_results_do_not_use_calculator_vertical_routing()
+{
+	CHECK(!is_calculator_navigation_origin(false, true));
+	CHECK(!is_calculator_navigation_origin(true, false));
+	CHECK(is_calculator_navigation_origin(true, true));
 }
 
 void tab_mode_action_is_explicit()
@@ -325,6 +341,8 @@ int main()
 	altgr_text_remains_search_owned();
 	text_events_include_ime_but_not_shortcuts();
 	query_space_accepts_both_keypads();
+	missing_focus_recovers_search_without_stealing_modal_input();
+	ordinary_results_do_not_use_calculator_vertical_routing();
 	tab_mode_action_is_explicit();
 	f5_is_function();
 	delete_is_function();

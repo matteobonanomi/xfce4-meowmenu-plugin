@@ -71,8 +71,10 @@ in focus navigation.
 - **Sidebar** — the arrow keys along the sidebar move through the categories
   one per press and **keep focus in the sidebar** the whole time, without
   wrapping. The along-axis keys are `↑` / `↓` for a vertical sidebar and
-  `←` / `→` for a horizontal one. While a query is non-empty, Sidebar is not a
-  directional destination. Selecting a category with the **mouse** instead
+  `←` / `→` for a horizontal one. While a query is non-empty, Sidebar remains
+  excluded from Search and vertical Results exits, but a focused Results item
+  may leave horizontally toward a visible vertical sidebar. Selecting a
+  category with the **mouse** instead
   hands focus to the search box so you can start typing right away.
 - **Region crossing** — any arrow toward a visible neighbouring region uses
   the same live-geometry rule. Search remains reachable even while typing.

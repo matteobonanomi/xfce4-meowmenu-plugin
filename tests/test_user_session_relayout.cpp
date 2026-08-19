@@ -207,11 +207,19 @@ void check_sidebar_scrollbar_reservation()
 	GtkWidget* profile_content = gtk_label_new("Profile");
 	GtkWidget* results = gtk_label_new("Results");
 	gtk_box_pack_start(GTK_BOX(profile), profile_content, false, false, 0);
-	gtk_box_pack_start(GTK_BOX(categories),
-			gtk_button_new_with_label("All Applications"), false, false, 0);
+	GtkWidget* first_button = gtk_radio_button_new(nullptr);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(first_button), false);
+	GtkWidget* first_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* first_icon = gtk_image_new_from_icon_name(
+			"applications-other", GTK_ICON_SIZE_BUTTON);
+	gtk_box_pack_start(GTK_BOX(first_content), first_icon, true, true, 0);
+	gtk_container_add(GTK_CONTAINER(first_button), first_content);
+	gtk_box_pack_start(GTK_BOX(categories), first_button, false, false, 0);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar),
 			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_overlay_scrolling(GTK_SCROLLED_WINDOW(sidebar), TRUE);
 	gtk_container_add(GTK_CONTAINER(sidebar), categories);
+	assert(meow_configure_vertical_sidebar_content(categories, true));
 	gtk_box_pack_start(GTK_BOX(row), sidebar, false, false, 0);
 	gtk_box_pack_start(GTK_BOX(row), results, true, true, 0);
 	gtk_container_add(GTK_CONTAINER(window), row);
@@ -231,13 +239,23 @@ void check_sidebar_scrollbar_reservation()
 	gtk_window_set_default_size(GTK_WINDOW(window), reserved_width + 220, 120);
 	drain_events();
 	const int initial_sidebar_width = gtk_widget_get_allocated_width(sidebar);
+	const int sidebar_center = 2 * translated_x(sidebar, row)
+			+ initial_sidebar_width;
+	const int icon_center = 2 * translated_x(first_icon, row)
+			+ gtk_widget_get_allocated_width(first_icon);
+	assert(std::abs(sidebar_center - icon_center) <= 1);
 	gtk_widget_hide(window);
 	drain_events();
 	for (int i = 0; i < 20; ++i)
 	{
-		GtkWidget* button = gtk_button_new_with_label("Category");
+		GtkWidget* button = gtk_radio_button_new(nullptr);
+		gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(button), false);
+		GtkWidget* content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		gtk_box_pack_start(GTK_BOX(content), gtk_image_new_from_icon_name(
+				"applications-other", GTK_ICON_SIZE_BUTTON), true, true, 0);
+		gtk_container_add(GTK_CONTAINER(button), content);
 		gtk_box_pack_start(GTK_BOX(categories), button, false, false, 0);
-		gtk_widget_show(button);
+		gtk_widget_show_all(button);
 	}
 	gtk_widget_show(window);
 	drain_events();
@@ -257,6 +275,8 @@ void check_sidebar_scrollbar_reservation()
 	assert(gtk_adjustment_get_value(adjustment)
 			== gtk_adjustment_get_lower(adjustment));
 	assert(!meow_reset_vertical_sidebar_scroll(nullptr));
+	assert(meow_configure_vertical_sidebar_content(categories, false));
+	assert(!gtk_widget_get_hexpand(first_button));
 
 	gtk_widget_destroy(window);
 	gtk_widget_destroy(profile);

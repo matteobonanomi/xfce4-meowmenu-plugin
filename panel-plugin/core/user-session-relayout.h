@@ -122,6 +122,20 @@ bool meow_size_group_set_widget(GtkSizeGroup* group, GtkWidget* widget,
 int meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 		GtkWidget* profile, bool active, bool profile_visible);
 
+/* meow_configure_vertical_sidebar_content:
+ * @categories: category box hosted by the vertical sidebar viewport.
+ * @active: true for a vertical sidebar, false for Horizontal/disabled reuse.
+ *
+ * Makes the category box and its radio-button rows consume the complete
+ * vertical viewport width. Icon-only button content can then centre on the
+ * resolved sidebar axis instead of retaining a natural-width trailing void.
+ * Horizontal reuse restores natural child expansion.
+ *
+ * Returns: true for a valid category container.
+ */
+bool meow_configure_vertical_sidebar_content(GtkWidget* categories,
+		bool active);
+
 /* meow_session_spacer_position:
  * @right_sidebar: true when Session shares a row with a Right sidebar.
  * @left_to_right: true for a left-to-right interface direction.

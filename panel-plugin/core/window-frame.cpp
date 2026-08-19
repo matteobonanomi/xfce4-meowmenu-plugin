@@ -65,6 +65,16 @@ const char* meowmenu_frameless_launcher_css()
 			"  border: none; outline: none; box-shadow: none; }";
 }
 
+const char* meowmenu_list_selection_css()
+{
+	return
+			".meowmenu treeview.launchers.view:selected,"
+			".meowmenu treeview.launchers.view:selected:focus"
+			"{ background-color: @theme_selected_bg_color;"
+			"  background-image: none;"
+			"  color: @theme_selected_fg_color; }";
+}
+
 bool meowmenu_queue_complete_window_frame(GtkWidget* widget)
 {
 	if (!GTK_IS_WIDGET(widget))

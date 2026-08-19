@@ -55,6 +55,13 @@ Shift selection, Space during composition, context-menu priority, Escape,
 Calculator-first anchoring, asynchronous Places focus, live layout changes,
 and focus visuals.
 
+After each live layout change and after opening directly into a search, click
+or focus each non-text region and type a printable character. Confirm it is
+inserted into Search exactly once and updates Results. Repeat after a transition
+that momentarily leaves no child focused, then use every arrow direction from
+Search and from the first, middle, and last items in both list and grid views.
+Each event must make at most one move and must not stall at a region boundary.
+
 Repeat a representative subset on Wayland after the X11 pass. Record focus
 and geometry differences separately from compositor-delivered global shortcut
 behavior; this subset is experimental evidence and does not establish X11
@@ -83,7 +90,9 @@ must use one consistent theme-responsive rhythm within one device pixel;
 hidden regions must leave neither an empty patch nor a doubled or orphaned
 gap. Results and scrollbar troughs must have no persistent frame, while the
 slider, selection, hover, press, disabled, and keyboard-focus states remain
-clear. Full Screen must remain one uniform surface in every sidebar state.
+clear. Compare selected list rows and grid tiles in each theme: both must use
+the theme selection background and foreground with equally clear contrast.
+Full Screen must remain one uniform surface in every sidebar state.
 For Horizontal navigation with a visible secondary row, verify equal thin
 theme-derived boundaries at both strip edges; the boundaries must add no
 spacing or change the measured rhythm. Scroll Results far enough to move icons
@@ -135,6 +144,13 @@ with equal space on both sides and shares its centre axis with every category
 icon. Then use enough categories to require the vertical scrollbar: record the
 launcher width on first map and repeat hover/scroll overflow transitions 20
 times. The width must not change when the scrollbar appears.
+
+Repeat with Profile hidden. Search must end exactly at the Results/sidebar
+boundary instead of covering the sidebar chrome, and every icon-only category
+control must fill the sidebar width with symmetric side space. Mirror the check
+between Left and Right. With the sidebar disabled or Horizontal, confirm Search
+may again use the complete launcher width when no other primary-row control
+needs that space.
 
 Repeat 20 Applications-mode first openings, including an asynchronous menu
 reload. Before moving the pointer, the category viewport must start at the top,

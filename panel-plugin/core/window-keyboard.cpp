@@ -205,8 +205,11 @@ bool target_is_eligible(const FocusTarget& target, MenuState state)
 {
 	if (!target.usable || !target.rectangle.is_valid())
 		return false;
+	/* Searching filters Sidebar boundary targets, but it must not disable
+	 * movement between the category buttons that already own focus. */
 	if (target.region == NavigationRegion::Sidebar
-			&& state == MenuState::Searching)
+			&& state == MenuState::Searching
+			&& target.kind != FocusTargetKind::CategoryButton)
 		return false;
 	if (target.kind == FocusTargetKind::ModeSwitch
 			|| target.kind == FocusTargetKind::Decorative)
@@ -340,6 +343,28 @@ bool is_search_text_event(const GdkEventKey* event)
 	const KeyClass key_class = classify_key(event);
 	return key_class == KeyClass::Printable
 			|| key_class == KeyClass::ImeComposition;
+}
+
+bool should_recover_search_focus(bool has_focused_child,
+		bool child_has_input_priority)
+{
+	return !has_focused_child && !child_has_input_priority;
+}
+
+bool is_calculator_navigation_origin(bool calculator_visible,
+		bool preferred_widget_focused)
+{
+	return calculator_visible && preferred_widget_focused;
+}
+
+bool allows_results_sidebar_exit(MenuState state, NavigationRegion origin,
+		PhysicalDirection direction)
+{
+	const bool horizontal = direction == PhysicalDirection::Left
+			|| direction == PhysicalDirection::Right;
+	return state == MenuState::Browsing
+			|| (state == MenuState::Searching
+				&& origin == NavigationRegion::Results && horizontal);
 }
 
 bool is_query_space_key(guint keyval)

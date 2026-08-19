@@ -297,6 +297,9 @@ private:
 	GdkRectangle m_workarea;
 
 	Profile* m_profile;
+	// Empty, non-focusable primary-row column used above a visible windowed
+	// vertical sidebar when Profile content is disabled.
+	GtkWidget* m_sidebar_header_reserve;
 
 	GtkWidget* m_commands_spacer;
 	GtkWidget* m_commands_button[9];

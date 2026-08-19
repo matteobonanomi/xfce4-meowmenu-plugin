@@ -111,17 +111,19 @@ void resolve_primary_slots(MenuComposition& out,
 
 	const bool vertical = input.sidebar == CompositionSidebar::Left
 			|| input.sidebar == CompositionSidebar::Right;
-	if (vertical && out.effective_profile)
+	if (vertical)
 	{
+		const MenuSlot sidebar_header = out.effective_profile
+				? MenuSlot::Profile : MenuSlot::SidebarReserve;
 		if (input.sidebar == CompositionSidebar::Left)
 		{
-			out.primary_slots.push_back(MenuSlot::Profile);
+			out.primary_slots.push_back(sidebar_header);
 			out.primary_slots.push_back(MenuSlot::Search);
 		}
 		else
 		{
 			out.primary_slots.push_back(MenuSlot::Search);
-			out.primary_slots.push_back(MenuSlot::Profile);
+			out.primary_slots.push_back(sidebar_header);
 		}
 		return;
 	}
@@ -241,9 +243,10 @@ MenuComposition meow_resolve_menu_composition(const MenuCompositionInput& input)
 				? MenuColumnRole::Sidebar : MenuColumnRole::Outer);
 	out.search_column = input.layout_mode == LayoutMode::FullScreen
 			? MenuColumnRole::MiddleResults
+			: (vertical ? MenuColumnRole::Results
 			: ((!out.effective_profile
 					&& out.apps_places_location != MenuControlLocation::PrimaryRow)
-				? MenuColumnRole::FullWidth : MenuColumnRole::Results);
+				? MenuColumnRole::FullWidth : MenuColumnRole::Results));
 	out.apps_places_column = out.apps_places_location == MenuControlLocation::Hidden
 			? MenuColumnRole::None
 			: (out.apps_places_location == MenuControlLocation::Sidebar

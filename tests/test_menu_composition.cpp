@@ -61,6 +61,11 @@ void check_cartesian_invariants()
 				== (sidebar == CompositionSidebar::Horizontal ? 1u : 0u));
 		CHECK(count(out.primary_slots, MenuSlot::Search) == 1);
 		CHECK(count(out.primary_slots, MenuSlot::Profile) == (profile ? 1u : 0u));
+		const bool windowed_vertical = mode != LayoutMode::FullScreen
+				&& (sidebar == CompositionSidebar::Left
+					|| sidebar == CompositionSidebar::Right);
+		CHECK(count(out.primary_slots, MenuSlot::SidebarReserve)
+				== (windowed_vertical && !profile ? 1u : 0u));
 		CHECK(count(out.primary_slots, MenuSlot::Session)
 				== (mode == LayoutMode::FullScreen && out.effective_session ? 1u : 0u));
 		CHECK((out.apps_places_location == MenuControlLocation::Hidden) == !places);
@@ -157,6 +162,17 @@ void check_physical_mirroring()
 	CHECK((ltr.primary_slots == std::vector<MenuSlot>{ MenuSlot::Search,
 			MenuSlot::Profile }));
 	CHECK(ltr.primary_slots == rtl.primary_slots);
+
+	input.show_profile = false;
+	ltr = meow_resolve_menu_composition(input);
+	CHECK((ltr.primary_slots == std::vector<MenuSlot>{ MenuSlot::Search,
+			MenuSlot::SidebarReserve }));
+	CHECK(ltr.search_column == MenuColumnRole::Results);
+	input.sidebar = CompositionSidebar::Left;
+	ltr = meow_resolve_menu_composition(input);
+	CHECK((ltr.primary_slots == std::vector<MenuSlot>{ MenuSlot::SidebarReserve,
+			MenuSlot::Search }));
+	CHECK(ltr.search_column == MenuColumnRole::Results);
 }
 
 void check_switch_relocation()

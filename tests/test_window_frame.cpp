@@ -16,6 +16,7 @@
 
 using meow::meowmenu_clamp_corner_radius;
 using meow::meowmenu_frameless_launcher_css;
+using meow::meowmenu_list_selection_css;
 using meow::meowmenu_frame_draws_border;
 
 namespace
@@ -80,6 +81,15 @@ void frameless_launcher_css_targets_scrollbar_chrome()
 	CHECK(std::strstr(css, "background-color: transparent") != nullptr);
 }
 
+void list_selection_uses_theme_tokens()
+{
+	const char* css = meowmenu_list_selection_css();
+	CHECK(std::strstr(css, "treeview.launchers.view:selected") != nullptr);
+	CHECK(std::strstr(css, "@theme_selected_bg_color") != nullptr);
+	CHECK(std::strstr(css, "@theme_selected_fg_color") != nullptr);
+	CHECK(std::strstr(css, "iconview") == nullptr);
+}
+
 } // namespace
 
 int main()
@@ -88,6 +98,7 @@ int main()
 	radius_clamp_is_monotonic();
 	border_predicate_truth_table();
 	frameless_launcher_css_targets_scrollbar_chrome();
+	list_selection_uses_theme_tokens();
 
 	if (g_failures != 0)
 	{

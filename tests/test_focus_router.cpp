@@ -92,6 +92,43 @@ void eligibility_and_no_wrap()
 			candidates, false) == 2);
 }
 
+void searching_results_can_exit_horizontally_to_sidebar()
+{
+	CHECK(!allows_results_sidebar_exit(MenuState::Searching,
+			NavigationRegion::Search, PhysicalDirection::Left));
+	CHECK(!allows_results_sidebar_exit(MenuState::Searching,
+			NavigationRegion::Results, PhysicalDirection::Up));
+	CHECK(!allows_results_sidebar_exit(MenuState::Searching,
+			NavigationRegion::Results, PhysicalDirection::Down));
+	CHECK(allows_results_sidebar_exit(MenuState::Searching,
+			NavigationRegion::Results, PhysicalDirection::Left));
+	CHECK(allows_results_sidebar_exit(MenuState::Searching,
+			NavigationRegion::Results, PhysicalDirection::Right));
+	CHECK(allows_results_sidebar_exit(MenuState::Browsing,
+			NavigationRegion::Results, PhysicalDirection::Up));
+	const NavigationRect origin{50, 50, 10, 10};
+	std::vector<FocusTarget> sidebar = {
+		target(1, NavigationRegion::Sidebar, 20, 50, 0),
+	};
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Left, sidebar,
+			false, MenuState::Browsing) == 0);
+}
+
+void sidebar_internal_move_during_search()
+{
+	const NavigationRect origin{50, 50, 10, 10};
+	std::vector<FocusTarget> categories = {
+		target(1, NavigationRegion::Sidebar, 50, 20, 0, true,
+			FocusTargetKind::CategoryButton),
+		target(2, NavigationRegion::Sidebar, 50, 80, 1, true,
+			FocusTargetKind::CategoryButton),
+	};
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Up, categories,
+			false, MenuState::Searching) == 0);
+	CHECK(choose_spatial_target(origin, PhysicalDirection::Down, categories,
+			false, MenuState::Searching) == 1);
+}
+
 void internal_first()
 {
 	const FocusTarget origin = target(10, NavigationRegion::Results,
@@ -137,6 +174,8 @@ int main()
 	lexicographic_score();
 	rtl_tie_order();
 	eligibility_and_no_wrap();
+	searching_results_can_exit_horizontally_to_sidebar();
+	sidebar_internal_move_during_search();
 	internal_first();
 	no_target_is_noop();
 	key_normalization();

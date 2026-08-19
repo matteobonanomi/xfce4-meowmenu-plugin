@@ -60,6 +60,14 @@ bool meowmenu_frame_draws_border(bool is_fullscreen, bool supports_alpha);
  */
 const char* meowmenu_frameless_launcher_css();
 
+/* meowmenu_list_selection_css:
+ *
+ * Returns the scoped GTK rule that gives selected list results the active
+ * theme's selected background and foreground. Icon-grid styling is excluded.
+ * The returned string is static and must not be freed.
+ */
+const char* meowmenu_list_selection_css();
+
 /* meowmenu_queue_complete_window_frame:
  * @widget: launcher toplevel after a complete result-model publication.
  *
