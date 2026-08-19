@@ -208,6 +208,7 @@ private:
 	void validate_resize_display();
 	void apply_resize_rectangle(
 			const InteractiveResize::Rectangle& rectangle);
+	void set_results_interactive_resize(bool active);
 	void settle_resize_position();
 	bool set_size(int width, int height);
 	void reset_default_button();

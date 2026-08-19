@@ -32,7 +32,6 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "core/window.h"
-#include "core/window-frame.h"
 #include "core/window-keyboard.h"
 
 #include <cstring>
@@ -114,16 +113,16 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	g_object_ref_sink(m_widget);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget), "launchers-pane");
-	connect(m_widget, "draw",
-			[](GtkWidget* widget, cairo_t* cr) -> gboolean
-			{
-				return meow::meowmenu_draw_widget_with_bounds(widget, cr)
-						? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
-			});
 	connect(m_widget, "size-allocate",
 			[this](GtkWidget*, GtkAllocation*)
 			{
 				sync_viewport_width();
+			});
+	connect(m_widget, "map",
+			[this](GtkWidget*)
+			{
+				sync_viewport_width();
+				m_view->request_content_redraw();
 			});
 }
 
@@ -296,6 +295,14 @@ void Page::prepare_viewport_resize(int current_toplevel_width,
 		return;
 	m_viewport_width = viewport_width;
 	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+void Page::set_interactive_resize(bool active)
+{
+	if (m_view)
+		m_view->set_interactive_resize(active);
 }
 
 //-----------------------------------------------------------------------------

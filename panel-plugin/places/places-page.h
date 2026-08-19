@@ -161,6 +161,7 @@ public:
 	void reload_view();
 	void prepare_viewport_resize(int current_toplevel_width,
 			int requested_toplevel_width);
+	void set_interactive_resize(bool active);
 	int get_viewport_width() const { return m_viewport_width; }
 	int get_minimum_viewport_width() const;
 	void select_first();

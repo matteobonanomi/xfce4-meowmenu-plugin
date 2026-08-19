@@ -635,9 +635,9 @@ test_layout_sensitivity = executable(
 test('layout_sensitivity', test_layout_sensitivity)
 
 # test_window_frame: headless coverage of the pure window-frame helpers in
-# panel-plugin/core/window-frame.cpp (radius clamp [0,24] + the composited
-# rounded-border predicate and local Cairo Results clip). No display server or
-# GTK widgets.
+# panel-plugin/core/window-frame.cpp (radius clamp [0,24], composited rounded
+# border predicate, and frameless CSS). Native GTK scroller clipping is covered
+# by window_mode_integration.
 test_window_frame_sources = [
   'test_window_frame.cpp',
   '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
@@ -647,7 +647,7 @@ test_window_frame = executable(
   'test_window_frame',
   test_window_frame_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk],
+  dependencies: [],
 )
 
 test('window_frame', test_window_frame)

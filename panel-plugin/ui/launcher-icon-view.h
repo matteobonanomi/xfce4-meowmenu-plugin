@@ -87,6 +87,7 @@ public:
 
 	void reload_icon_size() override;
 	void set_viewport_width(int viewport_width) override;
+	void set_interactive_resize(bool active) override;
 	int get_minimum_viewport_width() const override;
 	int get_item_height() const override;
 	int get_icon_size() const override { return m_icon_size; }
@@ -94,6 +95,8 @@ public:
 
 private:
 	void sync_transparent_grid_style();
+	void schedule_grid_width_frame();
+	void flush_grid_width_frame();
 
 private:
 	Settings* const m_settings;
@@ -101,6 +104,9 @@ private:
 	GtkCellRenderer* m_icon_renderer;
 	int m_icon_size;
 	int m_viewport_width;
+	int m_pending_viewport_width;
+	guint m_resize_tick_id;
+	bool m_interactive_resize;
 	std::string m_grid_density;
 	std::string m_layout_mode;
 	bool m_transparent_grid;

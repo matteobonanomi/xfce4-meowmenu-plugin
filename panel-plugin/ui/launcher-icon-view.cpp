@@ -128,6 +128,9 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	m_icon_renderer(nullptr),
 	m_icon_size(-1),
 	m_viewport_width(0),
+	m_pending_viewport_width(0),
+	m_resize_tick_id(0),
+	m_interactive_resize(false),
 	m_grid_density(),
 	m_layout_mode(),
 	m_transparent_grid(false)
@@ -219,6 +222,11 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 
 LauncherIconView::~LauncherIconView()
 {
+	if (m_resize_tick_id != 0)
+	{
+		gtk_widget_remove_tick_callback(GTK_WIDGET(m_view), m_resize_tick_id);
+		m_resize_tick_id = 0;
+	}
 	gtk_widget_destroy(GTK_WIDGET(m_view));
 	g_object_unref(m_view);
 }
@@ -494,6 +502,7 @@ void LauncherIconView::set_model(GtkTreeModel* model)
 {
 	m_model = model;
 	gtk_icon_view_set_model(m_view, model);
+	request_content_redraw();
 }
 
 //-----------------------------------------------------------------------------
@@ -502,6 +511,7 @@ void LauncherIconView::unset_model()
 {
 	m_model = nullptr;
 	gtk_icon_view_set_model(m_view, nullptr);
+	request_content_redraw();
 }
 
 //-----------------------------------------------------------------------------
@@ -679,8 +689,82 @@ void LauncherIconView::set_viewport_width(int viewport_width)
 	if (viewport_width <= 0)
 		return;
 	m_viewport_width = viewport_width;
+	if (m_interactive_resize)
+	{
+		meow_grid_queue_frame_width(m_viewport_width,
+				&m_pending_viewport_width);
+		schedule_grid_width_frame();
+	}
+	else
+		launcher_icon_view_apply_grid_width(m_view, m_icon_size,
+				m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* schedule_grid_width_frame:
+ *
+ * Registers one one-shot update on the icon view's frame clock. More pointer
+ * samples only replace m_pending_viewport_width, so a populated model performs
+ * at most one exact GtkIconView relayout per display frame.
+ */
+void LauncherIconView::schedule_grid_width_frame()
+{
+	if (m_resize_tick_id != 0)
+		return;
+	m_resize_tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(m_view),
+			+[](GtkWidget*, GdkFrameClock*, gpointer data) -> gboolean
+			{
+				auto* self = static_cast<LauncherIconView*>(data);
+				self->m_resize_tick_id = 0;
+				const int width = meow_grid_take_frame_width(
+						&self->m_pending_viewport_width);
+				if (width > 0)
+				{
+					launcher_icon_view_apply_grid_width(self->m_view,
+							self->m_icon_size, width);
+				}
+				return G_SOURCE_REMOVE;
+			}, this, nullptr);
+}
+
+//-----------------------------------------------------------------------------
+
+/* flush_grid_width_frame:
+ *
+ * Cancels a pending frame callback and synchronously applies its latest width.
+ * Resize completion and cancellation therefore expose exact terminal spacing
+ * before persistence or restored geometry can become visible.
+ */
+void LauncherIconView::flush_grid_width_frame()
+{
+	if (m_resize_tick_id != 0)
+	{
+		gtk_widget_remove_tick_callback(GTK_WIDGET(m_view), m_resize_tick_id);
+		m_resize_tick_id = 0;
+	}
+	const int width = meow_grid_take_frame_width(&m_pending_viewport_width);
 	launcher_icon_view_apply_grid_width(m_view, m_icon_size,
-			m_viewport_width);
+			width > 0 ? width : m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* set_interactive_resize:
+ * @active: true during an X11 live-resize gesture.
+ *
+ * Bounds exact item-width changes to one latest update per display frame while
+ * the toplevel continues to follow every accepted X11 pointer sample.
+ */
+void LauncherIconView::set_interactive_resize(bool active)
+{
+	if (m_interactive_resize == active)
+		return;
+	m_interactive_resize = active;
+	if (m_viewport_width < 1)
+		return;
+	if (!m_interactive_resize)
+		flush_grid_width_frame();
 }
 
 //-----------------------------------------------------------------------------

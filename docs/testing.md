@@ -91,6 +91,17 @@ and labels across every viewport edge using the wheel, keyboard, scrollbar,
 and touchpad, and confirm no result pixels appear in the strip, secondary row,
 or outer frame.
 
+In every windowed icon-grid layout, drag the menu width rapidly wider and
+narrower across several column thresholds without pausing. Results must remain
+continuously visible, existing columns must share newly available width instead
+of leaving a growing blank area at the trailing edge, and complete columns must
+continue appearing or disappearing during motion. The window must follow
+without blinking, empty frames, or a delayed correction on release. Repeat
+after selecting All Applications and with Places active; an enlarged width
+must not prevent an immediate shrink. After restarting the panel/plugin, open
+directly to Favourites and All Applications and confirm populated grids paint
+without first hovering, scrolling, or switching categories.
+
 Repeat representative cases at normal and high display scale and at 100, 125,
 150, 175, and 200 percent text scale. Check the Apps/Places selector with icons
 and labels in each of its sidebar, secondary-row, Search-row, and Full Screen

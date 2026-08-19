@@ -205,6 +205,21 @@ int main()
 	CHECK(minimum_width <= 420);
 	CHECK(natural_width <= 420);
 	CHECK(gtk_icon_view_get_model(view) == GTK_TREE_MODEL(model));
+	for (int width : {240, 260, 300, 360, 420, 480, 568, 720, 960, 1200})
+	{
+		WhiskerMenu::launcher_icon_view_apply_grid_width(view, 48, width);
+		const WhiskerMenu::GridCellMetrics cell =
+				WhiskerMenu::meow_grid_cell_metrics(4, 48, 4, true, 2);
+		const WhiskerMenu::GridColumnLayout expected =
+				WhiskerMenu::meow_grid_column_layout(
+						width, 6, 4, 4, cell.minimum_width);
+		CHECK(gtk_icon_view_get_columns(view) == expected.columns);
+		CHECK(gtk_icon_view_get_item_width(view) == expected.item_width);
+		CHECK(gtk_icon_view_get_model(view) == GTK_TREE_MODEL(model));
+	}
+	WhiskerMenu::launcher_icon_view_apply_grid_width(view, 48, 420);
+	CHECK(gtk_icon_view_get_columns(view) == 3);
+	CHECK(gtk_icon_view_get_item_width(view) == 125);
 	for (int switch_index = 1; switch_index <= 40; ++switch_index)
 	{
 		gtk_icon_view_set_model(view, nullptr);

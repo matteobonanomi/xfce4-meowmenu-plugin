@@ -17,8 +17,6 @@
 
 #include "window-frame.h"
 
-#include <gtk/gtk.h>
-
 namespace meow
 {
 
@@ -63,54 +61,6 @@ const char* meowmenu_frameless_launcher_css()
 			".meowmenu scrolledwindow.launchers-pane scrollbar trough"
 			"{ background-color: transparent; background-image: none;"
 			"  border: none; outline: none; box-shadow: none; }";
-}
-
-/* meowmenu_clip_cairo_to_bounds:
- * @cr: widget-local Cairo context from a draw signal.
- * @width: visible Results width in logical pixels.
- * @height: visible Results height in logical pixels.
- *
- * Bounds the current drawing transaction without mutating GtkWidget clip
- * metadata. GTK uses that metadata as parent-coordinate damage geometry, so
- * narrowing it manually can both constrain grid allocation and invalidate the
- * wrong region after scrolling.
- *
- * Returns: true when a positive clip was applied.
- */
-bool meowmenu_clip_cairo_to_bounds(cairo_t* cr, int width, int height)
-{
-	if (!cr || width <= 0 || height <= 0)
-		return false;
-	cairo_rectangle(cr, 0.0, 0.0, width, height);
-	cairo_clip(cr);
-	return cairo_status(cr) == CAIRO_STATUS_SUCCESS;
-}
-
-/* meowmenu_draw_widget_with_bounds:
- * @widget: Results scroller whose class draw handler should run once.
- * @cr: widget-local Cairo context from the scroller's draw signal.
- *
- * Invokes the class handler while the local Results rectangle is active. GTK
- * restores signal-handler Cairo state before its default draw handler runs, so
- * drawing must happen inside this transaction rather than after returning.
- *
- * Returns: true when the class handler was invoked under the bounded clip.
- */
-bool meowmenu_draw_widget_with_bounds(GtkWidget* widget, cairo_t* cr)
-{
-	if (!GTK_IS_WIDGET(widget) || !cr)
-		return false;
-	GtkWidgetClass* widget_class = GTK_WIDGET_GET_CLASS(widget);
-	if (!widget_class || !widget_class->draw)
-		return false;
-	cairo_save(cr);
-	const bool clipped = meowmenu_clip_cairo_to_bounds(cr,
-			gtk_widget_get_allocated_width(widget),
-			gtk_widget_get_allocated_height(widget));
-	if (clipped)
-		widget_class->draw(widget, cr);
-	cairo_restore(cr);
-	return clipped;
 }
 
 } // namespace meow

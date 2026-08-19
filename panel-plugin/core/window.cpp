@@ -2650,31 +2650,42 @@ void WhiskerMenu::Window::update_view_redraw_safeguards()
  * @current_width: launcher width before the resize step.
  * @requested_width: launcher width requested by the resize step.
  *
- * Supplies every page with the horizontal delta before GTK allocates the new
- * window. Updating inactive pages as well keeps their grid geometry ready for
- * a category or Apps/Places switch during the same menu session.
+ * Supplies only the visible result page with the horizontal delta before GTK
+ * allocates the new window. Hidden GtkIconViews synchronize from their owning
+ * scroller when shown and must not perform redundant relayouts during a drag.
  */
 void WhiskerMenu::Window::prepare_results_width_resize(int current_width,
 		int requested_width)
 {
-	Page* pages[] = {
-		m_search_results,
-		m_favorites,
-		m_recent,
-		m_applications
-	};
-	for (Page* page : pages)
-	{
-		if (page)
-		{
-			page->prepare_viewport_resize(current_width,
-					requested_width);
-		}
-	}
-	if (m_places)
+	if (m_places_active)
 	{
 		m_places->prepare_viewport_resize(current_width,
 				requested_width);
+	}
+	else if (Page* page = get_active_page())
+	{
+		page->prepare_viewport_resize(current_width,
+				requested_width);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::set_results_interactive_resize:
+ * @active: true while an X11 live-resize gesture owns the visible grid.
+ *
+ * Switches only the visible result source into stable-cell preview geometry.
+ * Hidden pages synchronize from their scroller when they later become visible.
+ */
+void WhiskerMenu::Window::set_results_interactive_resize(bool active)
+{
+	if (m_places_active)
+	{
+		m_places->set_interactive_resize(active);
+	}
+	else if (Page* page = get_active_page())
+	{
+		page->set_interactive_resize(active);
 	}
 }
 

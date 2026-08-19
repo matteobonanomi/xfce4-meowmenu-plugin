@@ -142,6 +142,8 @@ bool WhiskerMenu::Window::interactive_resize_begin(
 		return false;
 	}
 
+	if (policy == InteractiveResize::BackendPolicy::X11Live)
+		set_results_interactive_resize(true);
 	start_resize_display_watch(gdk_monitor);
 	m_resizing = true;
 	set_child_has_focus();
@@ -187,8 +189,9 @@ void WhiskerMenu::Window::apply_resize_rectangle(
 /* Window::interactive_resize_step:
  * @pointer: next event-time pointer coordinate.
  *
- * Advances the transaction. X11 applies accepted geometry immediately;
- * release-to-apply policies deliberately leave the GTK window untouched.
+ * Advances the transaction. X11 applies accepted geometry immediately, while
+ * release-to-apply policies leave GTK untouched until completion. Icon grids
+ * keep stable preview cells so immediate delivery stays lightweight.
  *
  * Returns: true when the active transaction accepted the sample.
  */
@@ -259,6 +262,7 @@ bool WhiskerMenu::Window::interactive_resize_complete(
 
 	stop_resize_display_watch();
 	apply_resize_rectangle(accepted);
+	set_results_interactive_resize(false);
 	m_settings->menu_width = saved.width;
 	m_settings->menu_height = saved.height;
 	settle_resize_position();
@@ -294,6 +298,7 @@ bool WhiskerMenu::Window::interactive_resize_cancel()
 
 	stop_resize_display_watch();
 	apply_resize_rectangle(restored);
+	set_results_interactive_resize(false);
 	// Motion never changes Xfconf. The snapshot is returned for contract
 	// verification, but rollback deliberately performs no settings assignment.
 	(void)saved;

@@ -122,6 +122,38 @@ GridColumnLayout meow_grid_column_layout(int viewport_width, int margin,
 	return GridColumnLayout{ columns, item_width };
 }
 
+/* meow_grid_queue_frame_width:
+ * @viewport_width: latest positive viewport width from resize motion.
+ * @pending_width: retained latest width; zero means no frame is queued.
+ *
+ * Keeps raw input delivery cheap while preserving the newest geometry. The
+ * caller schedules at most one GTK frame and consumes the value there.
+ *
+ * Returns: true only when a new frame callback is required.
+ */
+bool meow_grid_queue_frame_width(int viewport_width, int* pending_width)
+{
+	if (!pending_width || viewport_width < 1)
+		return false;
+	const bool schedule = *pending_width < 1;
+	*pending_width = viewport_width;
+	return schedule;
+}
+
+/* meow_grid_take_frame_width:
+ * @pending_width: retained latest width, reset to zero on return.
+ *
+ * Returns: the latest queued positive width, or zero when none is pending.
+ */
+int meow_grid_take_frame_width(int* pending_width)
+{
+	if (!pending_width)
+		return 0;
+	const int width = *pending_width;
+	*pending_width = 0;
+	return width;
+}
+
 /* meow_grid_effective_viewport_width:
  * @scroller_width: current allocated width of the Results scroller.
  * @toplevel_width: current allocated launcher toplevel width.

@@ -10,14 +10,11 @@
 
 #include "core/window-frame.h"
 
-#include <cairo.h>
-
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
 
 using meow::meowmenu_clamp_corner_radius;
-using meow::meowmenu_clip_cairo_to_bounds;
 using meow::meowmenu_frameless_launcher_css;
 using meow::meowmenu_frame_draws_border;
 
@@ -83,23 +80,6 @@ void frameless_launcher_css_targets_scrollbar_chrome()
 	CHECK(std::strstr(css, "background-color: transparent") != nullptr);
 }
 
-// Results drawing is clipped in widget-local coordinates. A translated caller
-// still keeps the full local width, and paint beyond either edge is rejected.
-void results_draw_clip_uses_local_bounds()
-{
-	cairo_surface_t* surface = cairo_image_surface_create(
-			CAIRO_FORMAT_ARGB32, 500, 300);
-	cairo_t* cr = cairo_create(surface);
-	cairo_translate(cr, 37.0, 29.0);
-	CHECK(meowmenu_clip_cairo_to_bounds(cr, 320, 180));
-	CHECK(cairo_in_clip(cr, 0.0, 0.0));
-	CHECK(cairo_in_clip(cr, 319.0, 179.0));
-	CHECK(!cairo_in_clip(cr, 321.0, 90.0));
-	CHECK(!cairo_in_clip(cr, 160.0, 181.0));
-	cairo_destroy(cr);
-	cairo_surface_destroy(surface);
-}
-
 } // namespace
 
 int main()
@@ -108,7 +88,6 @@ int main()
 	radius_clamp_is_monotonic();
 	border_predicate_truth_table();
 	frameless_launcher_css_targets_scrollbar_chrome();
-	results_draw_clip_uses_local_bounds();
 
 	if (g_failures != 0)
 	{

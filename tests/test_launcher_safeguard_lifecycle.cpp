@@ -209,7 +209,12 @@ int main()
 	// adjustment on it (notify::vadjustment), binding the base safeguard. Enable
 	// the guard so the callback takes the active path.
 	gtk_container_add(GTK_CONTAINER(scrolled), view->get_widget());
+	int before = g_get_widget_calls;
+	view->request_content_redraw();
+	CHECK(g_get_widget_calls == before);
 	view->set_full_redraw_safeguard(true);
+	view->request_content_redraw();
+	CHECK(g_get_widget_calls > before);
 
 	// Hold our own ref: the adjustment must outlive the view, like the reused
 	// scrolled window's adjustment in production.
@@ -218,7 +223,7 @@ int main()
 
 	// Live path: with the guarded view alive, a value-changed must reach
 	// the safeguard (it calls get_widget()).
-	int before = g_get_widget_calls;
+	before = g_get_widget_calls;
 	g_signal_emit_by_name(adj, "value-changed");
 	CHECK(g_get_widget_calls > before);
 

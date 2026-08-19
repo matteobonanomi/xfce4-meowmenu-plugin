@@ -25,7 +25,6 @@
 #include "settings.h"
 #include "ui/slot.h"
 #include "core/window.h"
-#include "core/window-frame.h"
 
 #include <cstring>
 
@@ -80,12 +79,6 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	g_object_ref_sink(m_widget);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget), "launchers-pane");
-	connect(m_widget, "draw",
-			[](GtkWidget* widget, cairo_t* cr) -> gboolean
-			{
-				return meow::meowmenu_draw_widget_with_bounds(widget, cr)
-						? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
-			});
 	connect(m_widget, "size-allocate",
 			[this](GtkWidget*, GtkAllocation*)
 			{
@@ -286,6 +279,14 @@ void PlacesPage::prepare_viewport_resize(int current_toplevel_width,
 		return;
 	m_viewport_width = viewport_width;
 	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+void PlacesPage::set_interactive_resize(bool active)
+{
+	if (m_view)
+		m_view->set_interactive_resize(active);
 }
 
 //-----------------------------------------------------------------------------

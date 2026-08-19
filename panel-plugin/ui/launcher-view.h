@@ -137,6 +137,9 @@ public:
 	virtual void set_viewport_width(int)
 	{
 	}
+	virtual void set_interactive_resize(bool)
+	{
+	}
 	virtual int get_minimum_viewport_width() const { return 0; }
 
 	virtual int get_item_height() const { return 32; }
@@ -152,6 +155,17 @@ public:
 	void set_full_redraw_safeguard(bool enabled)
 	{
 		m_full_redraw_safeguard = enabled;
+	}
+
+	/* request_content_redraw:
+	 *
+	 * Repaints the complete result surface when transparent composition needs a
+	 * parent-level refresh. Ordinary opaque surfaces retain GTK's narrow damage
+	 * path and pay no extra redraw cost.
+	 */
+	void request_content_redraw()
+	{
+		queue_full_redraw_safeguard();
 	}
 
 	enum Columns

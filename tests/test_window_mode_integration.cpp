@@ -28,6 +28,15 @@ using namespace WhiskerMenu;
 namespace
 {
 
+struct DrawClipCapture
+{
+	bool seen = false;
+	double x1 = 0.0;
+	double y1 = 0.0;
+	double x2 = 0.0;
+	double y2 = 0.0;
+};
+
 int failures = 0;
 
 #define CHECK(condition) do { \
@@ -149,24 +158,41 @@ void check_results_clip_tracks_viewport_allocation()
 	if (!gtk_init_check(nullptr, nullptr))
 		return;
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	g_object_ref_sink(window);
 	GtkWidget* fixed = gtk_fixed_new();
 	GtkWidget* scroller = gtk_scrolled_window_new(nullptr, nullptr);
 	GtkWidget* result = gtk_drawing_area_new();
+	DrawClipCapture capture;
 	gtk_widget_set_size_request(result, 320, 640);
 	gtk_widget_set_size_request(scroller, 320, 180);
 	gtk_container_add(GTK_CONTAINER(scroller), result);
-	g_signal_connect(scroller, "draw",
-			G_CALLBACK(+[](GtkWidget* widget, cairo_t* cr, gpointer) -> gboolean
+	g_signal_connect(result, "draw",
+			G_CALLBACK(+[](GtkWidget*, cairo_t* cr, gpointer data) -> gboolean
 			{
-				return meow::meowmenu_draw_widget_with_bounds(widget, cr)
-						? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
-			}), nullptr);
+				auto* clip = static_cast<DrawClipCapture*>(data);
+				clip->seen = true;
+				cairo_clip_extents(cr, &clip->x1, &clip->y1,
+						&clip->x2, &clip->y2);
+				return GDK_EVENT_PROPAGATE;
+			}), &capture);
 	gtk_fixed_put(GTK_FIXED(fixed), scroller, 40, 30);
 	gtk_container_add(GTK_CONTAINER(window), fixed);
 	gtk_window_set_default_size(GTK_WINDOW(window), 420, 280);
 	gtk_widget_show_all(window);
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
+	GtkAllocation window_allocation = { 0, 0, 420, 280 };
+	gtk_widget_size_allocate(window, &window_allocation);
+	auto draw_window = [&]()
+	{
+		cairo_surface_t* surface = cairo_image_surface_create(
+				CAIRO_FORMAT_ARGB32, 420, 280);
+		cairo_t* cr = cairo_create(surface);
+		gtk_widget_draw(window, cr);
+		cairo_destroy(cr);
+		cairo_surface_destroy(surface);
+	};
+	draw_window();
 	GtkAllocation allocation = {};
 	gtk_widget_get_allocation(scroller, &allocation);
 	CHECK(allocation.x == 40);
@@ -179,11 +205,18 @@ void check_results_clip_tracks_viewport_allocation()
 	CHECK(clip.y == allocation.y);
 	CHECK(clip.width == 320);
 	CHECK(clip.height == 180);
+	CHECK(capture.seen);
+	CHECK(capture.x2 - capture.x1 <= 320.0);
+	CHECK(capture.y2 - capture.y1 <= 180.0);
 	GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(
 			GTK_SCROLLED_WINDOW(scroller));
+	capture.seen = false;
 	gtk_adjustment_set_value(adjustment, 120.0);
+	gtk_widget_queue_draw(result);
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
+	gtk_widget_size_allocate(window, &window_allocation);
+	draw_window();
 	GtkAllocation after_allocation = {};
 	gtk_widget_get_allocation(scroller, &after_allocation);
 	GtkAllocation after_scroll = {};
@@ -196,6 +229,9 @@ void check_results_clip_tracks_viewport_allocation()
 	CHECK(after_scroll.y == clip.y);
 	CHECK(after_scroll.width == clip.width);
 	CHECK(after_scroll.height == clip.height);
+	CHECK(capture.seen);
+	CHECK(capture.x2 - capture.x1 <= 320.0);
+	CHECK(capture.y2 - capture.y1 <= 180.0);
 	gtk_widget_destroy(window);
 	g_object_unref(window);
 }

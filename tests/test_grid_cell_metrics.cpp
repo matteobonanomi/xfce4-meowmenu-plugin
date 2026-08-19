@@ -275,6 +275,42 @@ void live_resize_releases_the_current_grid_floor()
 	CHECK(meow_grid_release_resize_minimum(300, 132, 132) == 300);
 }
 
+void live_resize_distributes_each_delivered_frame()
+{
+	int previous_columns = 0;
+	int column_transitions = 0;
+	for (int width = 240; width <= 1200; ++width)
+	{
+		const GridColumnLayout layout = meow_grid_column_layout(
+				width, 6, 4, 4, 120);
+		const int complete_item_width = layout.item_width + 8;
+		const int used = 12 + (layout.columns * complete_item_width)
+				+ ((layout.columns - 1) * 4);
+		CHECK(used <= width);
+		CHECK(width - used < layout.columns);
+		CHECK(layout.columns >= previous_columns);
+		if (previous_columns != 0 && layout.columns != previous_columns)
+			++column_transitions;
+		previous_columns = layout.columns;
+	}
+	CHECK(column_transitions < 10);
+
+	int pending_width = 0;
+	int schedules = 0;
+	for (int width = 240; width <= 1200; ++width)
+	{
+		if (meow_grid_queue_frame_width(width, &pending_width))
+			++schedules;
+	}
+	CHECK(schedules == 1);
+	CHECK(meow_grid_take_frame_width(&pending_width) == 1200);
+	CHECK(pending_width == 0);
+	CHECK(meow_grid_queue_frame_width(420, &pending_width));
+	CHECK(!meow_grid_queue_frame_width(421, &pending_width));
+	CHECK(meow_grid_take_frame_width(&pending_width) == 421);
+	CHECK(meow_grid_take_frame_width(&pending_width) == 0);
+}
+
 } // namespace
 
 int main()
@@ -289,6 +325,7 @@ int main()
 	viewport_width_uses_maximum_complete_columns();
 	viewport_width_rejects_toplevel_natural_size_overshoot();
 	live_resize_releases_the_current_grid_floor();
+	live_resize_distributes_each_delivered_frame();
 
 	if (g_failures != 0)
 	{
