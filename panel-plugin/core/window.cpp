@@ -1790,10 +1790,17 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 	// minimum label width so the sidebar floor accounts for them too.
 	sync_category_label_width();
 
-	// Asynchronous category replacement must obey the same presentation
-	// transaction and must not select an Applications page behind Places.
+	// During the first asynchronous publication, detach_categories() places the
+	// stack on the temporary Applications page while dynamic categories are
+	// replaced. Re-enter the configured mode after that publication so the
+	// initial Favorites/Recent/All page is not lost. Later reloads retain the
+	// current page as before.
+	const bool publishing_initial_load =
+			g_strcmp0(gtk_stack_get_visible_child_name(m_window_stack), "load") == 0;
 	apply_menu_mode(m_places_active ? MenuMode::Places
-			: MenuMode::Applications, MenuModeTransition::Reevaluate);
+			: MenuMode::Applications,
+			publishing_initial_load ? MenuModeTransition::Enter
+					: MenuModeTransition::Reevaluate);
 	if (gtk_widget_get_visible(GTK_WIDGET(m_window)) && !m_places_active
 			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
 	{

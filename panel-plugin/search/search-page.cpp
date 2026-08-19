@@ -400,12 +400,21 @@ void SearchPage::refresh_calculator_presentation()
 
 void SearchPage::set_menu_items()
 {
+	const std::string pending_query = m_query.raw_query();
 	m_launchers = get_window()->get_applications()->find_all();
 
 	get_view()->unset_model();
 
 	m_matches.clear();
 	m_matches.reserve(m_launchers.size() + 1);
+
+	/* The catalog may arrive after the user has already typed. Reset the
+	 * query marker so set_filter rebuilds matches against the new launchers. */
+	if (!pending_query.empty())
+	{
+		m_query.clear();
+		set_filter(pending_query.c_str());
+	}
 }
 
 //-----------------------------------------------------------------------------
