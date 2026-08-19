@@ -11,7 +11,6 @@ from pathlib import Path
 
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-rc\d+)?$")
-RC_RE = re.compile(r"^\d+\.\d+\.\d+-rc\d+$")
 
 
 class ReleaseValidationError(ValueError):
@@ -130,22 +129,27 @@ def validate_release_notes(notes: Path, expected_body=None):
 
 
 def release_presentation(version: str):
-    """Derive GitHub prerelease and latest flags from the public version."""
+    """Describe the standard GitHub presentation for a valid release."""
     if not VERSION_RE.fullmatch(version):
         raise ReleaseValidationError(f"Unsupported release version: {version}")
-    prerelease = bool(RC_RE.fullmatch(version))
-    return {"prerelease": prerelease, "latest": not prerelease}
+    # The RC suffix communicates the project's stability channel, but it does
+    # not make the GitHub release a technical prerelease. GitHub owns the
+    # chronological latest marker because a version alone cannot establish
+    # publication order.
+    return {"prerelease": False}
 
 
 def validate_release_state(state, version):
-    """Require a public release with version-derived presentation."""
+    """Require a public standard release with an explicit latest marker."""
     if state.get("draft", True):
         raise ReleaseValidationError("Release must be public")
     expected = release_presentation(version)
     if state.get("prerelease") != expected["prerelease"]:
         raise ReleaseValidationError("Release prerelease state does not match version")
-    if state.get("latest") != expected["latest"]:
-        raise ReleaseValidationError("Release latest state does not match version")
+    if not isinstance(state.get("latest"), bool):
+        raise ReleaseValidationError(
+            "Release latest state must be an explicit chronological marker"
+        )
 
 
 def main():

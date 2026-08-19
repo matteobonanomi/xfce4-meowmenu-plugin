@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # smoke-install.sh: install the produced package with pacman -U and assert it
-# registers in the pacman database (queryable via -Qi and -Ql).
+# registers in the pacman database without optional integration packages.
 #
 # Usage: smoke-install.sh <package-path>
 #
@@ -13,6 +13,14 @@ pacman -U --noconfirm "${pkg}"
 pacman -Qi xfce4-meowmenu-plugin
 pacman -Ql xfce4-meowmenu-plugin >/dev/null
 pacman -Q exo
+if pacman -Q accountsservice >/dev/null 2>&1; then
+  echo "accountsservice must not be installed for the package smoke check" >&2
+  exit 1
+fi
+if pacman -Q gtk-layer-shell >/dev/null 2>&1; then
+  echo "gtk-layer-shell must not be installed for the package smoke check" >&2
+  exit 1
+fi
 test "$(pacman -Qo /usr/bin/exo-open | awk '{print $5}')" = exo
 test "$(pacman -Qo /usr/bin/exo-desktop-item-edit | awk '{print $5}')" = exo
 

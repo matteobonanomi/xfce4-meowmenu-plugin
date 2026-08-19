@@ -23,6 +23,19 @@ The manifest must report one successful check for each of the three packages
 and `xfce4-meowmenu-plugin-<version>.tar.gz`. It does not contain a checksum
 entry for itself.
 
+## Release channels and configuration
+
+Before final 1.0.0, 0.x releases are experimental feature releases. An
+available `-rcN` release is the more stable channel for testing and feedback.
+Choose the newest 0.x release when it is newer than the latest RC and you want
+newer features; choose the RC when you prefer a more stable testing channel.
+Both are standard public releases.
+
+Before final 1.0.0, including every 0.x release and RC, compatibility and
+configuration preservation are not guaranteed in any way. From final 1.0.0
+onward, configuration preservation is guaranteed. Back up panel configuration
+before testing a pre-1.0 release.
+
 ## Ubuntu 26.04
 
 ```bash
@@ -82,34 +95,6 @@ also available when installed; none is a build or hard runtime dependency.
 2. Right-click the panel → **Add New Items** → **MeowMenu**.
 3. Right-click the MeowMenu button → **Properties** to pick a preset.
 
-## One-time reset when upgrading pre-1.0 installations
-
-The first start of this version resets each existing pre-1.0 MeowMenu panel
-instance to the **Modern** preset. The reset happens once per instance because
-the older experimental layout settings and saved custom presets are not
-compatible with the supported composition.
-
-The reset removes that instance's MeowMenu preferences, favourites, recent
-history, search customizations, and GUI-managed custom presets. It preserves
-the panel item and its position, other panel plugins, other MeowMenu instances
-until their own first start, and `.meowpreset` files stored outside Xfconf.
-
-Before upgrading, stop the panel and keep a reference copy of its configuration:
-
-```bash
-xfce4-panel --quit
-cp ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml \
-   ~/xfce4-panel-before-meowmenu-upgrade.xml
-cp -a ~/.local/share/meowmenu ~/meowmenu-preset-files-backup 2>/dev/null || true
-xfce4-panel &
-```
-
-The XML copy is for reference or whole-profile recovery; do not copy obsolete
-MeowMenu properties back into a running panel. Reconfigure the supported
-options in **Properties**, or import a preset created with the current layout
-model. An older preset containing retired layout fields is rejected with an
-incompatible-preset message and changes nothing.
-
 ## Remove the package
 
 Remove the package with the appropriate command for your distribution:
@@ -119,31 +104,6 @@ Remove the package with the appropriate command for your distribution:
 - **Source install**: `sudo ninja -C build uninstall`
 
 Package removal keeps user configuration so a later reinstall can restore it.
-
-## Clean one MeowMenu instance
-
-To clear one instance without deleting its panel registration or sibling
-plugins, first find its numeric base:
-
-```bash
-xfconf-query -c xfce4-panel -lv \
-  | awk '$1 ~ /^\/plugins\/plugin-[0-9]+$/ && $2 == "meowmenu" { print $1 }'
-```
-
-Then replace `7` below with that exact instance number:
-
-```bash
-instance_base=/plugins/plugin-7
-xfconf-query -c xfce4-panel -l \
-  | awk -v prefix="$instance_base/" 'index($0, prefix) == 1' \
-  | while IFS= read -r property; do
-      xfconf-query -c xfce4-panel -p "$property" -r
-    done
-xfce4-panel -r
-```
-
-This removes only descendants of the selected instance. On restart it receives
-Modern defaults. Exported `.meowpreset` files are deliberately left alone.
 
 ## Build from source
 
@@ -237,6 +197,11 @@ Optional integrations on Arch:
 sudo pacman -S --needed accountsservice gtk-layer-shell
 ```
 
+AccountsService and gtk-layer-shell are optional for source builds. The
+distribution packages build with both integrations disabled, so the core
+launcher remains usable when those libraries are absent. Source builders may
+install the development packages above to let Meson enable the integrations.
+
 ## Xfce dependency boundary
 
 Xfce 4.16, 4.18, and 4.20 builds require Exo development files and helper
@@ -249,6 +214,6 @@ target repository. A target may remove Exo only after its package build,
 linkage inspection, installed actions, and upgraded stored actions all pass
 without Exo.
 
-`gtk-layer-shell` is optional. If a named release does not provide a suitable
-version, leave it out: MeowMenu still builds and uses its normal
+X11 is the only officially supported environment. Wayland is experimentally
+supported; if `gtk-layer-shell` is unavailable, MeowMenu uses its normal
 session-compatible positioning fallback.

@@ -15,11 +15,10 @@ surface. Major-region spacing follows the same theme-derived rhythm, and the
 Results view and scrollbar trough remain frameless. Full Screen intentionally
 keeps one uniform surface.
 
-A fresh installation starts on the **Modern** preset. The first start after
-upgrading a pre-1.0 instance also resets that instance to Modern and removes
-its GUI-managed custom presets. See the
-[installation recovery guidance](installation#one-time-reset-when-upgrading-pre-10-installations)
-before upgrading.
+A fresh installation starts on the **Modern** preset. Presets and their
+settings are experimental before final 1.0.0; configuration preservation is
+not guaranteed for upgrades in that period. Back up panel configuration before
+testing a pre-1.0 release.
 
 ## Selecting a built-in preset is a full reset
 
@@ -138,11 +137,8 @@ available only for your own saved presets.
 - **Import…** can overwrite or rename a clashing custom preset. A built-in name
   can only be renamed.
 
-Imports ignore unknown non-layout settings and use defaults for omitted ones.
-A preset containing retired layout settings, including a Top or Bottom sidebar,
-is incompatible and is rejected before conflict handling or any saved value is
-changed. Invalid or unreadable files are also rejected without changing saved
-presets.
+Imports ignore unknown settings and use defaults for omitted ones.
+Invalid or unreadable files are rejected without changing saved presets.
 
 ## Advanced: hand-authored preset files
 

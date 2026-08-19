@@ -10,6 +10,51 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DependencyContractTests(unittest.TestCase):
+    def test_optional_integrations_are_feature_switches(self):
+        options = (ROOT / "meson_options.txt").read_text(encoding="utf-8")
+        meson = (ROOT / "meson.build").read_text(encoding="utf-8")
+        for option in ("accountsservice", "gtk-layer-shell"):
+            self.assertRegex(
+                options,
+                rf"(?s){re.escape(option)}.*?type: 'feature'.*?value: 'auto'",
+            )
+        self.assertIn(
+            "required: get_option('accountsservice')",
+            meson,
+        )
+        self.assertIn(
+            "required: get_option('gtk-layer-shell')",
+            meson,
+        )
+
+    def test_core_ci_build_disables_optional_integrations(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1]
+        for flag in (
+            "-Daccountsservice=disabled",
+            "-Dgtk-layer-shell=disabled",
+        ):
+            self.assertIn(flag, optional)
+        self.assertIn("meson test -C build --print-errorlogs", optional)
+
+    def test_distribution_packages_use_the_core_fallback(self):
+        control = (ROOT / "debian/control").read_text(encoding="utf-8")
+        rules = (ROOT / "debian/rules").read_text(encoding="utf-8")
+        spec = (ROOT / "dist/rpm/xfce4-meowmenu-plugin.spec").read_text(
+            encoding="utf-8"
+        )
+        pkgbuild = (ROOT / "dist/arch/PKGBUILD").read_text(encoding="utf-8")
+        for content in (control, spec, pkgbuild):
+            self.assertNotRegex(content, r"(?i)\baccountsservice\b.*(?:depends|requires|recommends)")
+            self.assertNotRegex(content, r"(?i)\bgtk-layer-shell\b.*(?:depends|requires|recommends)")
+        for flag in (
+            "-Daccountsservice=disabled",
+            "-Dgtk-layer-shell=disabled",
+        ):
+            self.assertIn(flag, rules)
+            self.assertIn(flag, spec)
+            self.assertIn(flag, pkgbuild)
+
     def test_libxfce4ui_transition_boundary(self):
         meson = (ROOT / "meson.build").read_text(encoding="utf-8")
         boundaries = re.findall(

@@ -37,15 +37,29 @@ checksum verification, dependencies, source builds, removal, and full cleanup.
 After installation, restart the panel with `xfce4-panel -r`, then add
 **MeowMenu** through **Add New Items**.
 
+## Release channels
+
+Before final 1.0.0, 0.x releases are experimental feature releases. An
+available release candidate (an `-rcN` version) is the more stable channel for
+testing and feedback. Choose the newest 0.x release when it is newer than the
+latest RC and you want the newest features; choose the RC when stability while
+testing matters more. Both are standard public GitHub releases.
+
+Before final 1.0.0, including every 0.x release and RC, compatibility and
+configuration preservation are not guaranteed in any way. From final 1.0.0
+onward, configuration preservation is guaranteed. Keep a backup of your panel
+configuration before testing a pre-1.0 release.
+
 ## Support and compatibility
 
 MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
 quality target. Package availability is listed under [Install](#install);
 testing evidence is documented separately.
 
-Xfce 4.20 on X11 and `x86_64`/`amd64` remains the primary live quality target.
-Wayland remains unverified live and gracefully disables optional positioning
-support when it is unavailable.
+X11 is the only officially supported environment and `x86_64`/`amd64` on
+Xfce 4.20 is the primary live quality target. Wayland is experimentally
+supported with a documented positioning fallback when optional layer-shell
+support is unavailable.
 
 - [Support and compatibility](docs/support.md)
 - [Known limitations](docs/known-limitations.md)

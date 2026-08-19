@@ -28,6 +28,9 @@ confirmed defects.
 - **Optional Wayland positioning:** an unavailable or too-old
   `gtk-layer-shell` disables that integration without blocking the core build.
   MeowMenu then uses its normal session-compatible fallback.
+- **Optional account integration:** AccountsService is not required by the core
+  launcher. Distribution packages disable it; source builds may enable it when
+  its development package is installed.
 - **Automated versus live coverage:** builds and unit tests do not prove panel
   placement, compositor behavior, or end-to-end desktop use. The
   [support page](support) keeps automated and live evidence separate.

@@ -47,8 +47,8 @@ prefer a durable public issue or release note over a short-lived workflow link.
 
 For release-quality manual coverage, use X11 with Xfce 4.20 on `x86_64` and
 record the six context fields above. Exercise list and grid Results, Sidebar
-on the left, right, top, bottom, and hidden, Search at both edges, visible and
-hidden Session controls, Applications and Places, docked, centered, and
+on the left, right, horizontal, and disabled, Search at both edges, visible
+and hidden Session controls, Applications and Places, docked, centered, and
 fullscreen layouts, and both LTR and RTL text directions. At every edge check
 internal-first movement, one-move crossings, no-wrap no-ops, Search cursor and
 Shift selection, Space during composition, context-menu priority, Escape,
@@ -216,39 +216,23 @@ installed actions.
 - If convenient, repeat a quick open/search check with a dark theme, vertical
   panel, or scaled display. Missing optional visual evidence is not a failure.
 
-## Destructive pre-1.0 upgrade check
+## Configuration and upgrade check
 
-1. Record the exact `<source-version>` already installed and the exact
-   `<target-version>` under test. In a separate profile, install the source
-   version and add MeowMenu to the panel.
-2. Add representative ordered favourites; choose a non-default layout; select
-   non-default preferences; select Calculator engine, result size, and
-   precision; save a custom preset. Create a second MeowMenu panel instance
-   with different values.
-3. Record `xfconf-query -c xfce4-panel -lv` and copy any external
-   `.meowpreset` files to a comparison directory.
-4. Upgrade to `<target-version>` without deleting configuration.
-5. Start only the first instance. Confirm its preferences and managed custom
-   presets are cleared, Modern is active, and its bare panel registration plus
-   the second instance and external files are unchanged.
-6. Start the second instance and confirm it resets independently. Change a
-   setting in each completed instance, restart the panel twice, and confirm the
-   reset does not repeat.
-7. Repeat with a release-candidate profile, an initialized profile with no
-   recognizable version, an interrupted `pending` lifecycle, a fresh profile,
-   and an already-completed profile.
-8. Import a current preset containing an unknown non-layout key and confirm its
-   supported values apply. Try imports and overwrite attempts containing each
-   retired layout key and `sidebar-position=top` or `bottom`; confirm the
-   incompatible message appears and no target value changes.
+Before final 1.0.0, compatibility and configuration preservation are not
+guaranteed. Keep a backup of the panel configuration, then test the current
+release in both a fresh profile and a profile with existing MeowMenu settings.
+Confirm that the launcher opens, the selected preset and current Properties
+controls work, saved custom presets can be exported and imported, and unrelated
+panel items remain available. Record any difference as evidence for the exact
+release, distribution, Xfce version, architecture, session, and installation
+method above.
 
-Expected result: every eligible instance resets exactly once to Modern; fresh
-and completed instances retain later changes; panel registrations, siblings,
-other plugins, and external files remain unchanged.
+From final 1.0.0 onward, repeat the same check as a configuration-preservation
+validation. The stable series carries that preservation guarantee.
 
 ## Removal and full cleanup
 
 Removing a DEB, RPM, or Arch package removes installed program files but
 normally retains the user's Xfconf settings and saved presets. Follow the
-[instance cleanup instructions](installation#clean-one-meowmenu-instance) only
-when you deliberately want to erase one instance's state.
+[installation guide](installation) when you deliberately want to remove the
+package or clear its user data.

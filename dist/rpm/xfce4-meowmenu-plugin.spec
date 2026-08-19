@@ -1,19 +1,18 @@
 # NOTE: `Version:` and the `%changelog` top entry are rewritten by the
 # packaging workflow from the top entry of NEWS via
-# `build-aux/news-version.py`. Do NOT hand-edit those
-# fields; the placeholder values below exist only so `rpmbuild -bs` accepts
-# the spec when run outside CI.
+# `build-aux/news-version.py`. Do NOT hand-edit those fields; the placeholder
+# values below exist only so `rpmbuild -bs` accepts the spec outside CI.
 
 %global plugin_name xfce4-meowmenu-plugin
 
 Name:           %{plugin_name}
-Version:        0.9.0~rc1
+Version:        0.8.1
 Release:        1%{?dist}
 Summary:        Modern menu launcher plugin for the Xfce panel
 
 License:        GPLv2+
 URL:            https://github.com/matteobonanomi/xfce4-meowmenu-plugin
-%global upstream_version 0.9.0-rc1
+%global upstream_version 0.8.1
 Source0:        %{name}-%{upstream_version}.tar.gz
 
 Packager:       Matteo Bonanomi <mbonanomi.dev@proton.me>
@@ -38,14 +37,10 @@ BuildRequires:  pkgconfig(libxfce4ui-2)
 BuildRequires:  pkgconfig(libxfce4util-1.0)
 BuildRequires:  pkgconfig(exo-2)
 BuildRequires:  pkgconfig(libxfconf-0)
-BuildRequires:  pkgconfig(accountsservice)
-BuildRequires:  pkgconfig(gtk-layer-shell-0)
 
 Requires:       xfce4-panel
 Requires:       /usr/bin/exo-open
-Recommends:     accountsservice
 Recommends:     bc
-Recommends:     gtk-layer-shell
 
 %description
 MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a
@@ -57,7 +52,7 @@ modern look and a more capable search bar.
 %autosetup -n %{name}-%{upstream_version}
 
 %build
-%meson
+%meson -Daccountsservice=disabled -Dgtk-layer-shell=disabled
 %meson_build
 
 %check
@@ -83,5 +78,5 @@ modern look and a more capable search bar.
 %{_mandir}/man1/xfce4-popup-meowmenu.1*
 
 %changelog
-* Thu Jul 23 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.9.0~rc1-1
-- First release candidate on the path to 1.0.0.
+* Mon Aug 17 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.8.1-1
+- Experimental feature release before 1.0.0.

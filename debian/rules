@@ -1,7 +1,11 @@
 #!/usr/bin/make -f
-# Standard debhelper meson invocation. The package is built with project
-# defaults (no sanitizer / no-optional-deps overrides — those are CI-only
-# configurations).
+# Standard debhelper Meson invocation with optional desktop integrations
+# disabled for the portable distribution package.
 
 %:
 	dh $@ --buildsystem=meson
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-Daccountsservice=disabled \
+		-Dgtk-layer-shell=disabled

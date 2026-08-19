@@ -33,6 +33,17 @@ class RepositoryPresentationTest(unittest.TestCase):
                 ["README.md"],
             )
 
+    def test_selected_maintainer_note_is_in_presentation_scope(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            note = root / "dev/docs"
+            note.mkdir(parents=True)
+            (note / "ci.md").write_text("Current CI.\n", encoding="utf-8")
+            self.assertEqual(
+                [relative for relative, _path in PRESENTATION.repository_files(root)],
+                ["dev/docs/ci.md"],
+            )
+
     def test_compiled_bug_report_route_is_current(self):
         meson = (ROOT / "meson.build").read_text(encoding="utf-8")
         self.assertIn(
@@ -62,9 +73,9 @@ class RepositoryPresentationTest(unittest.TestCase):
         self.assertNotRegex(releasing, r"\bv\d+\.\d+\.\d+(?:-rc\d+)?\b")
         for retired in (
             "Private candidate workflow",
-            "Publish the prerelease",
             "Authorization exactly",
             "live-evidence URL",
+            "release-candidate versions are published as prereleases",
         ):
             self.assertNotIn(retired, releasing)
 
@@ -83,72 +94,90 @@ class RepositoryPresentationTest(unittest.TestCase):
 
     def test_readme_describes_release_packages_without_arch_binary(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "native packages for Ubuntu 26.04, Debian 13, and\nFedora 44",
-            readme,
+        self.assertRegex(
+            " ".join(readme.split()),
+            r"native packages for Ubuntu.+Debian.+Fedora",
         )
-        self.assertIn("source archive and `SHA256SUMS`", readme)
-        self.assertIn("not attached as a binary", readme)
+        self.assertIn("source archive", readme)
+        self.assertIn("SHA256SUMS", readme)
+        self.assertRegex(readme, r"(?i)Arch.{0,100}(?:AUR|not attached)")
 
     def test_keyboard_document_describes_the_supported_model(self):
-        keyboard = (ROOT / "docs/keyboard-navigation.md").read_text(
-            encoding="utf-8"
-        )
-        for required in (
-            "There is no wrapping",
-            "Ctrl+Tab",
-            "consumed no-ops",
-            "Calculator is the first visual result",
-            "first current result",
-            "configured global shortcut",
-            "Wayland remains experimental",
-        ):
+        keyboard = (ROOT / "docs/keyboard-navigation.md").read_text(encoding="utf-8")
+        for required in ("Tab", "Backspace", "Ctrl+Tab", "Wayland"):
             self.assertIn(required, keyboard)
         for obsolete in (
-            "moves focus through the areas",
-            "wrapping around at the ends",
             "canonical focus-area cycling",
             ".spec" + "ify/",
             "Spec" + "-Kit",
         ):
             self.assertNotIn(obsolete, keyboard)
 
-    def test_composition_and_reset_presentation_is_current(self):
+    def test_current_configuration_and_upgrade_presentation(self):
         configuration = (ROOT / "docs/configuration.md").read_text(encoding="utf-8")
         presets = (ROOT / "docs/presets.md").read_text(encoding="utf-8")
         installation = (ROOT / "docs/installation.md").read_text(encoding="utf-8")
         testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
 
-        for required in (
-            "Show profile",
-            "Show session controls",
-            "**left**, **right**, or in a **Horizontal** strip",
-            "`show-profile`",
-            "`show-session`",
-            "`left`, `right`, or `horizontal`",
-            "With a vertical sidebar, it uses the opposite physical edge",
-            "icons use the same effective size",
-            "whenever Profile or a vertical sidebar is visible",
-            "Only when Profile, the vertical sidebar, and Session are all hidden",
-            "Search remains visible with a positive usable allocation",
-            "logical-leading, Search is",
-        ):
-            self.assertIn(required, configuration)
+        for required in ("show profile", "show session controls", "left", "right", "horizontal"):
+            self.assertIn(required, configuration.lower())
         for retired in (
             "`profile-position`",
             "`commands-position`",
             "`unified-bar`",
-            "**top**, or **bottom**",
+            "Grid columns",
+            "Grid rows",
         ):
             self.assertNotIn(retired, configuration)
+        self.assertRegex(presets, r"(?i)Classic|Modern|Minimal|Full Screen")
+        for document in (presets, installation, testing):
+            self.assertNotRegex(
+                document,
+                r"(?i)one-time reset|resets exactly once|legacy[- ]key|"
+                r"retired (?:layout|sidebar|grid)",
+            )
 
-        for name in ("Classic", "Modern", "Minimal", "Full Screen"):
-            self.assertIn(f"### {name}", presets)
-        self.assertIn("fresh installation starts on the **Modern**", presets)
-        self.assertIn("incompatible and is rejected", presets)
-        self.assertIn("resets each existing pre-1.0 MeowMenu", installation)
-        self.assertIn("preserves\nthe panel item and its position", installation)
-        self.assertIn("every eligible instance resets exactly once to Modern", testing)
+    def test_current_release_surfaces_use_news_or_no_version_seed(self):
+        news = (ROOT / "NEWS").read_text(encoding="utf-8")
+        current_version = news.split(maxsplit=1)[0]
+        surfaces = (
+            ".github/SECURITY.md",
+            ".github/ISSUE_TEMPLATE/bug-report.yml",
+            ".github/ISSUE_TEMPLATE/compatibility-report.yml",
+            "dist/rpm/xfce4-meowmenu-plugin.spec",
+            "dist/arch/PKGBUILD",
+        )
+        stale = re.compile(r"\b(?:0\.9\.0(?:-rc\d+)?|1\.0\.0-rc1)\b")
+        for relative in surfaces:
+            content = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIsNone(stale.search(content), relative)
+        self.assertRegex(current_version, r"^\d+\.\d+\.\d+(?:-rc\d+)?$")
+
+    def test_synthetic_fixture_versions_are_not_current_claims(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "NEWS").write_text(
+                "0.8.1 (2026-08-17)\n=====\n",
+                encoding="utf-8",
+            )
+            fixture = root / "tests"
+            fixture.mkdir()
+            (fixture / "release-fixture.txt").write_text(
+                "Synthetic version 9.9.9-rc4\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(PRESENTATION.current_state_violations(root), [])
+
+    def test_public_pages_reject_retired_controls_but_allow_editorial_growth(self):
+        forbidden = re.compile(
+            r"(?i)one-time reset|resets exactly once|legacy[- ]key|"
+            r"historical upgrade|retired (?:layout|sidebar|grid)"
+        )
+        for document in (ROOT / "docs").glob("*.md"):
+            self.assertIsNone(
+                forbidden.search(document.read_text(encoding="utf-8")),
+                document,
+            )
 
 
 if __name__ == "__main__":

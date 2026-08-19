@@ -14,7 +14,6 @@
 - Bugfix: ensure Favorites, Recently Used, and All Applications appear correctly on the first opening
 - Bugfix: preserve the configured default page after initial loading
 - Bugfix: restore arrow-key navigation after live layout changes and prevent focus regressions
-- Upgrade: reset each pre-1.0 instance once to the Modern layout while preserving panel placement and external preset files
 - Installer: prevent the development installer from building the package twice
 
 1.0.0-rc1 (2026-07-29)

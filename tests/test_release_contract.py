@@ -42,17 +42,15 @@ ARTIFACTS_SPEC.loader.exec_module(ARTIFACTS)
 
 
 class ReleaseContractTest(unittest.TestCase):
-    def test_current_news_discloses_composition_reset_boundary(self):
+    def test_current_news_describes_current_composition(self):
         news = (ROOT / "NEWS").read_text(encoding="utf-8")
         current = news.split("\n\n", maxsplit=1)[0]
         for required in (
             "simplify Docked, Centered, and Full Screen composition",
             "use Modern by default",
-            "reset each pre-1.0 instance once",
-            "preserving panel placement and external preset files",
-            "reject imports that contain retired layout settings",
         ):
             self.assertIn(required, current)
+        self.assertNotRegex(current, r"(?i)\breset\b|retired layout|legacy key")
 
     def test_release_workflow_has_one_shared_tag_entry_path(self):
         workflow = (
@@ -215,14 +213,14 @@ class ReleaseContractTest(unittest.TestCase):
     def test_release_presentation_is_derived_from_version(self):
         self.assertEqual(
             VALIDATE.release_presentation("2.1.0-rc7"),
-            {"prerelease": True, "latest": False},
+            {"prerelease": False},
         )
         self.assertEqual(
             VALIDATE.release_presentation("2.1.0"),
-            {"prerelease": False, "latest": True},
+            {"prerelease": False},
         )
         VALIDATE.validate_release_state(
-            {"draft": False, "prerelease": True, "latest": False},
+            {"draft": False, "prerelease": False, "latest": False},
             "2.1.0-rc7",
         )
         VALIDATE.validate_release_state(
@@ -251,7 +249,9 @@ class ReleaseContractTest(unittest.TestCase):
         )
         self.assertIn("--verify-tag", publication)
         self.assertIn("--notes-file package-set/release-notes.md", publication)
-        self.assertIn("--prerelease --latest=false", publication)
+        self.assertNotIn("--prerelease", publication)
+        self.assertNotIn("--latest=false", publication)
+        self.assertIn("publication order", publication)
         self.assertEqual(workflow.count("gh release create"), 1)
         self.assertNotIn("gh release upload", workflow)
         self.assertNotIn("--clobber", workflow)

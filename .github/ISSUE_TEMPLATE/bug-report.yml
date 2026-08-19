@@ -7,14 +7,14 @@ body:
     id: version
     attributes:
       label: MeowMenu version
-      placeholder: 0.9.0-rc1
+      placeholder: 0.x.y or x.y.z-rcN
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: Distribution/version, Xfce version, architecture, session, and installation method
+      description: Distribution/version, Xfce version, architecture, session (X11 or experimental Wayland), and installation method
     validations:
       required: true
   - type: textarea

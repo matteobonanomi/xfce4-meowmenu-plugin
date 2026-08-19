@@ -6,18 +6,21 @@ has_children: false
 
 # FAQ
 
-### Is this a fork of Whisker Menu? Will it stay in sync with upstream?
+### What is MeowMenu?
 
-Yes, MeowMenu originated as a fork of Whisker Menu by Graeme Gott. No, it
-will not track upstream — MeowMenu is now a standalone project with its own
-settings schema (`meowmenu.xml`), roadmap, and release cycle. The current
-translation inventory contains 56 catalogs.
+MeowMenu is a standalone Xfce panel launcher with presets, Places, flexible
+layouts, keyboard navigation, and an optional Calculator. It originated as a
+fork of Whisker Menu, but it has its own settings and release cycle.
 
-### Can I install MeowMenu alongside Whisker Menu?
+### Which release should I test?
 
-They use separate package names, panel identifiers, and configuration. This is
-a factual packaging property, not a separately certified compatibility
-contract.
+Before final 1.0.0, 0.x releases are experimental feature releases. An
+available RC is the more stable testing channel. Choose the newest 0.x release
+when it is newer and you want newer features.
+
+Compatibility and configuration preservation are not guaranteed in any way
+before final 1.0.0; configuration preservation is guaranteed from final 1.0.0
+onward.
 
 ### The plugin doesn't appear in 'Add New Items' after install.
 

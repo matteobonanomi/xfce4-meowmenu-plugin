@@ -10,3 +10,7 @@ in a package or is required to build, install, or run MeowMenu from a release.
   `./dev/uninstall.sh`.
 - `docs/` — maintainer notes (architecture, UX, install/build references). This
   subfolder is git-ignored; the scripts and this README are tracked.
+
+Release packages use the same current fallback policy as the public package
+recipes. AccountsService and gtk-layer-shell remain source-build options, not
+requirements for the core launcher.

@@ -16,8 +16,6 @@ Build-Depends:
  libxfce4util-dev,
  libexo-2-dev,
  libxfconf-0-dev,
- libaccountsservice-dev,
- libgtk-layer-shell-dev,
  git,
  gettext
 Standards-Version: 4.6.2
@@ -34,9 +32,7 @@ Depends:
  exo-utils,
  xfce4-panel
 Recommends:
- accountsservice,
- bc,
- gtk-layer-shell
+ bc
 Description: modern menu launcher plugin for the Xfce panel
  MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a
  standalone project that originated as a fork of Xfce's Whisker Menu

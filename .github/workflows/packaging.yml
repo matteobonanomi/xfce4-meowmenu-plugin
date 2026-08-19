@@ -393,6 +393,8 @@ jobs:
           build-aux/arch/smoke-install.sh "$package"
           test "$(pacman -Q xfce4-meowmenu-plugin | awk '{print $2}')" = \
             "${EXPECTED_ARCH_VERSION}-1"
+          grep -F -- '-Daccountsservice=disabled' "$build_dir/PKGBUILD"
+          grep -F -- '-Dgtk-layer-shell=disabled' "$build_dir/PKGBUILD"
           if [[ "$EXPECTED_ARCH_VERSION" == *rc* ]]; then
             stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"
             test "$(vercmp "$EXPECTED_ARCH_VERSION" "$stable_arch")" -lt 0
@@ -521,15 +523,13 @@ jobs:
               exit 1
             fi
           fi
-          release_flags=()
-          if [[ "$VERSION" =~ -rc[0-9]+$ ]]; then
-            release_flags+=(--prerelease --latest=false)
-          fi
+          # The RC suffix is a project stability label, not a GitHub
+          # prerelease flag. GitHub's default latest handling follows release
+          # publication order and remains independent of that label.
           gh release create "$RELEASE_TAG" package-set/artifacts/* \
             --verify-tag \
             --title "MeowMenu ${VERSION}" \
-            --notes-file package-set/release-notes.md \
-            "${release_flags[@]}"
+            --notes-file package-set/release-notes.md
 
       - name: Download and verify the published assets
         env:

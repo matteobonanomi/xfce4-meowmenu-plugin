@@ -31,6 +31,7 @@ FALLBACK_EXCLUDED_DIRS = {
     "out",
     "venv",
 }
+MAINTAINER_MARKDOWN = {"dev/docs/ci.md"}
 
 
 def fallback_markdown_files(root: Path):
@@ -72,13 +73,24 @@ def markdown_files(root: Path):
         result = None
 
     if result is not None and result.returncode == 0:
-        for relative in result.stdout.splitlines():
+        tracked = set(result.stdout.splitlines())
+        tracked.update(
+            relative for relative in MAINTAINER_MARKDOWN
+            if (root / relative).is_file()
+        )
+        for relative in sorted(tracked):
             path = root / relative
             if path.is_file():
                 yield relative, path
         return
 
-    yield from fallback_markdown_files(root)
+    discovered = dict(fallback_markdown_files(root))
+    for relative in MAINTAINER_MARKDOWN:
+        path = root / relative
+        if path.is_file():
+            discovered[relative] = path
+    yield from ((relative, discovered[relative])
+                for relative in sorted(discovered))
 
 
 def resolve_link(root: Path, document: Path, target: str):

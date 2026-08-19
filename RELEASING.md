@@ -43,9 +43,11 @@ python3 build-aux/news-version.py --arch-version --news NEWS
 
 Release tags use `v<version>` and may be annotated or lightweight. In both
 cases, the tag must match the top `NEWS` version exactly and resolve to a
-commit reachable from `main`. Release-candidate versions are published as
-prereleases and never replace the latest stable release; stable versions use
-normal release presentation.
+commit reachable from `main`. Before final 1.0.0, 0.x releases are
+experimental feature releases and `-rcN` releases are the more stable testing
+channel. Both are standard public GitHub releases. GitHub's `latest` marker
+follows chronological release order and is independent of that stability
+guidance.
 
 ## Before tagging
 
@@ -143,6 +145,9 @@ or changing a GitHub Release:
 Artifact-only runs accept only the selected `development` commit. They use
 read-only repository permissions, skip the publication job, and cannot delete,
 create, or modify a GitHub Release.
+
+The package recipes disable AccountsService and gtk-layer-shell. Source builds
+may enable either integration when its development package is available.
 
 ## Existing-tag recovery
 

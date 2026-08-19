@@ -54,6 +54,11 @@ options are greyed out and switch live as you change the mode:
 | Menu height | ✓ | ✓ | — |
 | Panel gap | ✓ | — | — |
 | Corner radius | ✓ | ✓ | — |
+
+Panel-button controls are available independently of the layout mode:
+
+| Option | Description |
+|--------|-------------|
 | Show panel button title | Display a text label next to the panel button icon. |
 | Panel button title | The label text shown on the panel button. |
 | Show panel button icon | Show the icon on the panel button. |
@@ -236,8 +241,6 @@ expects argument splitting.
 | Show tooltip | Show a tooltip with the full app description on hover. |
 | Icon size | Size of app icons in the results list (-1 = inherit from theme). |
 | Grid density | Number of columns in icon-grid mode: low, medium, or high. |
-| Grid columns | Explicit column count for icon-grid mode. |
-| Grid rows | Number of visible rows in icon-grid mode. |
 | Transparent grid | Blend idle grid tiles into the results background. Clicking empty grid space clears the tile selection without leaving an unrelated solid tile; theme-provided hover, selection, press, drag, and keyboard-focus feedback remains visible. |
 | Default category | Category shown on open: favorites, recent, or all apps. |
 | Hover to switch category | Change the visible category by hovering over sidebar entries. |
@@ -346,7 +349,7 @@ calculations do not change focus.
 ## Xfconf reference
 
 For scripting or headless configuration, read and write settings directly
-via `xfconf-query`:
+via `xfconf-query`. Keys below are relative to `/plugins/<id>/`:
 
 ```bash
 # List all MeowMenu properties for a panel plugin instance
@@ -361,8 +364,8 @@ Replace `<id>` with the numeric plugin ID shown by
 
 ### Appearance
 
-| Key (relative to `/plugins/<id>/`) | Type | Default | Description |
-|------------------------------------|------|---------|-------------|
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
 | `corner-radius` | int | 0 | Radius, in pixels, that rounds the menu's visible outer corners (0 = square). |
 | `panel-gap` | int | 0 | Gap between the panel and the menu window. |
 | `menu-width` | int | 450 | Menu window width in pixels. |
