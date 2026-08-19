@@ -634,10 +634,11 @@ test_layout_sensitivity = executable(
 
 test('layout_sensitivity', test_layout_sensitivity)
 
-# test_window_frame: headless coverage of the pure window-frame helpers in
+# test_window_frame: headless coverage of the window-frame decisions in
 # panel-plugin/core/window-frame.cpp (radius clamp [0,24], composited rounded
-# border predicate, and frameless CSS). Native GTK scroller clipping is covered
-# by window_mode_integration.
+# border predicate, and frameless CSS). The module also owns the GTK frame queue;
+# its visible behavior and native scroller clipping are covered by
+# window_mode_integration.
 test_window_frame_sources = [
   'test_window_frame.cpp',
   '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
@@ -647,7 +648,7 @@ test_window_frame = executable(
   'test_window_frame',
   test_window_frame_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
+  dependencies: [gtk],
 )
 
 test('window_frame', test_window_frame)

@@ -18,6 +18,9 @@
 #ifndef MEOWMENU_CORE_WINDOW_FRAME_H
 #define MEOWMENU_CORE_WINDOW_FRAME_H
 
+struct _GtkWidget;
+typedef struct _GtkWidget GtkWidget;
+
 namespace meow
 {
 
@@ -56,6 +59,17 @@ bool meowmenu_frame_draws_border(bool is_fullscreen, bool supports_alpha);
  * returned string is static and must not be freed.
  */
 const char* meowmenu_frameless_launcher_css();
+
+/* meowmenu_queue_complete_window_frame:
+ * @widget: launcher toplevel after a complete result-model publication.
+ *
+ * Invalidates the complete composed window once. Child-only damage is not
+ * sufficient for the launcher's manual root-child propagation when a hidden
+ * loading stack is replaced before the first map.
+ *
+ * Returns: true when a valid widget was queued.
+ */
+bool meowmenu_queue_complete_window_frame(GtkWidget* widget);
 
 } // namespace meow
 

@@ -17,6 +17,7 @@
 
 #include <gtk/gtk.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <initializer_list>
@@ -35,6 +36,12 @@ struct DrawClipCapture
 	double y1 = 0.0;
 	double x2 = 0.0;
 	double y2 = 0.0;
+};
+
+struct ComposedWindowDraw
+{
+	GdkRGBA background = { 1.0, 1.0, 1.0, 1.0 };
+	int separator_y = -1;
 };
 
 int failures = 0;
@@ -153,19 +160,153 @@ void check_horizontal_secondary_boundary_keeps_layout_geometry()
 	CHECK(geometry.band.height == 92);
 }
 
-void check_results_clip_tracks_viewport_allocation()
+void check_contents_frame_margin_follows_adjacent_secondary_band()
+{
+	auto resolve = [](PrimaryEdge edge, CompositionSidebar sidebar,
+			bool profile, bool session) -> MenuContentMargins
+	{
+		const MenuComposition composition = meow_resolve_menu_composition({
+				LayoutMode::Centered, edge, sidebar, profile, session,
+				session ? 2U : 0U, true, MenuDirection::LeftToRight });
+		return meow_resolve_contents_frame_margins(composition, 6);
+	};
+	MenuContentMargins margins = resolve(PrimaryEdge::Top,
+			CompositionSidebar::Left, true, true);
+	CHECK(margins.top == 0);
+	CHECK(margins.bottom == 6);
+	margins = resolve(PrimaryEdge::Bottom,
+			CompositionSidebar::Left, true, true);
+	CHECK(margins.top == 6);
+	CHECK(margins.bottom == 0);
+	margins = resolve(PrimaryEdge::Top,
+			CompositionSidebar::Horizontal, true, true);
+	CHECK(margins.top == 0);
+	CHECK(margins.bottom == 6);
+	margins = resolve(PrimaryEdge::Bottom,
+			CompositionSidebar::Horizontal, true, true);
+	CHECK(margins.top == 6);
+	CHECK(margins.bottom == 0);
+	// Here Primary separates Results from the lower secondary band.
+	margins = resolve(PrimaryEdge::Bottom,
+			CompositionSidebar::Hidden, false, true);
+	CHECK(margins.top == 0);
+	CHECK(margins.bottom == 0);
+	const MenuComposition no_secondary = meow_resolve_menu_composition({
+			LayoutMode::Centered, PrimaryEdge::Top,
+			CompositionSidebar::Left, true, false, 0, false,
+			MenuDirection::LeftToRight });
+	margins = meow_resolve_contents_frame_margins(no_secondary, 6);
+	CHECK(margins.top == 0);
+	CHECK(margins.bottom == 0);
+}
+
+/* draw_composed_window:
+ * @widget: test toplevel with the same single root-child shape as Window.
+ * @cr: current complete-window draw transaction.
+ * @data: background colour for the semantic surface pass.
+ *
+ * Mirrors the launcher's manual root-child propagation so the regression
+ * exercises native GtkIconView scrolling under the production draw topology.
+ *
+ * Returns: GDK_EVENT_STOP because the root child is propagated exactly once.
+ */
+gboolean draw_composed_window(GtkWidget* widget, cairo_t* cr, gpointer data)
+{
+	auto* draw = static_cast<ComposedWindowDraw*>(data);
+	gdk_cairo_set_source_rgba(cr, &draw->background);
+	cairo_paint(cr);
+	if (draw->separator_y >= 0)
+	{
+		cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
+		cairo_rectangle(cr, 0, draw->separator_y, 420, 1);
+		cairo_fill(cr);
+	}
+	GtkWidget* child = gtk_bin_get_child(GTK_BIN(widget));
+	if (child)
+		gtk_container_propagate_draw(GTK_CONTAINER(widget), child, cr);
+	return GDK_EVENT_STOP;
+}
+
+bool surface_has_red_pixel(cairo_surface_t* surface, int top, int bottom)
+{
+	cairo_surface_flush(surface);
+	const int width = cairo_image_surface_get_width(surface);
+	const int height = cairo_image_surface_get_height(surface);
+	const int stride = cairo_image_surface_get_stride(surface);
+	const unsigned char* pixels = cairo_image_surface_get_data(surface);
+	for (int y = std::max(0, top); y < std::min(height, bottom); ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			const unsigned char* pixel = pixels + y * stride + x * 4;
+			if (pixel[2] > 200 && pixel[1] < 60 && pixel[0] < 60)
+				return true;
+		}
+	}
+	return false;
+}
+
+void check_results_clip_tracks_real_grid_boundary()
 {
 	if (!gtk_init_check(nullptr, nullptr))
 		return;
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	g_object_ref_sink(window);
-	GtkWidget* fixed = gtk_fixed_new();
+	GtkWidget* grid = gtk_grid_new();
+	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	gtk_widget_set_hexpand(vbox, TRUE);
+	gtk_widget_set_vexpand(vbox, TRUE);
+	gtk_container_set_border_width(GTK_CONTAINER(vbox), 6);
+	GtkWidget* primary = gtk_drawing_area_new();
+	gtk_widget_set_size_request(primary, -1, 40);
+	GtkWidget* contents = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* secondary = gtk_drawing_area_new();
+	gtk_widget_set_size_request(secondary, -1, 40);
 	GtkWidget* scroller = gtk_scrolled_window_new(nullptr, nullptr);
-	GtkWidget* result = gtk_drawing_area_new();
+	GtkListStore* model = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
+	GdkPixbuf* pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, 48, 48);
+	gdk_pixbuf_fill(pixbuf, 0xff0000ff);
+	for (int i = 0; i < 30; ++i)
+	{
+		GtkTreeIter iter;
+		gtk_list_store_append(model, &iter);
+		gtk_list_store_set(model, &iter, 0, pixbuf, 1, "Application", -1);
+	}
+	GtkWidget* result = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
+	gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(result), 0);
+	gtk_icon_view_set_text_column(GTK_ICON_VIEW(result), 1);
+	gtk_icon_view_set_columns(GTK_ICON_VIEW(result), 3);
+	gtk_icon_view_set_item_width(GTK_ICON_VIEW(result), 88);
+	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(result), 12);
+	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(result), 12);
 	DrawClipCapture capture;
-	gtk_widget_set_size_request(result, 320, 640);
-	gtk_widget_set_size_request(scroller, 320, 180);
+	const MenuContentMargins margins = meow_resolve_contents_frame_margins(
+			meow_resolve_menu_composition({ LayoutMode::Centered,
+					PrimaryEdge::Top, CompositionSidebar::Left, true, true,
+					2, true, MenuDirection::LeftToRight }), 6);
+	gtk_widget_set_margin_top(contents, margins.top);
+	gtk_widget_set_margin_bottom(contents, margins.bottom);
+	gtk_widget_set_size_request(scroller, 320, -1);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroller),
+			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 	gtk_container_add(GTK_CONTAINER(scroller), result);
+	gtk_box_pack_start(GTK_BOX(contents), scroller, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), primary, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), contents, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), secondary, FALSE, FALSE, 0);
+	GtkWidget* top_handle = gtk_drawing_area_new();
+	GtkWidget* bottom_handle = gtk_drawing_area_new();
+	GtkWidget* left_handle = gtk_drawing_area_new();
+	GtkWidget* right_handle = gtk_drawing_area_new();
+	gtk_widget_set_size_request(top_handle, 6, 6);
+	gtk_widget_set_size_request(bottom_handle, 6, 6);
+	gtk_widget_set_size_request(left_handle, 6, 6);
+	gtk_widget_set_size_request(right_handle, 6, 6);
+	gtk_grid_attach(GTK_GRID(grid), top_handle, 1, 0, 1, 1);
+	gtk_grid_attach(GTK_GRID(grid), left_handle, 0, 1, 1, 1);
+	gtk_grid_attach(GTK_GRID(grid), vbox, 1, 1, 1, 1);
+	gtk_grid_attach(GTK_GRID(grid), right_handle, 2, 1, 1, 1);
+	gtk_grid_attach(GTK_GRID(grid), bottom_handle, 1, 2, 1, 1);
 	g_signal_connect(result, "draw",
 			G_CALLBACK(+[](GtkWidget*, cairo_t* cr, gpointer data) -> gboolean
 			{
@@ -175,48 +316,85 @@ void check_results_clip_tracks_viewport_allocation()
 						&clip->x2, &clip->y2);
 				return GDK_EVENT_PROPAGATE;
 			}), &capture);
-	gtk_fixed_put(GTK_FIXED(fixed), scroller, 40, 30);
-	gtk_container_add(GTK_CONTAINER(window), fixed);
+	gtk_container_add(GTK_CONTAINER(window), grid);
+	ComposedWindowDraw composed_draw;
+	g_signal_connect(window, "draw", G_CALLBACK(draw_composed_window),
+			&composed_draw);
 	gtk_window_set_default_size(GTK_WINDOW(window), 420, 280);
+	gtk_widget_set_size_request(window, 420, 280);
 	gtk_widget_show_all(window);
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
+	GdkWindow* native_window = gtk_widget_get_window(window);
+	if (cairo_region_t* stale = gdk_window_get_update_area(native_window))
+		cairo_region_destroy(stale);
+	CHECK(meow::meowmenu_queue_complete_window_frame(window));
+	CHECK(!meow::meowmenu_queue_complete_window_frame(nullptr));
+	cairo_region_t* queued = gdk_window_get_update_area(native_window);
+	CHECK(queued != nullptr);
+	if (queued)
+		cairo_region_destroy(queued);
 	GtkAllocation window_allocation = { 0, 0, 420, 280 };
 	gtk_widget_size_allocate(window, &window_allocation);
-	auto draw_window = [&]()
+	int secondary_x = 0;
+	int secondary_y = 0;
+	CHECK(gtk_widget_translate_coordinates(secondary, window, 0, 0,
+			&secondary_x, &secondary_y));
+	const MenuChromeGeometry geometry = meow_resolve_chrome_geometry(
+			meow_resolve_menu_composition({ LayoutMode::Centered,
+					PrimaryEdge::Top, CompositionSidebar::Left, true, true,
+					2, true, MenuDirection::LeftToRight }), 420, 280, 6,
+			{ 0, 0, 0, 0, false }, { 0, 0, 0, 0, false },
+			{ 0, 0, 0, 0, false },
+			{ secondary_x, secondary_y,
+					gtk_widget_get_allocated_width(secondary),
+					gtk_widget_get_allocated_height(secondary), true });
+	CHECK(geometry.separator.visible);
+	composed_draw.separator_y = geometry.separator.y;
+	auto draw_window = [&]() -> cairo_surface_t*
 	{
 		cairo_surface_t* surface = cairo_image_surface_create(
 				CAIRO_FORMAT_ARGB32, 420, 280);
 		cairo_t* cr = cairo_create(surface);
 		gtk_widget_draw(window, cr);
 		cairo_destroy(cr);
-		cairo_surface_destroy(surface);
+		return surface;
 	};
-	draw_window();
+	cairo_surface_t* surface = draw_window();
 	GtkAllocation allocation = {};
 	gtk_widget_get_allocation(scroller, &allocation);
-	CHECK(allocation.x == 40);
-	CHECK(allocation.y == 30);
-	CHECK(allocation.width == 320);
-	CHECK(allocation.height == 180);
+	int results_x = 0;
+	int results_y = 0;
+	CHECK(gtk_widget_translate_coordinates(scroller, window, 0, 0,
+			&results_x, &results_y));
+	const int results_boundary = results_y + allocation.height;
+	CHECK(results_boundary == geometry.separator.y);
+	CHECK(surface_has_red_pixel(surface, results_y, results_boundary));
+	CHECK(!surface_has_red_pixel(surface, results_boundary, 280));
+	cairo_surface_destroy(surface);
+	CHECK(allocation.width >= 320);
+	CHECK(allocation.height > 0);
 	GtkAllocation clip = {};
 	gtk_widget_get_clip(scroller, &clip);
 	CHECK(clip.x == allocation.x);
 	CHECK(clip.y == allocation.y);
-	CHECK(clip.width == 320);
-	CHECK(clip.height == 180);
+	CHECK(clip.width == allocation.width);
+	CHECK(clip.height == allocation.height);
 	CHECK(capture.seen);
-	CHECK(capture.x2 - capture.x1 <= 320.0);
-	CHECK(capture.y2 - capture.y1 <= 180.0);
+	CHECK(capture.x2 - capture.x1 <= allocation.width);
+	CHECK(capture.y2 - capture.y1 <= allocation.height);
 	GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(
 			GTK_SCROLLED_WINDOW(scroller));
 	capture.seen = false;
-	gtk_adjustment_set_value(adjustment, 120.0);
+	gtk_adjustment_set_value(adjustment, 45.0);
 	gtk_widget_queue_draw(result);
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
 	gtk_widget_size_allocate(window, &window_allocation);
-	draw_window();
+	surface = draw_window();
+	CHECK(surface_has_red_pixel(surface, results_y, results_boundary));
+	CHECK(!surface_has_red_pixel(surface, results_boundary, 280));
+	cairo_surface_destroy(surface);
 	GtkAllocation after_allocation = {};
 	gtk_widget_get_allocation(scroller, &after_allocation);
 	GtkAllocation after_scroll = {};
@@ -230,10 +408,12 @@ void check_results_clip_tracks_viewport_allocation()
 	CHECK(after_scroll.width == clip.width);
 	CHECK(after_scroll.height == clip.height);
 	CHECK(capture.seen);
-	CHECK(capture.x2 - capture.x1 <= 320.0);
-	CHECK(capture.y2 - capture.y1 <= 180.0);
+	CHECK(capture.x2 - capture.x1 <= allocation.width);
+	CHECK(capture.y2 - capture.y1 <= allocation.height);
 	gtk_widget_destroy(window);
 	g_object_unref(window);
+	g_object_unref(pixbuf);
+	g_object_unref(model);
 }
 
 }
@@ -242,7 +422,8 @@ int main()
 {
 	check_horizontal_selector_home();
 	check_horizontal_secondary_boundary_keeps_layout_geometry();
-	check_results_clip_tracks_viewport_allocation();
+	check_contents_frame_margin_follows_adjacent_secondary_band();
+	check_results_clip_tracks_real_grid_boundary();
 	if (!gtk_init_check(nullptr, nullptr))
 	{
 		std::printf("# SKIP: GTK could not initialise (no display)\n");

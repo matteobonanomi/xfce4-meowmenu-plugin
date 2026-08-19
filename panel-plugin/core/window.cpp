@@ -1651,6 +1651,10 @@ void WhiskerMenu::Window::show(const Position position)
 
 	// Show window
 	gtk_window_present(m_window);
+	// Presenting can map a model that was populated while the window was hidden.
+	// One complete frame makes the first visible result independent of hover or
+	// category damage; GTK coalesces this with the normal map invalidation.
+	meow::meowmenu_queue_complete_window_frame(GTK_WIDGET(m_window));
 
 	if (resized)
 	{
@@ -1849,6 +1853,11 @@ void WhiskerMenu::Window::set_loaded()
 
 	// Check in case of plugin reload
 	check_scrollbar_needed();
+
+	// All application-backed models are attached before this point. Invalidate
+	// their composed owner once, after the stack switch, so asynchronous loading
+	// cannot publish an empty first frame while preserving the existing models.
+	meow::meowmenu_queue_complete_window_frame(GTK_WIDGET(m_window));
 }
 
 //-----------------------------------------------------------------------------
@@ -4017,6 +4026,16 @@ void WhiskerMenu::Window::update_layout()
 	// margins stay zero so adjacent regions can never sum two gaps.
 	gtk_widget_set_margin_top(GTK_WIDGET(m_categories_box), 0);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(m_categories_box), 0);
+	const MenuContentMargins contents_margins =
+			meow_resolve_contents_frame_margins(composition,
+					Resizer::HandleSize);
+	// Resize handles occupy the outer edge but paint no surface. Keep the
+	// adjacent Results allocation inside the optically centred separator so
+	// native GtkScrolledWindow clipping and the visible boundary are identical.
+	gtk_widget_set_margin_top(GTK_WIDGET(m_contents_stack),
+			contents_margins.top);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(m_contents_stack),
+			contents_margins.bottom);
 
 	gtk_grid_remove_row(m_contents_box, 1);
 	gtk_grid_remove_row(m_contents_box, 0);

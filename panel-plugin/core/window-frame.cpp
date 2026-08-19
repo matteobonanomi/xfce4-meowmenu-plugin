@@ -17,6 +17,8 @@
 
 #include "window-frame.h"
 
+#include <gtk/gtk.h>
+
 namespace meow
 {
 
@@ -61,6 +63,14 @@ const char* meowmenu_frameless_launcher_css()
 			".meowmenu scrolledwindow.launchers-pane scrollbar trough"
 			"{ background-color: transparent; background-image: none;"
 			"  border: none; outline: none; box-shadow: none; }";
+}
+
+bool meowmenu_queue_complete_window_frame(GtkWidget* widget)
+{
+	if (!GTK_IS_WIDGET(widget))
+		return false;
+	gtk_widget_queue_draw(widget);
+	return true;
 }
 
 } // namespace meow

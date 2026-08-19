@@ -422,6 +422,34 @@ MenuChromeGeometry meow_resolve_chrome_geometry(
 	return out;
 }
 
+MenuContentMargins meow_resolve_contents_frame_margins(
+		const MenuComposition& composition, int frame_inset)
+{
+	MenuContentMargins out = { 0, 0 };
+	if (!composition.secondary_visible || frame_inset <= 0)
+		return out;
+
+	const int results = band_index(composition, MenuBand::Results);
+	const int secondary = band_index(composition, MenuBand::Secondary);
+	if (results < 0 || secondary < 0)
+		return out;
+
+	int content_first = results;
+	int content_last = results;
+	const int horizontal = band_index(composition,
+			MenuBand::HorizontalSidebar);
+	if (horizontal >= 0)
+	{
+		content_first = std::min(content_first, horizontal);
+		content_last = std::max(content_last, horizontal);
+	}
+	if (secondary + 1 == content_first)
+		out.top = frame_inset;
+	else if (content_last + 1 == secondary)
+		out.bottom = frame_inset;
+	return out;
+}
+
 MenuLayoutSnapshot meow_resolve_layout_snapshot(
 		const MenuLayoutSnapshotInput& input)
 {

@@ -17,6 +17,7 @@
 
 #include "page.h"
 
+#include "core/window-frame.h"
 #include "config/xfce-helpers.h"
 #include "core/desktop-drag.h"
 #include "launcher/category-button.h"
@@ -122,7 +123,9 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 			[this](GtkWidget*)
 			{
 				sync_viewport_width();
-				m_view->request_content_redraw();
+				GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+				if (!meow::meowmenu_queue_complete_window_frame(toplevel))
+					m_view->request_content_redraw();
 			});
 }
 

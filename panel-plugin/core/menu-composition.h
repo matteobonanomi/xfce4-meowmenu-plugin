@@ -168,6 +168,12 @@ struct MenuChromeGeometry
 	MenuSurfaceRectangle secondary_separator;
 };
 
+struct MenuContentMargins
+{
+	int top;
+	int bottom;
+};
+
 /* meow_resolve_menu_composition:
  * @input: supported layout intent and current Session action availability.
  *
@@ -210,6 +216,19 @@ MenuChromeGeometry meow_resolve_chrome_geometry(
 		const MenuSurfaceRectangle& sidebar,
 		const MenuSurfaceRectangle& horizontal,
 		const MenuSurfaceRectangle& secondary);
+
+/* meow_resolve_contents_frame_margins:
+ * @composition: resolved vertical band order.
+ * @frame_inset: transparent resize-handle thickness at each window edge.
+ *
+ * Adds the frame inset to the Results-side gap only when the secondary Chrome
+ * band directly neighbors the Results/Horizontal content block. This makes the
+ * native Results viewport end at the painted, optically centred boundary.
+ *
+ * Returns: non-negative top and bottom margins for the contents stack.
+ */
+MenuContentMargins meow_resolve_contents_frame_margins(
+		const MenuComposition& composition, int frame_inset);
 
 struct MenuLayoutSnapshotInput
 {
