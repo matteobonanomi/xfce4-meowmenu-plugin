@@ -242,13 +242,12 @@ sudo pacman -S --needed accountsservice gtk-layer-shell
 Xfce 4.16, 4.18, and 4.20 builds require Exo development files and helper
 programs. The commands above therefore retain `libexo-2-dev`, `exo-devel`, or
 `exo` for their current repositories. Starting with libxfce4ui 4.21, the
-required chooser, opener, and launcher editor are supplied by libxfce4ui; the
-replacement compatibility build is tested with Exo absent.
+required chooser, opener, and launcher editor are supplied by libxfce4ui.
 
-Do not remove Exo from a distribution recipe merely because the replacement
-source stack passes. A concrete target may remove it only after that target's
-repository crosses the boundary and its package build, linkage inspection,
-installed actions, and upgraded stored actions all pass without Exo.
+Keep each distribution recipe aligned with the dependencies available in its
+target repository. A target may remove Exo only after its package build,
+linkage inspection, installed actions, and upgraded stored actions all pass
+without Exo.
 
 `gtk-layer-shell` is optional. If a named release does not provide a suitable
 version, leave it out: MeowMenu still builds and uses its normal

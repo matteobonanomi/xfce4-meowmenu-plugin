@@ -87,32 +87,6 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn("build-aux/arch/smoke-install.sh", workflow)
         self.assertIn("installed-action-smoke.sh", workflow)
 
-    def test_source_stack_matrix_covers_both_regimes(self):
-        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-        self.assertIn("xfce-source-stack:", workflow)
-        self.assertIn("cell: ['4.16', '4.18', '4.20', successor]", workflow)
-        self.assertIn("build-xfce-stack.sh", workflow)
-        self.assertIn("--regime \"$regime\" --plugin \"$installed_plugin\"", workflow)
-        self.assertIn("--staged-root \"$staged_root\"", workflow)
-        bootstrap = workflow.split(
-            "- name: Install source-stack bootstrap dependencies", maxsplit=1
-        )[1].split("- name:", maxsplit=1)[0]
-        self.assertRegex(bootstrap, r"\bgit\b")
-        self.assertRegex(bootstrap, r"\bgobject-introspection\b")
-        self.assertRegex(bootstrap, r"\blibgtop2-dev\b")
-        stack_builder = (
-            ROOT / "build-aux/compat/build-xfce-stack.sh"
-        ).read_text(encoding="utf-8")
-        self.assertIn("--libdir=lib", stack_builder)
-        self.assertIn("export GI_GIR_PATH=", stack_builder)
-        self.assertIn("export GI_TYPELIB_PATH=", stack_builder)
-        self.assertIn('"xfce4-dev-tools:4.20.0"', stack_builder)
-        self.assertIn('"xfce4-panel:4.21.0"', stack_builder)
-        self.assertEqual(
-            stack_builder.count('"libxfce4windowing:4.20.4"'),
-            2,
-        )
-
     def test_routine_ci_keeps_six_proportionate_checks(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         build = workflow.split("  build:", maxsplit=1)[1].split(
@@ -124,21 +98,14 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn("--buildtype=debugoptimized", build)
         self.assertNotIn("matrix.buildtype", build)
 
-        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1].split(
-            "\n  xfce-source-stack:",
-            maxsplit=1,
-        )[0]
+        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1]
         self.assertIn("-Daccountsservice=disabled", optional)
         self.assertIn("-Dgtk-layer-shell=disabled", optional)
         for provider in ("bc", "qalc", "gcalccmd"):
             self.assertIn(provider, optional)
         self.assertIn("meson test -C build --print-errorlogs", optional)
 
-        source_stack = workflow.split(
-            "  xfce-source-stack:",
-            maxsplit=1,
-        )[1]
-        self.assertIn("if: github.event_name == 'workflow_dispatch'", source_stack)
+        self.assertNotIn("xfce-source-stack:", workflow)
 
     def test_release_package_ordering_is_derived_from_selected_version(self):
         workflow = (

@@ -43,12 +43,9 @@ MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
 quality target. Package availability is listed under [Install](#install);
 testing evidence is documented separately.
 
-On-demand source-stack builds cover the Xfce 4.16, 4.18, and 4.20 library
-generations. Xfce 4.20 on X11 and `x86_64`/`amd64` remains the primary live
-quality target. The libxfce4ui 4.21-or-newer replacement path is staged and
-tested without Exo, but is not presented as a separately live-validated
-desktop release. Wayland remains unverified live and gracefully disables
-optional positioning support when it is unavailable.
+Xfce 4.20 on X11 and `x86_64`/`amd64` remains the primary live quality target.
+Wayland remains unverified live and gracefully disables optional positioning
+support when it is unavailable.
 
 - [Support and compatibility](docs/support.md)
 - [Known limitations](docs/known-limitations.md)

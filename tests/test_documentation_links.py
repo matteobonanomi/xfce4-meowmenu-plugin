@@ -193,32 +193,15 @@ class DocumentationLinksTest(unittest.TestCase):
             " ".join(package.split()),
         )
 
-    def test_xfce_compatibility_has_separate_evidence_boundaries(self):
+    def test_xfce_compatibility_describes_current_boundaries(self):
         support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
         section = support.split("## Xfce compatibility", maxsplit=1)[1]
         section = section.split("## Sessions and architectures", maxsplit=1)[0]
         self.assertIn("supports Xfce 4.16 through 4.21", section)
         self.assertIn("Xfce 4.20 as the primary\nquality target", section)
-        for row in (
-            "| Xfce 4.16 libraries | Source configure, build, and tests with Exo | Supported source stack |",
-            "| Xfce 4.18 libraries | Source configure, build, and tests with Exo | Supported source stack |",
-            "| Xfce 4.20 libraries | Source configure, build, and tests with Exo | Primary quality target |",
-            "| libxfce4ui 4.21 or newer | Successor source cell and staged install without Exo | Dependency-transition boundary only |",
-        ):
-            self.assertIn(row, section)
-        self.assertIn(
-            "explicit on-demand source-stack evidence, not routine distro or "
-            "live desktop results",
-            " ".join(section.split()),
-        )
-        self.assertIn(
-            "not a separately live-validated Xfce 4.21 desktop",
-            " ".join(section.split()),
-        )
-        self.assertIn(
-            "does not claim compatibility with every future",
-            " ".join(section.split()),
-        )
+        self.assertIn("Routine automated builds cover Ubuntu 26.04", section)
+        self.assertNotIn("source-stack", section)
+        self.assertNotIn("successor source", section)
 
         boundaries = support.split(
             "## Sessions and architectures", maxsplit=1
@@ -329,6 +312,7 @@ class DocumentationLinksTest(unittest.TestCase):
         self.assertIn("published manually by the maintainer", installation)
 
     def test_ci_package_and_live_evidence_remain_distinct(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
         testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
         support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
         limitations = (
@@ -345,11 +329,11 @@ class DocumentationLinksTest(unittest.TestCase):
             self.assertIn(context, testing)
         self.assertIn("first ten consecutive", testing)
         self.assertIn("at least nine should\nfinish within 15 minutes", testing)
-        self.assertIn("explicit compatibility matrix is dispatched", testing)
         self.assertIn("not live desktop results", testing)
-        self.assertIn("explicit on-demand source-stack evidence", support)
         self.assertIn("do not create\nmaintainer or community testing marks", support)
-        self.assertIn("explicit compatibility run", limitations)
+        self.assertNotIn("compatibility matrix", testing)
+        self.assertNotIn("source-stack", readme)
+        self.assertNotIn("explicit compatibility run", limitations)
         self.assertNotIn("continuously checked", limitations)
 
     def test_release_guide_matches_automatic_recovery_contract(self):
@@ -372,10 +356,10 @@ class DocumentationLinksTest(unittest.TestCase):
         self.assertIn("published AUR metadata", normalized)
         self.assertIn("Commit and publish them manually", normalized)
 
-    def test_readme_calls_source_stack_checks_on_demand(self):
+    def test_readme_describes_current_quality_target(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("On-demand source-stack builds", readme)
-        self.assertNotIn("Continuous source builds", readme)
+        self.assertIn("Xfce 4.20 on X11", readme)
+        self.assertNotIn("source-stack", readme)
 
 
 if __name__ == "__main__":

@@ -90,21 +90,6 @@ class RepositoryPresentationTest(unittest.TestCase):
         self.assertIn("source archive and `SHA256SUMS`", readme)
         self.assertIn("not attached as a binary", readme)
 
-    def test_public_ci_wording_does_not_claim_continuous_source_stack(self):
-        documents = (
-            ROOT / "README.md",
-            ROOT / "docs/testing.md",
-            ROOT / "docs/support.md",
-            ROOT / "docs/known-limitations.md",
-        )
-        for document in documents:
-            content = document.read_text(encoding="utf-8")
-            self.assertNotRegex(
-                content,
-                r"(?i)continuous(?:ly)? (?:source|source-stack)",
-                document,
-            )
-
     def test_keyboard_document_describes_the_supported_model(self):
         keyboard = (ROOT / "docs/keyboard-navigation.md").read_text(
             encoding="utf-8"

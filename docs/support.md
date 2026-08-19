@@ -47,18 +47,9 @@ maintainer or community testing marks.
 MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
 quality target.
 
-| Compatibility path | Automated evidence | Boundary |
-|---|---|---|
-| Xfce 4.16 libraries | Source configure, build, and tests with Exo | Supported source stack |
-| Xfce 4.18 libraries | Source configure, build, and tests with Exo | Supported source stack |
-| Xfce 4.20 libraries | Source configure, build, and tests with Exo | Primary quality target |
-| libxfce4ui 4.21 or newer | Successor source cell and staged install without Exo | Dependency-transition boundary only |
-
-The 4.16, 4.18, and 4.20 rows are explicit on-demand source-stack evidence,
-not routine distro or live desktop results. The libxfce4ui 4.21-or-newer path
-verifies the dependency transition without Exo; it is not a separately
-live-validated Xfce 4.21 desktop and does not claim compatibility with every
-future library release.
+Routine automated builds cover Ubuntu 26.04, Debian 13, and Fedora 44. Live
+validation remains focused on Xfce 4.20 with X11 on `x86_64`/`amd64`; other
+supported Xfce versions do not have a documented live result here.
 
 ## Sessions and architectures
 

@@ -181,9 +181,8 @@ consistency, and operation without optional build integrations or Calculator
 provider executables. These six results are routine source and test evidence,
 not live desktop results or installable package evidence.
 
-The broader Xfce 4.16, 4.18, 4.20, and successor source-stack matrix is run
-explicitly when compatibility evidence is needed. CodeQL runs independently
-on a weekly schedule or manual request. Neither is a routine required result.
+CodeQL runs independently on a weekly schedule or manual request. It is not a
+routine required result.
 
 After a CI-shape change, timing is reviewed using the first ten consecutive
 completed routine pull-request or `main` runs. Each measurement starts with
@@ -206,18 +205,6 @@ declarations. The release workflow then builds each native package from the
 selected tag's canonical source, runs the product suite, installs the package
 in its target environment, and verifies its declared dependency closure and
 installed actions.
-
-Source cells cover Xfce 4.16, 4.18, and 4.20 with Exo. A separate
-libxfce4ui-4.21-or-newer cell proves Exo is absent, checks symbols and dynamic
-linkage, installs into an isolated root, and captures all ten interactions
-when the explicit compatibility matrix is dispatched. This is staged-install
-evidence, not routine distro CI or live desktop evidence.
-
-The ten interactions are the icon chooser, Help, the Man Pages, Web Search,
-Wikipedia, Run in Terminal, and Open URI search actions, launcher editing,
-Places folder fallback, and Places terminal opening. Upgrade coverage repeats
-the five search actions with historical stored defaults and verifies that
-custom and persisted command strings remain byte-for-byte unchanged.
 
 ## Optional five-minute extension
 
