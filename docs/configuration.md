@@ -73,8 +73,8 @@ Apps/Places and available Session actions use a derived secondary row:
 
 | Sidebar | Available Session actions | Places | Apps/Places | Secondary row |
 |---------|---------------------------|--------|-------------|---------------|
-| Left/Right | One or more | On | Sidebar-side role in the secondary row | Visible with Session at the logical trailing edge of Results |
-| Left/Right | One or more | Off | Hidden | Visible with Session at the logical trailing edge of Results |
+| Left/Right | One or more | On | Physical sidebar side of the secondary row | Visible on the opposite physical edge |
+| Left/Right | One or more | Off | Hidden | Visible on the physical edge opposite the sidebar |
 | Left/Right | None | On | Secondary-row sidebar-side role | Visible |
 | Left/Right | None | Off | Hidden | Hidden |
 | Horizontal | One or more | On | Logical leading side of the secondary row | Visible with Session at logical trailing |
@@ -87,12 +87,13 @@ Apps/Places and available Session actions use a derived secondary row:
 | Disabled | None | Off | Hidden | Hidden |
 
 A configured Session group counts as available only when at least one enabled
-action can currently run. An empty group reserves no row or focus target. The
-visible Session action group uses the logical trailing edge of its Results
-region, mirroring physically in right-to-left interfaces. When Apps/Places
-shares a secondary row with Session, their icons use the same effective size while
-the selector keeps its natural height and is vertically centred rather than
-stretching to the height of Session controls.
+action can currently run. An empty group reserves no row or focus target.
+Without a vertical sidebar, the visible Session action group uses the logical
+trailing edge of its Results region and mirrors in right-to-left interfaces.
+With a vertical sidebar, it uses the opposite physical edge. When Apps/Places
+shares a secondary row with Session, their icons use the same effective size
+while the selector keeps its natural height and is vertically centred rather
+than stretching to the height of Session controls.
 
 When Places is enabled without effective Session actions, Apps/Places remains
 in the secondary row whenever Profile or a vertical sidebar is visible. With a
@@ -100,6 +101,21 @@ vertical sidebar it uses the sidebar-side width; otherwise it uses the logical
 leading edge. Only when Profile, the vertical sidebar, and Session are all hidden does
 it share the primary Search row, as in Minimal. Horizontal follows
 the same no-vertical-sidebar rule.
+
+In Docked and Centered layouts, a vertical sidebar also determines the physical
+edges of a shared secondary row: Apps/Places stays on the sidebar's side and
+effective Session actions use the opposite side. Thus a Right sidebar places
+the selector on the right and Session actions on the left. Profile's avatar and
+name use the category button's theme border and padding, so their leading edge
+matches the category icon column. With category names hidden, the complete
+avatar/name group and the category icons are centred on the same sidebar axis;
+if Profile is widest, it determines the sidebar width with equal tolerance on
+both sides. The initial width also reserves the theme's vertical scrollbar, so
+category overflow or hover does not widen the launcher. Applications mode
+opens at the top of the category viewport with Favorites, enabled Recently
+Used, and All Applications painted on the first frame. These rules apply only
+to Docked and Centered layouts; Full Screen keeps its established selector,
+Session, and sidebar sizing arrangement.
 
 Horizontal is one sidebar choice for category navigation only. In Docked and
 Centered it appears on the Results edge opposite the primary row; when the

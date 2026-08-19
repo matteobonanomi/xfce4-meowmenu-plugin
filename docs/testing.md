@@ -120,6 +120,27 @@ consistent optical footprint while all three icons and labels remain in the
 same columns. Repeat after moving through Horizontal navigation and after a
 live theme change to catch stale first-frame spacer or icon state.
 
+For Docked and Centered layouts with an effective secondary row, measure the
+control edges in both vertical-sidebar directions. Apps/Places must remain on
+the physical sidebar side, while Session actions must occupy the opposite side;
+in particular, a Right sidebar puts the selector on the right and Session on
+the left. With Profile visible, compare the avatar and username leading edge
+with the category icon content edge after theme, display-scale, RTL, and live
+sidebar-side changes. Keep Full Screen out of this correction check and verify
+that its existing selector and Session arrangement is unchanged.
+
+Hide category names and use a Profile name wider than the category icons. In
+Left and Right Docked/Centered layouts, verify the whole avatar/name group fits
+with equal space on both sides and shares its centre axis with every category
+icon. Then use enough categories to require the vertical scrollbar: record the
+launcher width on first map and repeat hover/scroll overflow transitions 20
+times. The width must not change when the scrollbar appears.
+
+Repeat 20 Applications-mode first openings, including an asynchronous menu
+reload. Before moving the pointer, the category viewport must start at the top,
+Favorites and All Applications must be visible, and Recently Used must match
+its setting. None of these controls may first appear after hover or reopening.
+
 Open Full Screen 20 times for Left, Right, Horizontal, and disabled sidebars,
 then repeat after changing layout, sidebar state, Places, primary edge, text
 direction, and available Session actions. The selector must be in its final

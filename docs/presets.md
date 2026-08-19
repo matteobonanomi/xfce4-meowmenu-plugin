@@ -36,7 +36,10 @@ changes create an unsaved custom state; built-in presets never change.
 Traditional compact launcher look. Its primary row is at the top with Profile
 and Session shown. The docked window uses an application list, a right sidebar,
 square corners, and a fully solid background (menu opacity 100%). The
-Apps/Places switch uses text labels.
+Apps/Places switch uses text labels and stays on the right side of the secondary
+row while Session actions occupy the opposite left side. Profile content aligns
+with the sidebar category icon column. If category names are hidden, Profile
+and the category icons instead share the sidebar's centre axis.
 
 
 ### Modern
@@ -88,6 +91,14 @@ In a Horizontal sidebar, the Results/strip and strip/secondary-row edges each
 have one equal thin theme-derived boundary when the lower control row is shown.
 The boundaries do not change the preset's spacing. Results content remains
 clipped to its visible box while scrolling.
+
+Across Docked and Centered presets, a vertical sidebar reserves its scrollbar
+width before category overflow occurs, so first hover cannot make the launcher
+wider. Applications mode starts at the top of the category viewport and paints
+Favorites, enabled Recently Used, and All Applications on its first frame.
+When category names are hidden and Profile is wider than the icons, Profile
+sets the sidebar width with equal tolerance on both sides and both groups remain
+centred. Full Screen keeps its independent fixed geometry.
 
 ## The Unsaved custom state
 

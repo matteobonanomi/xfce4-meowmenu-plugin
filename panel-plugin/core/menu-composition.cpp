@@ -159,6 +159,11 @@ void resolve_secondary_slots(MenuComposition& out,
 			out.secondary_slots.push_back(MenuSlot::Session);
 		if (input.sidebar == CompositionSidebar::Right && apps)
 			out.secondary_slots.push_back(MenuSlot::AppsPlaces);
+		// GtkBox mirrors horizontal packing in RTL. Reverse the requested child
+		// order here so explicit physical Left/Right sidebar edges remain fixed.
+		if (input.direction == MenuDirection::RightToLeft)
+			std::reverse(out.secondary_slots.begin(),
+					out.secondary_slots.end());
 		return;
 	}
 
@@ -258,9 +263,11 @@ MenuComposition meow_resolve_menu_composition(const MenuCompositionInput& input)
 			== MenuControlLocation::Hidden ? MenuAlignment::None
 			: ((vertical && out.apps_places_location != MenuControlLocation::PrimaryRow)
 				? MenuAlignment::Fill : MenuAlignment::LogicalLeading);
-	out.session_alignment = out.effective_session
-			? MenuAlignment::LogicalTrailing
-			: MenuAlignment::None;
+	out.session_alignment = !out.effective_session
+			? MenuAlignment::None
+			: (out.session_location == MenuControlLocation::SecondaryRow
+				? MenuAlignment::Fill
+				: MenuAlignment::LogicalTrailing);
 
 	const bool fullscreen = input.layout_mode == LayoutMode::FullScreen;
 	out.baseline_surface = fullscreen

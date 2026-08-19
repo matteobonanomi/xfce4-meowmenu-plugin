@@ -1514,6 +1514,7 @@ void WhiskerMenu::Window::show(const Position position)
 	const bool cats_horizontal = sidebar_layout
 			== CompositionSidebar::Horizontal;
 	const bool sidebar_enabled = m_settings->sidebar_enabled;
+	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 	// Reconcile once before every presentation. The transaction is bounded and
 	// idempotent, so no parallel cache predicate can omit a new layout input.
 	m_layout_ltr = layout_ltr;
@@ -1526,15 +1527,18 @@ void WhiskerMenu::Window::show(const Position position)
 		m_profile_shape = m_settings->profile_shape;
 	}
 	update_layout();
+	// Reset after mode visibility and fixed-button ordering settle. Resetting
+	// only while closing can be invalidated by the next opening's reparent and
+	// size negotiation, leaving Favourites/Recent/All Applications above the
+	// first visible viewport.
+	if (!is_fullscreen && sidebar_enabled && !cats_horizontal)
+		meow_reset_vertical_sidebar_scroll(m_sidebar);
 
 	// Sidebar visibility now follows the Enable-sidebar switch (supported behavior);
 	// update_layout() owns the in-strip/relocated cases, this is the docked
 	// vertical-sidebar show/hide. (Legacy "hidden" position migrated away.)
 	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
 			sidebar_enabled && !cats_horizontal);
-
-	// Full Screen mode uses work-area-sensitive geometry.
-	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 
 	// Apply mode-dependent child size requests *before* resizing the toplevel.
 	// This prevents stale fullscreen requests from forcing docked presets wider
@@ -1780,6 +1784,12 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 	// transaction and must not select an Applications page behind Places.
 	apply_menu_mode(m_places_active ? MenuMode::Places
 			: MenuMode::Applications, MenuModeTransition::Reevaluate);
+	if (gtk_widget_get_visible(GTK_WIDGET(m_window)) && !m_places_active
+			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
+	{
+		meow_reset_vertical_sidebar_scroll(m_sidebar);
+		meow::meowmenu_queue_complete_window_frame(GTK_WIDGET(m_window));
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -2604,9 +2614,20 @@ gboolean WhiskerMenu::Window::on_key_press_event_after(GtkWidget* /*widget*/, Gd
 
 //-----------------------------------------------------------------------------
 
+/* Window::on_map_event:
+ *
+ * Reasserts the complete mode visibility matrix after final GTK mapping and
+ * invalidates the composed toplevel once. This keeps the fixed Applications
+ * controls independent of pre-map damage and later pointer hover.
+ *
+ * Returns: GDK_EVENT_PROPAGATE so normal map processing continues.
+ */
 gboolean WhiskerMenu::Window::on_map_event()
 {
 	gtk_window_set_keep_above(m_window, true);
+	apply_menu_mode(m_places_active ? MenuMode::Places
+			: MenuMode::Applications, MenuModeTransition::Reevaluate);
+	meow::meowmenu_queue_complete_window_frame(GTK_WIDGET(m_window));
 
 	return GDK_EVENT_PROPAGATE;
 }
@@ -3482,6 +3503,11 @@ void WhiskerMenu::Window::apply_menu_composition(
 		const MenuComposition& composition)
 {
 	GtkWidget* profile = m_profile ? m_profile->get_widget() : nullptr;
+	GtkWidget* profile_content = m_profile ? m_profile->get_content() : nullptr;
+	GtkWidget* profile_leading = m_profile
+			? m_profile->get_leading_spacer() : nullptr;
+	GtkWidget* profile_trailing = m_profile
+			? m_profile->get_trailing_spacer() : nullptr;
 	GtkWidget* picture = m_profile ? m_profile->get_picture() : nullptr;
 	GtkWidget* username = m_profile ? m_profile->get_username() : nullptr;
 	const bool fullscreen_middle = composition.search_column
@@ -3580,6 +3606,16 @@ void WhiskerMenu::Window::apply_menu_composition(
 	meow_widget_set_halign_if_valid(GTK_WIDGET(m_commands_box),
 			composition.session_alignment == MenuAlignment::Fill
 					? GTK_ALIGN_FILL : GTK_ALIGN_END);
+	// A right vertical sidebar owns the trailing selector slot, so its Session
+	// buttons must use the opposite edge of the expanded command allocation.
+	// Full Screen and layouts without a vertical sidebar retain the established
+	// logical-trailing Session placement.
+	const bool right_sidebar_session = composition.secondary_visible
+			&& composition.sidebar == CompositionSidebar::Right
+			&& composition.session_location
+					== MenuControlLocation::SecondaryRow;
+	gtk_box_reorder_child(m_commands_box, m_commands_spacer,
+			meow_session_spacer_position(right_sidebar_session, m_layout_ltr));
 	gtk_widget_set_margin_top(GTK_WIDGET(m_mode_selector_box), 0);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(m_mode_selector_box), 0);
 	meow_widget_set_visible_if_valid(GTK_WIDGET(m_primary_row), true);
@@ -3641,19 +3677,32 @@ void WhiskerMenu::Window::apply_menu_composition(
 		// Profile and navigation share one content-derived width, but not a
 		// GtkSizeGroup: a group spanning the primary row and Results grid can feed
 		// surplus to the sidebar when the window grows.
+		meow_configure_profile_sidebar_alignment(profile, profile_content,
+				profile_leading, profile_trailing,
+				m_applications->get_button()->get_widget(), true,
+				m_settings->category_show_name);
 		meow_configure_vertical_sidebar_width(GTK_WIDGET(m_sidebar), profile,
 				true, composition.effective_profile);
 		meow_widget_set_halign_if_valid(profile, GTK_ALIGN_FILL);
 		meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
 				GTK_ALIGN_START);
 	}
-	else if (!fullscreen_middle)
+	else
 	{
-		meow_configure_vertical_sidebar_width(GTK_WIDGET(m_sidebar), profile,
-				false, false);
-		meow_widget_set_halign_if_valid(profile, GTK_ALIGN_START);
-		meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
-				GTK_ALIGN_START);
+		// The inner alignment belongs only to the windowed vertical-sidebar role.
+		// Restore ordinary leading content before another composition reuses
+		// Profile in its primary row.
+		meow_configure_profile_sidebar_alignment(profile, profile_content,
+				profile_leading, profile_trailing,
+				m_applications->get_button()->get_widget(), false, true);
+		if (!fullscreen_middle)
+		{
+			meow_configure_vertical_sidebar_width(GTK_WIDGET(m_sidebar), profile,
+					false, false);
+			meow_widget_set_halign_if_valid(profile, GTK_ALIGN_START);
+			meow_widget_set_halign_if_valid(GTK_WIDGET(m_mode_selector_box),
+					GTK_ALIGN_START);
+		}
 	}
 }
 
@@ -4065,17 +4114,11 @@ void WhiskerMenu::Window::update_layout()
 	{
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_panels_stack), 0, 0, 1, 1);
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_sidebar), 1, 0, 1, 1);
-
-		gtk_box_reorder_child(m_commands_box, m_commands_spacer,
-				m_layout_ltr ? 0 : 9);
 	}
 	else
 	{
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_sidebar), 0, 0, 1, 1);
 		gtk_grid_attach(m_contents_box, GTK_WIDGET(m_panels_stack), 1, 0, 1, 1);
-
-		gtk_box_reorder_child(m_commands_box, m_commands_spacer,
-				m_layout_ltr ? 0 : 9);
 	}
 
 	if (strip_top_row)

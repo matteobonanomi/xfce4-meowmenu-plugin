@@ -167,7 +167,7 @@ void check_switch_relocation()
 	MenuComposition out = meow_resolve_menu_composition(input);
 	CHECK(out.apps_places_location
 			== MenuControlLocation::SecondaryRow);
-	CHECK(out.session_alignment == MenuAlignment::LogicalTrailing);
+	CHECK(out.session_alignment == MenuAlignment::Fill);
 	input.available_session_actions = 0;
 	out = meow_resolve_menu_composition(input);
 	CHECK(out.apps_places_location == MenuControlLocation::SecondaryRow);
@@ -189,16 +189,50 @@ void check_switch_relocation()
 	out = meow_resolve_menu_composition(input);
 	CHECK(out.apps_places_location
 			== MenuControlLocation::SecondaryRow);
-	CHECK(out.session_alignment == MenuAlignment::LogicalTrailing);
+	CHECK(out.session_alignment == MenuAlignment::Fill);
 	input.direction = MenuDirection::RightToLeft;
 	out = meow_resolve_menu_composition(input);
-	CHECK(out.session_alignment == MenuAlignment::LogicalTrailing);
+	CHECK(out.session_alignment == MenuAlignment::Fill);
 	input.layout_mode = LayoutMode::FullScreen;
 	CHECK(meow_resolve_menu_composition(input).apps_places_location
 			== MenuControlLocation::PrimaryRow);
 	input.sidebar = CompositionSidebar::Horizontal;
 	CHECK(meow_resolve_menu_composition(input).apps_places_location
 			== MenuControlLocation::PrimaryRow);
+}
+
+void check_vertical_secondary_physical_edges()
+{
+	MenuCompositionInput input = { LayoutMode::Docked, PrimaryEdge::Top,
+			CompositionSidebar::Left, true, true, 2, true,
+			MenuDirection::LeftToRight };
+	MenuComposition left = meow_resolve_menu_composition(input);
+	CHECK((left.secondary_slots == std::vector<MenuSlot>{
+			MenuSlot::AppsPlaces, MenuSlot::Session }));
+	CHECK(left.session_alignment == MenuAlignment::Fill);
+
+	input.sidebar = CompositionSidebar::Right;
+	MenuComposition right = meow_resolve_menu_composition(input);
+	CHECK((right.secondary_slots == std::vector<MenuSlot>{
+			MenuSlot::Session, MenuSlot::AppsPlaces }));
+	CHECK(right.session_alignment == MenuAlignment::Fill);
+
+	input.direction = MenuDirection::RightToLeft;
+	MenuComposition right_rtl = meow_resolve_menu_composition(input);
+	CHECK((right_rtl.secondary_slots == std::vector<MenuSlot>{
+			MenuSlot::AppsPlaces, MenuSlot::Session }));
+	input.sidebar = CompositionSidebar::Left;
+	MenuComposition left_rtl = meow_resolve_menu_composition(input);
+	CHECK((left_rtl.secondary_slots == std::vector<MenuSlot>{
+			MenuSlot::Session, MenuSlot::AppsPlaces }));
+
+	input.sidebar = CompositionSidebar::Right;
+	input.direction = MenuDirection::LeftToRight;
+	input.layout_mode = LayoutMode::FullScreen;
+	MenuComposition fullscreen = meow_resolve_menu_composition(input);
+	CHECK(fullscreen.secondary_slots.empty());
+	CHECK(!fullscreen.secondary_visible);
+	CHECK(fullscreen.session_alignment == MenuAlignment::LogicalTrailing);
 }
 
 void check_horizontal_matches_hidden_selector_home()
@@ -449,6 +483,7 @@ int main()
 	check_cartesian_invariants();
 	check_physical_mirroring();
 	check_switch_relocation();
+	check_vertical_secondary_physical_edges();
 	check_horizontal_matches_hidden_selector_home();
 	check_fullscreen_fixed_row();
 	check_complete_snapshot_transitions();

@@ -54,6 +54,21 @@ public:
 		return m_widget;
 	}
 
+	GtkWidget* get_content() const
+	{
+		return m_content;
+	}
+
+	GtkWidget* get_leading_spacer() const
+	{
+		return m_leading_spacer;
+	}
+
+	GtkWidget* get_trailing_spacer() const
+	{
+		return m_trailing_spacer;
+	}
+
 	GtkWidget* get_username() const
 	{
 		return m_username;
@@ -74,6 +89,9 @@ private:
 private:
 	Settings* const m_settings;
 	GtkWidget* m_widget;
+	GtkWidget* m_content;
+	GtkWidget* m_leading_spacer;
+	GtkWidget* m_trailing_spacer;
 	GtkWidget* m_container;
 	GtkWidget* m_image;
 	GtkWidget* m_username;

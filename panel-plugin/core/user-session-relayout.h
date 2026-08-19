@@ -111,15 +111,58 @@ bool meow_size_group_set_widget(GtkSizeGroup* group, GtkWidget* widget,
  * @active: whether the window currently uses a vertical sidebar.
  * @profile_visible: whether Profile participates in the current composition.
  *
- * Resolves one content-derived width before allocation and pins the sidebar and
- * visible Profile to it. This avoids a GtkSizeGroup allocation cycle in which
- * surplus window width can flow back from the primary row into the navigation
- * column. When inactive, clears the windowed width requests.
+ * Resolves one content-derived width before allocation, including the theme's
+ * automatic vertical-scrollbar width, and pins the sidebar and visible Profile
+ * to it. This avoids both late overflow growth and a GtkSizeGroup allocation
+ * cycle in which surplus primary-row width feeds back into navigation. When
+ * inactive, clears the windowed width requests.
  *
  * Returns: the applied logical width, or -1 when inactive/invalid.
  */
 int meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 		GtkWidget* profile, bool active, bool profile_visible);
+
+/* meow_session_spacer_position:
+ * @right_sidebar: true when Session shares a row with a Right sidebar.
+ * @left_to_right: true for a left-to-right interface direction.
+ *
+ * Returns the command-box spacer index that places Session actions on the
+ * sidebar-opposite physical edge while preserving the existing logical edge
+ * for all other compositions.
+ */
+int meow_session_spacer_position(bool right_sidebar, bool left_to_right);
+
+/* meow_configure_profile_sidebar_alignment:
+ * @profile: outer Profile block that owns the shared sidebar width.
+ * @content: inner avatar/name group positioned within @profile.
+ * @leading_spacer: logical-leading Profile spacer.
+ * @trailing_spacer: logical-trailing Profile spacer.
+ * @category_button: visible category-button style reference.
+ * @active: whether windowed vertical-sidebar alignment is active.
+ * @category_names_visible: true for leading alignment; false for centring.
+ *
+ * Aligns labelled Profile content to the category icon column using the
+ * button's theme border plus padding. Icon-only navigation centres the whole
+ * avatar/name group with equal expanding spacers. Inactive calls restore
+ * ordinary leading packing and clear both spacer requests.
+ *
+ * Returns: the applied logical inset, 0 when inactive, or -1 for invalid
+ * widgets.
+ */
+int meow_configure_profile_sidebar_alignment(GtkWidget* profile,
+		GtkWidget* content, GtkWidget* leading_spacer,
+		GtkWidget* trailing_spacer, GtkWidget* category_button,
+		bool active, bool category_names_visible);
+
+/* meow_reset_vertical_sidebar_scroll:
+ * @sidebar: vertical category-navigation scroller.
+ *
+ * Moves the navigation viewport to its leading vertical adjustment after
+ * opening reordering has completed.
+ *
+ * Returns: true when a valid adjustment was reset.
+ */
+bool meow_reset_vertical_sidebar_scroll(GtkScrolledWindow* sidebar);
 
 /* meow_widget_set_visible_if_valid:
  * @widget: widget to show or hide.

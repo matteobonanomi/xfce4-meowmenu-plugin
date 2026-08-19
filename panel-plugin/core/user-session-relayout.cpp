@@ -106,10 +106,11 @@ WhiskerMenu::meow_size_group_set_widget(GtkSizeGroup* group,
  * @active: whether windowed vertical-column sizing is active.
  * @profile_visible: whether @profile contributes its natural width.
  *
- * Measures with stale requests cleared, then fixes both column owners to the
- * larger natural width. Explicitly disabling expansion keeps later surplus
- * window allocation in the Results column rather than feeding it back through
- * a cross-parent GtkSizeGroup.
+ * Measures with stale requests cleared, reserves the automatic vertical
+ * scrollbar's theme width, then fixes both column owners to the larger natural
+ * width. Explicitly disabling expansion keeps later surplus window allocation
+ * in the Results column rather than feeding it back through a cross-parent
+ * GtkSizeGroup.
  *
  * Returns: the applied width, or -1 when inactive or given invalid widgets.
  */
@@ -136,6 +137,33 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 	int sidebar_natural = 0;
 	int profile_natural = 0;
 	gtk_widget_get_preferred_width(sidebar, nullptr, &sidebar_natural);
+	if (GTK_IS_SCROLLED_WINDOW(sidebar))
+	{
+		GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(sidebar));
+		GtkWidget* scrollbar = gtk_scrolled_window_get_vscrollbar(
+				GTK_SCROLLED_WINDOW(sidebar));
+		int viewport_natural = 0;
+		int scrollbar_natural = 0;
+		if (GTK_IS_WIDGET(viewport))
+			gtk_widget_get_preferred_width(viewport, nullptr,
+					&viewport_natural);
+		if (GTK_IS_WIDGET(scrollbar))
+			gtk_widget_get_preferred_width(scrollbar, nullptr,
+					&scrollbar_natural);
+		gint scrollbar_spacing = 0;
+		gtk_widget_style_get(sidebar,
+				"scrollbar-spacing", &scrollbar_spacing, nullptr);
+		GtkBorder padding = {};
+		GtkBorder border = {};
+		GtkStyleContext* style = gtk_widget_get_style_context(sidebar);
+		gtk_style_context_get_padding(style, GTK_STATE_FLAG_NORMAL, &padding);
+		gtk_style_context_get_border(style, GTK_STATE_FLAG_NORMAL, &border);
+		const int reserved = viewport_natural + scrollbar_natural
+				+ MAX(0, scrollbar_spacing)
+				+ MAX(0, padding.left) + MAX(0, padding.right)
+				+ MAX(0, border.left) + MAX(0, border.right);
+		sidebar_natural = MAX(sidebar_natural, reserved);
+	}
 	if (profile_visible)
 		gtk_widget_get_preferred_width(profile, nullptr, &profile_natural);
 	const int width = MAX(sidebar_natural, profile_natural);
@@ -143,6 +171,119 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 	if (profile_visible)
 		gtk_widget_set_size_request(profile, width, profile_height);
 	return width;
+}
+
+/* meow_session_spacer_position:
+ * @right_sidebar: true when Session shares a row with a Right sidebar.
+ * @left_to_right: true for a left-to-right interface direction.
+ *
+ * Selects the spacer position that places the command buttons at the required
+ * physical edge without changing the existing no-sidebar arrangement.
+ *
+ * Returns: the command-box child index for the expanding spacer.
+ */
+int
+WhiskerMenu::meow_session_spacer_position(bool right_sidebar,
+		bool left_to_right)
+{
+	if (right_sidebar)
+		return left_to_right ? 9 : 0;
+	return left_to_right ? 0 : 9;
+}
+
+/* meow_configure_profile_sidebar_alignment:
+ * @profile: outer Profile block that owns the shared sidebar width.
+ * @content: inner avatar/name group positioned within @profile.
+ * @leading_spacer: logical-leading Profile spacer.
+ * @trailing_spacer: logical-trailing Profile spacer.
+ * @category_button: visible category-button style reference.
+ * @active: whether windowed vertical-sidebar alignment is active.
+ * @category_names_visible: true for leading alignment; false for centring.
+ *
+ * Keeps width ownership separate from content positioning. Category buttons
+ * place their child after both the theme border and padding, so both metrics
+ * contribute to the Profile inset. Symmetric expanding spacers centre the
+ * whole group when category labels are hidden and contribute tolerance to its
+ * natural width.
+ *
+ * Returns: the applied logical inset, 0 when inactive, or -1 when invalid.
+ */
+int
+WhiskerMenu::meow_configure_profile_sidebar_alignment(GtkWidget* profile,
+		GtkWidget* content, GtkWidget* leading_spacer,
+		GtkWidget* trailing_spacer, GtkWidget* category_button,
+		bool active, bool category_names_visible)
+{
+	if (!GTK_IS_BOX(profile) || !GTK_IS_WIDGET(content)
+			|| !GTK_IS_WIDGET(leading_spacer)
+			|| !GTK_IS_WIDGET(trailing_spacer)
+			|| !GTK_IS_WIDGET(category_button))
+		return -1;
+
+	gtk_widget_set_margin_start(content, 0);
+	gtk_widget_set_margin_end(content, 0);
+	gtk_widget_set_size_request(leading_spacer, -1, -1);
+	gtk_widget_set_size_request(trailing_spacer, -1, -1);
+	if (gtk_widget_get_parent(leading_spacer) == profile)
+		gtk_box_set_child_packing(GTK_BOX(profile), leading_spacer,
+				false, false, 0, GTK_PACK_START);
+	if (gtk_widget_get_parent(content) == profile)
+		gtk_box_set_child_packing(GTK_BOX(profile), content,
+				false, false, 0, GTK_PACK_START);
+	if (gtk_widget_get_parent(trailing_spacer) == profile)
+		gtk_box_set_child_packing(GTK_BOX(profile), trailing_spacer,
+				true, true, 0, GTK_PACK_START);
+	if (!active)
+		return 0;
+
+	GtkBorder padding = {};
+	GtkBorder border = {};
+	GtkStyleContext* style = gtk_widget_get_style_context(category_button);
+	gtk_style_context_get_padding(style, GTK_STATE_FLAG_NORMAL, &padding);
+	gtk_style_context_get_border(style, GTK_STATE_FLAG_NORMAL, &border);
+	const bool rtl = gtk_widget_get_direction(category_button)
+			== GTK_TEXT_DIR_RTL;
+	const int inset = rtl
+			? MAX(0, padding.right) + MAX(0, border.right)
+			: MAX(0, padding.left) + MAX(0, border.left);
+	gtk_widget_set_size_request(leading_spacer, inset > 0 ? inset : -1, -1);
+	if (category_names_visible)
+		return inset;
+
+	gtk_widget_set_size_request(trailing_spacer, inset > 0 ? inset : -1, -1);
+	if (gtk_widget_get_parent(leading_spacer) == profile)
+		gtk_box_set_child_packing(GTK_BOX(profile), leading_spacer,
+				true, true, 0, GTK_PACK_START);
+	if (gtk_widget_get_parent(trailing_spacer) == profile)
+		gtk_box_set_child_packing(GTK_BOX(profile), trailing_spacer,
+				true, true, 0, GTK_PACK_START);
+	if (gtk_widget_get_parent(content) == profile)
+	{
+		gtk_box_set_child_packing(GTK_BOX(profile), content,
+				false, false, 0, GTK_PACK_START);
+	}
+	return inset;
+}
+
+/* meow_reset_vertical_sidebar_scroll:
+ * @sidebar: vertical category-navigation scroller.
+ *
+ * Resets after category ordering and visibility settle so a prior allocation
+ * cannot reopen with the fixed Applications controls above the viewport.
+ *
+ * Returns: true when a valid adjustment was reset.
+ */
+bool
+WhiskerMenu::meow_reset_vertical_sidebar_scroll(GtkScrolledWindow* sidebar)
+{
+	if (!GTK_IS_SCROLLED_WINDOW(sidebar))
+		return false;
+	GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(sidebar);
+	if (!GTK_IS_ADJUSTMENT(adjustment))
+		return false;
+	gtk_adjustment_set_value(adjustment,
+			gtk_adjustment_get_lower(adjustment));
+	return true;
 }
 
 bool

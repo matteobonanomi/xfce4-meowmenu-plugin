@@ -496,6 +496,25 @@ int main()
 			}
 		}
 	}
+	MenuModeInputs mapped_apps;
+	mapped_apps.requested_mode = MenuMode::Applications;
+	mapped_apps.transition = MenuModeTransition::Reevaluate;
+	mapped_apps.places_enabled = true;
+	mapped_apps.recent_applications_enabled = true;
+	for (int cycle = 0; cycle < 20; ++cycle)
+	{
+		// Simulate stale pre-map visibility before the authoritative mode pass.
+		for (GtkWidget* widget : widgets.all())
+			gtk_widget_hide(widget);
+		widgets.apply(resolve_menu_mode(mapped_apps));
+		CHECK(gtk_widget_get_visible(widgets.app_favourites));
+		CHECK(gtk_widget_get_visible(widgets.app_recent));
+		CHECK(gtk_widget_get_visible(widgets.app_all));
+		CHECK(gtk_widget_get_visible(widgets.app_category));
+		CHECK(!gtk_widget_get_visible(widgets.places_home));
+		CHECK(!gtk_widget_get_visible(widgets.places_history));
+		CHECK(!gtk_widget_get_visible(widgets.places_favourites));
+	}
 
 	GtkWidget* navigation = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* lead_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -560,7 +579,7 @@ int main()
 	};
 	MenuComposition composition =
 			meow_resolve_menu_composition(windowed_composition);
-	CHECK(composition.session_alignment == MenuAlignment::LogicalTrailing);
+	CHECK(composition.session_alignment == MenuAlignment::Fill);
 	CHECK(composition.apps_places_location
 			== MenuControlLocation::SecondaryRow);
 	CHECK(composition.baseline_surface == MenuSurfaceRole::Content);
@@ -571,7 +590,7 @@ int main()
 	CHECK(composition.secondary_surface == MenuSurfaceRole::Chrome);
 	windowed_composition.direction = MenuDirection::RightToLeft;
 	composition = meow_resolve_menu_composition(windowed_composition);
-	CHECK(composition.session_alignment == MenuAlignment::LogicalTrailing);
+	CHECK(composition.session_alignment == MenuAlignment::Fill);
 
 	windowed_composition.direction = MenuDirection::LeftToRight;
 	windowed_composition.sidebar = CompositionSidebar::Left;

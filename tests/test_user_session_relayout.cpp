@@ -10,9 +10,259 @@
 #include "core/user-session-relayout.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdio>
+#include <vector>
 
 using namespace WhiskerMenu;
+
+namespace
+{
+
+void drain_events()
+{
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+}
+
+int translated_x(GtkWidget* widget, GtkWidget* ancestor)
+{
+	int x = 0;
+	int y = 0;
+	assert(gtk_widget_translate_coordinates(widget, ancestor, 0, 0, &x, &y));
+	return x;
+}
+
+void check_session_allocated_edge(bool right_sidebar, bool left_to_right)
+{
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* commands = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* spacer = gtk_label_new(nullptr);
+	GtkWidget* selector = gtk_button_new_with_label("Apps / Places");
+	std::vector<GtkWidget*> buttons;
+	gtk_box_pack_start(GTK_BOX(commands), spacer, true, true, 0);
+	for (int i = 0; i < 9; ++i)
+	{
+		GtkWidget* button = gtk_button_new();
+		gtk_widget_set_size_request(button, 24, 24);
+		gtk_box_pack_start(GTK_BOX(commands), button, false, false, 0);
+		buttons.push_back(button);
+	}
+	gtk_widget_set_halign(commands, GTK_ALIGN_FILL);
+	const GtkTextDirection direction = left_to_right
+			? GTK_TEXT_DIR_LTR : GTK_TEXT_DIR_RTL;
+	gtk_widget_set_direction(row, direction);
+	gtk_widget_set_direction(commands, direction);
+	const bool selector_first = left_to_right
+			? !right_sidebar : right_sidebar;
+	if (!selector_first)
+	{
+		gtk_box_pack_start(GTK_BOX(row), commands, true, true, 0);
+		gtk_box_pack_start(GTK_BOX(row), selector, false, false, 0);
+	}
+	else
+	{
+		gtk_box_pack_start(GTK_BOX(row), selector, false, false, 0);
+		gtk_box_pack_start(GTK_BOX(row), commands, true, true, 0);
+	}
+	gtk_box_reorder_child(GTK_BOX(commands), spacer,
+			meow_session_spacer_position(right_sidebar, left_to_right));
+	gtk_container_add(GTK_CONTAINER(window), row);
+	gtk_window_set_default_size(GTK_WINDOW(window), 560, 70);
+	gtk_widget_show_all(window);
+	drain_events();
+
+	const int row_width = gtk_widget_get_allocated_width(row);
+	int session_left = row_width;
+	int session_right = 0;
+	for (GtkWidget* button : buttons)
+	{
+		const int x = translated_x(button, row);
+		session_left = MIN(session_left, x);
+		session_right = MAX(session_right,
+				x + gtk_widget_get_allocated_width(button));
+	}
+	const int selector_left = translated_x(selector, row);
+	const int selector_right = selector_left
+			+ gtk_widget_get_allocated_width(selector);
+	if (right_sidebar)
+	{
+		assert(session_left <= 1);
+		assert(std::abs(selector_right - row_width) <= 1);
+	}
+	else
+	{
+		assert(selector_left <= 1);
+		assert(std::abs(session_right - row_width) <= 1);
+	}
+
+	gtk_widget_destroy(window);
+}
+
+void check_profile_allocated_geometry()
+{
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	GtkWidget* column = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* profile = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* profile_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* profile_leading = gtk_label_new(nullptr);
+	GtkWidget* profile_trailing = gtk_label_new(nullptr);
+	GtkWidget* avatar = gtk_drawing_area_new();
+	GtkWidget* username = gtk_label_new("A deliberately wide profile");
+	gtk_widget_set_size_request(avatar, 32, 32);
+	gtk_box_pack_start(GTK_BOX(profile_content), avatar, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile_content), username, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), profile_leading, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), profile_content, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), profile_trailing, true, true, 0);
+
+	GtkWidget* category = gtk_radio_button_new(nullptr);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(category), false);
+	gtk_button_set_relief(GTK_BUTTON(category), GTK_RELIEF_NONE);
+	GtkWidget* category_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+	GtkWidget* category_icon = gtk_drawing_area_new();
+	GtkWidget* category_label = gtk_label_new("All Applications");
+	gtk_widget_set_size_request(category_icon, 24, 24);
+	gtk_box_pack_start(GTK_BOX(category_content), category_icon,
+			false, false, 0);
+	gtk_box_pack_start(GTK_BOX(category_content), category_label,
+			false, false, 0);
+	gtk_container_add(GTK_CONTAINER(category), category_content);
+	gtk_style_context_add_class(gtk_widget_get_style_context(category),
+			"category-button");
+
+	gtk_widget_set_size_request(profile, 300, -1);
+	gtk_widget_set_size_request(category, 300, -1);
+	gtk_box_pack_start(GTK_BOX(column), profile, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(column), category, false, false, 0);
+	gtk_container_add(GTK_CONTAINER(window), column);
+	gtk_widget_show_all(window);
+	gtk_window_set_default_size(GTK_WINDOW(window), 300, 100);
+	drain_events();
+	gtk_widget_hide(window);
+	drain_events();
+	const int inset = meow_configure_profile_sidebar_alignment(profile,
+			profile_content, profile_leading, profile_trailing,
+			category, true, true);
+	assert(inset >= 0);
+	int leading_request = -1;
+	int trailing_request = -1;
+	gtk_widget_get_size_request(profile_leading, &leading_request, nullptr);
+	gtk_widget_get_size_request(profile_trailing, &trailing_request, nullptr);
+	assert(leading_request == (inset > 0 ? inset : -1));
+	assert(trailing_request <= 0);
+	gtk_widget_show(window);
+	drain_events();
+	assert(std::abs(translated_x(avatar, column)
+			- translated_x(category_icon, column)) <= 1);
+
+	gtk_widget_hide(window);
+	drain_events();
+	gtk_widget_hide(category_label);
+	gtk_box_set_child_packing(GTK_BOX(category_content), category_icon,
+			true, true, 0, GTK_PACK_START);
+	assert(meow_configure_profile_sidebar_alignment(profile, profile_content,
+			profile_leading, profile_trailing, category, true, false) == inset);
+	gtk_widget_get_size_request(profile_leading, &leading_request, nullptr);
+	gtk_widget_get_size_request(profile_trailing, &trailing_request, nullptr);
+	assert(leading_request == (inset > 0 ? inset : -1));
+	assert(trailing_request == (inset > 0 ? inset : -1));
+	gtk_widget_show(window);
+	drain_events();
+	const int profile_x = translated_x(avatar, column);
+	const int profile_right = translated_x(username, column)
+			+ gtk_widget_get_allocated_width(username);
+	const int profile_width = profile_right - profile_x;
+	const int outer_width = gtk_widget_get_allocated_width(profile);
+	assert(std::abs(profile_x - (outer_width - profile_x - profile_width)) <= 1);
+	const int profile_center = 2 * profile_x + profile_width;
+	const int icon_x = translated_x(category_icon, column);
+	const int icon_center = 2 * icon_x
+			+ gtk_widget_get_allocated_width(category_icon);
+	assert(std::abs(profile_center - icon_center) <= 1);
+	gtk_widget_set_size_request(profile, -1, -1);
+	int content_natural = 0;
+	int profile_natural = 0;
+	gtk_widget_get_preferred_width(profile_content, nullptr, &content_natural);
+	gtk_widget_get_preferred_width(profile, nullptr, &profile_natural);
+	assert(profile_natural >= content_natural + 2 * inset);
+
+	assert(meow_configure_profile_sidebar_alignment(profile, profile_content,
+			profile_leading, profile_trailing, category, false, false) == 0);
+	gtk_widget_get_size_request(profile_leading, &leading_request, nullptr);
+	gtk_widget_get_size_request(profile_trailing, &trailing_request, nullptr);
+	assert(leading_request <= 0);
+	assert(trailing_request <= 0);
+	gtk_widget_destroy(window);
+}
+
+void check_sidebar_scrollbar_reservation()
+{
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* sidebar = gtk_scrolled_window_new(nullptr, nullptr);
+	GtkWidget* categories = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* profile = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* profile_content = gtk_label_new("Profile");
+	GtkWidget* results = gtk_label_new("Results");
+	gtk_box_pack_start(GTK_BOX(profile), profile_content, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(categories),
+			gtk_button_new_with_label("All Applications"), false, false, 0);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar),
+			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_container_add(GTK_CONTAINER(sidebar), categories);
+	gtk_box_pack_start(GTK_BOX(row), sidebar, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(row), results, true, true, 0);
+	gtk_container_add(GTK_CONTAINER(window), row);
+	gtk_widget_show_all(window);
+
+	const int reserved_width = meow_configure_vertical_sidebar_width(
+			sidebar, profile, true, true);
+	GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(sidebar));
+	GtkWidget* scrollbar = gtk_scrolled_window_get_vscrollbar(
+			GTK_SCROLLED_WINDOW(sidebar));
+	int viewport_natural = 0;
+	int scrollbar_natural = 0;
+	gtk_widget_get_preferred_width(viewport, nullptr, &viewport_natural);
+	gtk_widget_get_preferred_width(scrollbar, nullptr, &scrollbar_natural);
+	assert(reserved_width >= viewport_natural + scrollbar_natural);
+
+	gtk_window_set_default_size(GTK_WINDOW(window), reserved_width + 220, 120);
+	drain_events();
+	const int initial_sidebar_width = gtk_widget_get_allocated_width(sidebar);
+	gtk_widget_hide(window);
+	drain_events();
+	for (int i = 0; i < 20; ++i)
+	{
+		GtkWidget* button = gtk_button_new_with_label("Category");
+		gtk_box_pack_start(GTK_BOX(categories), button, false, false, 0);
+		gtk_widget_show(button);
+	}
+	gtk_widget_show(window);
+	drain_events();
+	assert(gtk_widget_get_child_visible(scrollbar));
+	assert(gtk_widget_get_allocated_width(sidebar) == initial_sidebar_width);
+	assert(meow_configure_vertical_sidebar_width(sidebar, profile, true, true)
+			== reserved_width);
+
+	GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(
+			GTK_SCROLLED_WINDOW(sidebar));
+	gtk_adjustment_set_value(adjustment,
+			gtk_adjustment_get_upper(adjustment)
+			- gtk_adjustment_get_page_size(adjustment));
+	assert(gtk_adjustment_get_value(adjustment)
+			> gtk_adjustment_get_lower(adjustment));
+	assert(meow_reset_vertical_sidebar_scroll(GTK_SCROLLED_WINDOW(sidebar)));
+	assert(gtk_adjustment_get_value(adjustment)
+			== gtk_adjustment_get_lower(adjustment));
+	assert(!meow_reset_vertical_sidebar_scroll(nullptr));
+
+	gtk_widget_destroy(window);
+	gtk_widget_destroy(profile);
+}
+
+} // namespace
 
 int main(int argc, char** argv)
 {
@@ -21,6 +271,12 @@ int main(int argc, char** argv)
 		std::printf("# SKIP: GTK could not initialise (no display)\n");
 		return 77;
 	}
+	check_session_allocated_edge(false, true);
+	check_session_allocated_edge(true, true);
+	check_session_allocated_edge(false, false);
+	check_session_allocated_edge(true, false);
+	check_profile_allocated_geometry();
+	check_sidebar_scrollbar_reservation();
 
 	GtkWidget* leading = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	GtkWidget* trailing = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -41,20 +297,51 @@ int main(int argc, char** argv)
 	gtk_box_reorder_child(GTK_BOX(secondary), secondary_spacer, 0);
 	gtk_widget_set_direction(secondary, GTK_TEXT_DIR_RTL);
 	gtk_box_reorder_child(GTK_BOX(secondary), secondary_spacer, 1);
-	GtkWidget* profile = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	assert(meow_session_spacer_position(false, true) == 0);
+	assert(meow_session_spacer_position(false, false) == 9);
+	assert(meow_session_spacer_position(true, true) == 9);
+	assert(meow_session_spacer_position(true, false) == 0);
+	GtkWidget* profile = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* profile_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* profile_leading = gtk_label_new(nullptr);
+	GtkWidget* profile_trailing = gtk_label_new(nullptr);
 	GtkWidget* avatar = gtk_image_new();
 	GtkWidget* username = gtk_label_new("User");
-	gtk_box_pack_start(GTK_BOX(profile), avatar, false, false, 0);
-	gtk_box_pack_start(GTK_BOX(profile), username, true, true, 0);
+	GtkWidget* category_button = gtk_radio_button_new(nullptr);
+	gtk_style_context_add_class(
+			gtk_widget_get_style_context(category_button), "category-button");
+	gtk_widget_set_direction(profile, GTK_TEXT_DIR_LTR);
+	gtk_widget_set_direction(category_button, GTK_TEXT_DIR_LTR);
+	const int ltr_inset = meow_configure_profile_sidebar_alignment(profile,
+			profile_content, profile_leading, profile_trailing,
+			category_button, true, true);
+	int spacer_request = -1;
+	gtk_widget_get_size_request(profile_leading, &spacer_request, nullptr);
+	assert(spacer_request == (ltr_inset > 0 ? ltr_inset : -1));
+	gtk_widget_set_direction(profile, GTK_TEXT_DIR_RTL);
+	gtk_widget_set_direction(profile_content, GTK_TEXT_DIR_RTL);
+	gtk_widget_set_direction(category_button, GTK_TEXT_DIR_RTL);
+	const int rtl_inset = meow_configure_profile_sidebar_alignment(profile,
+			profile_content, profile_leading, profile_trailing,
+			category_button, true, true);
+	gtk_widget_get_size_request(profile_leading, &spacer_request, nullptr);
+	assert(spacer_request == (rtl_inset > 0 ? rtl_inset : -1));
+	gtk_box_pack_start(GTK_BOX(profile_content), avatar, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile_content), username, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), profile_leading, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), profile_content, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(profile), profile_trailing, true, true, 0);
 	assert(meow_box_repack_child(GTK_BOX(primary), profile,
 			false, false, false, 0));
-	assert(gtk_widget_get_parent(avatar) == profile);
-	assert(gtk_widget_get_parent(username) == profile);
+	assert(gtk_widget_get_parent(profile_content) == profile);
+	assert(gtk_widget_get_parent(avatar) == profile_content);
+	assert(gtk_widget_get_parent(username) == profile_content);
 	assert(meow_box_repack_child(GTK_BOX(secondary), profile,
 			false, false, false, 0));
 	assert(gtk_widget_get_parent(profile) == secondary);
-	assert(gtk_widget_get_parent(avatar) == profile);
-	assert(gtk_widget_get_parent(username) == profile);
+	assert(gtk_widget_get_parent(profile_content) == profile);
+	assert(gtk_widget_get_parent(avatar) == profile_content);
+	assert(gtk_widget_get_parent(username) == profile_content);
 	assert(meow_box_repack_child(GTK_BOX(primary), profile,
 			false, false, false, 0));
 
@@ -192,6 +479,7 @@ int main(int argc, char** argv)
 	gtk_widget_destroy(secondary);
 	gtk_widget_destroy(allocation_grid);
 	gtk_widget_destroy(selector);
+	gtk_widget_destroy(category_button);
 	gtk_widget_destroy(outsider);
 	g_object_unref(widths);
 

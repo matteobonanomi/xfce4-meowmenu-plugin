@@ -68,11 +68,20 @@ Profile::Profile(Settings* settings, Window* window) :
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_username), "profile-username");
 
-	// Avatar and username move as one block so a live composition change can
-	// never leave one half in a stale row or size group.
-	m_widget = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	gtk_box_pack_start(GTK_BOX(m_widget), m_container, false, false, 0);
-	gtk_box_pack_start(GTK_BOX(m_widget), m_username, true, true, 0);
+	// The outer block owns the sidebar width while the inner content keeps the
+	// avatar and username together. This lets icon-only sidebars centre the
+	// complete Profile group without changing its shared column width.
+	m_widget = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	m_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	m_leading_spacer = gtk_label_new(nullptr);
+	m_trailing_spacer = gtk_label_new(nullptr);
+	gtk_box_pack_start(GTK_BOX(m_content), m_container, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(m_content), m_username, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(m_widget), m_leading_spacer,
+			false, false, 0);
+	gtk_box_pack_start(GTK_BOX(m_widget), m_content, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(m_widget), m_trailing_spacer,
+			true, true, 0);
 	gtk_widget_set_hexpand(m_widget, TRUE);
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget),
 			"profile-block");

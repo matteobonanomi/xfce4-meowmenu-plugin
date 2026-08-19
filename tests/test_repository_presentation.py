@@ -141,7 +141,7 @@ class RepositoryPresentationTest(unittest.TestCase):
             "`show-profile`",
             "`show-session`",
             "`left`, `right`, or `horizontal`",
-            "logical trailing edge of its Results",
+            "With a vertical sidebar, it uses the opposite physical edge",
             "icons use the same effective size",
             "whenever Profile or a vertical sidebar is visible",
             "Only when Profile, the vertical sidebar, and Session are all hidden",
