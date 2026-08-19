@@ -132,6 +132,18 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn("build-aux/arch/smoke-install.sh", workflow)
         self.assertIn("installed-action-smoke.sh", workflow)
 
+    def test_arch_smoke_checks_optional_dependencies_in_package_metadata(self):
+        smoke = (
+            ROOT / "build-aux/arch/smoke-install.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn('tar -xOf "${pkg}" .PKGINFO', smoke)
+        self.assertIn(
+            "^depend = (accountsservice|gtk-layer-shell)([<=>]|$)",
+            smoke,
+        )
+        self.assertNotIn("pacman -Q accountsservice", smoke)
+        self.assertNotIn("pacman -Q gtk-layer-shell", smoke)
+
     def test_routine_ci_keeps_six_proportionate_checks(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         build = workflow.split("  build:", maxsplit=1)[1].split(
