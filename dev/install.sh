@@ -87,6 +87,26 @@ if [[ ! -d "${BUILD_DIR}" ]]; then
     exit 1
 fi
 
+# A sanitizer-instrumented shared module cannot be loaded safely by the
+# unsanitized xfce4-panel wrapper: libasan must be initialized by the host
+# executable before the module is opened. Refuse the install before replacing
+# the working panel plugin when this build directory is configured for ASan or
+# UBSan. Sanitizer builds remain suitable for tests and dedicated harnesses.
+SANITIZERS="$(meson introspect --buildoptions "${BUILD_DIR}" \
+    | python3 -c '
+import json
+import sys
+option = next(o for o in json.load(sys.stdin) if o["name"] == "b_sanitize")
+values = option["value"] if isinstance(option["value"], list) else [option["value"]]
+print(",".join(str(v) for v in values if v != "none"))
+')"
+if [[ -n "${SANITIZERS}" ]]; then
+    echo "Build directory '${BUILD_DIR}' uses b_sanitize=${SANITIZERS}."
+    echo "Refusing to install an instrumented plugin into the running Xfce panel."
+    echo "Reconfigure it first with: meson setup --reconfigure '${BUILD_DIR}' -Db_sanitize=none"
+    exit 1
+fi
+
 echo ""
 echo "MeowMenu dev-install  (log → ${LOG_FILE})"
 echo "─────────────────────────────────────────"
