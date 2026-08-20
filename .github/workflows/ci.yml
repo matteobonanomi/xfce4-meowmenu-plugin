@@ -60,7 +60,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
               build-essential meson ninja-build pkg-config \
-              libgtk-3-dev libglib2.0-dev \
+              libgtk-3-dev libglib2.0-dev librsvg2-common \
               libgarcon-1-dev libgarcon-gtk3-1-dev \
               libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
               libexo-2-dev \
@@ -77,7 +77,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
               build-essential meson ninja-build pkg-config \
-              libgtk-3-dev libglib2.0-dev \
+              libgtk-3-dev libglib2.0-dev librsvg2-common \
               libgarcon-1-dev libgarcon-gtk3-1-dev \
               libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
               libexo-2-dev \
@@ -92,7 +92,7 @@ jobs:
         run: |
           dnf -y install \
               gcc gcc-c++ make meson ninja-build pkgconf-pkg-config \
-              gtk3-devel glib2-devel \
+              gtk3-devel glib2-devel librsvg2 \
               garcon-devel \
               xfce4-panel-devel libxfce4ui-devel libxfce4util-devel \
               exo-devel \
@@ -132,7 +132,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
               build-essential meson ninja-build pkg-config \
-              libgtk-3-dev libglib2.0-dev \
+              libgtk-3-dev libglib2.0-dev librsvg2-common \
               libgarcon-1-dev libgarcon-gtk3-1-dev \
               libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
               libexo-2-dev \
@@ -244,7 +244,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
               build-essential meson ninja-build pkg-config \
-              libgtk-3-dev libglib2.0-dev \
+              libgtk-3-dev libglib2.0-dev librsvg2-common \
               libgarcon-1-dev libgarcon-gtk3-1-dev \
               libxfce4panel-2.0-dev libxfce4ui-2-dev libxfce4util-dev \
               libexo-2-dev \

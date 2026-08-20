@@ -31,6 +31,7 @@ BuildRequires:  /usr/bin/git
 BuildRequires:  pkgconfig(gtk+-3.0)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gio-2.0)
+BuildRequires:  librsvg2
 BuildRequires:  pkgconfig(garcon-1)
 BuildRequires:  pkgconfig(libxfce4panel-2.0)
 BuildRequires:  pkgconfig(libxfce4ui-2)

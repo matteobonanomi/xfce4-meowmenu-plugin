@@ -9,6 +9,7 @@ Build-Depends:
  pkg-config,
  libgtk-3-dev,
  libglib2.0-dev,
+ librsvg2-common,
  libgarcon-1-dev,
  libgarcon-gtk3-1-dev,
  libxfce4panel-2.0-dev,
