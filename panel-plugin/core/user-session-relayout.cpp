@@ -136,21 +136,12 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 
 	int sidebar_natural = 0;
 	int profile_natural = 0;
+	gtk_widget_get_preferred_width(sidebar, nullptr, &sidebar_natural);
 	if (GTK_IS_SCROLLED_WINDOW(sidebar))
 	{
-		GtkScrolledWindow* scrolled = GTK_SCROLLED_WINDOW(sidebar);
-		GtkPolicyType horizontal_policy = GTK_POLICY_NEVER;
-		GtkPolicyType vertical_policy = GTK_POLICY_AUTOMATIC;
-		gtk_scrolled_window_get_policy(scrolled, &horizontal_policy,
-				&vertical_policy);
-		// Automatic scrollbars can report a zero width while hidden. Measure
-		// in the always-visible state so repeated layout passes agree.
-		gtk_scrolled_window_set_policy(scrolled, horizontal_policy,
-				GTK_POLICY_ALWAYS);
-		gtk_widget_get_preferred_width(sidebar, nullptr, &sidebar_natural);
 		GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(sidebar));
 		GtkWidget* scrollbar = gtk_scrolled_window_get_vscrollbar(
-				scrolled);
+				GTK_SCROLLED_WINDOW(sidebar));
 		int viewport_natural = 0;
 		int scrollbar_natural = 0;
 		if (GTK_IS_WIDGET(viewport))
@@ -172,11 +163,7 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 				+ MAX(0, padding.left) + MAX(0, padding.right)
 				+ MAX(0, border.left) + MAX(0, border.right);
 		sidebar_natural = MAX(sidebar_natural, reserved);
-		gtk_scrolled_window_set_policy(scrolled, horizontal_policy,
-				vertical_policy);
 	}
-	else
-		gtk_widget_get_preferred_width(sidebar, nullptr, &sidebar_natural);
 	if (profile_visible)
 		gtk_widget_get_preferred_width(profile, nullptr, &profile_natural);
 	const int width = MAX(sidebar_natural, profile_natural);

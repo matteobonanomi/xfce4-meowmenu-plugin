@@ -30,6 +30,7 @@ int main()
 	}
 
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	g_object_ref_sink(window);
 	GtkWidget* widget = gtk_tree_view_new();
 	GtkTreeView* view = GTK_TREE_VIEW(widget);
 	GtkTreeStore* model = gtk_tree_store_new(
