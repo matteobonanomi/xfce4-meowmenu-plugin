@@ -25,6 +25,11 @@ namespace WhiskerMenu
 
 class Settings;
 
+GtkTreePath* launcher_tree_view_find_directional_path(GtkTreeView* view,
+		GtkTreePath* origin, Keyboard::PhysicalDirection direction);
+bool launcher_tree_view_get_path_rectangle(GtkTreeView* view,
+		GtkTreePath* path, Keyboard::NavigationRect* rectangle);
+
 class LauncherTreeView : public LauncherView
 {
 public:
@@ -45,6 +50,11 @@ public:
 	void select_path(GtkTreePath* path) override;
 	void set_cursor(GtkTreePath* path) override;
 	bool is_first_visual_row(GtkTreePath* path) const override;
+	GtkTreePath* get_directional_path(GtkTreePath* origin,
+			Keyboard::PhysicalDirection direction) const override;
+	bool get_path_rectangle(GtkTreePath* path,
+			Keyboard::NavigationRect* rectangle) const override;
+	bool apply_keyboard_target(GtkTreePath* path) override;
 
 	void set_fixed_height_mode(bool fixed_height) override;
 	void set_selection_mode(GtkSelectionMode mode) override;

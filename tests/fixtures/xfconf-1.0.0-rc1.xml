@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="plugins" type="empty">
+    <property name="meowmenu-18" type="empty">
+      <property name="schema-version" type="int" value="12"/>
+      <property name="initialized" type="bool" value="true"/>
+      <property name="current-preset-id" type="string" value="saved-rc-layout"/>
+      <property name="layout-mode" type="string" value="fullscreen"/>
+      <property name="sidebar-position" type="string" value="top"/>
+      <property name="profile-position" type="string" value="bottom-left"/>
+      <property name="unified-bar" type="bool" value="true"/>
+      <property name="favorites" type="array">
+        <value type="string" value="org.mozilla.firefox.desktop"/>
+        <value type="string" value="org.example.Removable.desktop"/>
+        <value type="string" value="org.xfce.Thunar.desktop"/>
+      </property>
+      <property name="recent" type="array">
+        <value type="string" value="org.xfce.Terminal.desktop"/>
+        <value type="string" value="org.mozilla.firefox.desktop"/>
+      </property>
+      <property name="search" type="empty">
+        <property name="frecency-alpha" type="int" value="63"/>
+        <property name="favorites-boost-level" type="int" value="3"/>
+        <property name="aliases" type="empty">
+          <property name="org.mozilla.firefox.desktop" type="empty">
+            <property name="terms" type="array">
+              <value type="string" value="browser"/>
+              <value type="string" value="web"/>
+            </property>
+          </property>
+        </property>
+      </property>
+      <property name="usage" type="empty">
+        <property name="org.mozilla.firefox.desktop" type="empty">
+          <property name="launch-count" type="int" value="37"/>
+          <property name="last-launch" type="int" value="1724000000"/>
+        </property>
+      </property>
+      <property name="command-settings" type="string" value="my-settings-manager --open"/>
+      <property name="show-command-settings" type="bool" value="true"/>
+      <property name="search-actions" type="int" value="1">
+        <property name="action-0" type="empty">
+          <property name="name" type="string" value="Project search"/>
+          <property name="pattern" type="string" value="!p"/>
+          <property name="command" type="string" value="project-search %u"/>
+          <property name="regex" type="bool" value="false"/>
+        </property>
+      </property>
+      <property name="presets" type="empty">
+        <property name="saved-rc-layout" type="empty">
+          <property name="display-name" type="string" value="RC Layout"/>
+          <property name="name" type="string" value="RC Layout"/>
+          <property name="layout-mode" type="string" value="fullscreen"/>
+          <property name="corner-radius" type="int" value="9"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>

@@ -108,7 +108,8 @@ GtkWidget* Command::get_button()
 		},
 		Connect::After);
 
-	GtkWidget* image = gtk_image_new_from_icon_name(m_icon, GTK_ICON_SIZE_LARGE_TOOLBAR);
+	GtkWidget* image = gtk_image_new_from_icon_name(m_icon,
+			MEOWMENU_SESSION_BUTTON_ICON_SIZE);
 	gtk_container_add(GTK_CONTAINER(m_button), GTK_WIDGET(image));
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_button), "command-button");
@@ -173,6 +174,9 @@ void Command::set_shown(bool shown)
 	if (m_button)
 	{
 		gtk_widget_set_visible(m_button, m_shown);
+		gtk_widget_set_can_focus(m_button,
+				command_effectively_available(m_shown,
+						m_status == CommandStatus::Valid));
 	}
 	if (m_menuitem)
 	{
@@ -182,7 +186,7 @@ void Command::set_shown(bool shown)
 
 //-----------------------------------------------------------------------------
 
-void Command::check()
+bool Command::check()
 {
 	if (m_status == CommandStatus::Unchecked)
 	{
@@ -204,12 +208,17 @@ void Command::check()
 	{
 		gtk_widget_set_visible(m_button, m_shown);
 		gtk_widget_set_sensitive(m_button, m_status == CommandStatus::Valid);
+		gtk_widget_set_can_focus(m_button,
+				command_effectively_available(m_shown,
+						m_status == CommandStatus::Valid));
 	}
 	if (m_menuitem)
 	{
 		gtk_widget_set_visible(m_menuitem, m_shown);
 		gtk_widget_set_sensitive(m_menuitem, m_status == CommandStatus::Valid);
 	}
+	return command_effectively_available(m_shown,
+			m_status == CommandStatus::Valid);
 }
 
 //-----------------------------------------------------------------------------

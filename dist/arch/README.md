@@ -10,7 +10,8 @@ The committed recipe builds from the published `vX.Y.Z` GitHub tag archive and
 uses `sha256sums=('SKIP')` so the in-tree recipe does not carry a stale,
 hand-pinned checksum. The authoritative AUR metadata, including the release
 checksum and `.SRCINFO`, is generated at release time by `dev/aur-release.sh` in
-the sibling AUR clone.
+the sibling AUR clone. The package build explicitly disables AccountsService
+and gtk-layer-shell; both remain optional source-build integrations.
 
 The recipe includes `check()` so candidate validation exercises the complete
 Meson suite. The release workflow also builds, lints, and smoke-installs the
@@ -36,10 +37,14 @@ Then, from `dist/arch/`:
 test "$(python3 ../../build-aux/news-version.py --arch-version)" \
      = "$(bash -c 'source PKGBUILD; printf %s "$pkgver"')"
 
-# 2. validate the source archive named by the recipe
+# 2. release packages use the core fallback
+grep -F -- '-Daccountsservice=disabled' PKGBUILD
+grep -F -- '-Dgtk-layer-shell=disabled' PKGBUILD
+
+# 3. validate the source archive named by the recipe
 sudo -u builder makepkg --verifysource --noconfirm
 
-# 3. build, lint, install
+# 4. build, lint, install
 sudo -u builder LC_ALL=C makepkg --syncdeps --noconfirm --cleanbuild --force
 pkg="$(ls -1 *.pkg.tar.* | head -n1)"
 namcap PKGBUILD "$pkg"

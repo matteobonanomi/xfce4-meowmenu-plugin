@@ -23,6 +23,19 @@ The manifest must report one successful check for each of the three packages
 and `xfce4-meowmenu-plugin-<version>.tar.gz`. It does not contain a checksum
 entry for itself.
 
+## Release channels and configuration
+
+Before final 1.0.0, 0.x releases are experimental feature releases. An
+available `-rcN` release is the more stable channel for testing and feedback.
+Choose the newest 0.x release when it is newer than the latest RC and you want
+newer features; choose the RC when you prefer a more stable testing channel.
+Both are standard public releases.
+
+Before final 1.0.0, including every 0.x release and RC, compatibility and
+configuration preservation are not guaranteed in any way. From final 1.0.0
+onward, configuration preservation is guaranteed. Back up panel configuration
+before testing a pre-1.0 release.
+
 ## Ubuntu 26.04
 
 ```bash
@@ -91,18 +104,6 @@ Remove the package with the appropriate command for your distribution:
 - **Source install**: `sudo ninja -C build uninstall`
 
 Package removal keeps user configuration so a later reinstall can restore it.
-
-## Full cleanup
-
-To deliberately delete settings and saved custom presets after removing the
-package:
-
-```bash
-rm -rf ~/.local/share/meowmenu/
-rm -f ~/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml
-```
-
-This cleanup is optional and cannot be undone without a backup.
 
 ## Build from source
 
@@ -196,19 +197,23 @@ Optional integrations on Arch:
 sudo pacman -S --needed accountsservice gtk-layer-shell
 ```
 
+AccountsService and gtk-layer-shell are optional for source builds. The
+distribution packages build with both integrations disabled, so the core
+launcher remains usable when those libraries are absent. Source builders may
+install the development packages above to let Meson enable the integrations.
+
 ## Xfce dependency boundary
 
 Xfce 4.16, 4.18, and 4.20 builds require Exo development files and helper
 programs. The commands above therefore retain `libexo-2-dev`, `exo-devel`, or
 `exo` for their current repositories. Starting with libxfce4ui 4.21, the
-required chooser, opener, and launcher editor are supplied by libxfce4ui; the
-replacement compatibility build is tested with Exo absent.
+required chooser, opener, and launcher editor are supplied by libxfce4ui.
 
-Do not remove Exo from a distribution recipe merely because the replacement
-source stack passes. A concrete target may remove it only after that target's
-repository crosses the boundary and its package build, linkage inspection,
-installed actions, and upgraded stored actions all pass without Exo.
+Keep each distribution recipe aligned with the dependencies available in its
+target repository. A target may remove Exo only after its package build,
+linkage inspection, installed actions, and upgraded stored actions all pass
+without Exo.
 
-`gtk-layer-shell` is optional. If a named release does not provide a suitable
-version, leave it out: MeowMenu still builds and uses its normal
+X11 is the only officially supported environment. Wayland is experimentally
+supported; if `gtk-layer-shell` is unavailable, MeowMenu uses its normal
 session-compatible positioning fallback.

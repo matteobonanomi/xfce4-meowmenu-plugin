@@ -33,10 +33,10 @@ using namespace WhiskerMenu;
 
 /* init_places_tab:
  *
- * Builds the Places panel (milestone 005). Eight controls bound directly to
+ * Builds the Places panel with controls bound directly to
  * the /places-prefixed Xfconf-backed Settings members. Sensitivity is gated by
  * /places/enabled at the panel level and by /places/favourites-enabled for
- * the sync dropdown (the documented behavior, the documented behavior).
+ * the sync dropdown (supported behavior, supported behavior).
  *
  * Returns: a scrolled container ready to be packed into the dialog's stack.
  */
@@ -47,7 +47,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 
 	std::vector<GtkWidget*> places_dependents;
 
-	// Places mode section (the documented behavior) — Enable Places switch C1 / Show icons C2.
+	// Places mode section (supported behavior) — Enable Places switch C1 / Show icons C2.
 	GtkWidget* enable_grid = make_two_column_section();
 	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), enable_grid), false, false, 0);
 
@@ -59,9 +59,9 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_label), enable_switch);
 
 	// "Show icons" — renders the Apps/Places switch as two themed icon buttons
-	// instead of text (the documented behavior). Bound to /places/switch-show-icons with the
+	// instead of text (supported behavior). Bound to /places/switch-show-icons with the
 	// binding's reset-to-default; greyed (forced ON, value unchanged) when the
-	// sidebar is on Top/Bottom or disabled (the documented behavior).
+	// sidebar is Horizontal or disabled.
 	GtkWidget* show_icons_switch = make_form_switch();
 	GtkWidget* show_icons_label = gtk_label_new_with_mnemonic(_("Show _icons"));
 	gtk_switch_set_active(GTK_SWITCH(show_icons_switch), m_settings->places_switch_show_icons);
@@ -69,7 +69,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(show_icons_label), show_icons_switch);
 	m_places_switch_show_icons = show_icons_switch;
 
-	// Sections section (the documented behavior) — history switch C1 / favourites switch C2;
+	// Sections section (supported behavior) — history switch C1 / favourites switch C2;
 	// favourite-sync combo C1 / maximum-items spin C2.
 	GtkWidget* sections_grid = make_two_column_section();
 	GtkWidget* sections_frame = make_aligned_frame(_("Sections"), sections_grid);
@@ -103,8 +103,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	add_form_row(sections_grid, COLUMN_C2, 1, max_label, max_spin, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), max_spin);
 
-	// Behaviour section (the documented behavior): remember-last-mode and switch shape share one
-	// row so the mode memory and its visual presentation are configured together.
+	// Behaviour section: mode memory remains the only selector behavior choice.
 	GtkWidget* behaviour_grid = make_two_column_section();
 	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), behaviour_grid);
 	gtk_box_pack_start(page, behaviour_frame, false, false, 0);
@@ -115,19 +114,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 			m_settings->places_remember_last_mode);
 	add_form_row(behaviour_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
 
-	GtkWidget* shape_label = gtk_label_new_with_mnemonic(_("Switch button _shape:"));
-	GtkWidget* shape_combo = gtk_combo_box_text_new();
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(shape_combo),
-			PLACES_SWITCH_SHAPE_GTK_THEME, _("GTK theme"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(shape_combo),
-			PLACES_SWITCH_SHAPE_ROUNDED, _("Rounded"));
-	gtk_combo_box_set_active_id(GTK_COMBO_BOX(shape_combo),
-			places_switch_shape_or_default(m_settings->places_switch_button_shape));
-	add_form_row(behaviour_grid, COLUMN_C2, 0, shape_label, shape_combo, false, nullptr);
-	gtk_label_set_mnemonic_widget(GTK_LABEL(shape_label), shape_combo);
-	m_places_switch_button_shape = shape_combo;
-
-	// Sensitivity helpers (the documented behavior, the documented behavior).
+	// Sensitivity helpers (supported behavior, supported behavior).
 	auto refresh_sensitivity = [=]()
 	{
 		const bool enabled = gtk_switch_get_active(GTK_SWITCH(enable_switch));
@@ -138,10 +125,10 @@ GtkWidget* SettingsDialog::init_places_tab()
 		gtk_widget_set_sensitive(sync_label, fav_enabled);
 
 		// "Show icons" is forced ON (greyed, value unchanged) when the sidebar
-		// is on Top/Bottom or disabled (the documented behavior); it is also moot when
+		// is Horizontal or disabled; it is also moot when
 		// Places is off. The stored value is never rewritten here.
 		const gchar* sp = static_cast<const gchar*>(m_settings->sidebar_position);
-		const bool strip = sp && (g_strcmp0(sp, "top") == 0 || g_strcmp0(sp, "bottom") == 0);
+		const bool strip = sp && g_strcmp0(sp, "horizontal") == 0;
 		const bool forced = strip || !m_settings->sidebar_enabled;
 		gtk_widget_set_sensitive(show_icons_switch, enabled && !forced);
 		gtk_widget_set_sensitive(show_icons_label, enabled && !forced);
@@ -149,7 +136,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 	refresh_sensitivity();
 
 	// Expose this tab's sensitivity recompute so sync_preset_widgets() can
-	// re-evaluate the Places greying after a preset switch (the documented behavior). This also
+	// re-evaluate the Places greying after a preset switch (supported behavior). This also
 	// re-runs the "Show icons" forced-ON rule when a preset changes the sidebar
 	// position from another tab.
 	m_places_refresh_sensitivity = refresh_sensitivity;
@@ -171,7 +158,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 			if (m_programmatic_update)
 				return FALSE;
 			// Stored intent only; the switch re-renders on the next menu open
-			// when update_layout() reads the new value (the documented behavior, render-time).
+			// when update_layout() reads the new value (supported behavior, render-time).
 			m_settings->places_switch_show_icons = state;
 			m_plugin->refresh_layout();
 			return FALSE;
@@ -212,17 +199,5 @@ GtkWidget* SettingsDialog::init_places_tab()
 		{
 			m_settings->places_remember_last_mode = gtk_toggle_button_get_active(btn);
 		});
-	connect(shape_combo, "changed",
-		[this](GtkComboBox* combo)
-		{
-			if (m_programmatic_update)
-				return;
-			const gchar* val = gtk_combo_box_get_active_id(combo);
-			if (!val)
-				return;
-			m_settings->places_switch_button_shape = places_switch_shape_or_default(val);
-			m_plugin->refresh_layout();
-		});
-
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

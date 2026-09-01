@@ -17,6 +17,46 @@
 # Added: 2026-05-28
 leak:FcInit
 
+# FcValueSave — fontconfig retains copied pattern values in its process-wide
+# configuration while GTK/Pango construct font layouts. LSan reports those
+# values when a short-lived GTK test exits, although the allocations originate
+# entirely in the fontconfig/Pango stack.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-08-20
+leak:FcValueSave
+leak:FcConfigSetDefaultSubstitute
+leak:FcFontSetList
+leak:FcFontRenderPrepare
+leak:FcFontSetMatch
+leak:FcPatternBuild
+
+# pango_layout_get_size — some distro builds strip the internal fontconfig
+# frames that lead to the same process-wide font-pattern cache. Keep the
+# suppression at Pango's fontconfig-backed layout boundary rather than using
+# a library-wide rule.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-08-20
+leak:pango_layout_get_size
+
+# gtk_widget_get_preferred_height — the same cache allocations can pass
+# through GTK's preferred-size helper without a symbolized Pango frame on
+# stripped distro libraries. This remains scoped to the GTK boundary.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-08-20
+leak:gtk_widget_get_preferred_height
+
+# gtk_cell_renderer_get_preferred_width — short-lived GtkTreeView tests reach
+# the same fontconfig pattern cache while measuring text renderers. Ubuntu's
+# stripped fontconfig library leaves the allocation leaf symbolized only at
+# this GTK request boundary, so the lower-level rules above cannot match it.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-09-01
+leak:gtk_cell_renderer_get_preferred_width
+
 # atspi_get_a11y_bus — at-spi2 caches a single AT-SPI bus connection for the
 # whole process and intentionally never tears it down (a per-process
 # singleton). gtk_init_check() reaches it through the accessibility-bridge

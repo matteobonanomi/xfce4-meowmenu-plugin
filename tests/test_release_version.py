@@ -18,6 +18,21 @@ SPEC.loader.exec_module(NEWS_VERSION)
 
 
 class NewsVersionTest(unittest.TestCase):
+    def test_distribution_seeds_are_aligned_with_news(self):
+        news_version, _date = NEWS_VERSION.parse_top_entry(ROOT / "NEWS")
+        expected = NEWS_VERSION.native_versions(news_version)
+        control = (ROOT / "debian/changelog").read_text(encoding="utf-8")
+        spec = (ROOT / "dist/rpm/xfce4-meowmenu-plugin.spec").read_text(
+            encoding="utf-8"
+        )
+        pkgbuild = (ROOT / "dist/arch/PKGBUILD").read_text(encoding="utf-8")
+        self.assertIn(f"xfce4-meowmenu-plugin ({expected['debian']})", control)
+        self.assertIn(f"Version:        {expected['rpm']}", spec)
+        self.assertIn(f"_upstream_version={news_version}", pkgbuild)
+        self.assertIn(f"pkgver={expected['arch']}", pkgbuild)
+        self.assertIn("-Daccountsservice=disabled", pkgbuild)
+        self.assertIn("-Dgtk-layer-shell=disabled", pkgbuild)
+
     def test_release_candidate_mappings_are_version_independent(self):
         self.assertEqual(
             NEWS_VERSION.native_versions("2.4.1-rc12"),

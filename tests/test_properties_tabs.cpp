@@ -4,12 +4,12 @@
  * asserts the invariants the dialog must preserve:
  *   1. No duplication — each Xfconf key appears in exactly one row.
  *   2. No omission — every required key is on the grid.
- *   3. Exactly seven tabs in the known dictionary (General, User/Session,
+ *   3. Exactly seven tabs in the known dictionary (General, Session,
  *      Search Bar, Results View / app-grid, Sidebar, Places, Extras). The Places
  *      tab models the milestone-005 controls bound under the /places
  *      Xfconf prefix.
  *   4. Sane enable-when values — docked|fullscreen rows correspond to widgets
- *      whose live behaviour is driven by /layout-mode (the documented behavior); sibling sub-
+ *      whose live behaviour is driven by /layout-mode (supported behavior); sibling sub-
  *      enables (ProfileVisible, ViewModeIcons/List, SidebarLeftRight,
  *      PlacesFavouritesEnabled) must NOT claim layout-mode driving.
  *   5. Placement grid is complete and has no extra rows beyond the required
@@ -18,7 +18,7 @@
  * This is a pure-data test: it does not link against GTK or Xfconf. The
  * placement table mirrors what panel-plugin/settings-dialog.cpp consumes
  * when building the six init_*_tab() functions. Failures (1) or (2) block
- * merge per the no-loss guarantee (the documented behavior / the documented behavior).
+ * merge per the no-loss guarantee (supported behavior / supported behavior).
  */
 
 #include <cassert>
@@ -27,9 +27,9 @@
 #include <string>
 #include <vector>
 
-// the implementation step: the display-free synced-keys list (driven by sync_preset_widgets) MUST
+// runtime implementation: the display-free synced-keys list (driven by sync_preset_widgets) MUST
 // equal the governed-key set, so a preset switch leaves no governed control
-// stale (the documented behavior). Both lists live in the Settings-free preset-builtins.cpp,
+// stale (supported behavior). Both lists live in the Settings-free preset-builtins.cpp,
 // linked directly so this assertion needs no GTK display.
 #include "presets/preset.h"
 
@@ -39,7 +39,7 @@ namespace
 enum class Tab
 {
 	General,
-	UserSession,
+	Session,
 	SearchBar,
 	AppGrid,
 	Sidebar,
@@ -53,8 +53,8 @@ enum class EnableWhen
 	Docked,
 	Fullscreen,
 	// Sub-enables tied to a sibling key, not to /layout-mode:
-	SidebarLeftRight,        // category-show-name: greyed when sidebar-position ∈ {top, bottom}
-	ProfileVisible,          // profile-shape: greyed when profile-position == hidden
+	SidebarLeftRight,        // category-show-name: greyed for Horizontal
+	ProfileVisible,          // profile-shape: greyed when show-profile is off
 	ViewModeIcons,           // grid-density, launcher-icon-size: greyed when view-mode != icons
 	ViewModeList,            // launcher-show-description: greyed when view-mode != list
 	// /places-* sub-enables. The whole Places tab is page-level gated by
@@ -89,7 +89,7 @@ struct Row
 // The placement grid. Order is informational; the invariant checks are
 // order-independent.
 const Row kPlacementGrid[] = {
-	// General — column per contracts/general-tab-placement.md.
+	// General — column per the documented interface
 	{ "current-preset-id",         Tab::General,     EnableWhen::Always,     false, Column::C1 },
 	{ "button-title-visible",      Tab::General,     EnableWhen::Always,     false, Column::C1 },
 	{ "button-title",              Tab::General,     EnableWhen::Always,     false, Column::C1 },
@@ -106,22 +106,21 @@ const Row kPlacementGrid[] = {
 	{ "menu-opacity",              Tab::General,     EnableWhen::Always,     false, Column::C1 },
 	{ "stay-on-focus-out",         Tab::General,     EnableWhen::Always,     false, Column::C2 },
 
-	// User / Session — NOT relaid out into two columns; every keyed row spans
-	// the section (Full), left-aligned (the documented behavior).
-	{ "profile-position",          Tab::UserSession, EnableWhen::Always,         false, Column::Full },
-	{ "profile-shape",             Tab::UserSession, EnableWhen::ProfileVisible, false, Column::Full },
-	{ "commands-position",         Tab::UserSession, EnableWhen::Always,         false, Column::Full },
-	{ "confirm-session-command",   Tab::UserSession, EnableWhen::Always,         false, Column::Full },
+	// Session remains a single-column action panel.
+	{ "show-session",              Tab::Session, EnableWhen::Always, false, Column::Full },
+	{ "confirm-session-command",   Tab::Session, EnableWhen::Always, false, Column::Full },
 
-	// Search Bar — column per contracts/tab-placement.md.
+	// Search Bar owns primary-row position and Profile presentation.
 	{ "search-bar-position",       Tab::SearchBar,   EnableWhen::Always, false, Column::C1 },
+	{ "show-profile",              Tab::SearchBar,   EnableWhen::Always, false, Column::C2 },
+	{ "profile-shape",             Tab::SearchBar,   EnableWhen::ProfileVisible, false, Column::C2 },
 	{ "fuzzy-enabled",             Tab::SearchBar,   EnableWhen::Always, false, Column::C1 },
 	{ "fuzzy-threshold",           Tab::SearchBar,   EnableWhen::Always, false, Column::C2 },
 	{ "favorites-boost-enabled",   Tab::SearchBar,   EnableWhen::Always, false, Column::C1 },
 	{ "favorites-boost-level",     Tab::SearchBar,   EnableWhen::Always, false, Column::C2 },
 	{ "frecency-alpha",            Tab::SearchBar,   EnableWhen::Always, false, Column::Full },
 
-	// App Grid — column per contracts/tab-placement.md. view-mode (the icons/
+	// App Grid — column per the documented interface view-mode (the icons/
 	// list/tree button-box) keeps its unchanged whole-section layout, so it stays
 	// Full. The former app-box opacity control was removed (one menu-opacity now).
 	{ "view-mode",                 Tab::AppGrid,     EnableWhen::Always,        false, Column::Full },
@@ -132,7 +131,7 @@ const Row kPlacementGrid[] = {
 	{ "launcher-show-description", Tab::AppGrid,     EnableWhen::ViewModeList,  false, Column::C1 },
 	{ "transparent-grid",          Tab::AppGrid,     EnableWhen::ViewModeIcons, false, Column::C2 },
 
-	// Sidebar — column per contracts/tab-placement.md. The unchanged
+	// Sidebar — column per the documented interface The unchanged
 	// Default-category radio group spans the section (Full); the rest split across
 	// C1/C2. The former sidebar opacity control was removed (one menu-opacity now).
 	{ "category-show-name",        Tab::Sidebar,     EnableWhen::SidebarLeftRight, false, Column::C1 },
@@ -144,7 +143,7 @@ const Row kPlacementGrid[] = {
 	{ "recent-items-max",          Tab::Sidebar,     EnableWhen::Always,           false, Column::C1 },
 	{ "favorites-in-recent",       Tab::Sidebar,     EnableWhen::Always,           false, Column::C2 },
 
-	// Places (milestone 005). Controls bound by init_places_tab():
+	// Places (current behavior). Controls bound by init_places_tab():
 	//   /places/enabled                — top-level switch (Always within tab).
 	//   /places/history-enabled        — page-gated by /places/enabled.
 	//   /places/favourites-enabled     — page-gated by /places/enabled.
@@ -155,9 +154,9 @@ const Row kPlacementGrid[] = {
 	// are NOT on the placement grid — the first two are Xfconf-backed runtime
 	// state, and switch-show-icons is a dialog control the existing model does
 	// not key (its C2 placement is the visual contract, verified by the relayout
-	// and manually per the documented behavior, not by a headless column assertion). The test
+	// and manually per supported behavior, not by a headless column assertion). The test
 	// models the keyed dialog surface, not the full schema. Column per
-	// contracts/tab-placement.md.
+	// the documented interface
 	{ "places/enabled",              Tab::Places,      EnableWhen::Always,                  false, Column::C1 },
 	{ "places/history-enabled",      Tab::Places,      EnableWhen::PlacesEnabled,           false, Column::C1 },
 	{ "places/favourites-enabled",   Tab::Places,      EnableWhen::PlacesEnabled,           false, Column::C2 },
@@ -173,7 +172,7 @@ const Row kPlacementGrid[] = {
 	{ "calculator-max-decimal-places", Tab::Extras, EnableWhen::CalculatorEnabled, false, Column::C1 },
 };
 
-// Every Xfconf key documented in contracts/xfconf-keys.md that surfaces in
+// Every Xfconf key documented in the documented interface that surfaces in
 // the new dialog. Must be a superset of the placement grid's setting_ids.
 const char* const kRequiredKeys[] = {
 	"current-preset-id",
@@ -183,7 +182,7 @@ const char* const kRequiredKeys[] = {
 	"layout-mode", "panel-gap",
 	"menu-width", "menu-height", "corner-radius",
 	"menu-opacity", "stay-on-focus-out",
-	"profile-position", "profile-shape", "commands-position",
+	"show-profile", "profile-shape", "show-session",
 	"confirm-session-command",
 	"search-bar-position",
 	"fuzzy-enabled", "fuzzy-threshold",
@@ -282,7 +281,7 @@ static void test_sane_enable_when()
 	}
 }
 
-// Invariant 5 (the implementation step): the placement grid covers exactly the required keys and
+// Invariant 5 (runtime implementation): the placement grid covers exactly the required keys and
 // nothing more — guards against the table silently growing stale.
 static void test_placement_grid_complete_and_no_extras()
 {
@@ -304,9 +303,9 @@ static void test_placement_grid_complete_and_no_extras()
 }
 
 // Independent reference for the per-tab C1/C2/Full placement map, transcribed by
-// hand from contracts/general-tab-placement.md (General) and
-// contracts/tab-placement.md (Search Bar, Results View / app-grid, Sidebar,
-// Places, User/Session). Kept separate from kPlacementGrid so the assertion
+// hand from the documented interface (General) and
+// the documented interface (Search Bar, Results View / app-grid, Sidebar,
+// Places, Session). Kept separate from kPlacementGrid so the assertion
 // below is a genuine cross-check, not a tautology: a wrong column in the grid
 // (or here) fails the test.
 struct ColumnExpectation
@@ -332,15 +331,14 @@ const ColumnExpectation kColumnContract[] = {
 	{ "menu-opacity",              Column::C1 },
 	{ "stay-on-focus-out",         Column::C2 },
 
-	// User / Session — single column; every keyed row spans the section.
-	{ "profile-position",          Column::Full },
-	{ "profile-shape",             Column::Full },
-	{ "commands-position",         Column::Full },
+	// Session — single column; every keyed row spans the section.
+	{ "show-session",              Column::Full },
 	{ "confirm-session-command",   Column::Full },
 
-	// Search Bar — position C1; fuzzy switch C1 / threshold C2; boost switch C1 /
-	// level C2; recency-weight slider is whole-row (Full).
+	// Search Bar — primary position C1; Profile controls C2.
 	{ "search-bar-position",       Column::C1 },
+	{ "show-profile",              Column::C2 },
+	{ "profile-shape",             Column::C2 },
 	{ "fuzzy-enabled",             Column::C1 },
 	{ "fuzzy-threshold",           Column::C2 },
 	{ "favorites-boost-enabled",   Column::C1 },
@@ -386,8 +384,8 @@ constexpr size_t kColumnContractCount =
 
 // Invariant 6 (US-1 placement map): every keyed Properties control places into
 // the column the contract reference names, and the reference covers exactly the
-// keyed grid — neither table may drift ahead of the other (the documented behavior / the documented behavior…
-// the documented behavior). General keyed rows additionally must never be Full (only the keyless
+// keyed grid — neither table may drift ahead of the other (supported behavior / supported behavior…
+// supported behavior). General keyed rows additionally must never be Full (only the keyless
 // info-bar spans both halves there).
 static void test_columns_match_contract()
 {
@@ -421,7 +419,7 @@ static void test_columns_match_contract()
 				&& "column contract names a key absent from the placement grid");
 }
 
-// the implementation step: synced_keys() must cover exactly governed_keys() — order-independent.
+// runtime implementation: synced_keys() must cover exactly governed_keys() — order-independent.
 static void test_synced_keys_cover_governed_keys()
 {
 	std::set<std::string> governed(WhiskerMenu::governed_keys().begin(),

@@ -35,14 +35,14 @@ using namespace WhiskerMenu;
 /* init_sidebar_tab:
  *
  * Builds the Sidebar tab in the 003-properties-refactor 5-tab dictionary.
- * Sections (top-to-bottom, the documented behavior):
+ * Sections (top-to-bottom, supported behavior):
  *   1. Visuals      — show category names, icon size, sidebar opacity.
- *   2. Position     — sidebar position (left/right/hidden).
+ *   2. Position     — sidebar position (Left/Right/Horizontal).
  *   3. Behaviour    — hover-switch, sort categories, default category.
  *   4. Recently used — max items, include favorites.
  *
  * Sub-enable rule for category-show-name: greyed when sidebar-position
- * is not one of {left, right} (data-model E-6 §SidebarLeftRight).
+ * is not one of {left, right} (behavior table §SidebarLeftRight).
  *
  * Returns: a scrolled container ready to be packed into the dialog's stack.
  */
@@ -52,7 +52,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	gtk_container_set_border_width(GTK_CONTAINER(page), 12);
 
 	// =========================================================================
-	// 0. Enable sidebar (the documented behavior)
+	// 0. Enable sidebar (supported behavior)
 	// =========================================================================
 	// "Enable sidebar" OFF removes the category sidebar entirely; the
 	// Apps/Places switch relocates into the search-bar row. Bound to
@@ -69,7 +69,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	add_form_row(enable_grid, COLUMN_C1, 0, enable_sidebar_label, enable_sidebar_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(enable_sidebar_label), enable_sidebar_switch);
 
-	// Section frames greyed when the sidebar is disabled (the documented behavior). Populated
+	// Section frames greyed when the sidebar is disabled (supported behavior). Populated
 	// as each section frame is created below. Held in a shared_ptr so the
 	// sensitivity lambda (connected to signals that outlive this function)
 	// observes every frame appended after it is defined, not just the frames
@@ -77,7 +77,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	auto sidebar_section_frames = std::make_shared<std::vector<GtkWidget*>>();
 
 	// =========================================================================
-	// 1. Visuals section (the documented behavior)
+	// 1. Visuals section (supported behavior)
 	// =========================================================================
 	// Show category names C1 / icon size C2 share a row; the opacity slider
 	// spans the full section width below the grid (Full), packed into the
@@ -127,7 +127,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	// =========================================================================
-	// 2. Position section (the documented behavior) — combo in C1, C2 left empty.
+	// 2. Position section (supported behavior) — combo in C1, C2 left empty.
 	// =========================================================================
 	GtkWidget* pos_grid = make_two_column_section();
 	GtkWidget* pos_frame = make_aligned_frame(_("Position"), pos_grid);
@@ -138,17 +138,17 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	m_sidebar_position_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "left", _("Left"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "right", _("Right"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "top", _("Top"));
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo), "bottom", _("Bottom"));
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(m_sidebar_position_combo),
+			"horizontal", _("Horizontal"));
 	gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
 		static_cast<const gchar*>(m_settings->sidebar_position));
 	add_form_row(pos_grid, COLUMN_C1, 0, side_pos_label, m_sidebar_position_combo, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(side_pos_label), m_sidebar_position_combo);
 
 	// Sensitivity: when the sidebar is disabled every section is greyed except
-	// the Default category section (the documented behavior). When enabled, "Show category
-	// names" is greyed for Top/Bottom because the strip is icon-only (the documented behavior);
-	// greying never changes the stored value (the documented behavior).
+	// the Default category section (supported behavior). When enabled, "Show category
+	// names" is greyed for Horizontal because the strip is icon-only;
+	// greying never changes the stored value (supported behavior).
 	auto apply_sidebar_sub_enable = [this, sidebar_section_frames]()
 	{
 		const bool enabled = m_settings->sidebar_enabled;
@@ -161,7 +161,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	};
 
 	// Expose this tab's sub-enable recompute so sync_preset_widgets() can refresh
-	// the Sidebar greying after a preset switch (the documented behavior).
+	// the Sidebar greying after a preset switch (supported behavior).
 	m_sidebar_apply_sub_enable = apply_sidebar_sub_enable;
 
 	connect(enable_sidebar_switch, "state-set",
@@ -171,6 +171,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 				return FALSE;
 			m_settings->sidebar_enabled = state;
 			apply_sidebar_sub_enable();
+			if (m_places_refresh_sensitivity)
+				m_places_refresh_sensitivity();
 			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 			return FALSE;
@@ -186,12 +188,14 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 				return;
 			m_settings->sidebar_position = val;
 			apply_sidebar_sub_enable();
+			if (m_places_refresh_sensitivity)
+				m_places_refresh_sensitivity();
 			m_plugin->refresh_layout();
 			refresh_customized_indicator();
 		});
 
 	// =========================================================================
-	// 3. Behaviour section (the documented behavior) — hover C1 / sort C2.
+	// 3. Behaviour section (supported behavior) — hover C1 / sort C2.
 	// =========================================================================
 	GtkWidget* behavior_grid = make_two_column_section();
 	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), behavior_grid);
@@ -289,7 +293,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	// =========================================================================
-	// 4. Recently used section (the documented behavior) — max items C1 / include favorites C2.
+	// 4. Recently used section (supported behavior) — max items C1 / include favorites C2.
 	// =========================================================================
 	GtkWidget* recent_grid = make_two_column_section();
 	GtkWidget* recent_frame = make_aligned_frame(_("Recently used"), recent_grid);

@@ -1,4 +1,4 @@
-# Classic preset — traditional Whisker Menu layout.
+# Classic preset — traditional compact launcher layout.
 # Docked, no rounded corners, app list, sidebar on the right.
 # Settings use the same Xfconf keys as the graphical Preferences window.
 
@@ -6,7 +6,7 @@
 Name=Classic
 SchemaVersion=1
 Id=classic
-Description=Traditional Whisker Menu layout. Compact window, sidebar on the right, apps as a list.
+Description=Traditional compact layout with the sidebar on the right and applications in a list.
 
 [Settings]
 layout-mode=docked
@@ -20,18 +20,15 @@ view-mode-default=list
 sidebar-position=right
 sidebar-enabled=true
 category-show-name=true
-position-categories-horizontal=false
 search-bar-position=top
-profile-position=top-left
-commands-position=top-right
-unified-bar=false
+show-profile=true
+show-session=true
 menu-opacity=100
 hover-switch-category=false
 stay-on-focus-out=false
 default-category=favorites
 places-enabled=false
 places-show-icons=false
-places-switch-button-shape=gtk-theme
 calculator-engine=none
 calculator-result-font-size=-1
 calculator-max-decimal-places=4

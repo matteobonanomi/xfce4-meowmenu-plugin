@@ -20,8 +20,39 @@
 
 #include <gdk/gdk.h>
 
+#include <cstddef>
+
 namespace WhiskerMenu
 {
+
+enum class ThemePaletteSource
+{
+	ThemePair,
+	DerivedFromChrome,
+	DerivedFromContent,
+	DarkFallback
+};
+
+struct ThemeSurfacePalette
+{
+	GdkRGBA fullscreen;
+	GdkRGBA chrome;
+	GdkRGBA content;
+	ThemePaletteSource source;
+	bool distinguishable;
+};
+
+enum class ThemeMetricsSource
+{
+	ThemeMedian,
+	SafeFallback
+};
+
+struct ThemeLayoutMetrics
+{
+	int region_gap_px;
+	ThemeMetricsSource source;
+};
 
 /* meow_relative_luminance:
  * @colour: sRGB components in [0,1]; alpha ignored. Must not be NULL.
@@ -49,6 +80,60 @@ double meow_relative_luminance(const GdkRGBA* colour);
  */
 GdkRGBA meow_choose_background_fallback(gboolean have_fg, const GdkRGBA* fg,
                                         gboolean prefer_dark);
+
+/* meow_resolve_surface_palette:
+ * @have_background: whether @background contains a usable GTK background role.
+ * @background: theme chrome candidate; may be NULL when unavailable.
+ * @have_base: whether @base contains a usable GTK content/base role.
+ * @base: theme content candidate; may be NULL when unavailable.
+ * @fallback: established single-surface fallback for the active theme.
+ *
+ * Keeps a distinguishable GTK pair when possible and derives a bounded
+ * counterpart when the theme exposes only one useful role. Complete lookup
+ * failure returns two stable dark neutrals while Full Screen keeps @fallback.
+ *
+ * Returns: an opaque, distinguishable palette by value.
+ */
+ThemeSurfacePalette meow_resolve_surface_palette(bool have_background,
+		const GdkRGBA* background, bool have_base, const GdkRGBA* base,
+		const GdkRGBA& fallback);
+
+/* meow_resolve_layout_metrics:
+ * @padding_values: normal-state GTK padding sides in logical pixels.
+ * @count: number of values; negative entries are ignored.
+ *
+ * Reduces usable Search and Session padding to one bounded median rhythm.
+ * An empty usable sample receives the established six-pixel safe fallback.
+ *
+ * Returns: the resolved region gap and its source by value.
+ */
+ThemeLayoutMetrics meow_resolve_layout_metrics(const int* padding_values,
+		std::size_t count);
+
+/* meow_resolve_boundary_gap:
+ * @first_visible: whether the first neighboring region is allocated.
+ * @second_visible: whether the second neighboring region is allocated.
+ * @region_gap_px: resolved theme rhythm.
+ *
+ * Gives one owner the complete boundary gap and removes it when either region
+ * is hidden, preventing doubled and orphaned spacing.
+ *
+ * Returns: @region_gap_px when both regions are visible, otherwise zero.
+ */
+int meow_resolve_boundary_gap(bool first_visible, bool second_visible,
+		int region_gap_px);
+
+/* meow_style_refresh_should_schedule:
+ * @source_id: current queued idle source, or zero when none is queued.
+ * @refresh_running: true while the refresh transaction is applying CSS/layout.
+ *
+ * Coalesces style callbacks and blocks reentrant callbacks caused by loading
+ * the application CSS provider.
+ *
+ * Returns: true only when one new idle refresh may be queued.
+ */
+bool meow_style_refresh_should_schedule(unsigned int source_id,
+		bool refresh_running);
 
 } // namespace WhiskerMenu
 

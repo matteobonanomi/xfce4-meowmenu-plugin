@@ -25,9 +25,8 @@
  *   - The control is one integer percentage in [0, 100] (the /menu-opacity key).
  *   - alpha = clamp(value, 0, 100) / 100.0, so 0 -> 0.0 and 100 -> 1.0,
  *     strictly monotonic with no internal floor or ceiling (no dead zone).
- *   - That one alpha paints the single .meowmenu window-shell background; every
- *     region inside it is transparent, so the whole menu reads at exactly one
- *     alpha and nothing compounds.
+ *   - That one alpha paints the baseline and source-replaced semantic surfaces.
+ *     Foreground widgets stay opaque and adjacent surfaces never compound.
  *
  * This translation unit deliberately includes no GTK headers so the contract
  * can be unit-tested headlessly, mirroring the sidebar-layout / window-size-clamp
@@ -57,6 +56,17 @@ double meowmenu_opacity_alpha(int value);
  * Returns: true iff the resolved alpha is strictly less than 1.0.
  */
 bool meowmenu_background_translucent(int menu_opacity);
+
+/* meowmenu_effective_background_alpha:
+ * @menu_opacity: the configured percentage.
+ * @composited: whether an RGBA compositor path is available.
+ *
+ * Applies the solid fallback used without compositing while preserving the
+ * configured alpha on the composited paint path.
+ *
+ * Returns: 1.0 without compositing, otherwise the clamped configured alpha.
+ */
+double meowmenu_effective_background_alpha(int menu_opacity, bool composited);
 
 /* Buffer size that is always sufficient to hold the textual form produced by
  * meowmenu_format_css_alpha (a fixed-3-decimal rendering such as "0.600",

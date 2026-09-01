@@ -7,8 +7,12 @@ nav_order: 5
 # Support and compatibility
 
 This page records testing evidence and compatibility boundaries independently
-from package availability. Upgrades from earlier MeowMenu releases are
-intended to preserve configuration.
+from package availability.
+
+Before final 1.0.0, including every 0.x release and RC, compatibility and
+configuration preservation are not guaranteed in any way. From final 1.0.0
+onward, configuration preservation is guaranteed. Back up panel configuration
+before testing a pre-1.0 release.
 
 ## Distro testing
 
@@ -47,26 +51,17 @@ maintainer or community testing marks.
 MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
 quality target.
 
-| Compatibility path | Automated evidence | Boundary |
-|---|---|---|
-| Xfce 4.16 libraries | Source configure, build, and tests with Exo | Supported source stack |
-| Xfce 4.18 libraries | Source configure, build, and tests with Exo | Supported source stack |
-| Xfce 4.20 libraries | Source configure, build, and tests with Exo | Primary quality target |
-| libxfce4ui 4.21 or newer | Successor source cell and staged install without Exo | Dependency-transition boundary only |
-
-The 4.16, 4.18, and 4.20 rows are explicit on-demand source-stack evidence,
-not routine distro or live desktop results. The libxfce4ui 4.21-or-newer path
-verifies the dependency transition without Exo; it is not a separately
-live-validated Xfce 4.21 desktop and does not claim compatibility with every
-future library release.
+Routine automated builds cover Ubuntu 26.04, Debian 13, and Fedora 44. Live
+validation remains focused on Xfce 4.20 with X11 on `x86_64`/`amd64`; other
+supported Xfce versions do not have a documented live result here.
 
 ## Sessions and architectures
 
-X11 on `x86_64`/`amd64` is the primary live-quality path. Wayland is supported
-with a graceful positioning fallback but remains unverified live. Published
-packages cover `x86_64`/`amd64`; other architectures have no documented
-package or live result. Source compilation does not establish a session,
-architecture, or live desktop result.
+X11 on `x86_64`/`amd64` is the only officially supported live-quality path.
+Wayland is experimentally supported with a graceful positioning fallback but
+remains unverified live. Published packages cover `x86_64`/`amd64`; other
+architectures have no documented package or live result. Source compilation
+does not establish a session, architecture, or live desktop result.
 
 See [known limitations](known-limitations), [translation status](translations),
 and the [testing guide](testing) for the exact boundaries. Share a result using

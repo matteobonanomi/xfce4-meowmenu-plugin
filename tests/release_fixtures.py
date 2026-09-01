@@ -131,3 +131,29 @@ def write_checksums(path: Path, payloads):
     manifest = path / "SHA256SUMS"
     manifest.write_text("".join(lines), encoding="utf-8")
     return manifest
+
+
+def candidate_identity(release=ReleaseFixture(), commit="a" * 40):
+    """Return the normalized identity prepared by release automation."""
+    return {
+        "version": release.version,
+        "tag": release.tag,
+        "peeled_commit": commit,
+        "title": f"MeowMenu {release.version}",
+        "body": release.news_body,
+        "prerelease": False,
+    }
+
+
+def remote_release(release=ReleaseFixture(), commit="a" * 40, *, draft=True,
+                   assets=()):
+    """Return GitHub-shaped metadata for a matching release fixture."""
+    return {
+        "tag_name": release.tag,
+        "peeledCommit": commit,
+        "name": f"MeowMenu {release.version}",
+        "body": release.news_body,
+        "draft": draft,
+        "prerelease": False,
+        "assets": list(assets),
+    }

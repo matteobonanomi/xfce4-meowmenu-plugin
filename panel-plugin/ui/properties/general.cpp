@@ -234,7 +234,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 					// save_current_as_user_preset set /current-preset-id to the new
 					// uuid and re-enumerated, so the rebuilt combo's recompute lands
 					// on the new row (settings match it → not diverged), selected and
-					// named, with no dialog reopen (the documented behavior, the documented behavior).
+					// named, with no dialog reopen (supported behavior, supported behavior).
 					refresh_preset_combo();
 					m_plugin->reload_menu();
 				}
@@ -321,7 +321,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				// preset was the active one (the only deletable case from this UI,
 				// since Delete is enabled only for the applied custom). Apply Modern
 				// as the fallback BEFORE rebuilding the combo so the recompute lands
-				// directly on Modern instead of flashing "Unsaved custom" (the documented behavior).
+				// directly on Modern instead of flashing "Unsaved custom" (supported behavior).
 				delete_user_preset(uuid, *m_settings);
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_plugin->reload_menu();
@@ -513,6 +513,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 				reset_settings_to_defaults(m_settings->channel, m_plugin->get_property_base());
 
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
+				m_settings->schema_version = 13;
+				m_settings->initialized = true;
 				m_plugin->reload_menu();
 				sync_preset_widgets();
 				refresh_preset_combo("modern");
@@ -523,7 +525,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 	// Populate the preset combo. refresh_preset_combo() rebuilds the rows and then
 	// the divergence recompute selects the applied preset's row (or the italic
 	// "Unsaved custom" placeholder when the live settings already diverge on
-	// open) and sets the description — the field is never blank (the documented behavior).
+	// open) and sets the description — the field is never blank (supported behavior).
 	refresh_preset_combo();
 
 	connect(m_preset_combo, "changed",
@@ -542,9 +544,9 @@ GtkWidget* SettingsDialog::init_general_tab()
 			gtk_widget_set_tooltip_text(m_preset_help, _(preset->description.c_str()));
 			// Applying a built-in preset only writes Settings fields and
 			// current_preset_id; it never touches any /presets/<uuid>/ entry, so
-			// custom presets stay immutable and distinct (the documented behavior). Re-running
+			// custom presets stay immutable and distinct (supported behavior). Re-running
 			// the apply chain for the active id acts as "reset to this preset"
-			// (the documented behavior) — the "Reset preset" button drives the same path for the
+			// (supported behavior) — the "Reset preset" button drives the same path for the
 			// already-selected entry, which the combo's "changed" signal cannot.
 			apply_preset(*preset, *m_settings);
 			m_last_applied_preset_id = preset->id;
@@ -646,7 +648,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 	add_form_row(panel_grid, COLUMN_C1, 2, nullptr, m_button_single_row, false, nullptr);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_button_single_row),
 		static_cast<bool>(m_settings->button_single_row));
-	// Single-row is meaningful only for icon-only buttons (the documented behavior §Panel plugin).
+	// Single-row is meaningful only for icon-only buttons (supported behavior §Panel plugin).
 	gtk_widget_set_sensitive(m_button_single_row,
 		static_cast<bool>(m_settings->button_icon_visible)
 		&& !static_cast<bool>(m_settings->button_title_visible));
@@ -821,11 +823,11 @@ GtkWidget* SettingsDialog::init_general_tab()
 			m_settings->stay_on_focus_out = gtk_toggle_button_get_active(button);
 		});
 
-	// Layout-mode-driven live sensitivity (the documented behavior). Each control and its label
+	// Layout-mode-driven live sensitivity (supported behavior). Each control and its label
 	// register the same LayoutControl so they grey together; the pure
 	// control_enabled() matrix decides each state per mode. Panel gap and corner
-	// radius — previously always enabled — are now governed here too (the documented behavior greys
-	// both in Full-Screen; the documented behavior greys the gap in Centered).
+	// radius — previously always enabled — are now governed here too (supported behavior greys
+	// both in Full-Screen; supported behavior greys the gap in Centered).
 	m_layout_controls.push_back({m_menu_width,         WhiskerMenu::LayoutControl::MenuWidth});
 	m_layout_controls.push_back({width_label,          WhiskerMenu::LayoutControl::MenuWidth});
 	m_layout_controls.push_back({m_menu_height,        WhiskerMenu::LayoutControl::MenuHeight});

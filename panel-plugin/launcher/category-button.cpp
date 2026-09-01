@@ -120,8 +120,8 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 			return GDK_EVENT_PROPAGATE;
 		});
 
-	// NOTE: along-axis category navigation (mid-list moves, Home/End and
-	// wrap-around) is owned by Window::on_key_press_event, which consumes the
+	// NOTE: along-axis category navigation is owned by the Window dispatcher,
+	// which consumes the
 	// event before GTK's default radio-group key navigation can auto-activate
 	// the next radio. No per-button key handler is needed here; adding one would
 	// re-introduce the double-move / double-activation this fix removes.
@@ -169,18 +169,31 @@ CategoryButton::~CategoryButton()
 
 void CategoryButton::reload_icon_size()
 {
-	int size = m_settings->category_icon_size.get_size();
-	gtk_image_set_pixel_size(GTK_IMAGE(m_icon), size);
-	gtk_widget_set_visible(m_icon, size > 1);
+	const int size = m_settings->category_icon_size.get_size();
+	reload_icon_size(size, size);
+}
+
+//-----------------------------------------------------------------------------
+
+void CategoryButton::reload_icon_size(int render_size, int slot_size)
+{
+	const int bounded_slot = slot_size > 1 ? slot_size : 1;
+	const int bounded_render = render_size > bounded_slot
+			? bounded_slot : render_size;
+	gtk_image_set_pixel_size(GTK_IMAGE(m_icon), bounded_render);
+	gtk_widget_set_size_request(m_icon,
+			bounded_slot > 1 ? bounded_slot : -1,
+			bounded_slot > 1 ? bounded_slot : -1);
+	gtk_widget_set_visible(m_icon, bounded_render > 1);
 
 	// NOTE: schema v2 — categories are rendered icon-only whenever the sidebar is
-	// laid out horizontally (sidebar-position ∈ {top, bottom}); the legacy
+	// laid out horizontally (sidebar-position = horizontal); the legacy
 	// /position-categories-horizontal key is migrated away (see migrate_schema).
 	// The single shared decision (the documented behavior) ensures Apps category buttons and
 	// Places section buttons — all CategoryButtons reloaded on the same trigger —
 	// show or hide labels identically in both modes.
-	const bool sidebar_horizontal = (g_strcmp0(m_settings->sidebar_position, "top") == 0
-			|| g_strcmp0(m_settings->sidebar_position, "bottom") == 0);
+	const bool sidebar_horizontal = meow_parse_sidebar_position(
+			m_settings->sidebar_position) == SidebarPosition::Horizontal;
 	if (meow_category_label_visible(m_settings->category_show_name, sidebar_horizontal))
 	{
 		gtk_widget_set_has_tooltip(GTK_WIDGET(m_button), false);

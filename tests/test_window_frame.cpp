@@ -1,7 +1,7 @@
 /*
  * Headless tests for the pure window-frame helpers declared in
- * panel-plugin/core/window-frame.h. No GTK/GDK types are used; only the plain
- * int radius and the two bool render-mode flags the helpers consume.
+ * panel-plugin/core/window-frame.h. The tests use only plain geometry, Cairo,
+ * bool render flags, and the CSS contract so this target remains display-free.
  *
  * Pins the radius clamp range [0,24] (contract C2/C7) and the composited
  * rounded-border predicate (contract C3/C4/C7): the single rounded stroke is
@@ -10,10 +10,13 @@
 
 #include "core/window-frame.h"
 
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 
 using meow::meowmenu_clamp_corner_radius;
+using meow::meowmenu_frameless_launcher_css;
+using meow::meowmenu_list_selection_css;
 using meow::meowmenu_frame_draws_border;
 
 namespace
@@ -64,6 +67,29 @@ void border_predicate_truth_table()
 	CHECK(meowmenu_frame_draws_border(/*is_fullscreen=*/true,  /*supports_alpha=*/false) == false);
 }
 
+// The scrollbar container owns the theme-drawn edge beside the trough. Both
+// nodes must be neutralised, while the slider remains entirely theme-owned.
+void frameless_launcher_css_targets_scrollbar_chrome()
+{
+	const char* css = meowmenu_frameless_launcher_css();
+	CHECK(std::strstr(css,
+			"scrolledwindow.launchers-pane scrollbar,") != nullptr);
+	CHECK(std::strstr(css,
+			"scrolledwindow.launchers-pane scrollbar trough") != nullptr);
+	CHECK(std::strstr(css, "scrollbar slider") == nullptr);
+	CHECK(std::strstr(css, "border: none") != nullptr);
+	CHECK(std::strstr(css, "background-color: transparent") != nullptr);
+}
+
+void list_selection_uses_theme_tokens()
+{
+	const char* css = meowmenu_list_selection_css();
+	CHECK(std::strstr(css, "treeview.launchers.view:selected") != nullptr);
+	CHECK(std::strstr(css, "@theme_selected_bg_color") != nullptr);
+	CHECK(std::strstr(css, "@theme_selected_fg_color") != nullptr);
+	CHECK(std::strstr(css, "iconview") == nullptr);
+}
+
 } // namespace
 
 int main()
@@ -71,6 +97,8 @@ int main()
 	radius_clamped_to_range();
 	radius_clamp_is_monotonic();
 	border_predicate_truth_table();
+	frameless_launcher_css_targets_scrollbar_chrome();
+	list_selection_uses_theme_tokens();
 
 	if (g_failures != 0)
 	{

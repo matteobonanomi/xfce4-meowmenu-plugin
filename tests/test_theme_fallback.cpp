@@ -10,9 +10,9 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 
-using WhiskerMenu::meow_choose_background_fallback;
-using WhiskerMenu::meow_relative_luminance;
+using namespace WhiskerMenu;
 
 namespace
 {
@@ -96,6 +96,72 @@ void returns_exact_constants()
 	CHECK(l.red == 0.961 && l.green == 0.961 && l.blue == 0.961 && l.alpha == 1.0);
 }
 
+void surface_palette_resolution()
+{
+	const GdkRGBA fallback = make_rgb(0.12, 0.12, 0.12);
+	const GdkRGBA dark = make_rgb(0.1, 0.1, 0.1);
+	const GdkRGBA light = make_rgb(0.9, 0.9, 0.9);
+	ThemeSurfacePalette palette = meow_resolve_surface_palette(
+			true, &dark, true, &light, fallback);
+	CHECK(palette.source == ThemePaletteSource::ThemePair);
+	CHECK(rgba_equal(palette.chrome, dark));
+	CHECK(rgba_equal(palette.content, light));
+	CHECK(palette.distinguishable);
+
+	palette = meow_resolve_surface_palette(true, &dark, true, &dark, fallback);
+	CHECK(palette.source == ThemePaletteSource::DerivedFromChrome);
+	CHECK(palette.distinguishable);
+	CHECK(meow_relative_luminance(&palette.content)
+			> meow_relative_luminance(&palette.chrome));
+
+	palette = meow_resolve_surface_palette(false, nullptr, true, &light, fallback);
+	CHECK(palette.source == ThemePaletteSource::DerivedFromContent);
+	CHECK(palette.distinguishable);
+	CHECK(meow_relative_luminance(&palette.chrome)
+			< meow_relative_luminance(&palette.content));
+
+	palette = meow_resolve_surface_palette(false, nullptr, false, nullptr, fallback);
+	CHECK(palette.source == ThemePaletteSource::DarkFallback);
+	CHECK(palette.distinguishable);
+	CHECK(rgba_equal(palette.fullscreen, fallback));
+
+	GdkRGBA invalid = make_rgb(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0);
+	palette = meow_resolve_surface_palette(true, &invalid, false, nullptr, fallback);
+	CHECK(palette.source == ThemePaletteSource::DarkFallback);
+}
+
+void layout_metric_resolution()
+{
+	CHECK(meow_resolve_layout_metrics(nullptr, 0).region_gap_px == 6);
+	CHECK(meow_resolve_layout_metrics(nullptr, 0).source
+			== ThemeMetricsSource::SafeFallback);
+
+	const int compact[] = { 2, 3, 4, 3 };
+	CHECK(meow_resolve_layout_metrics(compact, 4).region_gap_px == 3);
+	const int ordinary[] = { 5, 6, 7, 8 };
+	CHECK(meow_resolve_layout_metrics(ordinary, 4).region_gap_px == 7);
+	const int spacious[] = { 12, 14, 16, 15 };
+	CHECK(meow_resolve_layout_metrics(spacious, 4).region_gap_px == 15);
+	const int boundaries[] = { 0, 1, 16, 17 };
+	CHECK(meow_resolve_layout_metrics(boundaries, 1).region_gap_px == 2);
+	CHECK(meow_resolve_layout_metrics(boundaries + 2, 2).region_gap_px == 16);
+	const int with_invalid[] = { -1, -20, 8 };
+	CHECK(meow_resolve_layout_metrics(with_invalid, 3).region_gap_px == 8);
+	CHECK(meow_resolve_boundary_gap(true, true, 8) == 8);
+	CHECK(meow_resolve_boundary_gap(true, false, 8) == 0);
+	CHECK(meow_resolve_boundary_gap(false, true, 8) == 0);
+	CHECK(meow_resolve_boundary_gap(false, false, 8) == 0);
+	CHECK(meow_resolve_boundary_gap(true, true, -2) == 0);
+}
+
+void style_refresh_coalescing()
+{
+	CHECK(meow_style_refresh_should_schedule(0, false));
+	CHECK(!meow_style_refresh_should_schedule(1, false));
+	CHECK(!meow_style_refresh_should_schedule(0, true));
+	CHECK(!meow_style_refresh_should_schedule(1, true));
+}
+
 } // namespace
 
 int main()
@@ -106,6 +172,9 @@ int main()
 	no_fg_no_prefer_gives_dark();
 	luminance_ordering();
 	returns_exact_constants();
+	surface_palette_resolution();
+	layout_metric_resolution();
+	style_refresh_coalescing();
 
 	if (g_failures != 0)
 	{

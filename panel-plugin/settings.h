@@ -44,29 +44,6 @@ enum class ReloadIntent
 
 ReloadIntent classify_reload_intent(const gchar* property);
 
-constexpr const char* PLACES_SWITCH_SHAPE_GTK_THEME = "gtk-theme";
-constexpr const char* PLACES_SWITCH_SHAPE_ROUNDED = "rounded";
-
-inline bool places_switch_shape_is_valid(const char* value)
-{
-	return (g_strcmp0(value, PLACES_SWITCH_SHAPE_GTK_THEME) == 0)
-			|| (g_strcmp0(value, PLACES_SWITCH_SHAPE_ROUNDED) == 0);
-}
-
-inline const char* places_switch_shape_or_default(const char* value)
-{
-	return places_switch_shape_is_valid(value)
-			? value
-			: PLACES_SWITCH_SHAPE_GTK_THEME;
-}
-
-inline bool places_switch_shape_is_rounded(const char* value)
-{
-	return g_strcmp0(places_switch_shape_or_default(value),
-			PLACES_SWITCH_SHAPE_ROUNDED) == 0;
-}
-
-
 // Boolean setting
 class Boolean
 {
@@ -380,19 +357,12 @@ public:
 	Integer recent_items_max;
 	Boolean favorites_in_recent;
 
-	Boolean position_profile_alternate;
-	Boolean position_search_alternate;
-	Boolean position_commands_alternate;
-	Boolean unified_bar;
-	Boolean position_categories_alternate;
-	Boolean position_categories_horizontal;
 	Boolean stay_on_focus_out;
 
 	enum ProfileShape
 	{
 		ProfileRound = 0,
-		ProfileSquare,
-		ProfileHidden
+		ProfileSquare
 	};
 	Integer profile_shape;
 
@@ -437,7 +407,7 @@ public:
 	Integer menu_height;
 	Integer menu_opacity;
 
-	// Layout Presets (milestone 002) — schema versioning & preset tracking
+	// Layout Presets (current behavior) — schema versioning & preset tracking
 	Integer schema_version;
 	String  current_preset_id;
 
@@ -459,13 +429,13 @@ public:
 
 	// Layout Presets — element positions
 	String sidebar_position;
-	// Whether the category sidebar is shown at all (the documented behavior). OFF relocates
+	// Whether the category sidebar is shown at all (supported behavior). OFF relocates
 	// the Apps/Places switch into the search-bar row; the legacy "hidden"
 	// sidebar-position migrates to this being false.
 	Boolean sidebar_enabled;
 	String search_bar_position;
-	String profile_position;
-	String commands_position;
+	Boolean show_profile;
+	Boolean show_session;
 
 	// Layout Presets — grid (FullScreen mode)
 	String  grid_density;
@@ -473,7 +443,7 @@ public:
 	// Layout Presets — window mode
 	String layout_mode;
 
-	// Places mode (milestone 005)
+	// Places mode (current behavior)
 	Boolean places_enabled;
 	Boolean places_history_enabled;
 	Boolean places_favourites_enabled;
@@ -483,12 +453,9 @@ public:
 	String  places_last_mode;
 	StringList places_favourites;
 	// Render the Apps/Places switch as two themed icon buttons instead of text
-	// (the documented behavior). Stored value is the user's intent; layouts that force
+	// (supported behavior). Stored value is the user's intent; layouts that force
 	// icon-only mode never overwrite it.
 	Boolean places_switch_show_icons;
-	// Outer shape of the Apps/Places switch. Unknown stored values fall back to
-	// PLACES_SWITCH_SHAPE_GTK_THEME in prevent_invalid().
-	String places_switch_button_shape;
 
 	// Optional calculator settings. Engine is a closed identifier; numeric
 	// values reject malformed/out-of-range persisted input to safe defaults.

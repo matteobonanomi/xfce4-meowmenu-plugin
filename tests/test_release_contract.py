@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,9 +14,11 @@ from release_fixtures import (
     PUBLIC_VERSION,
     ReleaseFixture,
     TAG,
+    candidate_identity,
     create_git_repository,
     create_payloads,
     create_tag,
+    remote_release,
     write_checksums,
 )
 
@@ -42,6 +45,16 @@ ARTIFACTS_SPEC.loader.exec_module(ARTIFACTS)
 
 
 class ReleaseContractTest(unittest.TestCase):
+    def test_current_news_describes_current_composition(self):
+        news = (ROOT / "NEWS").read_text(encoding="utf-8")
+        current = news.split("\n\n", maxsplit=1)[0]
+        for required in (
+            "simplify Docked, Centered, and Full Screen composition",
+            "use Modern by default",
+        ):
+            self.assertIn(required, current)
+        self.assertNotRegex(current, r"(?i)\breset\b|retired layout|legacy key")
+
     def test_release_workflow_has_one_shared_tag_entry_path(self):
         workflow = (
             ROOT / ".github/workflows/packaging.yml"
@@ -203,14 +216,14 @@ class ReleaseContractTest(unittest.TestCase):
     def test_release_presentation_is_derived_from_version(self):
         self.assertEqual(
             VALIDATE.release_presentation("2.1.0-rc7"),
-            {"prerelease": True, "latest": False},
+            {"prerelease": False},
         )
         self.assertEqual(
             VALIDATE.release_presentation("2.1.0"),
-            {"prerelease": False, "latest": True},
+            {"prerelease": False},
         )
         VALIDATE.validate_release_state(
-            {"draft": False, "prerelease": True, "latest": False},
+            {"draft": False, "prerelease": False, "latest": False},
             "2.1.0-rc7",
         )
         VALIDATE.validate_release_state(
@@ -218,33 +231,183 @@ class ReleaseContractTest(unittest.TestCase):
             "2.1.0",
         )
 
-    def test_release_publication_is_one_exact_inventory_transaction(self):
+    def test_remote_lookup_distinguishes_absence_from_unavailability(self):
+        self.assertEqual(
+            VALIDATE.classify_lookup(200, 0),
+            VALIDATE.LookupState.FOUND,
+        )
+        self.assertEqual(
+            VALIDATE.classify_lookup(404, 1),
+            VALIDATE.LookupState.ABSENT,
+        )
+        for status, command_exit in ((0, 1), (401, 1), (403, 1), (429, 1), (500, 1)):
+            with self.subTest(status=status), self.assertRaisesRegex(
+                VALIDATE.ReleaseValidationError,
+                "lookup unavailable",
+            ):
+                VALIDATE.classify_lookup(status, command_exit)
+
+    def test_included_api_response_preserves_status_and_json(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            response = Path(temporary) / "response"
+            response.write_bytes(
+                b"HTTP/2 200 OK\r\ncontent-type: application/json\r\n\r\n"
+                b'{"tag_name":"v1.0.0"}\n'
+            )
+            parsed = VALIDATE.parse_api_response(response, 0)
+            self.assertEqual(parsed["lookup"], "found")
+            self.assertEqual(parsed["release"]["tag_name"], "v1.0.0")
+            response.write_bytes(b"HTTP/2 404 Not Found\r\n\r\n{}\n")
+            self.assertEqual(
+                VALIDATE.parse_api_response(response, 1),
+                {"lookup": "absent"},
+            )
+
+    def test_asset_comparison_distinguishes_all_retry_states(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            local_path = root / "local"
+            remote_path = root / "remote"
+            local_path.mkdir()
+            remote_path.mkdir()
+            (local_path / "one.pkg").write_bytes(b"one")
+            (local_path / "two.pkg").write_bytes(b"two")
+            local = ARTIFACTS.local_inventory(local_path)
+
+            comparison = ARTIFACTS.compare_inventories(
+                local, ARTIFACTS.local_inventory(remote_path)
+            )
+            self.assertEqual(comparison.state, VALIDATE.InventoryState.MISSING)
+
+            shutil.copy2(local_path / "one.pkg", remote_path / "one.pkg")
+            comparison = ARTIFACTS.compare_inventories(
+                local, ARTIFACTS.local_inventory(remote_path)
+            )
+            self.assertEqual(comparison.state, VALIDATE.InventoryState.INCOMPLETE)
+            self.assertEqual(comparison.missing, ("two.pkg",))
+
+            shutil.copy2(local_path / "two.pkg", remote_path / "two.pkg")
+            comparison = ARTIFACTS.compare_inventories(
+                local, ARTIFACTS.local_inventory(remote_path)
+            )
+            self.assertEqual(comparison.state, VALIDATE.InventoryState.IDENTICAL)
+
+            (remote_path / "one.pkg").write_bytes(b"eno")
+            comparison = ARTIFACTS.compare_inventories(
+                local, ARTIFACTS.local_inventory(remote_path)
+            )
+            self.assertEqual(comparison.state, VALIDATE.InventoryState.CONFLICT)
+            self.assertEqual(comparison.conflicts, ("one.pkg",))
+
+            (remote_path / "extra.pkg").write_bytes(b"extra")
+            comparison = ARTIFACTS.compare_inventories(
+                local, ARTIFACTS.local_inventory(remote_path)
+            )
+            self.assertEqual(comparison.state, VALIDATE.InventoryState.EXTRA)
+
+    def test_remote_metadata_requires_checksum_verification(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            local_path = Path(temporary)
+            (local_path / "one.pkg").write_bytes(b"one")
+            local = ARTIFACTS.local_inventory(local_path)
+            remote = ARTIFACTS.remote_inventory(
+                {
+                    "assets": [{
+                        "name": "one.pkg",
+                        "size": 3,
+                        "url": "https://api.github.invalid/assets/1",
+                    }]
+                }
+            )
+            comparison = ARTIFACTS.compare_inventory_metadata(local, remote)
+            self.assertEqual(comparison.state, VALIDATE.InventoryState.INCOMPLETE)
+
+    def test_release_decision_matrix_is_fail_closed(self):
+        candidate = VALIDATE.CandidateIdentity.from_mapping(candidate_identity())
+        cases = (
+            (
+                VALIDATE.LookupState.ABSENT,
+                None,
+                VALIDATE.InventoryState.MISSING,
+                VALIDATE.PublicationAction.CREATE_DRAFT,
+            ),
+            (
+                VALIDATE.LookupState.FOUND,
+                VALIDATE.RemoteRelease.from_mapping(remote_release(draft=True)),
+                VALIDATE.InventoryState.INCOMPLETE,
+                VALIDATE.PublicationAction.RESUME_DRAFT,
+            ),
+            (
+                VALIDATE.LookupState.FOUND,
+                VALIDATE.RemoteRelease.from_mapping(remote_release(draft=True)),
+                VALIDATE.InventoryState.IDENTICAL,
+                VALIDATE.PublicationAction.PUBLISH_DRAFT,
+            ),
+            (
+                VALIDATE.LookupState.FOUND,
+                VALIDATE.RemoteRelease.from_mapping(remote_release(draft=False)),
+                VALIDATE.InventoryState.IDENTICAL,
+                VALIDATE.PublicationAction.SKIP_PUBLIC,
+            ),
+            (
+                VALIDATE.LookupState.FOUND,
+                VALIDATE.RemoteRelease.from_mapping(remote_release(draft=False)),
+                VALIDATE.InventoryState.INCOMPLETE,
+                VALIDATE.PublicationAction.FAIL,
+            ),
+            (
+                VALIDATE.LookupState.FOUND,
+                VALIDATE.RemoteRelease.from_mapping(remote_release(draft=True)),
+                VALIDATE.InventoryState.CONFLICT,
+                VALIDATE.PublicationAction.FAIL,
+            ),
+        )
+        for lookup, remote, inventory, expected in cases:
+            with self.subTest(expected=expected.value):
+                decision = VALIDATE.decide_publication(
+                    candidate,
+                    lookup,
+                    inventory,
+                    ("missing.pkg",),
+                    remote,
+                )
+                self.assertEqual(decision.action, expected.value)
+
+        conflict = remote_release(draft=True)
+        conflict["name"] = "Other title"
+        decision = VALIDATE.decide_publication(
+            candidate,
+            VALIDATE.LookupState.FOUND,
+            VALIDATE.InventoryState.IDENTICAL,
+            remote=VALIDATE.RemoteRelease.from_mapping(conflict),
+        )
+        self.assertEqual(decision.action, VALIDATE.PublicationAction.FAIL.value)
+        self.assertIn("title", decision.reason)
+
+    def test_release_publication_stages_verifies_and_then_publishes(self):
         workflow_path = ROOT / ".github/workflows/packaging.yml"
         workflow = workflow_path.read_text(encoding="utf-8")
         release_job = workflow.split("  publish-release:", maxsplit=1)[1]
-        publication = workflow.split(
-            "- name: Publish one complete release",
-            maxsplit=1,
-        )[1].split(
-            "- name: Download and verify the published assets",
-            maxsplit=1,
-        )[0]
         self.assertIn("GH_REPO: ${{ github.repository }}", release_job)
         self.assertIn("- name: Checkout release tools", release_job)
         self.assertIn("ref: ${{ github.workflow_sha }}", release_job)
         self.assertIn("path: release-tools", release_job)
-        self.assertIn(
-            'gh release create "$RELEASE_TAG" package-set/artifacts/*',
-            publication,
-        )
-        self.assertIn("--verify-tag", publication)
-        self.assertIn("--notes-file package-set/release-notes.md", publication)
-        self.assertIn("--prerelease --latest=false", publication)
+        self.assertIn("Validate candidate and local inventory", release_job)
+        self.assertIn("Compare remote release before mutation", release_job)
+        self.assertIn("Stage only missing assets", release_job)
+        self.assertIn("Verify complete staged inventory", release_job)
+        self.assertIn("Publish verified draft", release_job)
+        self.assertIn("Verify public release", release_job)
+        self.assertIn("Summarize release run", release_job)
+        self.assertIn('gh release create "$RELEASE_TAG" --draft', release_job)
+        self.assertIn('gh release upload "$RELEASE_TAG"', release_job)
+        self.assertIn('gh release edit "$RELEASE_TAG" --draft=false', release_job)
+        self.assertIn("artifacts.py verify", release_job)
+        self.assertIn("validate_release.py decide", release_job)
+        self.assertIn("if: always()", release_job)
         self.assertEqual(workflow.count("gh release create"), 1)
-        self.assertNotIn("gh release upload", workflow)
         self.assertNotIn("--clobber", workflow)
-        self.assertNotIn("gh release edit", workflow)
-        self.assertNotIn("--draft", publication)
+        self.assertNotIn("gh release delete", workflow)
 
         owners = []
         for candidate in (ROOT / ".github/workflows").glob("*.yml"):
@@ -457,26 +620,22 @@ class ReleaseContractTest(unittest.TestCase):
         )
         self.assertLess(
             workflow.index("Authorize existing-tag recovery"),
-            workflow.index('gh release delete "$RELEASE_TAG" --yes'),
+            workflow.index("Compare remote release before mutation"),
         )
 
-    def test_recovery_refuses_public_replacement_and_cleans_only_stale_drafts(self):
+    def test_recovery_never_deletes_or_replaces_remote_assets(self):
         workflow = (
             ROOT / ".github/workflows/packaging.yml"
         ).read_text(encoding="utf-8")
-        publication = workflow.split(
-            "- name: Publish one complete release",
-            maxsplit=1,
-        )[1].split(
-            "- name: Download and verify the published assets",
-            maxsplit=1,
-        )[0]
-        self.assertIn("--json isDraft", publication)
-        self.assertIn('test "$(jq -r .isDraft /tmp/release.json)" = true', publication)
-        self.assertIn('gh release delete "$RELEASE_TAG" --yes', publication)
-        self.assertNotIn("--cleanup-tag", publication)
-        self.assertIn("A public release already exists", publication)
+        publication = workflow.split("  publish-release:", maxsplit=1)[1]
+        self.assertIn("classify-response", publication)
+        self.assertIn("peeledCommit", publication)
+        self.assertIn("preflight", publication)
+        self.assertIn("missing_assets", publication)
+        self.assertIn("skip-public", publication)
+        self.assertNotIn("release delete", publication)
         self.assertNotIn("delete-asset", publication)
+        self.assertNotIn("--clobber", publication)
 
     def test_release_surfaces_exclude_retired_paths_and_internal_wording(self):
         surfaces = (
@@ -499,7 +658,6 @@ class ReleaseContractTest(unittest.TestCase):
             "manual_evidence",
             "inputs.publish",
             "authorization:",
-            "gh release upload",
             "--clobber",
             "draft-first",
             "0.9.0~rc2",

@@ -99,7 +99,7 @@ Resizer::Resizer(Edge edge, Window* window) :
 	m_pressed(false)
 {
 	m_drawing = gtk_drawing_area_new();
-	gtk_widget_set_size_request(m_drawing, 6, 6);
+	gtk_widget_set_size_request(m_drawing, HandleSize, HandleSize);
 	gtk_widget_add_events(m_drawing, GDK_BUTTON_PRESS_MASK
 			| GDK_BUTTON_RELEASE_MASK
 			| GDK_POINTER_MOTION_MASK

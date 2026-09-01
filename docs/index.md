@@ -13,6 +13,11 @@ MeowMenu is a native Xfce panel launcher. It adds saved presets, Places and
 file search, flexible layouts, drag-and-drop actions, deep visual
 customization, and an optional inline Calculator.
 
+Before final 1.0.0, 0.x releases are experimental feature releases. Available
+RCs are the more stable channel for testing; choose the newest 0.x release
+when it is newer and you want newer features. See the [installation guide](installation)
+for the current configuration-preservation boundary.
+
 ## Start here
 
 - [Install MeowMenu](installation)
@@ -24,9 +29,9 @@ customization, and an optional inline Calculator.
 - [Run the testing checklist](testing)
 - [Review translation status](translations)
 
-Distribution testing, package availability, and Xfce compatibility answer
-different questions. The support page records their boundaries separately
-without implying unverified Wayland or architecture coverage.
+X11 is the only officially supported environment. Wayland is experimentally
+supported with documented fallback behavior. The support page records
+distribution testing, package availability, and compatibility separately.
 
 For feedback, use an
 [ordinary bug report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=bug-report.yml)

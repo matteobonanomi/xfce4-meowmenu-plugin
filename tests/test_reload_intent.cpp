@@ -15,9 +15,13 @@ static void expect_intent(const char* property, ReloadIntent expected)
 
 int main()
 {
-	expect_intent("/profile-position", ReloadIntent::Layout);
-	expect_intent("/commands-position", ReloadIntent::Layout);
+	expect_intent("/profile-position", ReloadIntent::None);
+	expect_intent("/commands-position", ReloadIntent::None);
+	expect_intent("/unified-bar", ReloadIntent::None);
+	expect_intent("/position-search-alternate", ReloadIntent::None);
 	expect_intent("/search-bar-position", ReloadIntent::Layout);
+	expect_intent("/show-profile", ReloadIntent::Layout);
+	expect_intent("/show-session", ReloadIntent::Layout);
 	expect_intent("/sidebar-position", ReloadIntent::Layout);
 	expect_intent("/sidebar-enabled", ReloadIntent::Layout);
 	expect_intent("/category-show-name", ReloadIntent::Layout);
@@ -29,7 +33,7 @@ int main()
 	expect_intent("/panel-gap", ReloadIntent::Layout);
 	expect_intent("/places/enabled", ReloadIntent::Layout);
 	expect_intent("/places/switch-show-icons", ReloadIntent::Layout);
-	expect_intent("/places/switch-button-shape", ReloadIntent::Layout);
+	expect_intent("/places/switch-button-shape", ReloadIntent::None);
 	expect_intent("/transparent-grid", ReloadIntent::Layout);
 	expect_intent("/show-command-lockscreen", ReloadIntent::Layout);
 

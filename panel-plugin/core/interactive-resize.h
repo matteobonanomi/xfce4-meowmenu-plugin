@@ -112,10 +112,11 @@ struct Anchor
 struct ReducerState
 {
 	Direction direction;
-	Rectangle current;
-	PointerSample last_pointer;
+	Rectangle press_rectangle;
+	PointerSample press_pointer;
 	Bounds bounds;
 	Anchor anchor;
+	Rectangle last_displayed;
 };
 
 struct SavedNormalSize
@@ -154,18 +155,20 @@ Rectangle place_docked(const Rectangle& base,
 		PanelEdge edge,
 		int gap);
 
-/* reduce:
- * @state: active geometry and pointer baseline; updated in place.
- * @sample: next pointer position in the transaction's coordinate space.
+/* calculate_candidate:
+ * @state: frozen press geometry, bounds, anchor, and displayed fallback.
+ * @sample: pointer position in the transaction's coordinate space.
+ * @candidate: receives the requested or last-displayed rectangle; never NULL.
  *
- * Applies one pointer sample independently on both selected axes. Pointer
- * baselines advance even when a size is clamped, which discards overshoot and
- * makes the first reverse movement effective. Wide intermediates are clamped
- * before they are converted back to window geometry.
+ * Calculates one absolute request from the press snapshot. If any selected
+ * axis is outside its captured bounds, the whole request is rejected and the
+ * last displayed rectangle is returned without clamping or partial progress.
  *
- * Returns: the accepted absolute rectangle stored in @state.
+ * Returns: true only when the complete requested rectangle is valid.
  */
-Rectangle reduce(ReducerState& state, const PointerSample& sample);
+bool calculate_candidate(const ReducerState& state,
+		const PointerSample& sample,
+		Rectangle* candidate);
 
 class Transaction
 {
@@ -199,6 +202,24 @@ public:
 	 * Returns: false for an inactive or mismatched-coordinate event.
 	 */
 	bool motion(const PointerSample& sample, Rectangle* accepted);
+
+	/* take_pending:
+	 * @pending: receives the newest valid request, when present; never NULL.
+	 *
+	 * Releases ownership of the current frame delivery. A valid request is
+	 * consumed once; a newer motion may then acquire the next frame.
+	 *
+	 * Returns: true when @pending contains geometry to display.
+	 */
+	bool take_pending(Rectangle* pending);
+
+	/* mark_displayed:
+	 * @rectangle: geometry successfully applied by the Window.
+	 *
+	 * Advances the rollback point only after the caller has displayed the
+	 * rectangle. Candidate calculation and queued delivery never call this.
+	 */
+	void mark_displayed(const Rectangle& rectangle);
 
 	/* complete:
 	 * @release: final event-time pointer sample, consumed before completion.
@@ -244,7 +265,7 @@ public:
 
 	const Rectangle& rectangle() const
 	{
-		return m_reducer.current;
+		return m_geometry.last_displayed;
 	}
 
 	const Rectangle& pre_drag_rectangle() const
@@ -252,15 +273,36 @@ public:
 		return m_pre_drag;
 	}
 
+	bool frame_pending() const
+	{
+		return m_frame_pending;
+	}
+
+	bool has_pending_geometry() const
+	{
+		return m_has_pending_geometry;
+	}
+
+	bool completion_valid() const
+	{
+		return m_completion_valid;
+	}
+
 private:
 	Lifecycle m_lifecycle;
 	BackendPolicy m_policy;
-	ReducerState m_reducer;
+	ReducerState m_geometry;
+	PointerSample m_latest_input;
+	Rectangle m_pending_geometry;
+	Rectangle m_terminal_rectangle;
 	Rectangle m_pre_drag;
 	SavedNormalSize m_saved_before;
 	SavedNormalSize m_saved_after;
 	DisplaySignature m_display;
 	bool m_normal_presentation;
+	bool m_has_pending_geometry;
+	bool m_frame_pending;
+	bool m_completion_valid;
 };
 
 } // namespace InteractiveResize

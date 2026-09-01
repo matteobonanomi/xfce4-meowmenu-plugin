@@ -118,7 +118,7 @@ void delete_user_preset(const std::string& uuid, Settings& settings);
 // user presets under /presets/<uuid>/, which are preserved.
 //
 // @channel: the plugin's Xfconf channel; may be anchored on a property base.
-// @property_base: that channel's property base (e.g. "/plugins/meowmenu-N"),
+// @property_base: that channel's property base (e.g. "/plugins/plugin-N"),
 //   or "" for a base-less channel.
 //
 // xfconf_channel_get_properties() returns FULL paths that include the channel

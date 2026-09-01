@@ -30,6 +30,8 @@ class Window;
 class Resizer
 {
 public:
+	static constexpr int HandleSize = 6;
+
 	enum Edge
 	{
 		TopLeft = 0,

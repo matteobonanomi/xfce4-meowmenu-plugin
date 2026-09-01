@@ -8,7 +8,7 @@
  */
 
 #include "ui/switch-icons.h"
-#include "settings.h"
+#include "launcher/command.h"
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -78,9 +78,20 @@ GtkIconTheme* make_theme(const char* root)
 
 int main()
 {
+	// The Session role remains the source metric. Selector glyphs use a small
+	// canvas compensation because Apps/Places artwork fills more of the nominal
+	// icon square than the symbolic Session artwork beside it.
+	CHECK(MEOWMENU_SESSION_BUTTON_ICON_SIZE == GTK_ICON_SIZE_LARGE_TOOLBAR);
+	CHECK(meow_selector_session_icon_px(-1) == -1);
+	CHECK(meow_selector_session_icon_px(0) == -1);
+	CHECK(meow_selector_session_icon_px(16) == 13);
+	CHECK(meow_selector_session_icon_px(20) == 16);
+	CHECK(meow_selector_session_icon_px(24) == 19);
+	CHECK(meow_selector_session_icon_px(32) == 26);
+
 	// GtkIconTheme lookups work without a display; gtk_init_check just primes
 	// any global state and stays headless-safe if no display is present.
-	gtk_init_check(nullptr, nullptr);
+	const bool have_display = gtk_init_check(nullptr, nullptr);
 
 	gchar* root = g_dir_make_tmp("meow-switch-icons-XXXXXX", nullptr);
 	if (!root)
@@ -137,17 +148,46 @@ int main()
 		CHECK(places_text.tooltip_text == nullptr);
 	}
 
-	// Switch-shape storage domain: only gtk-theme and rounded are meaningful;
-	// unknown values fall back to the theme-native shape.
-	CHECK(places_switch_shape_is_valid(PLACES_SWITCH_SHAPE_GTK_THEME));
-	CHECK(places_switch_shape_is_valid(PLACES_SWITCH_SHAPE_ROUNDED));
-	CHECK(!places_switch_shape_is_valid("pill"));
-	CHECK(g_strcmp0(places_switch_shape_or_default(nullptr),
-			PLACES_SWITCH_SHAPE_GTK_THEME) == 0);
-	CHECK(g_strcmp0(places_switch_shape_or_default("pill"),
-			PLACES_SWITCH_SHAPE_GTK_THEME) == 0);
-	CHECK(!places_switch_shape_is_rounded(PLACES_SWITCH_SHAPE_GTK_THEME));
-	CHECK(places_switch_shape_is_rounded(PLACES_SWITCH_SHAPE_ROUNDED));
+	if (have_display)
+	{
+		GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		GtkToggleButton* apps = GTK_TOGGLE_BUTTON(
+				gtk_toggle_button_new_with_label("Applications"));
+		GtkToggleButton* places = GTK_TOGGLE_BUTTON(
+				gtk_toggle_button_new_with_label("Places"));
+		gtk_button_set_relief(GTK_BUTTON(apps), GTK_RELIEF_NONE);
+		gtk_button_set_relief(GTK_BUTTON(places), GTK_RELIEF_NONE);
+		gtk_toggle_button_set_active(apps, TRUE);
+		atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(apps)),
+				"Applications");
+		atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(places)),
+				"Places");
+		gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(apps), true, true, 0);
+		gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(places), true, true, 0);
+		CHECK(gtk_button_get_relief(GTK_BUTTON(apps)) == GTK_RELIEF_NONE);
+		CHECK(gtk_toggle_button_get_active(apps));
+		CHECK(!gtk_toggle_button_get_active(places));
+		CHECK(g_strcmp0(atk_object_get_name(
+				gtk_widget_get_accessible(GTK_WIDGET(apps))),
+				"Applications") == 0);
+		gtk_widget_set_state_flags(GTK_WIDGET(places),
+				static_cast<GtkStateFlags>(
+						GTK_STATE_FLAG_PRELIGHT | GTK_STATE_FLAG_FOCUSED), FALSE);
+		CHECK(gtk_widget_get_state_flags(GTK_WIDGET(places))
+				& GTK_STATE_FLAG_PRELIGHT);
+		CHECK(gtk_widget_get_state_flags(GTK_WIDGET(places))
+				& GTK_STATE_FLAG_FOCUSED);
+		gtk_toggle_button_set_active(apps, FALSE);
+		gtk_toggle_button_set_active(places, TRUE);
+		CHECK(!gtk_toggle_button_get_active(apps));
+		CHECK(gtk_toggle_button_get_active(places));
+		GtkRequisition minimum = {};
+		GtkRequisition natural = {};
+		gtk_widget_get_preferred_size(GTK_WIDGET(apps), &minimum, &natural);
+		CHECK(natural.height >= minimum.height);
+		CHECK(natural.width >= minimum.width);
+		gtk_widget_destroy(box);
+	}
 
 	// Clean up the synthetic theme tree (best effort).
 	gchar* rm = g_strdup_printf("rm -rf '%s'", root);

@@ -18,7 +18,7 @@
 #ifndef WHISKERMENU_SETTINGS_DIALOG_H
 #define WHISKERMENU_SETTINGS_DIALOG_H
 
-#include "core/user-session-layout.h"
+#include "core/layout-mode.h"
 
 #include <functional>
 #include <string>
@@ -81,7 +81,7 @@ private:
 	void build_search_bar_aliases_section(GtkBox* page);
 	void build_search_bar_actions_section(GtkBox* page);
 
-	// Layout-mode-driven live sensitivity (the documented behavior / data-model E-4).
+	// Layout-mode-driven live sensitivity (supported behavior / behavior table).
 	// The five matrix controls (width/height/gap/corner-radius/full-screen
 	// opacity) register a (widget, LayoutControl) pair in m_layout_controls;
 	// apply_layout_mode_sensitivity() drives them through the pure
@@ -96,35 +96,6 @@ private:
 	std::vector<GtkWidget*> m_layout_enable_when_docked;
 	std::vector<GtkWidget*> m_layout_enable_when_fullscreen;
 	gulong m_layout_mode_slot = 0;
-
-	// Unified-bar (spec 004) — live sensitivity & tooltip rules in
-	// contracts/settings-dialog.md. Updated whenever /layout-mode or any
-	// of /search-bar-position, /profile-position, /commands-position changes.
-	GtkWidget* m_unified_bar = nullptr;
-	gulong m_unified_bar_slot = 0;
-	void apply_unified_bar_sensitivity();
-
-	class UserSessionTransactionGuard;
-
-	// User/Session coupling (feature 027) — per-row greying of the Profile and
-	// Commands position combos plus reflecting any persisted auto-snap, driven
-	// by the shared normalize_user_session() helper. Refreshed whenever
-	// /layout-mode, /search-bar-position, /profile-position or /commands-position
-	// changes. The combo widget itself disambiguates Profile from Commands.
-	gulong m_user_session_coupling_slot = 0;
-	bool m_user_session_transaction_active = false;
-	bool m_user_session_defer_coupling = false;
-	bool m_user_session_defer_unified_bar = false;
-	void apply_user_session_coupling();
-	void apply_user_session_selection(bool profile_combo,
-			const char* requested_position);
-	void apply_user_session_combo_sensitivity(GtkCellLayout* layout,
-			GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter);
-	// GtkCellLayoutDataFunc trampoline: forwards to the member above (a static
-	// member can reach the private combo/settings state the C callback needs).
-	static void on_user_session_cell_data(GtkCellLayout* layout,
-			GtkCellRenderer* cell, GtkTreeModel* model, GtkTreeIter* iter,
-			gpointer data);
 
 private:
 	Settings* const m_settings;
@@ -179,23 +150,23 @@ private:
 	// Dialog-wide "programmatic update in progress" guard. Set for the whole
 	// sync_preset_widgets() body (and the combo rebuild) so every widget signal
 	// handler early-returns before writing Settings — the cascade of set_active
-	// calls during a preset switch cannot write a divergent value back (the documented behavior).
+	// calls during a preset switch cannot write a divergent value back (supported behavior).
 	bool m_programmatic_update = false;
 
 	// Last preset id applied via the combo. Tracked so re-applying the active
-	// preset behaves as "reset to this preset" (the documented behavior).
+	// preset behaves as "reset to this preset" (supported behavior).
 	std::string m_last_applied_preset_id;
 
 	// Live sensitivity recompute hooks owned by the Places / Sidebar tab
 	// builders. Invoked at the end of sync_preset_widgets() so a preset switch
 	// refreshes every dependent control's enabled/greyed state across all tabs
-	// without a dialog reopen (the documented behavior).
+	// without a dialog reopen (supported behavior).
 	std::function<void()> m_places_refresh_sensitivity;
 	std::function<void()> m_sidebar_apply_sub_enable;
 
 	// Switches owned by the Places / Sidebar tabs, driven during preset sync so
 	// the "Enable Places" and "Enable sidebar" controls follow the active preset
-	// (the documented behavior).
+	// (supported behavior).
 	GtkWidget* m_places_enabled_switch = nullptr;
 	GtkWidget* m_enable_sidebar_switch = nullptr;
 
@@ -203,23 +174,23 @@ private:
 	// menu_width/menu_height updates (e.g. drag-resize) into the spin buttons.
 	gulong m_size_change_slot = 0;
 
-	// Appearance customization (the implementation step)
+	// Appearance customization (runtime implementation)
 	GtkWidget* m_corner_radius = nullptr;
 	GtkWidget* m_menu_opacity = nullptr;
 	GtkWidget* m_sidebar_position_combo = nullptr;
 	GtkWidget* m_search_bar_position_combo = nullptr;
-	GtkWidget* m_profile_position_combo = nullptr;
-	GtkWidget* m_commands_position_combo = nullptr;
+	GtkWidget* m_show_profile = nullptr;
+	GtkWidget* m_show_session = nullptr;
 
-	// Behavior layout (the implementation step)
+	// Behavior layout (runtime implementation)
 	GtkWidget* m_panel_gap = nullptr;
 	GtkWidget* m_layout_mode_combo = nullptr;
 	GtkWidget* m_grid_density_combo = nullptr;
 	GtkWidget* m_grid_section = nullptr;
 
 	// Layout
-	GtkWidget* m_position_categories_horizontal = nullptr;
 	GtkWidget* m_profile_shape = nullptr;
+	GtkWidget* m_profile_shape_label = nullptr;
 	GtkWidget* m_menu_width = nullptr;
 	GtkWidget* m_menu_height = nullptr;
 
@@ -234,11 +205,10 @@ private:
 	GtkWidget* m_icon_button = nullptr;
 	GtkWidget* m_button_single_row = nullptr;
 
-	// Places mode (feature 020) — Apps/Places switch "Show icons" toggle.
+	// Places mode (sidebar behavior) — Apps/Places switch "Show icons" toggle.
 	// Held for preset sync and for the forced-ON greying applied when the
 	// sidebar is on Top/Bottom or disabled.
 	GtkWidget* m_places_switch_show_icons = nullptr;
-	GtkWidget* m_places_switch_button_shape = nullptr;
 	GtkWidget* m_calculator_engine = nullptr;
 	GtkWidget* m_calculator_result_font_size = nullptr;
 	GtkWidget* m_calculator_max_decimal_places = nullptr;

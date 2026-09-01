@@ -12,6 +12,36 @@ TEXT_SUFFIXES = {
     "", ".c", ".cc", ".cpp", ".h", ".in", ".md", ".py", ".sh",
     ".xml", ".yml", ".yaml", ".po", ".pot",
 }
+VERSION_RE = re.compile(r"\d+\.\d+\.\d+(?:-rc\d+)?")
+TOP_NEWS_RE = re.compile(
+    r"^\s*(?P<version>\d+\.\d+\.\d+(?:-rc\d+)?)\s+"
+    r"\(\d{4}-\d{2}-\d{2}\)\s*$"
+)
+CURRENT_VERSION_FILES = (
+    "debian/changelog",
+    "dist/rpm/xfce4-meowmenu-plugin.spec",
+    "dist/arch/PKGBUILD",
+    ".github/SECURITY.md",
+    ".github/ISSUE_TEMPLATE/bug-report.yml",
+    ".github/ISSUE_TEMPLATE/compatibility-report.yml",
+    "data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml",
+)
+CURRENT_GUIDANCE_FILES = (
+    "README.md",
+    "RELEASING.md",
+    ".github/SECURITY.md",
+    ".github/ISSUE_TEMPLATE/bug-report.yml",
+    ".github/ISSUE_TEMPLATE/compatibility-report.yml",
+    "docs",
+    "dist/arch/README.md",
+    "build-aux/arch/README.md",
+    "dev/docs/ci.md",
+)
+RETIRED_GUIDANCE_RE = re.compile(
+    r"(?i)one-time reset|resets exactly once|reset each pre-1\.0|"
+    r"legacy[- ]key|sidebar-position\s*=\s*(?:top|bottom)|"
+    r"retired (?:layout|sidebar|grid)"
+)
 SELF_EXCLUDES = {
     "build-aux/repository-presentation.py",
     "tests/test_repository_presentation.py",
@@ -35,6 +65,7 @@ FALLBACK_EXCLUDED_DIRS = {
     "venv",
 }
 FALLBACK_EXCLUDED_FILES = {".codex", "AGENTS.md", "CLAUDE.md"}
+MAINTAINER_MARKDOWN = {"dev/docs/ci.md"}
 
 
 def fallback_repository_files(root: Path):
@@ -79,16 +110,127 @@ def repository_files(root: Path):
         result = None
 
     if result is not None and result.returncode == 0:
-        for raw in result.stdout.split(b"\0"):
-            if not raw:
-                continue
-            relative = raw.decode("utf-8")
+        tracked = {
+            raw.decode("utf-8") for raw in result.stdout.split(b"\0") if raw
+        }
+        tracked.update(
+            relative for relative in MAINTAINER_MARKDOWN
+            if (root / relative).is_file()
+        )
+        for relative in sorted(tracked):
             path = root / relative
             if path.is_file() and path.suffix in TEXT_SUFFIXES:
                 yield relative, path
         return
 
-    yield from fallback_repository_files(root)
+    discovered = dict(fallback_repository_files(root))
+    for relative in MAINTAINER_MARKDOWN:
+        path = root / relative
+        if path.is_file():
+            discovered[relative] = path
+    yield from ((relative, discovered[relative])
+                for relative in sorted(discovered))
+
+
+def current_version(root: Path):
+    """Read the canonical version from the first NEWS entry."""
+    news = root / "NEWS"
+    for line in news.read_text(encoding="utf-8").splitlines():
+        match = TOP_NEWS_RE.match(line)
+        if match:
+            return match.group("version")
+        if line.strip():
+            break
+    return None
+
+
+def native_versions(version):
+    """Return the package-native spellings for a NEWS version."""
+    if "-rc" not in version:
+        return {
+            "debian": f"{version}-1",
+            "rpm": version,
+            "arch": version,
+        }
+    base, number = version.rsplit("-rc", maxsplit=1)
+    return {
+        "debian": f"{base}~rc{number}-1",
+        "rpm": f"{base}~rc{number}",
+        "arch": f"{base}rc{number}",
+    }
+
+
+def current_state_violations(root: Path):
+    """Check current package metadata and public guidance without scanning history."""
+    errors = []
+    version = current_version(root)
+    if version is None:
+        return ["NEWS: malformed top release entry"]
+    native = native_versions(version)
+
+    patterns = {
+        "debian/changelog": (r"^xfce4-meowmenu-plugin \(([^)]+)\)", "debian"),
+        "dist/rpm/xfce4-meowmenu-plugin.spec": (
+            r"^Version:\s+(\S+)",
+            "rpm",
+        ),
+        "dist/arch/PKGBUILD": (r"^pkgver=(\S+)", "arch"),
+    }
+    for relative, (pattern, key) in patterns.items():
+        path = root / relative
+        if not path.is_file():
+            continue
+        match = re.search(pattern, path.read_text(encoding="utf-8"), re.MULTILINE)
+        if match is None or match.group(1) != native[key]:
+            found = match.group(1) if match else "missing"
+            errors.append(
+                f"{relative}: current version {found} does not match NEWS {native[key]}"
+            )
+
+    rpm = root / "dist/rpm/xfce4-meowmenu-plugin.spec"
+    if rpm.is_file():
+        rpm_match = re.search(
+            r"^%global upstream_version\s+(\S+)",
+            rpm.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        if rpm_match is None or rpm_match.group(1) != version:
+            errors.append(f"{rpm}: upstream version does not match NEWS {version}")
+
+    arch = root / "dist/arch/PKGBUILD"
+    if arch.is_file():
+        arch_match = re.search(
+            r"^_upstream_version=(\S+)",
+            arch.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        if arch_match is None or arch_match.group(1) != version:
+            errors.append(f"{arch}: upstream version does not match NEWS {version}")
+
+    for relative in CURRENT_VERSION_FILES:
+        path = root / relative
+        if not path.is_file():
+            continue
+        content = path.read_text(encoding="utf-8")
+        if relative.endswith(".xml"):
+            values = re.findall(r'<release\s+version="([^"]+)"', content)
+        else:
+            values = VERSION_RE.findall(content)
+        for value in values:
+            if value not in {version, "1.0.0"}:
+                errors.append(f"{relative}: stale current version {value}")
+
+    for relative in CURRENT_GUIDANCE_FILES:
+        paths = [root / relative] if "." in Path(relative).name else sorted(
+            (root / relative).glob("*.md")
+        )
+        for path in paths:
+            if not path.is_file():
+                continue
+            match = RETIRED_GUIDANCE_RE.search(path.read_text(encoding="utf-8"))
+            if match:
+                errors.append(f"{path.relative_to(root)}: retired current guidance: {match.group(0)}")
+    return errors
 
 
 def violations(root: Path):
@@ -140,6 +282,8 @@ def violations(root: Path):
             )
             if not allowed:
                 errors.append(f"{relative}: assistance disclosure is not allowed here")
+
+    errors.extend(current_state_violations(root))
 
     readme = (root / "README.md").read_text(encoding="utf-8")
     disclosure = (

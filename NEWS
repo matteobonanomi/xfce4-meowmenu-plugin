@@ -1,3 +1,24 @@
+0.8.1 (2026-09-01)
+=====
+- Keyboard: introduce unified physical arrow navigation across Search, results, grids, sidebars, Places, and session controls
+- Keyboard: route typing and Backspace to Search, improve Calculator and Places focus behavior, and remove Ctrl+Tab focus traversal
+- UI: simplify Docked, Centered, and Full Screen composition and Properties controls with adaptive, preset-aware layouts that remain visibly distinct
+- UI: redesign Docked and Centered layouts with theme-derived surfaces, dividers, spacing, and responsive control placement
+- UI: keep Full Screen's established composition while making Applications/Places placement deterministic
+- Presets: substantially refresh Modern, align all built-in presets with the supported layout model, and use Modern by default
+- Properties: simplify layout, sidebar, profile, session, and Places settings by removing obsolete options
+- Places: present Applications and Places as a flat selector with clearer selection and consistent sizing
+- Bugfix: correct horizontal, left, and right sidebar positioning, centering, and relayout behavior
+- Bugfix: keep Applications/Places and session controls aligned and consistently sized across layouts
+- Bugfix: fix grid sizing, resizing glitches, clipping, and overflow during layout changes and scrolling
+- Bugfix: ensure Favorites, Recently Used, and All Applications appear correctly on the first opening
+- Bugfix: preserve the configured default page after initial loading
+- Bugfix: preserve favourites and other durable settings during upgrades, including temporarily unavailable applications
+- Bugfix: retain unresolved favourite identifiers and restore their rows when applications return
+- Documentation: explain preset and manual recovery when an earlier development build already erased favourites
+- Bugfix: restore arrow-key navigation after live layout changes and prevent focus regressions
+- Installer: prevent the development installer from building the package twice
+
 1.0.0-rc1 (2026-07-29)
 =====
 - UI: minor Presets and Calculator improvements

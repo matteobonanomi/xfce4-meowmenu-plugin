@@ -10,6 +10,51 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DependencyContractTests(unittest.TestCase):
+    def test_optional_integrations_are_feature_switches(self):
+        options = (ROOT / "meson_options.txt").read_text(encoding="utf-8")
+        meson = (ROOT / "meson.build").read_text(encoding="utf-8")
+        for option in ("accountsservice", "gtk-layer-shell"):
+            self.assertRegex(
+                options,
+                rf"(?s){re.escape(option)}.*?type: 'feature'.*?value: 'auto'",
+            )
+        self.assertIn(
+            "required: get_option('accountsservice')",
+            meson,
+        )
+        self.assertIn(
+            "required: get_option('gtk-layer-shell')",
+            meson,
+        )
+
+    def test_core_ci_build_disables_optional_integrations(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1]
+        for flag in (
+            "-Daccountsservice=disabled",
+            "-Dgtk-layer-shell=disabled",
+        ):
+            self.assertIn(flag, optional)
+        self.assertIn("meson test -C build --print-errorlogs", optional)
+
+    def test_distribution_packages_use_the_core_fallback(self):
+        control = (ROOT / "debian/control").read_text(encoding="utf-8")
+        rules = (ROOT / "debian/rules").read_text(encoding="utf-8")
+        spec = (ROOT / "dist/rpm/xfce4-meowmenu-plugin.spec").read_text(
+            encoding="utf-8"
+        )
+        pkgbuild = (ROOT / "dist/arch/PKGBUILD").read_text(encoding="utf-8")
+        for content in (control, spec, pkgbuild):
+            self.assertNotRegex(content, r"(?i)\baccountsservice\b.*(?:depends|requires|recommends)")
+            self.assertNotRegex(content, r"(?i)\bgtk-layer-shell\b.*(?:depends|requires|recommends)")
+        for flag in (
+            "-Daccountsservice=disabled",
+            "-Dgtk-layer-shell=disabled",
+        ):
+            self.assertIn(flag, rules)
+            self.assertIn(flag, spec)
+            self.assertIn(flag, pkgbuild)
+
     def test_libxfce4ui_transition_boundary(self):
         meson = (ROOT / "meson.build").read_text(encoding="utf-8")
         boundaries = re.findall(
@@ -87,31 +132,17 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn("build-aux/arch/smoke-install.sh", workflow)
         self.assertIn("installed-action-smoke.sh", workflow)
 
-    def test_source_stack_matrix_covers_both_regimes(self):
-        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-        self.assertIn("xfce-source-stack:", workflow)
-        self.assertIn("cell: ['4.16', '4.18', '4.20', successor]", workflow)
-        self.assertIn("build-xfce-stack.sh", workflow)
-        self.assertIn("--regime \"$regime\" --plugin \"$installed_plugin\"", workflow)
-        self.assertIn("--staged-root \"$staged_root\"", workflow)
-        bootstrap = workflow.split(
-            "- name: Install source-stack bootstrap dependencies", maxsplit=1
-        )[1].split("- name:", maxsplit=1)[0]
-        self.assertRegex(bootstrap, r"\bgit\b")
-        self.assertRegex(bootstrap, r"\bgobject-introspection\b")
-        self.assertRegex(bootstrap, r"\blibgtop2-dev\b")
-        stack_builder = (
-            ROOT / "build-aux/compat/build-xfce-stack.sh"
+    def test_arch_smoke_checks_optional_dependencies_in_package_metadata(self):
+        smoke = (
+            ROOT / "build-aux/arch/smoke-install.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn("--libdir=lib", stack_builder)
-        self.assertIn("export GI_GIR_PATH=", stack_builder)
-        self.assertIn("export GI_TYPELIB_PATH=", stack_builder)
-        self.assertIn('"xfce4-dev-tools:4.20.0"', stack_builder)
-        self.assertIn('"xfce4-panel:4.21.0"', stack_builder)
-        self.assertEqual(
-            stack_builder.count('"libxfce4windowing:4.20.4"'),
-            2,
+        self.assertIn('tar -xOf "${pkg}" .PKGINFO', smoke)
+        self.assertIn(
+            "^depend = (accountsservice|gtk-layer-shell)([<=>]|$)",
+            smoke,
         )
+        self.assertNotIn("pacman -Q accountsservice", smoke)
+        self.assertNotIn("pacman -Q gtk-layer-shell", smoke)
 
     def test_routine_ci_keeps_six_proportionate_checks(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
@@ -124,21 +155,14 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn("--buildtype=debugoptimized", build)
         self.assertNotIn("matrix.buildtype", build)
 
-        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1].split(
-            "\n  xfce-source-stack:",
-            maxsplit=1,
-        )[0]
+        optional = workflow.split("  no-optional-deps:", maxsplit=1)[1]
         self.assertIn("-Daccountsservice=disabled", optional)
         self.assertIn("-Dgtk-layer-shell=disabled", optional)
         for provider in ("bc", "qalc", "gcalccmd"):
             self.assertIn(provider, optional)
         self.assertIn("meson test -C build --print-errorlogs", optional)
 
-        source_stack = workflow.split(
-            "  xfce-source-stack:",
-            maxsplit=1,
-        )[1]
-        self.assertIn("if: github.event_name == 'workflow_dispatch'", source_stack)
+        self.assertNotIn("xfce-source-stack:", workflow)
 
     def test_release_package_ordering_is_derived_from_selected_version(self):
         workflow = (

@@ -19,6 +19,7 @@
 #define WHISKERMENU_LAUNCHER_VIEW_H
 
 #include "slot.h"
+#include "core/window-keyboard.h"
 
 #include <gtk/gtk.h>
 
@@ -46,6 +47,20 @@ public:
 	virtual void select_path(GtkTreePath* path)=0;
 	virtual void set_cursor(GtkTreePath* path)=0;
 	virtual bool is_first_visual_row(GtkTreePath* path) const=0;
+	virtual GtkTreePath* get_directional_path(GtkTreePath*,
+			Keyboard::PhysicalDirection) const
+	{
+		return nullptr;
+	}
+	virtual bool get_path_rectangle(GtkTreePath*,
+			Keyboard::NavigationRect*) const
+	{
+		return false;
+	}
+	virtual bool apply_keyboard_target(GtkTreePath*)
+	{
+		return false;
+	}
 
 	virtual void set_fixed_height_mode(bool fixed_height)=0;
 	virtual void set_selection_mode(GtkSelectionMode mode)=0;
@@ -119,6 +134,20 @@ public:
 	}
 
 	virtual void reload_icon_size()=0;
+	virtual void set_viewport_width(int)
+	{
+	}
+	/* prepare_presentation:
+	 *
+	 * Gives a concrete result view one chance to complete layout work after its
+	 * owner has supplied the visible viewport. List/tree views need no extra
+	 * preparation; icon grids override this for hidden-model layout.
+	 */
+	virtual bool prepare_presentation()
+	{
+		return true;
+	}
+	virtual int get_minimum_viewport_width() const { return 0; }
 
 	virtual int get_item_height() const { return 32; }
 	virtual int get_icon_size() const { return 0; }
@@ -133,6 +162,18 @@ public:
 	void set_full_redraw_safeguard(bool enabled)
 	{
 		m_full_redraw_safeguard = enabled;
+	}
+
+	/* request_content_redraw:
+	 *
+	 * Invalidates the concrete result after model replacement or first
+	 * presentation. Unlike the interaction safeguard, this operation is
+	 * unconditional because opaque and hidden-then-mapped pages require the same
+	 * first-frame guarantee.
+	 */
+	void request_content_redraw()
+	{
+		gtk_widget_queue_draw(get_widget());
 	}
 
 	enum Columns

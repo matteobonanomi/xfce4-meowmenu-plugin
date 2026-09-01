@@ -20,6 +20,7 @@
 #include "launcher/application-load-generation.h"
 #include "launcher/category.h"
 #include "launcher/category-button.h"
+#include "core/window-frame.h"
 #include "launcher.h"
 #include "ui/launcher-view.h"
 #include "settings.h"
@@ -32,20 +33,63 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+struct ApplicationsPage::ApplicationCandidate
+{
+	ApplicationCandidate() :
+		menu(nullptr),
+		settings_menu(nullptr),
+		source_loaded(false)
+	{
+	}
+
+	/* Releases a retired graph after every GTK model has detached from it. */
+	~ApplicationCandidate()
+	{
+		for (Category* category : categories)
+		{
+			delete category;
+		}
+		for (const auto& item : items)
+		{
+			delete item.second;
+		}
+		if (menu)
+		{
+			g_object_unref(menu);
+		}
+		if (settings_menu)
+		{
+			g_object_unref(settings_menu);
+		}
+	}
+
+	GarconMenu* menu;
+	GarconMenu* settings_menu;
+	bool source_loaded;
+	std::vector<Category*> categories;
+	std::unordered_map<std::string, Launcher*> items;
+};
+
+//-----------------------------------------------------------------------------
+
 struct ApplicationsPage::LoadJob
 {
 	LoadJob(ApplicationsPage* owner, guint64 generation_id) :
 		page(owner),
 		generation(generation_id),
+		candidate(new ApplicationCandidate()),
 		cancelled(FALSE),
 		worker_done(false)
 	{
 		g_mutex_init(&mutex);
 		g_cond_init(&cond);
+		generation.start();
 	}
 
+	/* Releases the isolated candidate only after its worker has stopped. */
 	~LoadJob()
 	{
+		delete candidate;
 		g_cond_clear(&cond);
 		g_mutex_clear(&mutex);
 	}
@@ -53,6 +97,7 @@ struct ApplicationsPage::LoadJob
 	void cancel()
 	{
 		g_atomic_int_set(&cancelled, TRUE);
+		generation.cancel();
 	}
 
 	bool is_cancelled() const
@@ -60,6 +105,7 @@ struct ApplicationsPage::LoadJob
 		return g_atomic_int_get(const_cast<gint*>(&cancelled));
 	}
 
+	/* Wakes teardown code waiting for the worker's final ownership release. */
 	void mark_worker_done()
 	{
 		g_mutex_lock(&mutex);
@@ -68,6 +114,7 @@ struct ApplicationsPage::LoadJob
 		g_mutex_unlock(&mutex);
 	}
 
+	/* Blocks destruction until no worker can access the candidate graph. */
 	void wait_for_worker()
 	{
 		g_mutex_lock(&mutex);
@@ -79,7 +126,8 @@ struct ApplicationsPage::LoadJob
 	}
 
 	ApplicationsPage* page;
-	guint64 generation;
+	ApplicationLoadGeneration generation;
+	ApplicationCandidate* candidate;
 	gint cancelled;
 	GMutex mutex;
 	GCond cond;
@@ -94,24 +142,13 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 	m_garcon_settings_menu(nullptr),
 	m_load_job(nullptr),
 	m_load_generation(0),
+	m_has_publication(false),
 	m_status(LoadStatus::Invalid)
 {
 	garcon_set_environment_xdg(GARCON_ENVIRONMENT_XFCE);
 
-	// Wrap the base launcher view with a default-category heading shown only
-	// when the sidebar is disabled (the documented behavior). The heading reuses the
-	// "meow-default-heading" CSS class registered by the window so the
-	// uppercase/letter-spacing treatment is theme-overridable.
-	m_default_heading = gtk_label_new(nullptr);
-	gtk_widget_set_halign(m_default_heading, GTK_ALIGN_START);
-	gtk_widget_set_no_show_all(m_default_heading, TRUE);
-	gtk_widget_set_visible(m_default_heading, FALSE);
-	gtk_style_context_add_class(gtk_widget_get_style_context(m_default_heading),
-			"meow-default-heading");
-
-	m_outer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-	gtk_box_pack_start(GTK_BOX(m_outer), m_default_heading, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(m_outer), get_widget(), TRUE, TRUE, 0);
+	m_outer = meow::meowmenu_create_default_heading_page(get_widget(),
+			_("ALL APPLICATIONS"), &m_default_heading);
 	g_object_ref_sink(m_outer);
 
 	const decltype(m_categories.size()) index = 0;
@@ -142,26 +179,17 @@ ApplicationsPage::~ApplicationsPage()
 
 //-----------------------------------------------------------------------------
 
-void ApplicationsPage::set_default_heading(bool visible, int default_category)
+void ApplicationsPage::set_default_heading(bool visible)
 {
 	if (!m_default_heading)
 		return;
-
-	const char* text = nullptr;
-	switch (default_category)
-	{
-	case Settings::CategoryRecent: text = _("RECENTLY USED");    break;
-	case Settings::CategoryAll:    text = _("ALL APPLICATIONS"); break;
-	case Settings::CategoryFavorites:
-	default:                       text = _("FAVORITES");        break;
-	}
-	gtk_label_set_text(GTK_LABEL(m_default_heading), text);
 	gtk_widget_set_visible(m_default_heading, visible);
 }
 
 //-----------------------------------------------------------------------------
 
-GtkTreeModel* ApplicationsPage::create_launcher_model(StringList& desktop_ids) const
+GtkTreeModel* ApplicationsPage::create_launcher_model(
+		const StringList& desktop_ids) const
 {
 	// Create new model for treeview
 	GtkListStore* store = gtk_list_store_new(
@@ -171,7 +199,8 @@ GtkTreeModel* ApplicationsPage::create_launcher_model(StringList& desktop_ids) c
 			G_TYPE_STRING,
 			G_TYPE_POINTER);
 
-	// Fetch menu items or remove them from list if missing
+	// Availability is a presentation concern. Unresolved identifiers remain in
+	// Xfconf and are reconsidered after every successful application load.
 	for (int i = 0; i < desktop_ids.size(); ++i)
 	{
 		const std::string& desktop_id = desktop_ids[i];
@@ -190,11 +219,6 @@ GtkTreeModel* ApplicationsPage::create_launcher_model(StringList& desktop_ids) c
 					LauncherView::COLUMN_TOOLTIP, launcher->get_tooltip(),
 					LauncherView::COLUMN_LAUNCHER, launcher,
 					-1);
-		}
-		else
-		{
-			desktop_ids.erase(i);
-			--i;
 		}
 	}
 
@@ -251,6 +275,10 @@ void ApplicationsPage::invalidate()
 	else if (m_status == LoadStatus::Loading)
 	{
 		m_status = LoadStatus::ReloadRequired;
+		if (m_load_job)
+		{
+			m_load_job->generation.invalidate();
+		}
 	}
 }
 
@@ -270,10 +298,8 @@ bool ApplicationsPage::load()
 	}
 	m_status = LoadStatus::Loading;
 
-	// Load menu
-	clear();
-
-	// Load contents in thread if possible
+	// A candidate owns every replacement object. The current publication stays
+	// attached while discovery runs, so reload never exposes a partial graph.
 	LoadJob* job = new LoadJob(this, ++m_load_generation);
 	m_load_job = job;
 	GTask* task = g_task_new(nullptr, nullptr,
@@ -281,16 +307,32 @@ bool ApplicationsPage::load()
 		{
 			LoadJob* load_job = static_cast<LoadJob*>(user_data);
 			ApplicationsPage* page = load_job->page;
-			if (page
-					&& application_load_generation_can_commit(
-						page->m_load_generation,
-						load_job->generation,
-						load_job->is_cancelled(),
-						page->m_load_job == load_job))
+			if (page && page->m_load_job == load_job
+					&& !load_job->is_cancelled()
+					&& page->m_load_generation == load_job->generation.id())
 			{
 				page->m_load_job = nullptr;
-				page->populate_garcon_menus();
-				page->load_contents();
+				page->populate_candidate(*load_job->candidate);
+				const bool coherent = load_job->candidate->source_loaded
+						|| !page->m_has_publication;
+				const bool ready = load_job->generation.candidate_ready(coherent);
+				if (ready && load_job->generation.commit(
+						page->m_load_generation, true))
+				{
+					page->publish_candidate(*load_job->candidate);
+				}
+				else
+				{
+					page->m_status = LoadStatus::Invalid;
+				}
+
+				// A reload-required signal during discovery invalidates the
+				// candidate and immediately queues the newer generation.
+				if (load_job->generation.follow_up_required())
+				{
+					page->m_status = LoadStatus::Invalid;
+					page->load();
+				}
 			}
 			delete load_job;
 		},
@@ -305,7 +347,7 @@ bool ApplicationsPage::load()
 				// Garcon file discovery/loading is worker-safe. Signal wiring,
 				// Launcher construction, and UI publication remain in the main
 				// context completion callback.
-				load_job->page->load_garcon_menus();
+				load_job->page->load_garcon_menus(*load_job->candidate);
 			}
 			load_job->mark_worker_done();
 			g_task_return_boolean(thread_task, true);
@@ -398,6 +440,7 @@ void ApplicationsPage::clear()
 		g_object_unref(m_garcon_settings_menu);
 		m_garcon_settings_menu = nullptr;
 	}
+	m_has_publication = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -408,111 +451,141 @@ void ApplicationsPage::clear()
  * The owner waits for this state transition during teardown, and the guarded
  * main-context completion owns all signal wiring and object publication.
  */
-void ApplicationsPage::load_garcon_menus()
+void ApplicationsPage::load_garcon_menus(ApplicationCandidate& candidate)
 {
 	// Create menu
 	if (m_settings->custom_menu_file.empty())
 	{
-		m_garcon_menu = garcon_menu_new_applications();
+		candidate.menu = garcon_menu_new_applications();
 	}
 	else
 	{
-		m_garcon_menu = garcon_menu_new_for_path(m_settings->custom_menu_file);
+		candidate.menu = garcon_menu_new_for_path(m_settings->custom_menu_file);
 	}
 
 	// Load menu
-	if (m_garcon_menu && !garcon_menu_load(m_garcon_menu, nullptr, nullptr))
+	if (candidate.menu && !garcon_menu_load(candidate.menu, nullptr, nullptr))
 	{
-		g_object_unref(m_garcon_menu);
-		m_garcon_menu = nullptr;
+		g_object_unref(candidate.menu);
+		candidate.menu = nullptr;
 	}
 
-	if (!m_garcon_menu)
+	if (!candidate.menu)
 	{
 		return;
 	}
+	candidate.source_loaded = true;
 
 	// Create settings menu
 	gchar* path = xfce_resource_lookup(XFCE_RESOURCE_CONFIG, "menus/xfce-settings-manager.menu");
-	m_garcon_settings_menu = garcon_menu_new_for_path(path ? path : SETTINGS_MENUFILE);
+	candidate.settings_menu = garcon_menu_new_for_path(
+			path ? path : SETTINGS_MENUFILE);
 	g_free(path);
 
 	// Load settings menu
-	if (m_garcon_settings_menu
-			&& !garcon_menu_load(m_garcon_settings_menu, nullptr, nullptr))
+	if (candidate.settings_menu
+			&& !garcon_menu_load(candidate.settings_menu, nullptr, nullptr))
 	{
-		g_object_unref(m_garcon_settings_menu);
-		m_garcon_settings_menu = nullptr;
+		g_object_unref(candidate.settings_menu);
+		candidate.settings_menu = nullptr;
 	}
 }
 
 //-----------------------------------------------------------------------------
 
-/* ApplicationsPage::populate_garcon_menus:
+/* ApplicationsPage::populate_candidate:
+ * @candidate: isolated load-owned replacement graph.
  *
  * Connects Garcon change signals and constructs the Launcher/category object
- * graph on the main context after generation and cancellation checks pass.
+ * graph on the main context. Published members remain untouched until the
+ * complete candidate reaches publish_candidate().
  */
-void ApplicationsPage::populate_garcon_menus()
+void ApplicationsPage::populate_candidate(ApplicationCandidate& candidate)
 {
-	if (!m_garcon_menu)
+	if (candidate.menu)
 	{
-		return;
-	}
-
-	connect(m_garcon_menu, "reload-required",
-		[this](GarconMenu*)
-		{
-			invalidate();
-		});
-
-	load_menu(m_garcon_menu, nullptr, m_settings->view_mode == Settings::ViewAsTree);
-
-	if (m_garcon_settings_menu)
-	{
-		connect(m_garcon_settings_menu, "reload-required",
+		connect(candidate.menu, "reload-required",
 			[this](GarconMenu*)
 			{
 				invalidate();
 			});
 
-		Category* category = new Category(m_settings, nullptr);
-		load_menu(m_garcon_settings_menu, category, false);
-		delete category;
+		load_menu(candidate, candidate.menu, nullptr,
+				m_settings->view_mode == Settings::ViewAsTree);
+
+		if (candidate.settings_menu)
+		{
+			connect(candidate.settings_menu, "reload-required",
+				[this](GarconMenu*)
+				{
+					invalidate();
+				});
+
+			Category* category = new Category(m_settings, nullptr);
+			load_menu(candidate, candidate.settings_menu, category, false);
+			delete category;
+		}
 	}
 
 	// Sort items and categories
 	if (m_settings->view_mode != Settings::ViewAsTree)
 	{
-		for (auto category : m_categories)
+		for (auto category : candidate.categories)
 		{
 			category->sort();
 		}
 	}
 	if (m_settings->sort_categories)
 	{
-		std::sort(m_categories.begin(), m_categories.end(), &Element::less_than);
+		std::sort(candidate.categories.begin(), candidate.categories.end(),
+				&Element::less_than);
 	}
 
-	// Create all items category
-	Category* category = new Category(m_settings, nullptr);
-	category->set_button(get_button());
-	category->append_items(find_all());
-	m_categories.insert(m_categories.begin(), category);
+	// A failed or empty Garcon discovery still produces one coherent empty All
+	// Applications model; cold start never publishes a half-built navigation.
+	Category* all = new Category(m_settings, nullptr);
+	all->append_items(find_all(candidate));
+	candidate.categories.insert(candidate.categories.begin(), all);
 }
 
 //-----------------------------------------------------------------------------
 
-void ApplicationsPage::load_contents()
+std::vector<Launcher*> ApplicationsPage::find_all(
+		const ApplicationCandidate& candidate) const
 {
-	if (!m_garcon_menu)
+	std::vector<Launcher*> launchers;
+	launchers.reserve(candidate.items.size());
+	for (const auto& item : candidate.items)
 	{
-		get_window()->set_loaded();
-
-		m_status = LoadStatus::Invalid;
-
-		return;
+		launchers.push_back(item.second);
 	}
+	std::sort(launchers.begin(), launchers.end(), &Element::less_than);
+	return launchers;
+}
+
+//-----------------------------------------------------------------------------
+
+/* ApplicationsPage::publish_candidate:
+ * @candidate: complete candidate whose generation was accepted for commit.
+ *
+ * Detaches every model that borrows launchers, swaps graph ownership, and
+ * reattaches navigation/models before returning to the GTK main loop. The
+ * retired graph remains owned by @candidate until all borrowers are detached.
+ */
+void ApplicationsPage::publish_candidate(ApplicationCandidate& candidate)
+{
+	g_assert(!candidate.categories.empty());
+
+	get_window()->unset_items();
+	get_view()->unset_model();
+	get_window()->detach_categories();
+
+	std::swap(m_garcon_menu, candidate.menu);
+	std::swap(m_garcon_settings_menu, candidate.settings_menu);
+	m_categories.swap(candidate.categories);
+	m_items.swap(candidate.items);
+
+	m_categories.front()->set_button(get_button());
 
 	// Set all applications category
 	get_view()->set_fixed_height_mode(true);
@@ -532,19 +605,21 @@ void ApplicationsPage::load_contents()
 		category_buttons.push_back(category_button);
 	}
 
-	// Add category buttons to window
-	get_window()->set_categories(category_buttons);
-
-	// Update menu items of other panels
+	// Attach every model before category activation can expose its target.
 	get_window()->set_items();
+
+	// Adding categories resolves and activates the publication target.
+	get_window()->set_categories(category_buttons);
 	get_window()->set_loaded();
 
-	m_status = (m_status == LoadStatus::Loading) ? LoadStatus::Done : LoadStatus::Invalid;
+	m_has_publication = true;
+	m_status = LoadStatus::Done;
 }
 
 //-----------------------------------------------------------------------------
 
-bool ApplicationsPage::load_menu(GarconMenu* menu, Category* parent_category, bool load_hierarchy)
+bool ApplicationsPage::load_menu(ApplicationCandidate& candidate,
+		GarconMenu* menu, Category* parent_category, bool load_hierarchy)
 {
 	bool has_children = false;
 
@@ -572,10 +647,11 @@ bool ApplicationsPage::load_menu(GarconMenu* menu, Category* parent_category, bo
 
 			// Create launcher
 			std::string desktop_id(garcon_menu_item_get_desktop_id(menuitem));
-			auto iter = m_items.find(desktop_id);
-			if (iter == m_items.end())
+			auto iter = candidate.items.find(desktop_id);
+			if (iter == candidate.items.end())
 			{
-				iter = m_items.emplace(std::move(desktop_id), new Launcher(m_settings, menuitem)).first;
+				iter = candidate.items.emplace(std::move(desktop_id),
+						new Launcher(m_settings, menuitem)).first;
 			}
 
 			// Add launcher to current category
@@ -615,11 +691,11 @@ bool ApplicationsPage::load_menu(GarconMenu* menu, Category* parent_category, bo
 			}
 
 			// Populate category
-			if (load_menu(submenu, category, load_hierarchy))
+			if (load_menu(candidate, submenu, category, load_hierarchy))
 			{
 				if (!parent_category)
 				{
-					m_categories.push_back(category);
+					candidate.categories.push_back(category);
 				}
 				else if (category != parent_category)
 				{

@@ -16,7 +16,7 @@
  *     - the "Save as new… does not surface the new preset" defect: after a
  *       save-style write to /presets/<uuid>/, enumerate_user_presets() and
  *       find_preset_by_id() must surface that uuid (R3 hypotheses H2/H3).
- *     - schema-lenient seeded-file import (the documented behavior): a .meowpreset with a newer
+ *     - schema-lenient seeded-file import (supported behavior): a .meowpreset with a newer
  *       SchemaVersion must be accepted best-effort rather than skipped.
  *
  * If xfconfd / dbus-daemon are unavailable the test prints a TAP SKIP and
@@ -26,17 +26,27 @@
 
 #include "presets/preset.h"
 #include "presets/preset-io.h"
+#include "launcher/favorite-projection.h"
+#include "settings-defaults.h"
 
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <xfconf/xfconf.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
+
+#ifndef MEOWMENU_RC_UPGRADE_FIXTURE
+#error "MEOWMENU_RC_UPGRADE_FIXTURE must be defined"
+#endif
+#ifndef MEOWMENU_AFFECTED_UPGRADE_FIXTURE
+#error "MEOWMENU_AFFECTED_UPGRADE_FIXTURE must be defined"
+#endif
 
 namespace
 {
@@ -205,11 +215,269 @@ const WhiskerMenu::LayoutPreset* find_in(const std::vector<WhiskerMenu::LayoutPr
 	return nullptr;
 }
 
+struct FixtureNode
+{
+	std::string path;
+	std::string type;
+	GPtrArray* values = nullptr;
+};
+
+struct FixtureLoader
+{
+	XfconfChannel* channel;
+	std::vector<FixtureNode> nodes;
+};
+
+const char* attribute_value(const gchar** names, const gchar** values,
+	const char* wanted)
+{
+	if (!names || !values)
+		return nullptr;
+	for (int i = 0; names[i] && values[i]; ++i)
+		if (std::strcmp(names[i], wanted) == 0)
+			return values[i];
+	return nullptr;
+}
+
+GValue* fixture_value(const char* type, const char* value)
+{
+	GValue* result = g_new0(GValue, 1);
+	if (g_strcmp0(type, "string") == 0)
+	{
+		g_value_init(result, G_TYPE_STRING);
+		g_value_set_string(result, value ? value : "");
+	}
+	else if (g_strcmp0(type, "int") == 0)
+	{
+		g_value_init(result, G_TYPE_INT);
+		g_value_set_int(result, static_cast<int>(g_ascii_strtoll(value, nullptr, 10)));
+	}
+	else if (g_strcmp0(type, "bool") == 0)
+	{
+		g_value_init(result, G_TYPE_BOOLEAN);
+		g_value_set_boolean(result, g_strcmp0(value, "true") == 0);
+	}
+	else
+	{
+		g_free(result);
+		return nullptr;
+	}
+	return result;
+}
+
+void fixture_start_element(GMarkupParseContext*, const gchar* element,
+	const gchar** names, const gchar** values, gpointer user_data, GError** error)
+{
+	FixtureLoader* loader = static_cast<FixtureLoader*>(user_data);
+	if (std::strcmp(element, "property") == 0)
+	{
+		const char* name = attribute_value(names, values, "name");
+		const char* type = attribute_value(names, values, "type");
+		if (!name || !type)
+		{
+			g_set_error(error, G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+				"property requires name and type");
+			return;
+		}
+
+		FixtureNode node;
+		node.path = loader->nodes.empty()
+			? "/" + std::string(name)
+			: loader->nodes.back().path + "/" + name;
+		node.type = type;
+		if (node.type == "array")
+			node.values = g_ptr_array_new();
+		loader->nodes.push_back(node);
+
+		const char* value = attribute_value(names, values, "value");
+		GValue* scalar = fixture_value(type, value);
+		if (scalar)
+		{
+			xfconf_channel_set_property(loader->channel,
+				loader->nodes.back().path.c_str(), scalar);
+			g_value_unset(scalar);
+			g_free(scalar);
+		}
+	}
+	else if (std::strcmp(element, "value") == 0)
+	{
+		if (loader->nodes.empty() || !loader->nodes.back().values)
+		{
+			g_set_error(error, G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+				"value outside array property");
+			return;
+		}
+		GValue* value = fixture_value(attribute_value(names, values, "type"),
+			attribute_value(names, values, "value"));
+		if (!value)
+		{
+			g_set_error(error, G_MARKUP_ERROR, G_MARKUP_ERROR_UNKNOWN_ATTRIBUTE,
+				"unsupported fixture value type");
+			return;
+		}
+		g_ptr_array_add(loader->nodes.back().values, value);
+	}
+}
+
+void fixture_end_element(GMarkupParseContext*, const gchar* element,
+	gpointer user_data, GError**)
+{
+	FixtureLoader* loader = static_cast<FixtureLoader*>(user_data);
+	if (std::strcmp(element, "property") != 0 || loader->nodes.empty())
+		return;
+	FixtureNode& node = loader->nodes.back();
+	if (node.values)
+	{
+		xfconf_channel_set_arrayv(loader->channel, node.path.c_str(), node.values);
+		xfconf_array_free(node.values);
+	}
+	loader->nodes.pop_back();
+}
+
+/* load_xfconf_fixture:
+ * @channel: base-less private Xfconf channel receiving the fixture.
+ * @path: absolute path to an xfconf-query-compatible XML snapshot.
+ *
+ * Loads scalar and array properties through the real Xfconf API. Parent
+ * properties only provide paths; the private daemon owns the resulting typed
+ * values exactly as it would after an xfconf-query import.
+ */
+void load_xfconf_fixture(XfconfChannel* channel, const char* path)
+{
+	gchar* xml = nullptr;
+	gsize length = 0;
+	GError* error = nullptr;
+	assert(g_file_get_contents(path, &xml, &length, &error));
+	assert(error == nullptr);
+
+	FixtureLoader loader = { channel, {} };
+	const GMarkupParser parser = {
+		fixture_start_element,
+		fixture_end_element,
+		nullptr,
+		nullptr,
+		nullptr,
+	};
+	GMarkupParseContext* context = g_markup_parse_context_new(&parser,
+		G_MARKUP_TREAT_CDATA_AS_TEXT, &loader, nullptr);
+	assert(g_markup_parse_context_parse(context, xml, length, &error));
+	assert(g_markup_parse_context_end_parse(context, &error));
+	assert(error == nullptr);
+	assert(loader.nodes.empty());
+	g_markup_parse_context_free(context);
+	g_free(xml);
+}
+
+std::string value_text(const GValue* value)
+{
+	if (G_VALUE_HOLDS_STRING(value))
+		return "s:" + std::string(g_value_get_string(value));
+	if (G_VALUE_HOLDS_INT(value))
+		return "i:" + std::to_string(g_value_get_int(value));
+	if (G_VALUE_HOLDS_BOOLEAN(value))
+		return g_value_get_boolean(value) ? "b:true" : "b:false";
+	if (G_VALUE_HOLDS(value, G_TYPE_PTR_ARRAY))
+	{
+		std::string result = "a:[";
+		const GPtrArray* values = static_cast<const GPtrArray*>(g_value_get_boxed(value));
+		for (guint i = 0; values && i < values->len; ++i)
+		{
+			if (i)
+				result += ",";
+			result += value_text(static_cast<const GValue*>(g_ptr_array_index(values, i)));
+		}
+		return result + "]";
+	}
+	gchar* rendered = g_strdup_value_contents(value);
+	const std::string result = rendered ? rendered : "";
+	g_free(rendered);
+	return result;
+}
+
+std::vector<std::string> property_snapshot(XfconfChannel* channel,
+	const std::vector<std::string>& prefixes = {})
+{
+	std::vector<std::string> result;
+	GHashTable* properties = xfconf_channel_get_properties(channel, nullptr);
+	if (!properties)
+		return result;
+	GHashTableIter iter;
+	gpointer key = nullptr;
+	gpointer value = nullptr;
+	g_hash_table_iter_init(&iter, properties);
+	while (g_hash_table_iter_next(&iter, &key, &value))
+	{
+		const std::string path(static_cast<const gchar*>(key));
+		bool selected = prefixes.empty();
+		for (const std::string& prefix : prefixes)
+			selected = selected || path.find(prefix) != std::string::npos;
+		if (selected)
+			result.push_back(path + "=" + value_text(static_cast<const GValue*>(value)));
+	}
+	g_hash_table_unref(properties);
+	std::sort(result.begin(), result.end());
+	return result;
+}
+
+std::vector<std::string> durable_snapshot(XfconfChannel* channel)
+{
+	return property_snapshot(channel, {
+		"/favorites", "/recent", "/search/", "/search-actions",
+		"/usage/", "/command-", "/show-command-", "/presets/",
+		"/migration/composition-reset-",
+	});
+}
+
+std::vector<std::string> string_array(XfconfChannel* channel, const char* key)
+{
+	std::vector<std::string> result;
+	GPtrArray* values = xfconf_channel_get_arrayv(channel, key);
+	for (guint i = 0; values && i < values->len; ++i)
+	{
+		const GValue* value = static_cast<const GValue*>(g_ptr_array_index(values, i));
+		if (G_VALUE_HOLDS_STRING(value))
+			result.emplace_back(g_value_get_string(value));
+	}
+	if (values)
+		xfconf_array_free(values);
+	return result;
+}
+
+void set_string_array(XfconfChannel* channel, const char* key,
+		const std::vector<std::string>& strings)
+{
+	GPtrArray* values = g_ptr_array_new();
+	for (const std::string& string : strings)
+	{
+		GValue* value = g_new0(GValue, 1);
+		g_value_init(value, G_TYPE_STRING);
+		g_value_set_string(value, string.c_str());
+		g_ptr_array_add(values, value);
+	}
+	assert(xfconf_channel_set_arrayv(channel, key, values));
+	xfconf_array_free(values);
+}
+
+/* run_bounded_upgrade_pass:
+ * @channel: property-base-anchored private Xfconf channel.
+ *
+ * Runs the real schema-v13 cleanup when required, then advances the same schema
+ * key that Settings advances after synchronizing its in-memory fields. Current
+ * profiles take the no-op path and legacy reset markers remain untouched.
+ */
+void run_bounded_upgrade_pass(XfconfChannel* channel)
+{
+	if (xfconf_channel_get_int(channel, "/schema-version", 0) >= 13)
+		return;
+	WhiskerMenu::migrate_layout_schema_v13(channel);
+	xfconf_channel_set_int(channel, "/schema-version", 13);
+}
+
 // ---------------------------------------------------------------------------
-// the implementation step: save-refresh regression lock (read side).
+// runtime implementation: save-refresh regression lock (read side).
 // After a save-style write, the enumerated set and find_preset_by_id() must both
 // surface a row whose id equals the saved uuid, with the stored name. This is the
-// behaviour the "Save as new…" dropdown refresh depends on (the documented behavior).
+// behaviour the "Save as new…" dropdown refresh depends on (supported behavior).
 // ---------------------------------------------------------------------------
 
 void test_enumerate_surfaces_saved_uuid()
@@ -265,6 +533,58 @@ void test_enumerate_with_property_base_channel()
 	assert(byid != nullptr && byid->id == uuid);
 
 	g_object_unref(ch);
+}
+
+/* test_panel_registration_is_not_fresh_profile_state:
+ *
+ * Reproduces the real xfce4-panel channel shape: the plugin base is a string
+ * registration property while launcher settings, when present, are children.
+ * Property-base enumeration includes both, but only descendants make the
+ * launcher profile non-empty for first-run preset selection.
+ */
+void test_panel_registration_is_not_fresh_profile_state()
+{
+	++g_unique_counter;
+	gchar* name = g_strdup_printf("meow-panel-registration-%d-%d",
+			static_cast<int>(g_get_real_time() & 0x7fffffff), g_unique_counter);
+	const char* base = "/plugins/plugin-2";
+	XfconfChannel* root = xfconf_channel_new(name);
+	XfconfChannel* plugin = xfconf_channel_new_with_property_base(name, base);
+	g_free(name);
+	assert(xfconf_channel_set_string(root, base, "meowmenu"));
+
+	auto count_settings = [base](XfconfChannel* channel)
+	{
+		unsigned int count = 0;
+		bool registration_seen = false;
+		GHashTable* properties = xfconf_channel_get_properties(channel, nullptr);
+		GHashTableIter iter;
+		gpointer key = nullptr;
+		gpointer value = nullptr;
+		g_hash_table_iter_init(&iter, properties);
+		while (g_hash_table_iter_next(&iter, &key, &value))
+		{
+			const char* property = static_cast<const char*>(key);
+			registration_seen = registration_seen
+					|| std::strcmp(property, base) == 0;
+			if (WhiskerMenu::settings_relative_property(property, base))
+				++count;
+		}
+		g_hash_table_unref(properties);
+		assert(registration_seen);
+		return count;
+	};
+
+	assert(count_settings(plugin) == 0);
+	assert(WhiskerMenu::should_apply_fresh_preset(false,
+			count_settings(plugin) == 0));
+	assert(xfconf_channel_set_int(plugin, "/view-mode", 0));
+	assert(count_settings(plugin) == 1);
+	assert(!WhiskerMenu::should_apply_fresh_preset(false,
+			count_settings(plugin) == 0));
+
+	g_object_unref(plugin);
+	g_object_unref(root);
 }
 
 // A preset row lacking display-name is invalid and dropped (R3 H2). This is why
@@ -324,7 +644,7 @@ void test_upgrade_baseline_enumeration_is_idempotent()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: reset-to-defaults scope (the documented behavior).
+// runtime implementation: reset-to-defaults scope (supported behavior).
 // The "Reset to defaults" control must clear every non-preset property while
 // preserving saved user presets under /presets/<uuid>/. The live plugin's
 // channel is property-base-anchored, and get_properties() returns FULL paths
@@ -351,12 +671,14 @@ void test_reset_preserves_presets_clears_rest()
 	xfconf_channel_set_int(ch, "/menu-width", 640);
 	xfconf_channel_set_string(ch, "/favorites/0", "firefox.desktop");
 	xfconf_channel_set_string(ch, "/search-actions/0/name", "Web Search");
+	xfconf_channel_set_int(ch, "/migration/composition-reset-generation", 1);
+	xfconf_channel_set_string(ch, "/migration/composition-reset-state", "complete");
 	// A user who opted into Centered must be returned to the docked default by a
-	// reset (the documented behavior): the stored value is cleared, so a read falls back to the
+	// reset (supported behavior): the stored value is cleared, so a read falls back to the
 	// "docked" schema default.
 	xfconf_channel_set_string(ch, "/layout-mode", "centered");
 	// A user who reduced the menu opacity must be returned to fully opaque by a
-	// reset (042 the documented behavior): the stored value is cleared, so a read falls back to
+	// reset (042 supported behavior): the stored value is cleared, so a read falls back to
 	// the 100 default. This is the only headless guard against a future
 	// default-value or reset-list regression for /menu-opacity.
 	xfconf_channel_set_int(ch, "/menu-opacity", 60);
@@ -367,6 +689,9 @@ void test_reset_preserves_presets_clears_rest()
 	assert(xfconf_channel_has_property(ch, "/search-actions/0/name"));
 	assert(xfconf_channel_has_property(ch, "/layout-mode"));
 	assert(xfconf_channel_has_property(ch, "/menu-opacity"));
+	assert(xfconf_channel_has_property(ch,
+		"/migration/composition-reset-generation"));
+	assert(xfconf_channel_has_property(ch, "/migration/composition-reset-state"));
 	assert(xfconf_channel_has_property(ch,
 		("/presets/" + uuid + "/name").c_str()));
 
@@ -391,6 +716,12 @@ void test_reset_preserves_presets_clears_rest()
 		("/presets/" + uuid + "/name").c_str()));
 	assert(xfconf_channel_has_property(ch,
 		("/presets/" + uuid + "/corner-radius").c_str()));
+	assert(xfconf_channel_get_int(ch,
+		"/migration/composition-reset-generation", 0) == 1);
+	gchar* legacy_state = xfconf_channel_get_string(ch,
+		"/migration/composition-reset-state", nullptr);
+	assert(legacy_state && std::strcmp(legacy_state, "complete") == 0);
+	g_free(legacy_state);
 
 	// And the preserved preset still enumerates with its stored values.
 	const auto& presets = WhiskerMenu::enumerate_user_presets(ch);
@@ -402,8 +733,130 @@ void test_reset_preserves_presets_clears_rest()
 	g_object_unref(ch);
 }
 
+void test_fresh_channel_has_no_legacy_reset_markers()
+{
+	const std::string base = "/plugins/plugin-60";
+	gchar* name = g_strdup_printf("meow-fresh-profile-%d-%d",
+		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
+	XfconfChannel* ch = xfconf_channel_new_with_property_base(name, base.c_str());
+	g_free(name);
+
+	assert(WhiskerMenu::should_apply_fresh_preset(false, true));
+	assert(!xfconf_channel_has_property(ch,
+		"/migration/composition-reset-generation"));
+	assert(!xfconf_channel_has_property(ch, "/migration/composition-reset-state"));
+	g_object_unref(ch);
+}
+
+void test_favourite_projection_does_not_write_private_xfconf()
+{
+	gchar* name = g_strdup_printf("meow-favourite-projection-%d-%d",
+			static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
+	XfconfChannel* channel = xfconf_channel_new_with_property_base(name,
+			"/plugins/plugin-65");
+	g_free(name);
+	const std::vector<std::string> stored = {
+		"org.example.Terminal.desktop",
+		"org.example.Removable.desktop",
+		"org.example.Browser.desktop",
+	};
+	set_string_array(channel, "/favorites", stored);
+	const std::vector<std::string> before = property_snapshot(channel);
+	for (int reload = 0; reload < 10; ++reload)
+	{
+		const std::vector<std::string> available = reload == 9
+				? stored
+				: std::vector<std::string>{
+					"org.example.Terminal.desktop",
+					"org.example.Browser.desktop",
+				};
+		const std::vector<std::string> visible =
+				WhiskerMenu::favorite_resolved_projection(stored, available);
+		assert(visible.size() == (reload == 9 ? 3 : 2));
+		assert(property_snapshot(channel) == before);
+	}
+	assert(string_array(channel, "/favorites") == stored);
+	g_object_unref(channel);
+}
+
+void test_rc1_upgrade_preserves_durable_families()
+{
+	const std::string base = "/plugins/meowmenu-18";
+	gchar* name_raw = g_strdup_printf("meow-rc1-upgrade-%d-%d",
+		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
+	const std::string name(name_raw);
+	g_free(name_raw);
+
+	XfconfChannel* root = xfconf_channel_new(name.c_str());
+	load_xfconf_fixture(root, MEOWMENU_RC_UPGRADE_FIXTURE);
+	XfconfChannel* channel = xfconf_channel_new_with_property_base(name.c_str(),
+		base.c_str());
+	const std::vector<std::string> durable_before = durable_snapshot(channel);
+	assert(!durable_before.empty());
+	assert(xfconf_channel_get_int(channel, "/schema-version", 0) == 12);
+
+	run_bounded_upgrade_pass(channel);
+	assert(durable_snapshot(channel) == durable_before);
+	assert(xfconf_channel_get_int(channel, "/schema-version", 0) == 13);
+	gchar* sidebar = xfconf_channel_get_string(channel,
+		"/sidebar-position", nullptr);
+	assert(sidebar && std::strcmp(sidebar, "horizontal") == 0);
+	g_free(sidebar);
+	assert(!xfconf_channel_has_property(channel, "/profile-position"));
+	assert(!xfconf_channel_has_property(channel, "/unified-bar"));
+
+	const std::vector<std::string> after_first = property_snapshot(channel);
+	run_bounded_upgrade_pass(channel);
+	assert(property_snapshot(channel) == after_first);
+	const std::vector<std::string> favorites = string_array(channel, "/favorites");
+	assert(favorites.size() == 3);
+	assert(favorites[1] == "org.example.Removable.desktop");
+
+	g_object_unref(channel);
+	g_object_unref(root);
+}
+
+void test_affected_upgrade_preserves_survivors_and_inert_markers()
+{
+	const std::string base = "/plugins/plugin-64";
+	gchar* name_raw = g_strdup_printf("meow-affected-upgrade-%d-%d",
+		static_cast<int>(g_get_real_time() & 0x7fffffff), ++g_unique_counter);
+	const std::string name(name_raw);
+	g_free(name_raw);
+
+	XfconfChannel* root = xfconf_channel_new(name.c_str());
+	load_xfconf_fixture(root, MEOWMENU_AFFECTED_UPGRADE_FIXTURE);
+	XfconfChannel* channel = xfconf_channel_new_with_property_base(name.c_str(),
+		base.c_str());
+	const std::vector<std::string> before = property_snapshot(channel);
+	const std::vector<std::string> durable_before = durable_snapshot(channel);
+
+	run_bounded_upgrade_pass(channel);
+	assert(property_snapshot(channel) == before);
+	assert(durable_snapshot(channel) == durable_before);
+	run_bounded_upgrade_pass(channel);
+	assert(property_snapshot(channel) == before);
+	assert(xfconf_channel_get_int(channel,
+		"/migration/composition-reset-generation", 0) == 1);
+	gchar* state = xfconf_channel_get_string(channel,
+		"/migration/composition-reset-state", nullptr);
+	assert(state && std::strcmp(state, "pending") == 0);
+	g_free(state);
+
+	const std::vector<std::string> favorites = string_array(channel, "/favorites");
+	assert((favorites == std::vector<std::string>{
+		"org.example.Surviving.desktop",
+		"org.example.NewlyAdded.desktop",
+	}));
+	assert(std::find(favorites.begin(), favorites.end(),
+		"org.example.AlreadyErased.desktop") == favorites.end());
+
+	g_object_unref(channel);
+	g_object_unref(root);
+}
+
 // ---------------------------------------------------------------------------
-// the implementation step: schema-lenient seeded-file import (the documented behavior).
+// runtime implementation: schema-lenient seeded-file import (supported behavior).
 // enumerate_preset_files() must accept a .meowpreset carrying a newer
 // SchemaVersion best-effort, while still skipping unparseable/section-missing
 // files. Built-in identity comes from the [Preset].Name key.
@@ -430,7 +883,7 @@ void test_seeded_file_accepts_newer_schema()
 	assert(dir_c != nullptr);
 	std::string dir(dir_c);
 
-	// Newer schema version than we know — must be accepted best-effort (the documented behavior).
+	// Newer schema version than we know — must be accepted best-effort (supported behavior).
 	write_meowpreset(dir, "future",
 		"[Preset]\nName=Future\nSchemaVersion=99\n\n"
 		"[Settings]\ncorner-radius=4\nsidebar-position=left\n");
@@ -476,6 +929,36 @@ void test_seeded_file_skips_section_missing()
 	g_free(tmpl);
 }
 
+void test_incompatible_user_overlay_cannot_shadow_supported_preset()
+{
+	gchar* system_template = g_strdup("/tmp/meow-system-presets-XXXXXX");
+	gchar* user_template = g_strdup("/tmp/meow-user-presets-XXXXXX");
+	gchar* system_dir_raw = g_mkdtemp(system_template);
+	gchar* user_dir_raw = g_mkdtemp(user_template);
+	assert(system_dir_raw && user_dir_raw);
+	const std::string system_dir(system_dir_raw);
+	const std::string user_dir(user_dir_raw);
+
+	write_meowpreset(system_dir, "modern",
+		"[Preset]\nName=Modern\n\n[Settings]\ncorner-radius=4\n"
+		"sidebar-position=left\nshow-profile=true\nshow-session=true\n");
+	write_meowpreset(user_dir, "modern",
+		"[Preset]\nName=Obsolete override\n\n[Settings]\ncorner-radius=21\n"
+		"profile-position=bottom-left\n");
+	write_meowpreset(user_dir, "old-horizontal",
+		"[Preset]\nName=Old Horizontal\n\n[Settings]\nsidebar-position=bottom\n");
+
+	const auto presets = WhiskerMenu::enumerate_preset_files(system_dir, user_dir);
+	const WhiskerMenu::LayoutPreset* modern = find_in(presets, "modern");
+	assert(modern);
+	assert(modern->display_name == "Modern");
+	assert(modern->values.at("corner-radius").i == 4);
+	assert(find_in(presets, "old-horizontal") == nullptr);
+
+	g_free(system_template);
+	g_free(user_template);
+}
+
 } // anonymous namespace
 
 int main()
@@ -488,12 +971,18 @@ int main()
 
 	test_enumerate_surfaces_saved_uuid();
 	test_enumerate_with_property_base_channel();
+	test_panel_registration_is_not_fresh_profile_state();
 	test_enumerate_drops_missing_display_name();
 	test_enumerate_name_falls_back_to_display_name();
 	test_upgrade_baseline_enumeration_is_idempotent();
 	test_reset_preserves_presets_clears_rest();
+	test_fresh_channel_has_no_legacy_reset_markers();
+	test_favourite_projection_does_not_write_private_xfconf();
+	test_rc1_upgrade_preserves_durable_families();
+	test_affected_upgrade_preserves_survivors_and_inert_markers();
 	test_seeded_file_accepts_newer_schema();
 	test_seeded_file_skips_section_missing();
+	test_incompatible_user_overlay_cannot_shadow_supported_preset();
 
 	fixture_down();
 

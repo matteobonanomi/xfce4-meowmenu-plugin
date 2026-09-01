@@ -24,6 +24,10 @@ Every new setting needs a safe default, a Preferences control,
 reset-to-default behavior, and migration coverage. Note Debian, RPM, Arch, and
 optional-dependency effects when packaging changes.
 
+X11 is the only officially supported environment and the primary manual test
+path. Wayland is experimental; record its documented fallback behavior
+separately from X11 results.
+
 ## Pull requests
 
 Keep changes focused and explain the user-facing reason. Describe tests run and

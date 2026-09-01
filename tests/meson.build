@@ -23,13 +23,27 @@ test_window_mode_integration = executable(
   'test_window_mode_integration',
   [
     'test_window_mode_integration.cpp',
-    '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+	'..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
+	'..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
+	'..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
+	'..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
+	'..' / 'panel-plugin' / 'core' / 'user-session-relayout.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk],
+  dependencies: [gtk, libxfce4util, xfconf],
 )
 
 test('window_mode_integration', test_window_mode_integration)
+
+# Package checks run without a display. Keep the pure integration checks
+# available there while ensuring display-backed cases skip before creating GTK
+# widgets.
+test(
+  'window_mode_integration_headless',
+  test_window_mode_integration,
+  env: ['DISPLAY=', 'GDK_BACKEND=x11'],
+)
 
 test_grid_presentation = executable(
   'test_grid_presentation',
@@ -49,14 +63,32 @@ test_launcher_icon_view = executable(
     '..' / 'panel-plugin' / 'ui' / 'launcher-icon-view.cpp',
     '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
     '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
+    '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
-  dependencies: [glib, gio, gtk, libxfce4util, xfconf],
+  dependencies: [exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('launcher_icon_view', test_launcher_icon_view, timeout: 30)
+
+test_launcher_tree_view = executable(
+  'test_launcher_tree_view',
+  [
+    'test_launcher_tree_view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'launcher-tree-view.cpp',
+    '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
+    '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+  ],
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('launcher_tree_view', test_launcher_tree_view, timeout: 30)
 
 test_places_home_contract = executable(
   'test_places_home_contract',
@@ -69,6 +101,15 @@ test_places_home_contract = executable(
 )
 
 test('places_home_contract', test_places_home_contract)
+
+test_places_focus_policy = executable(
+  'test_places_focus_policy',
+  'test_places_focus_policy.cpp',
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, gtk],
+)
+
+test('places_focus_policy', test_places_focus_policy)
 
 test(
   'release_version',
@@ -109,6 +150,13 @@ test(
   'dependency_contract',
   python3,
   args: [meson.current_source_dir() / 'test_dependency_contract.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'dev_install_contract',
+  python3,
+  args: [meson.current_source_dir() / 'test_dev_install_contract.py'],
   env: ['PYTHONDONTWRITEBYTECODE=1'],
 )
 
@@ -213,6 +261,8 @@ test_schema_migration = executable(
   test_schema_migration_sources,
   cpp_args: [
     '-DMEOWMENU_080_XFCONF_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-0.8.0.xml' + '"',
+    '-DMEOWMENU_SETTINGS_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'settings.cpp' + '"',
+    '-DMEOWMENU_SETTINGS_DEFAULTS_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'settings-defaults.cpp' + '"',
   ],
   dependencies: [],
 )
@@ -264,12 +314,19 @@ test_preset_xfconf_sources = [
   '..' / 'panel-plugin' / 'presets' / 'preset.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-io.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'favorite-projection.cpp',
+  '..' / 'panel-plugin' / 'settings-defaults.cpp',
 ]
 
 test_preset_xfconf = executable(
   'test_preset_xfconf',
   test_preset_xfconf_sources,
-  cpp_args: xfce_helper_cpp_args + ['-ffunction-sections', '-fdata-sections'],
+  cpp_args: xfce_helper_cpp_args + [
+    '-ffunction-sections',
+    '-fdata-sections',
+    '-DMEOWMENU_RC_UPGRADE_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-1.0.0-rc1.xml' + '"',
+    '-DMEOWMENU_AFFECTED_UPGRADE_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-affected-composition-reset.xml' + '"',
+  ],
   link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gio, xfconf, libxfce4ui],
@@ -278,7 +335,7 @@ test_preset_xfconf = executable(
 test('preset_xfconf', test_preset_xfconf, timeout: 60)
 
 # test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
-# coverage gate (the implementation step). preset-builtins.cpp is Settings-free, so it links
+# coverage gate (runtime implementation). preset-builtins.cpp is Settings-free, so it links
 # directly to expose governed_keys()/synced_keys() without a GTK display.
 test_properties_tabs_sources = [
   'test_properties_tabs.cpp',
@@ -293,16 +350,6 @@ test_properties_tabs = executable(
 )
 
 test('properties_tabs', test_properties_tabs)
-
-test_unified_bar_sources = ['test_unified_bar.cpp']
-
-test_unified_bar = executable(
-  'test_unified_bar',
-  test_unified_bar_sources,
-  dependencies: [],
-)
-
-test('unified_bar', test_unified_bar)
 
 test_search_action_edit_sources = ['test_search_action_edit.cpp']
 
@@ -335,6 +382,7 @@ test('places', test_places)
 test_drag_to_favourites_sources = [
   'test_drag_to_favourites.cpp',
   '..' / 'panel-plugin' / 'core' / 'drag-to-favourites.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'favorite-projection.cpp',
   '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
 ]
 
@@ -353,7 +401,7 @@ test('drag_to_favourites', test_drag_to_favourites)
 test_desktop_drag_sources = [
   'test_desktop_drag.cpp',
   '..' / 'panel-plugin' / 'core' / 'desktop-drag.cpp',
-  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
   '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
 ]
 
@@ -380,8 +428,8 @@ test_home_search = executable(
 test('home_search', test_home_search)
 
 # test_places_open: GTK-free coverage of the Places open-path hardening —
-# the g_shell_quote round-trip handed to the external helper (the documented behavior) and
-# the open-failure reason string built for the error dialog (the documented behavior). Compiles
+# the g_shell_quote round-trip handed to the external helper (supported behavior) and
+# the open-failure reason string built for the error dialog (supported behavior). Compiles
 # places-item.cpp plus its Element base (element.cpp) directly into the binary,
 # mirroring test_home_search_lifecycle; no display is needed for these pure
 # helpers, so the binary runs headless.
@@ -402,35 +450,8 @@ test_places_open = executable(
 
 test('places_open', test_places_open)
 
-# NOTE: test_migration covers the legacy Whisker to MeowMenu Xfconf migration
-# contract.
-# It exercises panel-plugin/migration.cpp directly (source compiled into
-# the test executable rather than linked against libmeowmenu, matching the
-# pattern of the other tests in this directory). The fixture brings up a
-# private session bus + xfconfd; when xfconfd is absent the test prints a
-# TAP SKIP marker and returns 0.
-test_migration_sources = [
-  'test_migration.cpp',
-  '..' / 'panel-plugin' / 'migration.cpp',
-]
-
-test_migration = executable(
-  'test_migration',
-  test_migration_sources,
-  dependencies: [glib, gio, xfconf],
-)
-
-test('migration', test_migration, timeout: 60)
-
-# test_settings_key_inventory: fail-closed drift gate against the snapshot
-# under tests/fixtures/xfconf-keys.txt. Compiles migration.cpp into the test
-# binary so the production meowmenu↔whiskermenu base derivation is exercised
-# end-to-end (same linking pattern as test_migration). When xfconfd or
-# dbus-daemon is missing the test prints a TAP SKIP and returns 0.
-test_settings_key_inventory_sources = [
-  'test_settings_key_inventory.cpp',
-  '..' / 'panel-plugin' / 'migration.cpp',
-]
+# Supported per-instance key inventory and retired-key exclusion gate.
+test_settings_key_inventory_sources = ['test_settings_key_inventory.cpp']
 
 test_settings_key_inventory = executable(
   'test_settings_key_inventory',
@@ -442,10 +463,10 @@ test_settings_key_inventory = executable(
       + meson.current_source_dir()
       + '/fixtures/xfconf-keys.txt"',
   ],
-  dependencies: [glib, gio, xfconf],
+  dependencies: [],
 )
 
-test('settings_key_inventory', test_settings_key_inventory, timeout: 60)
+test('settings_key_inventory', test_settings_key_inventory)
 
 # test_search_ranking: characterization gate over query.cpp's match
 # scoring (RF-SEARCH-001..005). Pure unit test: query.cpp depends only on
@@ -489,7 +510,7 @@ test_home_search_lifecycle = executable(
 
 test('home_search_lifecycle', test_home_search_lifecycle, timeout: 30)
 
-# test_focus_router: headless coverage of the Tab-cycle resolution
+# test_focus_router: headless coverage of physical directional resolution
 # implemented in panel-plugin/core/window-keyboard.cpp. Pulls only the
 # helper translation unit; no display server, no GTK widgets.
 test_focus_router_sources = [
@@ -574,13 +595,13 @@ test_window_size_clamp = executable(
 test('window_size_clamp', test_window_size_clamp)
 
 # test_centered_geometry: headless coverage of the pure Centered-mode decision
-# logic — the /layout-mode classifier in core/user-session-layout.cpp and the
+# logic — the /layout-mode classifier in core/layout-mode.cpp and the
 # centred-origin geometry helper in core/window-size-clamp.cpp. GdkRectangle is
 # a plain integer struct, so gtk is linked for the type only; no display.
 test_centered_geometry_sources = [
   'test_centered_geometry.cpp',
   '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
-  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
 ]
 
 test_centered_geometry = executable(
@@ -608,12 +629,12 @@ test_interactive_resize = executable(
 
 test('interactive_resize', test_interactive_resize)
 
-# test_layout_sensitivity: headless coverage of the pure the documented behavior control-
-# sensitivity matrix (control_enabled) in core/user-session-layout.cpp. No
+# test_layout_sensitivity: headless coverage of the pure supported behavior control-
+# sensitivity matrix (control_enabled) in core/layout-mode.cpp. No
 # display; the helper is GTK-free.
 test_layout_sensitivity_sources = [
   'test_layout_sensitivity.cpp',
-  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
 ]
 
 test_layout_sensitivity = executable(
@@ -625,10 +646,11 @@ test_layout_sensitivity = executable(
 
 test('layout_sensitivity', test_layout_sensitivity)
 
-# test_window_frame: headless coverage of the pure window-frame helpers in
-# panel-plugin/core/window-frame.cpp (radius clamp [0,24] + the composited
-# rounded-border predicate). Pulls only the GTK-free helper translation unit;
-# no display server, no GTK widgets.
+# test_window_frame: headless coverage of the window-frame decisions in
+# panel-plugin/core/window-frame.cpp (radius clamp [0,24], composited rounded
+# border predicate, and frameless CSS). The module also owns the GTK frame queue;
+# its visible behavior and native scroller clipping are covered by
+# window_mode_integration.
 test_window_frame_sources = [
   'test_window_frame.cpp',
   '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
@@ -638,7 +660,7 @@ test_window_frame = executable(
   'test_window_frame',
   test_window_frame_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
+  dependencies: [gtk],
 )
 
 test('window_frame', test_window_frame)
@@ -659,6 +681,18 @@ test_sidebar_layout = executable(
 )
 
 test('sidebar_layout', test_sidebar_layout)
+
+test_menu_composition = executable(
+  'test_menu_composition',
+  [
+    'test_menu_composition.cpp',
+    '..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('menu_composition', test_menu_composition)
 
 # test_grid_cell_metrics: headless coverage of the pure icon-grid cell metric
 # arithmetic in panel-plugin/ui/grid-cell-metrics.cpp (minimum/natural width
@@ -751,31 +785,16 @@ test_properties_switch = executable(
   'test_properties_switch',
   test_properties_switch_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: [
+    '-DMEOWMENU_SEARCH_BAR_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'search-bar.cpp' + '"',
+    '-DMEOWMENU_USER_SESSION_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'user-session.cpp' + '"',
+    '-DMEOWMENU_SIDEBAR_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'sidebar.cpp' + '"',
+    '-DMEOWMENU_PLACES_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'places.cpp' + '"',
+  ],
   dependencies: [glib, gtk, libxfce4util, xfconf],
 )
 
 test('properties_switch', test_properties_switch, timeout: 30)
-
-# test_user_session_row: headless coverage of the pure user/session-row
-# visibility decision mirrored from panel-plugin/core/window.cpp (both-hidden
-# collapse in docked layouts; shared row preserved in unified-bar/full-screen)
-# PLUS the normalize_user_session() coupling/normalisation contract — the docked
-# Profile↔Commands edge coupling, the full-screen search-bar↔both coupling, the
-# auto-snap direction, the per-option greying masks, and idempotency. The pure
-# helper translation unit is linked directly; no display or Settings is needed.
-test_user_session_row_sources = [
-  'test_user_session_row.cpp',
-  '..' / 'panel-plugin' / 'core' / 'user-session-layout.cpp',
-]
-
-test_user_session_row = executable(
-  'test_user_session_row',
-  test_user_session_row_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
-)
-
-test('user_session_row', test_user_session_row)
 
 # test_user_session_relayout: GTK coverage for the guarded row-relayout helpers
 # used by window.cpp when Profile/Session visibility changes while Properties is
@@ -836,13 +855,13 @@ test_application_load_generation = executable(
 
 test('application_load_generation', test_application_load_generation)
 
-# test_launcher_safeguard_lifecycle: headless freeze for the the documented behavior safeguard
+# test_launcher_safeguard_lifecycle: headless freeze for the supported behavior safeguard
 # lifetime (render-invariants I13). The fix lives entirely in the header-only
 # shared base LauncherView, so the binary needs only that header (plus slot.h)
 # and gtk — no production .cpp. It constructs a minimal concrete view, binds the
 # scroll-reveal safeguard to an externally-owned adjustment, destroys the view,
 # and asserts the handler is gone so a later value-changed never fires on a freed
-# view (the the documented behavior crash; also caught by the sanitizer CI). Constructing the
+# view (the supported behavior crash; also caught by the sanitizer CI). Constructing the
 # widgets needs a display, so it skips cleanly when none is present and CI runs
 # it under a virtual display so the sanitizers still exercise the freed-view path.
 test_launcher_safeguard_lifecycle_sources = [

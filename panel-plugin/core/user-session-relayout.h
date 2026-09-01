@@ -23,6 +23,17 @@
 namespace WhiskerMenu
 {
 
+/* meow_container_contains_child:
+ * @container: a GTK container that may own @child.
+ * @child: the widget whose direct membership is being tested.
+ *
+ * Checks direct container membership without relying on a potentially stale
+ * cached parent during repeated live layout transitions.
+ *
+ * Returns: true when @child is directly owned by @container.
+ */
+bool meow_container_contains_child(GtkContainer* container, GtkWidget* child);
+
 /* meow_box_contains_child:
  * @box: a GtkBox that may own @child.
  * @child: the widget whose membership is being tested.
@@ -52,6 +63,20 @@ bool meow_box_contains_child(GtkBox* box, GtkWidget* child);
 bool meow_box_repack_child(GtkBox* box, GtkWidget* child, bool pack_end,
                            bool expand, bool fill, guint padding);
 
+/* meow_restore_vertical_selector_prefix:
+ * @box: vertical category box.
+ * @selector: Apps/Places selector owned by @box.
+ * @separator: selector separator owned by @box.
+ *
+ * Reasserts the canonical selector/separator prefix after the final layout
+ * composition pass. Missing or differently-parented children are a no-op so
+ * horizontal and selector-hidden presentations remain unaffected.
+ *
+ * Returns: true when both children were reordered.
+ */
+bool meow_restore_vertical_selector_prefix(GtkBox* box, GtkWidget* selector,
+		GtkWidget* separator);
+
 /* meow_box_reorder_child_if_present:
  * @box: target GtkBox.
  * @child: child to reorder.
@@ -64,6 +89,133 @@ bool meow_box_repack_child(GtkBox* box, GtkWidget* child, bool pack_end,
  */
 bool meow_box_reorder_child_if_present(GtkBox* box, GtkWidget* child,
                                        gint position);
+
+/* meow_grid_attach_child:
+ * @grid: target GtkGrid that should own @child.
+ * @child: widget to move or reattach.
+ * @left: destination column.
+ * @top: destination row.
+ * @width: number of columns occupied; must be positive.
+ * @height: number of rows occupied; must be positive.
+ *
+ * Moves a live child from any GTK container and attaches it to the requested
+ * grid cell while holding a temporary reference across the parent change.
+ *
+ * Returns: true when the child was attached to @grid.
+ */
+bool meow_grid_attach_child(GtkGrid* grid, GtkWidget* child, gint left,
+		gint top, gint width, gint height);
+
+/* meow_size_group_set_widget:
+ * @group: target GtkSizeGroup.
+ * @widget: widget whose membership should change.
+ * @member: true to add the widget, false to remove it.
+ *
+ * Changes membership only when necessary so repeated layout passes cannot
+ * accumulate stale width contributors or duplicate operations.
+ *
+ * Returns: true when the requested membership is valid after the call.
+ */
+bool meow_size_group_set_widget(GtkSizeGroup* group, GtkWidget* widget,
+		bool member);
+
+/* meow_configure_vertical_sidebar_width:
+ * @sidebar: vertical category-navigation scroller.
+ * @profile: Profile block aligned above the sidebar.
+ * @active: whether the window currently uses a vertical sidebar.
+ * @profile_visible: whether Profile participates in the current composition.
+ *
+ * Resolves one content-derived width before allocation, including the theme's
+ * automatic vertical-scrollbar width, and pins the sidebar and visible Profile
+ * to it. This avoids both late overflow growth and a GtkSizeGroup allocation
+ * cycle in which surplus primary-row width feeds back into navigation. When
+ * inactive, clears the windowed width requests.
+ *
+ * Returns: the applied logical width, or -1 when inactive/invalid.
+ */
+int meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
+		GtkWidget* profile, bool active, bool profile_visible);
+
+/* meow_configure_vertical_sidebar_content:
+ * @categories: category box hosted by the vertical sidebar viewport.
+ * @active: true for a vertical sidebar, false for Horizontal/disabled reuse.
+ *
+ * Makes the category box and its radio-button rows consume the complete
+ * vertical viewport width. Icon-only button content can then centre on the
+ * resolved sidebar axis instead of retaining a natural-width trailing void.
+ * Horizontal reuse restores natural child expansion.
+ *
+ * Returns: true for a valid category container.
+ */
+bool meow_configure_vertical_sidebar_content(GtkWidget* categories,
+		bool active);
+
+/* meow_session_spacer_position:
+ * @right_sidebar: true when Session shares a row with a Right sidebar.
+ * @left_to_right: true for a left-to-right interface direction.
+ *
+ * Returns the command-box spacer index that places Session actions on the
+ * sidebar-opposite physical edge while preserving the existing logical edge
+ * for all other compositions.
+ */
+int meow_session_spacer_position(bool right_sidebar, bool left_to_right);
+
+/* meow_configure_profile_sidebar_alignment:
+ * @profile: outer Profile block that owns the shared sidebar width.
+ * @content: inner avatar/name group positioned within @profile.
+ * @leading_spacer: logical-leading Profile spacer.
+ * @trailing_spacer: logical-trailing Profile spacer.
+ * @category_button: visible category-button style reference.
+ * @active: whether windowed vertical-sidebar alignment is active.
+ * @category_names_visible: true for leading alignment; false for centring.
+ *
+ * Aligns labelled Profile content to the category icon column using the
+ * button's theme border plus padding. Icon-only navigation centres the whole
+ * avatar/name group with equal expanding spacers. Inactive calls restore
+ * ordinary leading packing and clear both spacer requests.
+ *
+ * Returns: the applied logical inset, 0 when inactive, or -1 for invalid
+ * widgets.
+ */
+int meow_configure_profile_sidebar_alignment(GtkWidget* profile,
+		GtkWidget* content, GtkWidget* leading_spacer,
+		GtkWidget* trailing_spacer, GtkWidget* category_button,
+		bool active, bool category_names_visible);
+
+/* meow_reset_vertical_sidebar_scroll:
+ * @sidebar: vertical category-navigation scroller.
+ *
+ * Moves the navigation viewport to its leading vertical adjustment after
+ * opening reordering has completed.
+ *
+ * Returns: true when a valid adjustment was reset.
+ */
+bool meow_reset_vertical_sidebar_scroll(GtkScrolledWindow* sidebar);
+
+/* meow_bind_navigation_scroller:
+ * @categories: category box whose focus chain owns navigation.
+ * @scroller: currently presented vertical sidebar or horizontal strip.
+ * @orientation: scrolling axis used by @scroller.
+ *
+ * Clears stale adjustment bindings left by reparenting and binds focus
+ * scrolling only to the navigation host currently visible to the user.
+ *
+ * Returns: true when both inputs are valid and the binding was applied.
+ */
+bool meow_bind_navigation_scroller(GtkContainer* categories,
+		GtkScrolledWindow* scroller, GtkOrientation orientation);
+
+/* meow_reveal_navigation_widget:
+ * @scroller: currently presented navigation host.
+ * @widget: active or focused descendant to reveal after allocation.
+ *
+ * Moves only the adjustment axes needed to bring @widget inside the visible
+ * viewport. An inactive or unrelated host is never reset.
+ *
+ * Returns: true when @widget belongs to @scroller and was evaluated.
+ */
+bool meow_reveal_navigation_widget(GtkScrolledWindow* scroller,
+		GtkWidget* widget);
 
 /* meow_widget_set_visible_if_valid:
  * @widget: widget to show or hide.
@@ -90,6 +242,14 @@ void meow_widget_set_can_focus_if_valid(GtkWidget* widget, bool can_focus);
  */
 void meow_widget_set_hexpand_if_valid(GtkWidget* widget, bool expand);
 
+/* meow_widget_set_vexpand_if_valid:
+ * @widget: widget whose vertical expansion should change.
+ * @expand: target expansion flag.
+ *
+ * Applies gtk_widget_set_vexpand() only to live GtkWidget instances.
+ */
+void meow_widget_set_vexpand_if_valid(GtkWidget* widget, bool expand);
+
 /* meow_widget_set_halign_if_valid:
  * @widget: widget whose horizontal alignment should change.
  * @align: target alignment.
@@ -97,6 +257,14 @@ void meow_widget_set_hexpand_if_valid(GtkWidget* widget, bool expand);
  * Applies gtk_widget_set_halign() only to live GtkWidget instances.
  */
 void meow_widget_set_halign_if_valid(GtkWidget* widget, GtkAlign align);
+
+/* meow_widget_set_valign_if_valid:
+ * @widget: widget whose vertical alignment should change.
+ * @align: target alignment.
+ *
+ * Applies gtk_widget_set_valign() only to live GtkWidget instances.
+ */
+void meow_widget_set_valign_if_valid(GtkWidget* widget, GtkAlign align);
 
 }
 

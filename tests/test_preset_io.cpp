@@ -2,7 +2,7 @@
  * Unit tests for the preset-io import/export *logic* — no GLib, no Xfconf.
  *
  * The actual I/O (GKeyFile, xfconf writes) is covered by manual integration
- * testing (quickstart.md §the implementation step). Here we test the pure validation rules that
+ * testing (quickstart.md §runtime implementation). Here we test the pure validation rules that
  * are extracted as shadow helpers below:
  *
  *   - round-trip: a valid INI-like map → validate → all entries survive
@@ -39,14 +39,15 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "corner-radius",         PropKind::Int,  0,   24,   {} },
 	{ "panel-gap",             PropKind::Int,  0,   50,   {} },
 	{ "menu-opacity",          PropKind::Int,  0,   100,  {} },
-	{ "sidebar-position",      PropKind::Str,  0,   0,    {"left","right","hidden"} },
-	{ "position-categories-horizontal", PropKind::Bool, 0, 0, {} },
+	{ "sidebar-position",      PropKind::Str,  0,   0,    {"left","right","horizontal"} },
+	{ "sidebar-enabled",       PropKind::Bool, 0,   0,    {} },
+	{ "category-show-name",    PropKind::Bool, 0,   0,    {} },
 	{ "search-bar-position",   PropKind::Str,  0,   0,    {"top","bottom"} },
-	{ "profile-position",      PropKind::Str,  0,   0,    {"top-left","bottom-left","hidden"} },
-	{ "commands-position",     PropKind::Str,  0,   0,    {"top-right","bottom-right","hidden"} },
+	{ "show-profile",          PropKind::Bool, 0,   0,    {} },
+	{ "show-session",          PropKind::Bool, 0,   0,    {} },
 	{ "grid-density",          PropKind::Str,  0,   0,    {"low","medium","high"} },
 	{ "transparent-grid",      PropKind::Bool, 0,   0,    {} },
-	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","fullscreen"} },
+	{ "layout-mode",           PropKind::Str,  0,   0,    {"docked","centered","fullscreen"} },
 	{ "launcher-icon-size",    PropKind::Int,  -1,  6,    {} },
 	{ "category-icon-size",    PropKind::Int,  -1,  6,    {} },
 	{ "view-mode-default",     PropKind::Str,  0,   0,    {"icons","list","tree"} },
@@ -55,7 +56,8 @@ static const std::vector<ShadowPropDef> SHADOW_SCHEMA = {
 	{ "menu-width",            PropKind::Int,  200, 2000, {} },
 	{ "menu-height",           PropKind::Int,  200, 2000, {} },
 	{ "default-category",      PropKind::Str,  0,   0,    {"favorites","recent","all"} },
-	{ "places-switch-button-shape", PropKind::Str, 0, 0,  {"gtk-theme","rounded"} },
+	{ "places-enabled",        PropKind::Bool, 0,   0,    {} },
+	{ "places-show-icons",     PropKind::Bool, 0,   0,    {} },
 	{ "calculator-engine",      PropKind::Str,  0,   0,    {"none","bc","qalc","gcalccmd"} },
 	{ "calculator-result-font-size", PropKind::Int, -1, 6, {} },
 	{ "calculator-max-decimal-places", PropKind::Int, 0, 10, {} },
@@ -66,15 +68,6 @@ static const ShadowPropDef* find_shadow_prop(const std::string& name)
 	for (const auto& pd : SHADOW_SCHEMA)
 		if (pd.name == name) return &pd;
 	return nullptr;
-}
-
-static std::string normalize_shadow_profile_position(const std::string& value)
-{
-	if (value == "top")
-		return "top-left";
-	if ((value == "bottom") || (value == "bottom-right"))
-		return "bottom-left";
-	return value;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +98,27 @@ struct RawSettings
 
 	void put(const std::string& k, const std::string& v) { entries[k] = v; }
 };
+
+static bool has_incompatible_layout(const RawSettings& raw)
+{
+	for (const char* key : {
+		"profile-position",
+		"commands-position",
+		"unified-bar",
+		"position-categories-horizontal",
+		"position-profile-alternate",
+		"position-search-alternate",
+		"position-commands-alternate",
+		"position-categories-alternate",
+	})
+	{
+		if (raw.entries.count(key) != 0)
+			return true;
+	}
+	auto sidebar = raw.entries.find("sidebar-position");
+	return sidebar != raw.entries.end()
+		&& (sidebar->second == "top" || sidebar->second == "bottom");
+}
 
 // ---------------------------------------------------------------------------
 // Shadow validation: processes RawSettings, returns validated ShadowValueMap.
@@ -152,17 +166,13 @@ static ShadowValueMap validate_settings(const RawSettings& raw,
 		}
 		else // Str
 		{
-			std::string normalized = val;
-			if (key == "profile-position")
-				normalized = normalize_shadow_profile_position(val);
-
-			bool in_domain = std::find(pd->domain.begin(), pd->domain.end(), normalized) != pd->domain.end();
+			bool in_domain = std::find(pd->domain.begin(), pd->domain.end(), val) != pd->domain.end();
 			if (!in_domain)
 			{
 				skipped.push_back(key);
 				continue;
 			}
-			result[key] = ShadowValue::make_str(normalized);
+			result[key] = ShadowValue::make_str(val);
 		}
 	}
 	return result;
@@ -172,7 +182,7 @@ static ShadowValueMap validate_settings(const RawSettings& raw,
 // Shadow conflict check (mirrors preset_name_conflicts in preset.cpp).
 // ---------------------------------------------------------------------------
 
-static const char* BUILTIN_NAMES[] = { "classic", "modern", "fullscreen", nullptr };
+static const char* BUILTIN_NAMES[] = { "classic", "modern", "fullscreen", "minimal", nullptr };
 
 static bool shadow_name_conflicts_builtin(const std::string& name)
 {
@@ -195,10 +205,11 @@ static RawSettings make_valid_modern_raw()
 	r.put("panel-gap",          "8");
 	r.put("menu-opacity",       "100");
 	r.put("sidebar-position",   "left");
-	r.put("position-categories-horizontal", "false");
-	r.put("search-bar-position","bottom");
-	r.put("profile-position",   "top-left");
-	r.put("commands-position",  "top-right");
+	r.put("sidebar-enabled",    "true");
+	r.put("category-show-name", "true");
+	r.put("search-bar-position","top");
+	r.put("show-profile",       "true");
+	r.put("show-session",       "true");
 	r.put("layout-mode",        "docked");
 	r.put("launcher-icon-size", "3");
 	r.put("category-icon-size", "2");
@@ -206,7 +217,8 @@ static RawSettings make_valid_modern_raw()
 	r.put("hover-switch-category", "true");
 	r.put("transparent-grid",   "true");
 	r.put("view-mode-default",  "icons");
-	r.put("places-switch-button-shape", "gtk-theme");
+	r.put("places-enabled",     "true");
+	r.put("places-show-icons",  "true");
 	r.put("calculator-engine", "bc");
 	r.put("calculator-result-font-size", "-1");
 	r.put("calculator-max-decimal-places", "4");
@@ -236,7 +248,7 @@ static void test_calculator_domains_and_bounds()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: Tests
+// runtime implementation: Tests
 // ---------------------------------------------------------------------------
 
 static void test_round_trip_all_valid()
@@ -248,28 +260,31 @@ static void test_round_trip_all_valid()
 	assert(result.size() == raw.entries.size());
 }
 
-static void test_profile_aliases_rewritten_to_canonical_domain()
+static void test_retired_layout_keys_are_not_supported()
 {
 	RawSettings raw;
 	raw.put("profile-position", "top");
 	raw.put("commands-position", "bottom-right");
+	raw.put("position-categories-horizontal", "true");
+	raw.put("unified-bar", "true");
 
+	assert(has_incompatible_layout(raw));
+
+	RawSettings supported = make_valid_modern_raw();
+	supported.put("future-animation-style", "gentle");
+	assert(!has_incompatible_layout(supported));
 	std::vector<std::string> skipped;
-	ShadowValueMap result = validate_settings(raw, skipped);
+	ShadowValueMap result = validate_settings(supported, skipped);
+	assert(result.count("show-profile") == 1);
+	assert(result.count("show-session") == 1);
+	assert(skipped.size() == 1);
 
-	assert(skipped.empty());
-	assert(result.count("profile-position") == 1);
-	assert(result.at("profile-position").s == "top-left");
-
-	raw.put("profile-position", "bottom");
-	skipped.clear();
-	result = validate_settings(raw, skipped);
-	assert(result.at("profile-position").s == "bottom-left");
-
-	raw.put("profile-position", "bottom-right");
-	skipped.clear();
-	result = validate_settings(raw, skipped);
-	assert(result.at("profile-position").s == "bottom-left");
+	for (const char* edge : { "top", "bottom" })
+	{
+		RawSettings obsolete_sidebar;
+		obsolete_sidebar.put("sidebar-position", edge);
+		assert(has_incompatible_layout(obsolete_sidebar));
+	}
 }
 
 static void test_unknown_keys_skipped()
@@ -285,6 +300,21 @@ static void test_unknown_keys_skipped()
 	assert(result.find("another-unknown") == result.end());
 	// All the valid keys still made it through
 	assert(result.size() == raw.entries.size() - 2);
+}
+
+static void test_retired_selector_shape_is_unknown()
+{
+	for (const char* value : { "gtk-theme", "rounded", "future-shape" })
+	{
+		RawSettings raw = make_valid_modern_raw();
+		raw.put("places-switch-button-shape", value);
+		std::vector<std::string> skipped;
+		const ShadowValueMap result = validate_settings(raw, skipped);
+		assert(result.count("places-switch-button-shape") == 0);
+		assert(result.count("layout-mode") == 1);
+		assert(std::find(skipped.begin(), skipped.end(),
+				"places-switch-button-shape") != skipped.end());
+	}
 }
 
 static void test_out_of_range_int_skipped_others_survive()
@@ -390,7 +420,7 @@ static void test_category_icon_size_round_trip()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: Shadow enumeration tests — simulate enumerate_preset_files logic.
+// runtime implementation: Shadow enumeration tests — simulate enumerate_preset_files logic.
 // These verify the merge/override rules without touching the filesystem.
 // ---------------------------------------------------------------------------
 
@@ -402,7 +432,7 @@ struct ShadowPreset
 };
 
 // Shadow version of enumerate_preset_files: system presets in first map,
-// user presets in second; user wins on id collision (the documented behavior).
+// user presets in second; user wins on id collision (supported behavior).
 static std::vector<ShadowPreset> shadow_enumerate(
 	const std::vector<ShadowPreset>& sys,
 	const std::vector<ShadowPreset>& user)
@@ -515,16 +545,16 @@ static void test_new_schema_keys_accepted()
 }
 
 // ---------------------------------------------------------------------------
-// the implementation step: schema-lenient import gate (the documented behavior) and name-conflict resolution
-// (the documented behavior). Mirrors the accept/reject decision of import_user_preset() before
+// runtime implementation: schema-lenient import gate (supported behavior) and name-conflict resolution
+// (supported behavior). Mirrors the accept/reject decision of import_user_preset() before
 // the per-key [Settings] validation already covered above.
 //
-// Reject ONLY when: unparseable, a required section ([Preset]/[Settings]) is
-// missing, or [Preset].Name is absent. Otherwise accept best-effort — a missing
+// Reject when parsing or required structure fails, or when layout preflight
+// finds obsolete content. Otherwise accept best-effort: a missing
 // SchemaVersion is assumed current and a newer SchemaVersion is accepted.
 // ---------------------------------------------------------------------------
 
-enum class ImportGate { Ok, ParseError, MissingSection, MissingKey };
+enum class ImportGate { Ok, ParseError, MissingSection, MissingKey, IncompatibleLayout };
 
 struct ImportFile
 {
@@ -532,6 +562,7 @@ struct ImportFile
 	bool has_preset = true;
 	bool has_settings = true;
 	bool has_name = true;
+	bool incompatible_layout = false;
 	// -1 means the SchemaVersion key is absent; otherwise the integer value.
 	int  schema_version = 1;
 };
@@ -542,6 +573,8 @@ static ImportGate import_gate(const ImportFile& f)
 		return ImportGate::ParseError;
 	if (!f.has_preset || !f.has_settings)
 		return ImportGate::MissingSection;
+	if (f.incompatible_layout)
+		return ImportGate::IncompatibleLayout;
 	if (!f.has_name)
 		return ImportGate::MissingKey;
 	// SchemaVersion is advisory: neither a missing nor a newer version rejects.
@@ -576,6 +609,31 @@ static void test_import_rejects_missing_name()
 {
 	ImportFile f; f.has_name = false;
 	assert(import_gate(f) == ImportGate::MissingKey);
+}
+
+static void test_incompatible_import_precedes_conflicts_and_mutation()
+{
+	ImportFile file;
+	file.has_name = false;
+	file.incompatible_layout = true;
+	assert(import_gate(file) == ImportGate::IncompatibleLayout);
+
+	std::map<std::string, std::string> overwrite_target = {
+		{ "name", "Keep Me" },
+		{ "corner-radius", "7" },
+	};
+	const auto before = overwrite_target;
+	int generated_uuids = 0;
+	int cache_refreshes = 0;
+	if (import_gate(file) == ImportGate::Ok)
+	{
+		overwrite_target.clear();
+		++generated_uuids;
+		++cache_refreshes;
+	}
+	assert(overwrite_target == before);
+	assert(generated_uuids == 0);
+	assert(cache_refreshes == 0);
 }
 
 // Name-conflict resolution: a built-in collision returns ConflictBuiltin (and the
@@ -617,9 +675,9 @@ static void test_conflict_user_offers_overwrite()
 	assert(classify_conflict("Brand New", users) == ConflictKind::None);
 }
 
-// the implementation step: export→import round-trip equality. A saved preset's validated value set,
+// runtime implementation: export→import round-trip equality. A saved preset's validated value set,
 // serialised on export and re-validated on import, must be byte-for-byte the same
-// governed-key map — locking the documented behavior automatically (contract Export/Import).
+// governed-key map — locking supported behavior automatically (contract Export/Import).
 static void test_export_import_round_trip_equality()
 {
 	// Start from a fully-valid saved-custom value set.
@@ -640,11 +698,10 @@ static void test_export_import_round_trip_equality()
 		else
 			exported.put(kv.first, v.s);
 	}
-	auto exported_profile = exported.entries.find("profile-position");
-	assert(exported_profile != exported.entries.end());
-	assert(exported_profile->second != "top");
-	assert(exported_profile->second != "bottom");
-	assert(exported_profile->second != "bottom-right");
+	assert(exported.entries.count("show-profile") == 1);
+	assert(exported.entries.count("show-session") == 1);
+	assert(exported.entries.count("profile-position") == 0);
+	assert(exported.entries.count("commands-position") == 0);
 
 	// "Import" the exported file under a fresh name.
 	std::vector<std::string> sk1;
@@ -668,7 +725,7 @@ static void test_export_import_round_trip_equality()
 	}
 }
 
-// the documented behavior: a preset still carrying only the three retired per-region opacity keys
+// supported behavior: a preset still carrying only the three retired per-region opacity keys
 // imports without error — each is now unknown and skipped, leaving opacity
 // unpinned (it resolves to the current/default single value).
 static void test_import_old_opacity_keys_skipped_no_error()
@@ -687,7 +744,7 @@ static void test_import_old_opacity_keys_skipped_no_error()
 	assert(result.find("menu-opacity") == result.end());
 }
 
-// the documented behavior precedence: when a file carries both the retired keys and menu-opacity,
+// supported behavior precedence: when a file carries both the retired keys and menu-opacity,
 // the retired keys are ignored and the single menu-opacity value is what applies.
 static void test_import_new_opacity_wins_over_old()
 {
@@ -709,9 +766,10 @@ static void test_import_new_opacity_wins_over_old()
 int main()
 {
 	test_round_trip_all_valid();
-	test_profile_aliases_rewritten_to_canonical_domain();
+	test_retired_layout_keys_are_not_supported();
 	test_calculator_domains_and_bounds();
 	test_unknown_keys_skipped();
+	test_retired_selector_shape_is_unknown();
 	test_out_of_range_int_skipped_others_survive();
 	test_invalid_str_domain_skipped_others_survive();
 	test_invalid_bool_skipped();
@@ -719,7 +777,7 @@ int main()
 	test_empty_settings_section();
 	test_int_boundary_values();
 	test_category_icon_size_round_trip();
-	// the implementation step: enumeration logic
+	// runtime implementation: enumeration logic
 	test_enumerate_system_only();
 	test_enumerate_user_wins_on_duplicate_id();
 	test_enumerate_malformed_file_silently_skipped();
@@ -727,12 +785,13 @@ int main()
 	test_enumerate_unknown_key_dropped();
 	test_new_schema_keys_accepted();
 	// 029-custom-presets: schema-lenient import gate, conflict resolution,
-	// export→import round-trip equality (the documented behavior, the documented behavior)
+	// export→import round-trip equality (supported behavior, supported behavior)
 	test_import_accepts_missing_schema_version();
 	test_import_accepts_newer_schema_version();
 	test_import_rejects_unparseable();
 	test_import_rejects_missing_section();
 	test_import_rejects_missing_name();
+	test_incompatible_import_precedes_conflicts_and_mutation();
 	test_conflict_builtin_withholds_overwrite();
 	test_conflict_user_offers_overwrite();
 	test_export_import_round_trip_equality();

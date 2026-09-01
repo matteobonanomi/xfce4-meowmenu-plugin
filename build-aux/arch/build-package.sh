@@ -2,9 +2,9 @@
 #
 # build-package.sh: build the package with makepkg as the non-root 'builder'
 # user. --syncdeps installs declared dependencies; --cleanbuild/--force keep
-# repeated CI runs deterministic. The PKGBUILD check() function runs the
-# project's Meson suite as part of makepkg. A build or test failure exits
-# non-zero.
+# repeated CI runs deterministic. The release PKGBUILD explicitly disables
+# optional desktop integrations; its check() function runs the Meson suite as
+# part of makepkg. A build or test failure exits non-zero.
 #
 # Usage: build-package.sh <build-dir>
 # Emits the produced *.pkg.tar.* path on stdout.

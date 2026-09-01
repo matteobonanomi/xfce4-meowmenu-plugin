@@ -15,17 +15,48 @@
 namespace WhiskerMenu
 {
 
-/* application_load_generation_can_commit:
- * @current_generation: generation currently owned by ApplicationsPage.
- * @job_generation: generation carried by the async load completion.
- * @cancelled: true when teardown or a newer clear invalidated this job.
- * @owner_alive: true when the completion still has a live owning page/window.
- *
- * Returns: true iff an async application load completion may publish its
- * replacement category set to the UI.
- */
-bool application_load_generation_can_commit(guint64 current_generation,
-		guint64 job_generation, bool cancelled, bool owner_alive);
+enum class ApplicationLoadStatus
+{
+	Queued,
+	Loading,
+	CandidateReady,
+	Committed,
+	Discarded
+};
+
+class ApplicationLoadGeneration
+{
+public:
+	explicit ApplicationLoadGeneration(guint64 generation);
+
+	guint64 id() const { return m_generation; }
+	ApplicationLoadStatus status() const { return m_status; }
+	bool follow_up_required() const { return m_invalidated; }
+
+	/* Moves a newly queued generation into worker-owned loading. */
+	bool start();
+
+	/* Prevents publication and records that a replacement load is needed. */
+	void invalidate();
+
+	/* Terminates outstanding work without allowing later publication. */
+	void cancel();
+
+	/* Accepts only a coherent, current candidate from active loading. */
+	bool candidate_ready(bool coherent);
+
+	/* Publishes only for the live owner and current generation identifier. */
+	bool commit(guint64 current_generation, bool owner_alive);
+
+	/* Retires any generation that has not already committed. */
+	void discard();
+
+private:
+	guint64 m_generation;
+	ApplicationLoadStatus m_status;
+	bool m_cancelled;
+	bool m_invalidated;
+};
 
 }
 

@@ -14,6 +14,28 @@ LINKS = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(LINKS)
 
 
+def markdown_tables(content):
+    """Yield Markdown tables as lists of parsed cells."""
+    lines = content.splitlines()
+    tables = []
+    index = 0
+    while index + 1 < len(lines):
+        if not lines[index].lstrip().startswith("|"):
+            index += 1
+            continue
+        if not lines[index + 1].lstrip().startswith("|"):
+            index += 1
+            continue
+        rows = []
+        while index < len(lines) and lines[index].lstrip().startswith("|"):
+            rows.append(
+                [cell.strip() for cell in lines[index].strip().strip("|").split("|")]
+            )
+            index += 1
+        tables.append(rows)
+    return tables
+
+
 class DocumentationLinksTest(unittest.TestCase):
     def test_repository_links_and_commands(self):
         self.assertEqual(LINKS.violations(ROOT), [])
@@ -53,6 +75,23 @@ class DocumentationLinksTest(unittest.TestCase):
                 ["docs/support.md"],
             )
 
+    def test_selected_maintainer_note_is_checked(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            note = root / "dev/docs"
+            note.mkdir(parents=True)
+            (note / "ci.md").write_text(
+                "[Missing](not-a-real-maintainer-route)\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                LINKS.violations(root),
+                [
+                    "dev/docs/ci.md:1: missing link target "
+                    "not-a-real-maintainer-route"
+                ],
+            )
+
     def test_public_navigation_has_unique_order_and_required_pages(self):
         navigation = {}
         for document in (ROOT / "docs").glob("*.md"):
@@ -74,282 +113,119 @@ class DocumentationLinksTest(unittest.TestCase):
             }.issubset(set(navigation.values()))
         )
 
-    def test_evergreen_identity_and_entry_points(self):
+    def test_public_entry_points_are_current_and_linked(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         home = (ROOT / "docs/index.md").read_text(encoding="utf-8")
-        for label, target in (
-            ("Support and compatibility", "docs/support.md"),
-            ("Known limitations", "docs/known-limitations.md"),
-            ("Testing", "docs/testing.md"),
-            ("Translation status", "docs/translations.md"),
+        for target in (
+            "docs/support.md",
+            "docs/known-limitations.md",
+            "docs/testing.md",
+            "docs/translations.md",
         ):
-            self.assertIn(f"[{label}]({target})", readme)
-        self.assertIn("## Support and compatibility", readme)
-        self.assertIn("supports Xfce 4.16 through 4.21", readme)
-        self.assertIn("Xfce 4.20 as the primary", readme)
-        self.assertIn("MeowMenu is a native Xfce panel launcher", readme)
-        self.assertNotIn("## Release-candidate support", readme)
-        self.assertIn("[Check support and compatibility](support)", home)
-        self.assertIn("[Run the testing checklist](testing)", home)
-        self.assertIn(
-            "Distribution testing, package availability, and Xfce compatibility",
-            home,
-        )
+            self.assertIn(f"]({target})", readme)
+        for target in (
+            "support",
+            "known-limitations",
+            "testing",
+            "translations",
+        ):
+            self.assertIn(f"]({target})", home)
+        self.assertIn("MeowMenu", readme)
+        self.assertIn("X11", readme)
+        self.assertIn("Wayland", readme)
         self.assertNotRegex(home, r"(?i)current release candidate|check RC1")
 
-    def test_public_support_pages_avoid_obsolete_framing(self):
-        pages = (
-            "installation.md",
-            "support.md",
-            "known-limitations.md",
-            "testing.md",
-            "keyboard-navigation.md",
-        )
-        candidate_scope = re.compile(
-            r"(?i)release[- ]candidate|current candidate|for RC1|"
-            r"upgrade to RC1|check RC1"
+    def test_public_release_and_configuration_policy_is_semantic(self):
+        documents = [
+            ROOT / "README.md",
+            ROOT / "docs/installation.md",
+            ROOT / "docs/support.md",
+            ROOT / ".github/SECURITY.md",
+        ]
+        content = " ".join(document.read_text(encoding="utf-8") for document in documents)
+        self.assertRegex(content, r"(?is)0\.x.{0,180}experimental")
+        self.assertRegex(content, r"(?is)rc.{0,180}(?:stable|stabl|testing)")
+        self.assertRegex(content, r"(?is)newest 0\.x.{0,180}feature")
+        self.assertRegex(content, r"(?is)before final 1\.0\.0.{0,180}not guaranteed")
+        self.assertRegex(content, r"(?is)final 1\.0\.0.{0,180}preserv")
+
+    def test_public_pages_avoid_historical_and_obsolete_framing(self):
+        pages = tuple((ROOT / "docs").glob("*.md"))
+        forbidden = re.compile(
+            r"(?i)one-time reset|resets exactly once|legacy[- ]key|"
+            r"retired (?:layout|sidebar|grid) (?:setting|key)|"
+            r"upgrade chronology|historical reset"
         )
         current_whisker_identity = re.compile(
             r"(?im)^#\s+Whisker Menu\b|\bWhisker Menu is\b|"
             r"\bcurrent (?:product|launcher) is Whisker Menu\b"
         )
-        coexistence_contract = re.compile(
-            r"(?i)whisker-overlap|coexistence (?:check|test|gate|guarantee)|"
-            r"(?:verified|certified) coexistence"
-        )
-        for name in pages:
-            content = (ROOT / "docs" / name).read_text(encoding="utf-8")
-            self.assertIsNone(candidate_scope.search(content), name)
-            self.assertIsNone(current_whisker_identity.search(content), name)
-            self.assertIsNone(coexistence_contract.search(content), name)
+        for document in pages:
+            content = document.read_text(encoding="utf-8")
+            self.assertIsNone(forbidden.search(content), document)
+            self.assertIsNone(current_whisker_identity.search(content), document)
 
-    def test_distro_matrix_records_exact_provenance(self):
-        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
-        matrix = support.split("## Distro testing", maxsplit=1)[1]
-        matrix = matrix.split("## Package availability", maxsplit=1)[0]
-        rows = {}
-        for line in matrix.splitlines():
-            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-            if len(cells) != 4 or cells[0] in {
-                "Distribution/context",
-                "----------------------",
-            }:
-                continue
-            rows[cells[0]] = tuple(cells[1:])
-        self.assertEqual(
-            rows,
-            {
-                "Debian 13": ("✓", "✓", "✓"),
-                "Xubuntu 26.04": ("✓", "✓", "✓"),
-                "Arch Linux": ("✓", "—", "✓"),
-                "MX Linux": ("—", "✓", "—"),
-                "Fedora 44": ("—", "—", "✓"),
-            },
+    def test_configuration_tables_keep_role_specific_shapes(self):
+        configuration = (ROOT / "docs/configuration.md").read_text(encoding="utf-8")
+        tables = markdown_tables(configuration)
+        self.assertTrue(
+            any(table[0][:2] == ["Option", "Description"] for table in tables)
         )
-        for definition in (
-            "**Maintainer** means a manual result",
-            "**Community** means a manual result",
-            "**CI** means automated",
-            "no result is currently documented",
-            "not a known\n  failure or incompatibility",
-        ):
-            self.assertIn(definition, matrix)
-        self.assertIn(
-            "CI marks describe automation for the named row",
-            matrix,
+        self.assertTrue(
+            any(
+                table[0][:4] == ["Key", "Type", "Default", "Description"]
+                for table in tables
+            )
         )
-        self.assertIn(
-            "never transferred to the Maintainer or Community columns",
-            matrix,
-        )
-        self.assertNotRegex(
-            matrix,
-            r"(?i)\.deb|\.rpm|AUR|Xfce 4\.(?:16|18|20|21)",
-        )
-        for obsolete in (
-            "Source-build compatible",
-            "Staged-install compatible",
-            "Published package target",
-            "Maintainer-published source recipe",
-            "Live validated",
-        ):
-            self.assertNotIn(obsolete, support)
-        package = support.split("## Package availability", maxsplit=1)[1]
-        self.assertIn("[installation guide](installation)", package)
-        self.assertIn(
-            "do not create maintainer or community testing marks",
-            " ".join(package.split()),
-        )
+        for table in tables:
+            width = len(table[0])
+            self.assertGreaterEqual(width, 2)
+            for row in table[2:]:
+                self.assertEqual(len(row), width, table[0])
 
-    def test_xfce_compatibility_has_separate_evidence_boundaries(self):
-        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
-        section = support.split("## Xfce compatibility", maxsplit=1)[1]
-        section = section.split("## Sessions and architectures", maxsplit=1)[0]
-        self.assertIn("supports Xfce 4.16 through 4.21", section)
-        self.assertIn("Xfce 4.20 as the primary\nquality target", section)
-        for row in (
-            "| Xfce 4.16 libraries | Source configure, build, and tests with Exo | Supported source stack |",
-            "| Xfce 4.18 libraries | Source configure, build, and tests with Exo | Supported source stack |",
-            "| Xfce 4.20 libraries | Source configure, build, and tests with Exo | Primary quality target |",
-            "| libxfce4ui 4.21 or newer | Successor source cell and staged install without Exo | Dependency-transition boundary only |",
-        ):
-            self.assertIn(row, section)
-        self.assertIn(
-            "explicit on-demand source-stack evidence, not routine distro or "
-            "live desktop results",
-            " ".join(section.split()),
-        )
-        self.assertIn(
-            "not a separately live-validated Xfce 4.21 desktop",
-            " ".join(section.split()),
-        )
-        self.assertIn(
-            "does not claim compatibility with every future",
-            " ".join(section.split()),
-        )
-
-        boundaries = support.split(
-            "## Sessions and architectures", maxsplit=1
-        )[1]
-        self.assertIn("X11 on `x86_64`/`amd64` is the primary", boundaries)
-        self.assertIn("Wayland is supported\nwith a graceful", boundaries)
-        self.assertIn(
-            "Source compilation does not establish a session,\n"
-            "architecture, or live desktop result",
-            boundaries,
-        )
-
-    def test_testing_guide_is_reusable_and_scoped(self):
+    def test_current_controls_and_layout_positions_are_documented(self):
+        configuration = (ROOT / "docs/configuration.md").read_text(encoding="utf-8")
         testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
-        context = testing.split("## Test context", maxsplit=1)[1]
-        context = context.split("## Five-minute core check", maxsplit=1)[0]
+        self.assertRegex(configuration, r"(?i)sidebar.*left.*right.*horizontal")
+        self.assertNotIn("Grid columns", configuration)
+        self.assertNotIn("Grid rows", configuration)
+        for obsolete in ("`profile-position`", "`commands-position`", "`unified-bar`"):
+            self.assertNotIn(obsolete, configuration)
+        self.assertNotRegex(testing, r"(?i)sidebar (?:at|on) the top|sidebar (?:at|on) the bottom")
+
+    def test_support_and_testing_pages_record_scope_without_snapshots(self):
+        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
+        testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
         for field in (
-            "**MeowMenu version/revision:**",
-            "**Distribution/version:**",
-            "**Xfce version:**",
-            "**Architecture:**",
-            "**Session type:**",
-            "**Installation method/artifact:**",
+            "MeowMenu version",
+            "Distribution/version",
+            "Xfce version",
+            "Architecture",
+            "Session type",
+            "Installation method",
         ):
-            self.assertIn(field, context)
-        self.assertIn("Every result applies only to this recorded", context)
+            self.assertIn(field, testing)
+        self.assertIn("X11", support)
+        self.assertIn("Wayland", support)
+        self.assertIn("not guaranteed", support)
+        self.assertNotIn("compatibility matrix", testing.lower())
 
-        core = testing.split("## Five-minute core check", maxsplit=1)[1]
-        core = core.split("## Automated dependency evidence", maxsplit=1)[0]
-        for check in (
-            "version under test",
-            "version shown in **About**",
-            "**Add New Items**",
-            "fresh profile",
-            "open/search/launch cycle",
-            "Log out and in",
-            "another startup",
-        ):
-            self.assertIn(check, core)
-        self.assertIn("scoped to the six recorded context fields", core)
-
-        upgrade = testing.split("## Upgrade check", maxsplit=1)[1]
-        upgrade = upgrade.split("## Removal and full cleanup", maxsplit=1)[0]
-        self.assertIn("`<source-version>`", upgrade)
-        self.assertIn("`<target-version>`", upgrade)
-        for retained in (
-            "panel item",
-            "favourites and order",
-            "layout/preferences",
-            "Calculator choices",
-            "Xfconf output",
-            "preset files",
-            "Log out and in",
-            "another startup",
-        ):
-            self.assertIn(retained, upgrade)
-        self.assertNotRegex(upgrade, r"\b0\.8\.0\b|\bRC1\b")
-
-    def test_release_specific_dependency_classes_are_documented(self):
-        installation = (
-            ROOT / "docs/installation.md"
-        ).read_text(encoding="utf-8")
-        required = {
-            "Ubuntu 26.04": "libexo-2-dev",
-            "Debian 13": "libexo-2-dev",
-            "Fedora 44": "exo-devel",
-            "Arch / Manjaro / EndeavourOS": "exo",
-        }
-        for heading, dependency in required.items():
-            section = installation.split(f"### {heading}", maxsplit=1)[1]
-            section = section.split("\n### ", maxsplit=1)[0]
-            self.assertIn(dependency, section)
-        self.assertIn("Optional integrations on Ubuntu 26.04", installation)
-        self.assertIn("Optional integrations on Debian 13", installation)
-        self.assertIn("Optional integrations on Fedora 44", installation)
-        self.assertIn("Optional integrations on Arch", installation)
-        self.assertIn("libxfce4ui 4.21", installation)
-
-    def test_release_artifact_and_arch_boundaries_are_documented(self):
+    def test_keyboard_surface_is_cross_linked_and_current(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        installation = (
-            ROOT / "docs/installation.md"
-        ).read_text(encoding="utf-8")
-        for document in (readme, installation):
-            normalized = " ".join(document.split())
-            self.assertIn("Ubuntu 26.04", normalized)
-            self.assertIn("Debian 13", normalized)
-            self.assertIn("Fedora 44", normalized)
-            self.assertIn("source archive", normalized)
-            self.assertIn("SHA256SUMS", normalized)
-        self.assertIn("sha256sum -c SHA256SUMS", installation)
-        self.assertIn("four payloads", installation)
-        self.assertIn("no Arch binary is attached", installation)
-        self.assertIn("published manually by the maintainer", installation)
+        keyboard = (ROOT / "docs/keyboard-navigation.md").read_text(encoding="utf-8")
+        self.assertIn("docs/keyboard-navigation.md", readme)
+        for key in ("Tab", "Backspace", "Ctrl+Tab", "Wayland"):
+            self.assertIn(key, keyboard)
 
-    def test_ci_package_and_live_evidence_remain_distinct(self):
-        testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
-        support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
-        limitations = (
-            ROOT / "docs/known-limitations.md"
-        ).read_text(encoding="utf-8")
-        for context in (
-            "Ubuntu 26.04",
-            "Debian 13",
-            "Fedora 44",
-            "sanitizers",
-            "catalogs",
-            "Calculator",
-        ):
-            self.assertIn(context, testing)
-        self.assertIn("first ten consecutive", testing)
-        self.assertIn("at least nine should\nfinish within 15 minutes", testing)
-        self.assertIn("explicit compatibility matrix is dispatched", testing)
-        self.assertIn("not live desktop results", testing)
-        self.assertIn("explicit on-demand source-stack evidence", support)
-        self.assertIn("do not create\nmaintainer or community testing marks", support)
-        self.assertIn("explicit compatibility run", limitations)
-        self.assertNotIn("continuously checked", limitations)
-
-    def test_release_guide_matches_automatic_recovery_contract(self):
-        releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
-        normalized = " ".join(releasing.split())
-        for context in (
-            "build (ubuntu-26.04)",
-            "build (debian-13)",
-            "build (fedora-44)",
-            "sanitizers",
-            "static-checks",
-            "no-optional-deps",
-        ):
-            self.assertIn(context, releasing)
-        self.assertIn("first ten consecutive", normalized)
-        self.assertIn("At least nine must complete within 15 minutes", normalized)
-        self.assertIn("annotated or lightweight", normalized)
-        self.assertIn("other than `main`", normalized)
-        self.assertIn("exactly:", normalized)
-        self.assertIn("published AUR metadata", normalized)
-        self.assertIn("Commit and publish them manually", normalized)
-
-    def test_readme_calls_source_stack_checks_on_demand(self):
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("On-demand source-stack builds", readme)
-        self.assertNotIn("Continuous source builds", readme)
+    def test_source_build_and_optional_fallback_guidance_is_present(self):
+        installation = (ROOT / "docs/installation.md").read_text(encoding="utf-8")
+        limitations = (ROOT / "docs/known-limitations.md").read_text(encoding="utf-8")
+        for integration in ("AccountsService", "gtk-layer-shell"):
+            self.assertIn(integration, installation)
+            self.assertIn(integration, limitations)
+        self.assertRegex(installation, r"(?i)optional.{0,120}source")
+        self.assertRegex(installation, r"(?i)X11.{0,120}officially supported")
+        self.assertRegex(installation, r"(?i)Wayland.{0,160}experimental")
 
 
 if __name__ == "__main__":

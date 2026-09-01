@@ -17,10 +17,12 @@
 
 #include "page.h"
 
+#include "core/window-frame.h"
 #include "config/xfce-helpers.h"
 #include "core/desktop-drag.h"
 #include "launcher/category-button.h"
 #include "favorites-page.h"
+#include "ui/grid-cell-metrics.h"
 #include "ui/image-menu-item.h"
 #include "ui/grid-presentation.h"
 #include "launcher.h"
@@ -86,7 +88,9 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	m_drag_enabled(true),
 	m_launcher_dragged(false),
 	m_favourite_drag_payload_delivered(false),
-	m_reorderable(false)
+	m_reorderable(false),
+	m_viewport_width(0),
+	m_present_tick_id(0)
 {
 	// Create button
 	if (icon && text)
@@ -101,18 +105,34 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 
 	// Add scrolling to view
 	m_widget = gtk_scrolled_window_new(nullptr, nullptr);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_widget), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(m_widget), GTK_SHADOW_ETCHED_IN);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(m_widget),
+			GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_propagate_natural_width(
+			GTK_SCROLLED_WINDOW(m_widget), FALSE);
+	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(m_widget),
+			MEOWMENU_LAUNCHER_SHADOW_TYPE);
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	g_object_ref_sink(m_widget);
 
 	gtk_style_context_add_class(gtk_widget_get_style_context(m_widget), "launchers-pane");
+	connect(m_widget, "size-allocate",
+			[this](GtkWidget*, GtkAllocation*)
+			{
+				sync_viewport_width();
+			});
+	connect(m_widget, "map",
+			[this](GtkWidget*)
+			{
+				present();
+			});
 }
 
 //-----------------------------------------------------------------------------
 
 Page::~Page()
 {
+	meow::meowmenu_cancel_mapped_result_frame(
+			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
 	delete m_button;
 	delete m_view;
 	gtk_widget_destroy(m_widget);
@@ -153,6 +173,56 @@ void Page::select_first()
 	gtk_adjustment_set_value(adjustment, gtk_adjustment_get_lower(adjustment));
 }
 
+/* focus_first_result:
+ *
+ * Establishes the first current result as the complete keyboard anchor. The
+ * cursor, single selection, reveal, and view focus are applied together so a
+ * refreshed model cannot leave a stale focus indicator behind.
+ *
+ * Returns: true when a selectable first row exists.
+ */
+bool Page::focus_first_result()
+{
+	GtkTreeModel* model = m_view ? m_view->get_model() : nullptr;
+	GtkTreeIter iter;
+	if (!model || !gtk_tree_model_get_iter_first(model, &iter))
+		return false;
+
+	GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+	m_view->set_cursor(path);
+	m_view->select_path(path);
+	m_view->scroll_to_path(path);
+	gtk_widget_grab_focus(m_view->get_widget());
+	gtk_tree_path_free(path);
+	return true;
+}
+
+/* keyboard_move:
+ * @direction: physical direction requested by the window dispatcher.
+ *
+ * Asks the concrete result view for an adjacent displayed item and applies
+ * its cursor, selection, reveal, and focus transition as one operation. A
+ * missing neighbour is a boundary no-op; model order is never wrapped.
+ */
+bool Page::keyboard_move(Keyboard::PhysicalDirection direction)
+{
+	if (!m_view)
+		return false;
+	GtkTreePath* origin = m_view->get_selected_path();
+	if (!origin)
+		origin = m_view->get_cursor();
+	if (!origin)
+		return false;
+
+	GtkTreePath* target = m_view->get_directional_path(origin, direction);
+	gtk_tree_path_free(origin);
+	if (!target)
+		return false;
+	const bool moved = m_view->apply_keyboard_target(target);
+	gtk_tree_path_free(target);
+	return moved;
+}
+
 //-----------------------------------------------------------------------------
 
 void Page::update_view()
@@ -165,14 +235,105 @@ void Page::update_view()
 
 	g_assert(m_view);
 	LauncherView* view = m_view;
+	meow::meowmenu_cancel_mapped_result_frame(
+			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
 	create_view();
 	m_view->set_model(view->get_model());
 	delete view;
 
 	gtk_container_add(GTK_CONTAINER(m_widget), m_view->get_widget());
 	gtk_widget_show_all(m_widget);
+	sync_viewport_width();
 
 	view_created();
+}
+
+/* sync_viewport_width:
+ *
+ * Supplies the launcher view with the scroller's allocation after removing any
+ * natural-size overshoot GTK has already added beyond the authoritative
+ * toplevel width. Full Screen also caps the result to its work-area-derived
+ * main column, while interactive resize remains authoritative through the
+ * windowed size request.
+ */
+void Page::sync_viewport_width()
+{
+	if (!m_view || !GTK_IS_SCROLLED_WINDOW(m_widget))
+		return;
+	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+	m_viewport_width = meow_grid_effective_viewport_width(
+			gtk_widget_get_allocated_width(m_widget),
+			GTK_IS_WIDGET(toplevel)
+					? gtk_widget_get_allocated_width(toplevel) : 0,
+			m_window->get_result_toplevel_width_authority(),
+			m_window->get_result_viewport_width_cap());
+	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* Page::present:
+ *
+ * Synchronizes geometry and invalidates both the concrete result and composed
+ * toplevel after this page becomes visible. The two immediate draws are
+ * independent, and one coalesced mapped-frame draw closes the case where GTK
+ * consumes hidden-stack damage before the page receives its visible allocation.
+ */
+void Page::present()
+{
+	if (!m_view)
+		return;
+	sync_viewport_width();
+	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+	const bool ready = m_view->prepare_presentation();
+	meow::meowmenu_queue_complete_result_frame(
+			toplevel, m_view->get_widget());
+	if (!ready)
+	{
+		meow::meowmenu_schedule_mapped_result_frame(toplevel,
+				toplevel, m_view->get_widget(),
+				&m_present_tick_id,
+				+[](void* data) -> bool
+				{
+					return static_cast<LauncherView*>(data)
+							->prepare_presentation();
+				}, m_view);
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* prepare_viewport_resize:
+ * @current_toplevel_width: launcher width before the resize step.
+ * @requested_toplevel_width: launcher width requested by the step.
+ *
+ * Pushes the predicted Results width into icon grids before the toplevel size
+ * request changes. This breaks the requisition/allocation cycle that otherwise
+ * hides results during a drag and delays column changes until button release.
+ */
+void Page::prepare_viewport_resize(int current_toplevel_width,
+		int requested_toplevel_width)
+{
+	if (!m_view || m_viewport_width < 1
+			|| m_view->get_minimum_viewport_width() < 1)
+	{
+		return;
+	}
+
+	const int viewport_width = meow_grid_resized_viewport_width(
+			m_viewport_width, current_toplevel_width,
+			requested_toplevel_width);
+	if (viewport_width == m_viewport_width)
+		return;
+	m_viewport_width = viewport_width;
+	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+int Page::get_minimum_viewport_width() const
+{
+	return m_view ? m_view->get_minimum_viewport_width() : 0;
 }
 
 //-----------------------------------------------------------------------------

@@ -20,12 +20,15 @@
 
 #include <gtk/gtk.h>
 
+#include "core/window-keyboard.h"
+
 namespace WhiskerMenu
 {
 
 static const char WHISKERMENU_APPLICATION_FAVOURITE_DND_TARGET[] =
 		"application/x-meowmenu-application-favourite";
 static const guint WHISKERMENU_APPLICATION_FAVOURITE_DND_INFO = 2;
+constexpr GtkShadowType MEOWMENU_LAUNCHER_SHADOW_TYPE = GTK_SHADOW_NONE;
 
 class CategoryButton;
 class DesktopAction;
@@ -62,7 +65,23 @@ public:
 
 	void reset_selection();
 	void select_first();
+	bool focus_first_result();
+	bool keyboard_move(Keyboard::PhysicalDirection direction);
 	void update_view();
+	void present();
+
+	/* prepare_viewport_resize:
+	 * @current_toplevel_width: launcher width before the resize step.
+	 * @requested_toplevel_width: launcher width requested by the step.
+	 *
+	 * Prepares an icon grid for a live horizontal resize before GTK allocates
+	 * the new window. List views and height-only steps are left unchanged.
+	 */
+	void prepare_viewport_resize(int current_toplevel_width,
+			int requested_toplevel_width);
+
+	int get_viewport_width() const { return m_viewport_width; }
+	int get_minimum_viewport_width() const;
 
 	/* activate_first:
 	 *
@@ -98,6 +117,7 @@ protected:
 
 private:
 	void create_view();
+	void sync_viewport_width();
 	virtual bool remember_launcher(Launcher* launcher);
 	void launcher_activated(GtkTreePath* path);
 	void launcher_action_activated(GtkMenuItem* menuitem, DesktopAction* action);
@@ -123,6 +143,8 @@ private:
 	bool m_launcher_dragged;
 	bool m_favourite_drag_payload_delivered;
 	bool m_reorderable;
+	int m_viewport_width;
+	guint m_present_tick_id;
 };
 
 }

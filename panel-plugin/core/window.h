@@ -23,8 +23,10 @@
 #include <gtk/gtk.h>
 
 #include "interactive-resize.h"
+#include "menu-composition.h"
 #include "menu-mode-state.h"
 #include "sidebar-layout.h"
+#include "theme-fallback.h"
 #include "window-keyboard.h"
 
 namespace WhiskerMenu
@@ -90,6 +92,8 @@ public:
 	PlacesPage* get_places() const { return m_places; }
 	bool is_places_active() const { return m_places_active; }
 	void switch_mode(bool to_places);
+	int get_result_toplevel_width_authority() const;
+	int get_result_viewport_width_cap() const;
 
 	void hide(bool lost_focus = false);
 	void show(const Position position);
@@ -132,6 +136,8 @@ private:
 	 * whenever the application categories change.
 	 */
 	void sync_category_label_width();
+	void bind_category_focus_adjustments();
+	void reveal_active_category();
 
 	GtkWidget* get_active_category_button();
 	gboolean on_key_press_event(GtkWidget* widget, GdkEventKey* key_event);
@@ -151,47 +157,15 @@ private:
 	 * cannot eject keyboard focus.
 	 */
 	void keyboard_navigate_category(GtkWidget* target);
-
-	/* current_visibility_mask:
-	 *
-	 * Folds the live layout flags and per-zone "hidden" positions into a
-	 * Keyboard::VisibilityMask. Search and Results are forced visible
-	 * (the documented behavior); the Sidebar, Mode selector, and Profile bar follow the
-	 * preset's per-zone position string and visibility flags.
-	 */
-	Keyboard::VisibilityMask current_visibility_mask() const;
+	bool dispatch_directional_navigation(Keyboard::PhysicalDirection direction);
 
 	/* current_menu_state:
 	 *
 	 * Returns Searching iff the search entry holds at least one
 	 * character, Browsing otherwise. Used by the focus router to skip
-	 * the inert sidebar while typing (the documented behavior).
+	 * the inert sidebar while typing (supported behavior).
 	 */
 	Keyboard::MenuState current_menu_state() const;
-
-	/* grab_focus_in_zone:
-	 * @zone: target zone for Tab/Shift+Tab.
-	 *
-	 * Maps a logical Zone to the concrete widget that should receive
-	 * focus on entry per data-model §"Entry widget mapping" and calls
-	 * gtk_widget_grab_focus on it. If the natural entry widget is not
-	 * realized/visible/sensitive/focusable the call is a no-op and the
-	 * previously focused widget keeps focus.
-	 *
-	 * Returns: true iff the grab actually landed (the target was
-	 * focusable and took focus). The forward Ctrl+Tab loop uses this to
-	 * advance past a zone whose grab silently fails (the documented behavior).
-	 */
-	bool grab_focus_in_zone(Keyboard::Zone zone);
-
-	/* current_zone:
-	 *
-	 * Identifies which logical Zone currently holds the focus, by
-	 * walking up the focused widget's ancestor chain. Falls back to
-	 * Zone::Search when nothing matches (e.g. focus is on the menu
-	 * window itself just after open).
-	 */
-	Keyboard::Zone current_zone() const;
 	gboolean on_map_event();
 	void on_state_flags_changed(GtkWidget* widget);
 	void on_screen_changed(GtkWidget* widget);
@@ -215,11 +189,15 @@ private:
 	void apply_window_shape(int width, int height, int radius, bool composited);
 
 	void update_background_css();
+	void schedule_style_refresh();
+	void refresh_theme_metrics();
 	void update_view_redraw_safeguards();
+	void prepare_results_width_resize(int current_width,
+			int requested_width);
 	void check_scrollbar_needed();
-	void favorites_toggled();
-	void recent_toggled();
-	void category_toggled();
+	void favorites_toggled(GtkToggleButton* button);
+	void recent_toggled(GtkToggleButton* button);
+	void category_toggled(GtkToggleButton* button);
 	void center_window();
 	void move_window();
 	// True when /layout-mode resolves to Centered. Drives the centred
@@ -234,6 +212,8 @@ private:
 	void validate_resize_display();
 	void apply_resize_rectangle(
 			const InteractiveResize::Rectangle& rectangle);
+	void schedule_resize_frame();
+	void cancel_resize_frame();
 	void settle_resize_position();
 	bool set_size(int width, int height);
 	void reset_default_button();
@@ -244,6 +224,7 @@ private:
 	MenuContentTarget current_menu_content() const;
 	void search();
 	void update_layout();
+	void apply_menu_composition(const MenuComposition& composition);
 
 	/* set_mode_button_content:
 	 * @button: one of the Apps/Places mode toggles.
@@ -254,10 +235,10 @@ private:
 	 * @long_label: gettext-translated descriptive name ("Applications"/"Places")
 	 *         used for the tooltip + accessible name in both modes, so the full
 	 *         meaning survives even in icon-only mode.
-	 * @icon_px: pixel size for the icon child, derived from the toggle's region
-	 *         (category icon size in a sidebar, search-bar height otherwise);
-	 *         <= 0 leaves the themed default and is used when the toggle is
-	 *         hidden.
+	 * @icon_size: GTK theme size role used for the image request.
+	 * @icon_px: pixel size for the icon child, derived from the toggle's region.
+	 *         A negative value preserves @icon_size exactly when no usable
+	 *         region metric is available.
 	 *
 	 * Swaps the toggle's child between a GtkLabel and a GtkImage in place,
 	 * leaving the toggle's active state and styling untouched. When the child is
@@ -266,7 +247,7 @@ private:
 	 */
 	void set_mode_button_content(GtkToggleButton* button, bool show_icons,
 			const char* const* icon_chain, const char* short_label,
-			const char* long_label, int icon_px);
+			const char* long_label, GtkIconSize icon_size, int icon_px);
 
 	/* apply_switch_presentation:
 	 * @pres: the computed presentation for this layout pass.
@@ -276,7 +257,7 @@ private:
 	 * search-bar row (using per-pass g_object_ref guards). Reflects computed
 	 * state only — the stored switch/sidebar intent is never written.
 	 */
-	void apply_switch_presentation(const SwitchPresentation& pres);
+	void apply_switch_presentation(const SelectorPresentation& presentation);
 	void update_favourite_drop_targets();
 	bool application_favourites_drop_available() const;
 	bool places_favourites_drop_available() const;
@@ -301,13 +282,14 @@ private:
 	GtkSpinner* m_window_load_spinner;
 
 	GtkBox* m_vbox;
+	// Stable row containers. The historical aliases remain while the Full
+	// Screen path is replaced independently.
+	GtkBox* m_primary_row;
+	GtkBox* m_primary_middle;
+	GtkBox* m_secondary_row;
 	GtkBox* m_title_box;
 	GtkBox* m_commands_box;
 	GtkBox* m_search_box;
-	// Full-screen unified-bar only: holds the search entry and, when Places is
-	// on, the trailing Apps/Places switch, so the pair is centred as one unit.
-	// Owns a ref because it is unparented in every non-unified layout.
-	GtkWidget* m_search_cluster;
 	GtkStack* m_contents_stack;
 	GtkGrid* m_contents_box;
 	GtkBox* m_categories_box;
@@ -320,6 +302,9 @@ private:
 	GdkRectangle m_workarea;
 
 	Profile* m_profile;
+	// Empty, non-focusable primary-row column used above a visible windowed
+	// vertical sidebar when Profile content is disabled.
+	GtkWidget* m_sidebar_header_reserve;
 
 	GtkWidget* m_commands_spacer;
 	GtkWidget* m_commands_button[9];
@@ -327,17 +312,15 @@ private:
 
 	GtkEntry* m_search_entry;
 
-	// Three void bands for FullScreen unified-bar mode.
-	GtkWidget* m_void_top;
-	GtkWidget* m_void_middle;
-	GtkWidget* m_void_bottom;
 
 	SearchPage* m_search_results;
 	FavoritesPage* m_favorites;
 	RecentPage* m_recent;
 	ApplicationsPage* m_applications;
+	GtkWidget* m_favorites_heading;
+	GtkWidget* m_recent_heading;
 
-	// Places mode (milestone 005)
+	// Places mode (current behavior)
 	PlacesPage* m_places;
 	GtkBox* m_mode_selector_box;
 	GtkToggleButton* m_mode_btn_apps;
@@ -356,10 +339,8 @@ private:
 	bool m_keyboard_category_nav;
 	gulong m_places_property_slot;
 	gulong m_live_settings_property_slot;
-	// Contextual Modern divider immediately above the Apps/Places selector.
-	// It is hidden in every other presentation and therefore owns no spacing.
-	GtkWidget* m_mode_selector_upper_separator;
 	GtkWidget* m_mode_selector_separator;
+	GtkWidget* m_category_group_separator;
 	std::vector<GtkWidget*> m_app_category_widgets;
 	// The dynamically-loaded application-category buttons, kept alongside their
 	// widgets so the shared sidebar width floor can be recomputed when they
@@ -367,59 +348,46 @@ private:
 	std::vector<CategoryButton*> m_app_categories;
 
 	GtkScrolledWindow* m_sidebar;
-	// Horizontally-scrolling container for the Top/Bottom category strip
-	// (the documented behavior). Created lazily on the first strip layout; the switch is pinned
-	// outside it (the documented behavior). nullptr until the sidebar is first shown on top/bottom.
+	// Horizontally-scrolling container for the Horizontal category strip
+	// (supported behavior). Created lazily on the first strip layout; the
+	// Apps/Places selector is not a child of this strip. nullptr until the
+	// sidebar is first shown horizontally.
 	GtkScrolledWindow* m_strip_scroll;
-	// Expanding spacer pinned as the leading child of m_category_buttons in
-	// strip mode so the category icons sit flush-trailing while the slack falls
-	// between them and the leading toggle (the documented behavior). Hidden (and thus ignored in
-	// allocation) in the vertical sidebar. Created lazily with m_strip_scroll.
+	// Symmetric expanding spacers around the category group in strip mode. They
+	// center fitting category lists while collapsing to the available slack when
+	// the list overflows. Hidden in the vertical sidebar.
 	GtkWidget* m_strip_lead_spacer;
+	GtkWidget* m_strip_trail_spacer;
 	// Current structural placement of the category list, so update_layout()
 	// only reparents on an actual transition: 1 = vertical sidebar,
 	// 2 = horizontal strip, 3 = hidden (sidebar disabled).
 	int m_sidebar_struct;
-	// Where the Apps/Places switch currently lives, to avoid redundant
-	// reparenting across passes.
-	SwitchLocation m_switch_loc;
 	GtkBox* m_category_buttons;
 	CategoryButton* m_default_button;
 	// NOTE: ignore_hidden=FALSE keeps the sidebar at the widest button's
 	// width even while some buttons are hidden during an Apps↔Places switch.
 	GtkSizeGroup* m_category_width_group;
-	GtkSizeGroup* m_sidebar_size_group;
 	// Forces the two Apps/Places mode buttons to equal width in every layout
-	// and preset, surviving the icon↔text child swap (the documented behavior).
+	// and preset, surviving the icon↔text child swap (supported behavior).
 	GtkSizeGroup* m_mode_button_size_group;
 
 	GdkRectangle m_geometry;
 	bool m_layout_ltr;
 	bool m_layout_categories_horizontal;
-	// Tracked stored intent so show() can fire update_layout() when these
-	// switch/sidebar settings change (none are legacy layout booleans).
+	CompositionSidebar m_layout_sidebar_position;
 	bool m_layout_sidebar_enabled;
-	bool m_layout_switch_show_icons;
-	bool m_layout_category_show_name;
-	// Tracked category icon size so show() re-runs update_layout() when it
-	// changes, keeping the Apps/Places toggle in sync with the category icons.
-	int m_layout_category_icon_size;
-	bool m_layout_categories_alternate;
-	bool m_layout_search_alternate;
-	bool m_layout_commands_alternate;
-	bool m_layout_profile_alternate;
-	// Cached hidden state of the profile/commands clusters. Tracked separately
-	// from the *_alternate edge flags because a hidden ↔ visible transition can
-	// leave both edge flags unchanged; without these, show() would skip
-	// update_layout() and the restored element would never re-render.
-	bool m_layout_profile_hidden;
-	bool m_layout_commands_hidden;
-	bool m_layout_unified_bar;
+	unsigned int m_layout_available_session_actions;
+	MenuComposition m_composition;
+	MenuLayoutSnapshot m_layout_snapshot;
+	ThemeSurfacePalette m_surface_palette;
+	ThemeLayoutMetrics m_layout_metrics;
+	guint m_style_refresh_source;
+	bool m_style_refresh_running;
 	int m_profile_shape;
 	bool m_supports_alpha;
 	// Theme-derived separator colour (luminance-nudged from the menu background),
 	// computed once in update_background_css() and reused by on_draw_event so the
-	// single window border and the CSS region styling cannot diverge in colour.
+	// single window border and secondary-row divider cannot diverge in colour.
 	GdkRGBA m_separator_rgba = { 0.0, 0.0, 0.0, 1.0 };
 	// Cached signature of the last shape mask applied to the toplevel window, so
 	// apply_window_shape() re-masks only when the rounded silhouette changes.
@@ -431,6 +399,7 @@ private:
 	bool m_child_has_focus;
 	bool m_resizing;
 	InteractiveResize::Transaction m_resize_transaction;
+	guint m_resize_tick_id;
 	GdkMonitor* m_resize_monitor;
 	gulong m_resize_monitor_notify_slot;
 	gulong m_resize_monitor_removed_slot;

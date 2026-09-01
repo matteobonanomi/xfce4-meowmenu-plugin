@@ -4,15 +4,152 @@
 import argparse
 import gzip
 import hashlib
+import json
 import subprocess
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from validate_release import (
+    InventoryState,
     ReleaseValidationError,
     expected_payload_names,
     validate_archive,
     validate_assets,
 )
+
+
+@dataclass(frozen=True)
+class AssetMetadata:
+    """Comparable local or remote asset identity."""
+
+    name: str
+    size: int
+    sha256: str = None
+    api_url: str = None
+
+
+@dataclass(frozen=True)
+class InventoryComparison:
+    """Exact relationship between local and remote asset inventories."""
+
+    state: InventoryState
+    missing: tuple = ()
+    conflicts: tuple = ()
+    extra: tuple = ()
+    reason: str = ""
+
+
+def _normalize_digest(value):
+    if not value:
+        return None
+    return value.removeprefix("sha256:")
+
+
+def local_inventory(asset_dir: Path):
+    """Hash every regular file in an inventory directory."""
+    return {
+        item.name: AssetMetadata(
+            name=item.name,
+            size=item.stat().st_size,
+            sha256=hashlib.sha256(item.read_bytes()).hexdigest(),
+        )
+        for item in asset_dir.iterdir()
+        if item.is_file()
+    }
+
+
+def remote_inventory(release):
+    """Normalize GitHub asset metadata without assuming digest availability."""
+    inventory = {}
+    for asset in release.get("assets", ()):
+        name = asset.get("name", "")
+        if not name or "/" in name or name in inventory:
+            raise ReleaseValidationError("Remote asset names are invalid or duplicated")
+        inventory[name] = AssetMetadata(
+            name=name,
+            size=asset.get("size", -1),
+            sha256=_normalize_digest(asset.get("digest")),
+            api_url=asset.get("url"),
+        )
+    return inventory
+
+
+def compare_inventories(local, remote):
+    """Compare complete SHA-256 inventories before publication mutation."""
+    local_names = set(local)
+    remote_names = set(remote)
+    extra = tuple(sorted(remote_names - local_names))
+    if extra:
+        return InventoryComparison(
+            InventoryState.EXTRA,
+            extra=extra,
+            reason=f"Remote inventory has extra assets: {list(extra)}",
+        )
+    conflicts = tuple(
+        sorted(
+            name
+            for name in local_names & remote_names
+            if local[name].size != remote[name].size
+            or local[name].sha256 != remote[name].sha256
+        )
+    )
+    if conflicts:
+        return InventoryComparison(
+            InventoryState.CONFLICT,
+            conflicts=conflicts,
+            reason=f"Remote assets differ: {list(conflicts)}",
+        )
+    missing = tuple(sorted(local_names - remote_names))
+    if not remote_names:
+        return InventoryComparison(
+            InventoryState.MISSING,
+            missing=missing,
+            reason="Remote release has no assets",
+        )
+    if missing:
+        return InventoryComparison(
+            InventoryState.INCOMPLETE,
+            missing=missing,
+            reason=f"Remote inventory is missing: {list(missing)}",
+        )
+    return InventoryComparison(InventoryState.IDENTICAL)
+
+
+def compare_inventory_metadata(local, remote):
+    """Reject names, sizes, or published digests that already conflict."""
+    comparison = compare_inventories(
+        local,
+        {
+            name: AssetMetadata(
+                name=asset.name,
+                size=asset.size,
+                sha256=asset.sha256 or local.get(name, asset).sha256,
+                api_url=asset.api_url,
+            )
+            for name, asset in remote.items()
+        },
+    )
+    # Missing GitHub digests cannot prove equality. Exact downloaded bytes are
+    # still required before an existing draft or public release is accepted.
+    if (
+        comparison.state == InventoryState.IDENTICAL
+        and any(not asset.sha256 for asset in remote.values())
+    ):
+        return InventoryComparison(
+            InventoryState.INCOMPLETE,
+            reason="Remote metadata requires downloaded checksum verification",
+        )
+    return comparison
+
+
+def write_inventory(asset_dir: Path, output: Path):
+    """Persist stable inventory metadata for diagnostics and comparisons."""
+    entries = [asdict(item) for item in local_inventory(asset_dir).values()]
+    output.write_text(
+        json.dumps(sorted(entries, key=lambda item: item["name"]), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return output
 
 
 def create_source_archive(
@@ -93,6 +230,10 @@ def main():
     verify.add_argument("--assets", type=Path, required=True)
     verify.add_argument("--version", required=True)
 
+    inventory = subparsers.add_parser("inventory")
+    inventory.add_argument("--assets", type=Path, required=True)
+    inventory.add_argument("--output", type=Path, required=True)
+
     args = parser.parse_args()
     if args.command == "create-source":
         create_source_archive(
@@ -104,6 +245,8 @@ def main():
         )
     elif args.command == "checksums":
         generate_checksums(args.assets, args.version)
+    elif args.command == "inventory":
+        write_inventory(args.assets, args.output)
     else:
         validate_assets(args.assets, args.version)
     return 0

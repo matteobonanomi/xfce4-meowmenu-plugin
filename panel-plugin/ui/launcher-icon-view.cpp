@@ -23,6 +23,7 @@
 #include "slot.h"
 
 #include <algorithm>
+#include <vector>
 
 using namespace WhiskerMenu;
 
@@ -48,6 +49,149 @@ void WhiskerMenu::launcher_icon_view_set_transparent_grid_style(
 		gtk_style_context_remove_class(context, "transparent-grid");
 	}
 	gtk_widget_queue_draw(view);
+}
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_apply_automatic_layout:
+ * @view: live result grid returning to GTK-managed placement.
+ *
+ * Clears explicit columns and item width together. GtkIconView can otherwise
+ * preserve forced geometry while a populated page is hidden, leaving that
+ * model unpainted when a sibling page becomes visible. The parent scroller
+ * remains the viewport-width authority and the renderer supplies natural cell
+ * sizing.
+ */
+void WhiskerMenu::launcher_icon_view_apply_automatic_layout(GtkIconView* view,
+		int, int)
+{
+	if (!GTK_IS_ICON_VIEW(view))
+		return;
+	gtk_widget_set_hexpand(GTK_WIDGET(view), TRUE);
+	if (gtk_icon_view_get_columns(view) != -1)
+		gtk_icon_view_set_columns(view, -1);
+	if (gtk_icon_view_get_item_width(view) != -1)
+		gtk_icon_view_set_item_width(view, -1);
+}
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_has_usable_layout:
+ * @view: mapped icon grid whose current model placement is inspected.
+ * @renderer: optional production renderer used to narrow each item rectangle.
+ *
+ * Treats an empty model as a valid empty presentation and samples the first
+ * and last populated paths for positive placement. GtkIconView lays out paths
+ * in model order, so a usable final path demonstrates scrollable placement
+ * without scanning the complete model on every warm presentation.
+ *
+ * Returns: true when the current mapped allocation has usable model geometry.
+ */
+static bool launcher_icon_view_has_usable_layout(GtkIconView* view,
+		GtkCellRenderer* renderer)
+{
+	if (!GTK_IS_ICON_VIEW(view) || !gtk_widget_get_mapped(GTK_WIDGET(view))
+			|| gtk_widget_get_allocated_width(GTK_WIDGET(view)) <= 0
+			|| gtk_widget_get_allocated_height(GTK_WIDGET(view)) <= 0)
+	{
+		return false;
+	}
+
+	GtkTreeModel* model = gtk_icon_view_get_model(view);
+	const int rows = model
+			? gtk_tree_model_iter_n_children(model, nullptr) : 0;
+	if (rows == 0)
+		return true;
+
+	GtkTreePath* first = gtk_tree_path_new_from_indices(0, -1);
+	GtkTreePath* last = gtk_tree_path_new_from_indices(rows - 1, -1);
+	GdkRectangle first_rect = {};
+	GdkRectangle last_rect = {};
+	const bool usable = gtk_icon_view_get_cell_rect(view, first, renderer,
+			&first_rect) && first_rect.width > 0 && first_rect.height > 0
+			&& gtk_icon_view_get_cell_rect(view, last, renderer, &last_rect)
+			&& last_rect.width > 0 && last_rect.height > 0;
+	gtk_tree_path_free(last);
+	gtk_tree_path_free(first);
+	return usable;
+}
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_prepare_layout:
+ * @view: populated icon grid becoming visible with its final viewport.
+ * @layout_generation: current non-zero model/viewport generation.
+ * @state: per-view generation and bounded-work counters.
+ *
+ * Invalidates measurement as well as paint. GtkIconView can retain a complete
+ * model attached while hidden without assigning cell rectangles; a draw-only
+ * request cannot repair that state. One request is allowed while hidden and
+ * one at the first mapped frame; later calls for the same generation coalesce.
+ * Completion is recorded separately from the draw callback, where GTK cell
+ * placement is safe to inspect.
+ *
+ * Returns: true when the generation is already complete.
+ */
+bool WhiskerMenu::launcher_icon_view_prepare_layout(GtkIconView* view,
+		guint64 layout_generation, LauncherIconPresentationState* state)
+{
+	if (!GTK_IS_ICON_VIEW(view) || layout_generation == 0
+			|| !state)
+	{
+		return false;
+	}
+	++state->prepare_calls;
+	if (state->prepared_generation == layout_generation)
+	{
+		++state->ready_reuses;
+		return true;
+	}
+
+	const bool mapped = gtk_widget_get_mapped(GTK_WIDGET(view));
+	guint64* requested = mapped
+			? &state->mapped_request_generation
+			: &state->requested_generation;
+	if (*requested != layout_generation)
+	{
+		*requested = layout_generation;
+		++state->layout_requests;
+		if (mapped)
+			++state->mapped_layout_requests;
+		gtk_widget_queue_resize(GTK_WIDGET(view));
+		gtk_widget_queue_draw(GTK_WIDGET(view));
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+
+/* launcher_icon_view_complete_layout:
+ * @view: icon grid completing its normal GTK draw.
+ * @renderer: production renderer used to inspect actual cell placement.
+ * @layout_generation: current model/viewport generation.
+ * @state: per-view generation and bounded-work counters.
+ *
+ * Advances readiness only after the mapped draw path has usable first and last
+ * model placement. Geometry probes therefore never run from a pre-layout frame
+ * callback, and an unchanged ready generation performs no further probes.
+ *
+ * Returns: true when the generation is complete after this call.
+ */
+bool WhiskerMenu::launcher_icon_view_complete_layout(GtkIconView* view,
+		GtkCellRenderer* renderer, guint64 layout_generation,
+		LauncherIconPresentationState* state)
+{
+	if (!GTK_IS_ICON_VIEW(view) || !state || layout_generation == 0)
+		return false;
+	if (state->prepared_generation == layout_generation)
+		return true;
+
+	++state->geometry_checks;
+	if (!launcher_icon_view_has_usable_layout(view, renderer))
+		return false;
+	state->prepared_generation = layout_generation;
+	++state->completions;
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -95,12 +239,16 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 	m_settings(settings),
 	m_icon_renderer(nullptr),
 	m_icon_size(-1),
+	m_viewport_width(0),
+	m_layout_generation(1),
+	m_presentation(),
 	m_grid_density(),
 	m_layout_mode(),
 	m_transparent_grid(false)
 {
 	// Create the view
 	m_view = GTK_ICON_VIEW(gtk_icon_view_new());
+	gtk_widget_set_hexpand(GTK_WIDGET(m_view), TRUE);
 
 	m_icon_renderer = whiskermenu_icon_renderer_new();
 	g_object_set(m_icon_renderer,
@@ -131,6 +279,17 @@ LauncherIconView::LauncherIconView(Settings* settings) :
 		{
 			queue_full_redraw_safeguard();
 		});
+
+	// GTK cell rectangles are safe to inspect only after the normal draw has
+	// traversed the icon view. This closes the pending generation without adding
+	// another frame or scanning the model on a later warm presentation.
+	connect(m_view, "draw",
+		[this](GtkWidget*, cairo_t*) -> gboolean
+		{
+			launcher_icon_view_complete_layout(m_view, m_icon_renderer,
+					m_layout_generation, &m_presentation);
+			return GDK_EVENT_PROPAGATE;
+		}, Connect::After);
 
 	// Observe the completed event so GTK has already applied its own focus and
 	// selection behavior. The callback does not consume activation or drag
@@ -261,6 +420,159 @@ bool LauncherIconView::is_first_visual_row(GtkTreePath* path) const
 	return path && gtk_icon_view_get_item_row(m_view, path) == 0;
 }
 
+/* launcher_icon_view_find_directional_path:
+ * @view: live icon view whose realized cells are inspected.
+ * @renderer: renderer identifying the cell geometry to score.
+ * @origin: current model path.
+ * @direction: physical arrow direction.
+ * @rtl: reverses only the stable horizontal tie order.
+ *
+ * Scores actual visible cells for one internal grid move. Empty final-row
+ * positions and model-order wraparound are never synthesized.
+ *
+ * Returns: a newly allocated current model path, or NULL at an edge.
+ */
+GtkTreePath* WhiskerMenu::launcher_icon_view_find_directional_path(
+		GtkIconView* view, GtkCellRenderer* renderer, GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction, bool rtl)
+{
+	if (!view || !origin)
+		return nullptr;
+	GdkRectangle origin_rect = {};
+	if (!gtk_icon_view_get_cell_rect(view, origin, renderer,
+			&origin_rect))
+		return nullptr;
+	Keyboard::NavigationRect source(origin_rect.x, origin_rect.y,
+			origin_rect.width, origin_rect.height);
+	if (!source.is_valid())
+		return nullptr;
+
+	std::vector<Keyboard::FocusTarget> candidates;
+	std::vector<GtkTreePath*> paths;
+	GtkTreeModel* model = gtk_icon_view_get_model(view);
+	if (!model)
+		return nullptr;
+	GtkTreeIter iter;
+	if (gtk_tree_model_get_iter_first(model, &iter))
+	{
+		do
+		{
+			GtkTreePath* path = gtk_tree_model_get_path(model, &iter);
+			GdkRectangle rectangle = {};
+			if (gtk_icon_view_get_cell_rect(view, path, renderer,
+					&rectangle) && rectangle.width > 0 && rectangle.height > 0)
+			{
+				const std::size_t id = paths.size();
+				paths.push_back(path);
+				Keyboard::FocusTarget candidate;
+				candidate.target_id = id;
+				candidate.region = Keyboard::NavigationRegion::Results;
+				candidate.kind = Keyboard::FocusTargetKind::ResultItem;
+				candidate.rectangle = Keyboard::NavigationRect(rectangle.x,
+						rectangle.y, rectangle.width, rectangle.height);
+				candidate.visual_ordinal = static_cast<unsigned>(id);
+				candidate.usable = true;
+				candidates.push_back(candidate);
+			}
+			else
+			{
+				gtk_tree_path_free(path);
+			}
+		} while (gtk_tree_model_iter_next(model, &iter));
+	}
+
+	const std::size_t selected = Keyboard::choose_spatial_target(source,
+			direction, candidates, rtl);
+	GtkTreePath* result = selected == Keyboard::NO_TARGET
+			|| selected >= paths.size() ? nullptr
+			: gtk_tree_path_copy(paths[selected]);
+	for (GtkTreePath* path : paths)
+		gtk_tree_path_free(path);
+	return result;
+}
+
+/* launcher_icon_view_get_path_rectangle:
+ * @view: live icon view containing @path.
+ * @renderer: renderer whose cell bounds represent the item.
+ * @path: current model path.
+ * @rectangle: output toplevel-coordinate geometry.
+ *
+ * Reads and translates one current cell allocation without caching it.
+ *
+ * Returns: true when the cell is currently visible and translatable.
+ */
+bool WhiskerMenu::launcher_icon_view_get_path_rectangle(GtkIconView* view,
+		GtkCellRenderer* renderer, GtkTreePath* path,
+		Keyboard::NavigationRect* rectangle)
+{
+	if (!view || !path || !rectangle)
+		return false;
+	GdkRectangle local = {};
+	if (!gtk_icon_view_get_cell_rect(view, path, renderer, &local)
+			|| local.width <= 0 || local.height <= 0)
+		return false;
+	GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(view));
+	int x = local.x;
+	int y = local.y;
+	if (toplevel && toplevel != GTK_WIDGET(view))
+	{
+		int translated_x = 0;
+		int translated_y = 0;
+		if (!gtk_widget_translate_coordinates(GTK_WIDGET(view), toplevel,
+				local.x, local.y, &translated_x, &translated_y))
+			return false;
+		x = translated_x;
+		y = translated_y;
+	}
+	*rectangle = Keyboard::NavigationRect(x, y, local.width, local.height);
+	return true;
+}
+
+/* launcher_icon_view_apply_keyboard_target:
+ * @view: icon view receiving the keyboard target.
+ * @model: current model owned by the view.
+ * @path: current selectable path.
+ *
+ * Applies cursor, single selection, reveal, and focus as one keyboard move.
+ *
+ * Returns: true when the view received focus.
+ */
+bool WhiskerMenu::launcher_icon_view_apply_keyboard_target(GtkIconView* view,
+		GtkTreeModel* model, GtkTreePath* path)
+{
+	if (!view || !model || !path)
+		return false;
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter(model, &iter, path))
+		return false;
+	gtk_icon_view_unselect_all(view);
+	gtk_icon_view_set_cursor(view, path, nullptr, false);
+	gtk_icon_view_select_path(view, path);
+	gtk_icon_view_scroll_to_path(view, path, FALSE, 0, 0);
+	gtk_widget_grab_focus(GTK_WIDGET(view));
+	return gtk_widget_is_focus(GTK_WIDGET(view));
+}
+
+GtkTreePath* LauncherIconView::get_directional_path(GtkTreePath* origin,
+		Keyboard::PhysicalDirection direction) const
+{
+	return launcher_icon_view_find_directional_path(m_view, m_icon_renderer,
+			origin, direction, gtk_widget_get_direction(GTK_WIDGET(m_view))
+				== GTK_TEXT_DIR_RTL);
+}
+
+bool LauncherIconView::get_path_rectangle(GtkTreePath* path,
+		Keyboard::NavigationRect* rectangle) const
+{
+	return launcher_icon_view_get_path_rectangle(m_view, m_icon_renderer,
+			path, rectangle);
+}
+
+bool LauncherIconView::apply_keyboard_target(GtkTreePath* path)
+{
+	return launcher_icon_view_apply_keyboard_target(m_view, m_model, path);
+}
+
 //-----------------------------------------------------------------------------
 
 void LauncherIconView::set_fixed_height_mode(bool)
@@ -307,6 +619,8 @@ void LauncherIconView::set_model(GtkTreeModel* model)
 {
 	m_model = model;
 	gtk_icon_view_set_model(m_view, model);
+	++m_layout_generation;
+	request_content_redraw();
 }
 
 //-----------------------------------------------------------------------------
@@ -315,6 +629,8 @@ void LauncherIconView::unset_model()
 {
 	m_model = nullptr;
 	gtk_icon_view_set_model(m_view, nullptr);
+	++m_layout_generation;
+	request_content_redraw();
 }
 
 //-----------------------------------------------------------------------------
@@ -429,8 +745,11 @@ void LauncherIconView::reload_icon_size()
 			"label-lines", 2,
 			nullptr);
 
-	// Let GtkIconView adapt the number of columns to the available width.
-	gtk_icon_view_set_columns(m_view, -1);
+	// Density changes invalidate natural cell measurement. Keep columns and
+	// item width automatic so the owning scroller remains the width authority.
+	launcher_icon_view_apply_automatic_layout(m_view, m_icon_size,
+			m_viewport_width);
+	++m_layout_generation;
 }
 
 //-----------------------------------------------------------------------------
@@ -470,6 +789,63 @@ void LauncherIconView::sync_transparent_grid_style()
 
 	launcher_icon_view_set_transparent_grid_style(GTK_WIDGET(m_view),
 			transparent_grid);
+}
+
+//-----------------------------------------------------------------------------
+
+/* set_viewport_width:
+ * @viewport_width: current visible Results width in logical pixels.
+ *
+ * Caches the width supplied by the owning scroller and invalidates the current
+ * presentation generation when it changes. Columns and cell width remain
+ * automatic because explicit geometry can leave a populated sibling page
+ * unpainted when it becomes visible. The Window still delivers the accepted
+ * viewport synchronously; GTK owns the resulting cell placement.
+ */
+void LauncherIconView::set_viewport_width(int viewport_width)
+{
+	if (viewport_width <= 0)
+		return;
+	const bool changed = m_viewport_width != viewport_width;
+	m_viewport_width = viewport_width;
+	if (changed)
+		++m_layout_generation;
+	launcher_icon_view_apply_automatic_layout(m_view, m_icon_size,
+			m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* prepare_presentation:
+ *
+ * Completes one measurement pass for each model/viewport generation after the
+ * icon grid is mapped. Hidden calls deliberately remain pending so the map
+ * callback repeats preparation with a usable allocation. This avoids model
+ * churn and keeps repeated presentation of an unchanged grid resize-free.
+ */
+bool LauncherIconView::prepare_presentation()
+{
+	return launcher_icon_view_prepare_layout(m_view, m_layout_generation,
+			&m_presentation);
+}
+
+//-----------------------------------------------------------------------------
+
+/* get_minimum_viewport_width:
+ *
+ * Computes the narrowest viewport that contains one complete grid cell. GTK's
+ * current multi-column requisition must not become the interactive resize
+ * floor after the user has enlarged the launcher.
+ *
+ * Returns: the one-column Results viewport width in logical pixels.
+ */
+int LauncherIconView::get_minimum_viewport_width() const
+{
+	const GridCellMetrics cell = meow_grid_cell_metrics(
+			gtk_icon_view_get_item_padding(m_view),
+			std::max(0, m_icon_size),
+			gtk_icon_view_get_row_spacing(m_view), true, 2);
+	return (gtk_icon_view_get_margin(m_view) * 2) + cell.minimum_width;
 }
 
 //-----------------------------------------------------------------------------

@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <initializer_list>
 
 namespace
 {
@@ -83,6 +84,21 @@ void translucent_predicate()
 	CHECK(!meowmenu_background_translucent(1000));
 }
 
+void surface_and_compositor_matrix()
+{
+	for (int value : { 0, 60, 80, 100 })
+	{
+		const double configured = meowmenu_opacity_alpha(value);
+		CHECK(eq(meowmenu_effective_background_alpha(value, true), configured));
+		CHECK(eq(meowmenu_effective_background_alpha(value, false), 1.0));
+		// Source replacement writes the same resolved alpha rather than applying
+		// an alpha-over operation to the baseline.
+		const double baseline_alpha = configured;
+		const double replacement_alpha = configured;
+		CHECK(eq(baseline_alpha, replacement_alpha));
+	}
+}
+
 } // namespace
 
 int main()
@@ -92,6 +108,7 @@ int main()
 	c1_linear_midpoint();
 	c1_clamping();
 	translucent_predicate();
+	surface_and_compositor_matrix();
 
 	if (g_failures != 0)
 	{

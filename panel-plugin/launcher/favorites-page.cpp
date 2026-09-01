@@ -18,6 +18,7 @@
 #include "favorites-page.h"
 
 #include "applications-page.h"
+#include "favorite-projection.h"
 #include "ui/image-menu-item.h"
 #include "launcher.h"
 #include "ui/launcher-view.h"
@@ -68,7 +69,9 @@ void FavoritesPage::add(Launcher* launcher)
 		return;
 	}
 
-	// Append to list of items
+	// Adding is an explicit user edit. Persist the exact identifier before
+	// updating the visible projection; ordinary model construction never writes.
+	m_settings->favorites.push_back(launcher->get_desktop_id());
 	GtkListStore* store = GTK_LIST_STORE(get_view()->get_model());
 	gtk_list_store_insert_with_values(
 			store, nullptr, G_MAXINT,
@@ -83,6 +86,18 @@ void FavoritesPage::add(Launcher* launcher)
 
 void FavoritesPage::remove(Launcher* launcher)
 {
+	if (!launcher)
+	{
+		return;
+	}
+	const int stored_index = m_settings->favorites.find(
+			launcher->get_desktop_id());
+	if (stored_index < 0)
+	{
+		return;
+	}
+	m_settings->favorites.erase(stored_index);
+
 	GtkTreeModel* model = GTK_TREE_MODEL(get_view()->get_model());
 	GtkListStore* store = GTK_LIST_STORE(model);
 	GtkTreeIter iter;
@@ -108,22 +123,10 @@ void FavoritesPage::set_menu_items()
 	GtkTreeModel* model = get_window()->get_applications()->create_launcher_model(m_settings->favorites);
 	get_view()->set_model(model);
 
-	connect(model, "row-changed",
-		[this](GtkTreeModel* tree_model, GtkTreePath* path, GtkTreeIter* iter)
+	connect(model, "rows-reordered",
+		[this](GtkTreeModel* tree_model, GtkTreePath*, GtkTreeIter*, gint*)
 		{
-			on_row_changed(tree_model, path, iter);
-		});
-
-	connect(model, "row-inserted",
-		[this](GtkTreeModel* tree_model, GtkTreePath* path, GtkTreeIter* iter)
-		{
-			on_row_inserted(tree_model, path, iter);
-		});
-
-	connect(model, "row-deleted",
-		[this](GtkTreeModel*, GtkTreePath* path)
-		{
-			on_row_deleted(path);
+			on_rows_reordered(tree_model);
 		});
 
 	g_object_unref(model);
@@ -147,7 +150,11 @@ void FavoritesPage::extend_context_menu(GtkWidget* menu)
 	Launcher* selected_launcher = get_selected_launcher();
 	if (selected_launcher)
 	{
-		const int selected_index = m_settings->favorites.find(selected_launcher->get_desktop_id());
+		const std::vector<std::string> order = visible_ids(get_view()->get_model());
+		const auto selected = std::find(order.begin(), order.end(),
+				selected_launcher->get_desktop_id());
+		const int selected_index = selected == order.end()
+				? -1 : static_cast<int>(selected - order.begin());
 
 		menuitem = whiskermenu_image_menu_item_new("go-up", _("Move Up"));
 		connect(menuitem, "activate",
@@ -156,7 +163,7 @@ void FavoritesPage::extend_context_menu(GtkWidget* menu)
 				move_up(selected_launcher);
 			});
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		if (selected_index == 0)
+		if (selected_index <= 0)
 		{
 			gtk_widget_set_sensitive(menuitem, false);
 		}
@@ -168,7 +175,8 @@ void FavoritesPage::extend_context_menu(GtkWidget* menu)
 				move_down(selected_launcher);
 			});
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		if (selected_index == m_settings->favorites.size() - 1)
+		if (selected_index < 0
+				|| selected_index == static_cast<int>(order.size()) - 1)
 		{
 			gtk_widget_set_sensitive(menuitem, false);
 		}
@@ -203,55 +211,76 @@ bool FavoritesPage::remember_launcher(Launcher* launcher)
 
 //-----------------------------------------------------------------------------
 
-void FavoritesPage::on_row_changed(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter)
+std::vector<std::string> FavoritesPage::stored_ids() const
 {
-	const int pos = gtk_tree_path_get_indices(path)[0];
-	if (pos >= m_settings->favorites.size())
-	{
-		return;
-	}
+	return std::vector<std::string>(m_settings->favorites.begin(),
+			m_settings->favorites.end());
+}
 
-	Element* element = nullptr;
-	gtk_tree_model_get(model, iter, LauncherView::COLUMN_LAUNCHER, &element, -1);
-	if (Launcher* launcher = dynamic_cast<Launcher*>(element))
+//-----------------------------------------------------------------------------
+
+std::vector<std::string> FavoritesPage::available_ids() const
+
+{
+	std::vector<std::string> ids;
+	const std::vector<Launcher*> launchers =
+			get_window()->get_applications()->find_all();
+	ids.reserve(launchers.size());
+	for (Launcher* launcher : launchers)
 	{
-		m_settings->favorites.set(pos, launcher->get_desktop_id());
+		ids.push_back(launcher->get_desktop_id());
+	}
+	return ids;
+}
+
+//-----------------------------------------------------------------------------
+
+std::vector<std::string> FavoritesPage::visible_ids(GtkTreeModel* model) const
+{
+	std::vector<std::string> ids;
+	GtkTreeIter iter;
+	bool valid = model && gtk_tree_model_get_iter_first(model, &iter);
+	while (valid)
+	{
+		Launcher* launcher = nullptr;
+		gtk_tree_model_get(model, &iter,
+				LauncherView::COLUMN_LAUNCHER, &launcher, -1);
+		if (launcher)
+		{
+			ids.push_back(launcher->get_desktop_id());
+		}
+		valid = gtk_tree_model_iter_next(model, &iter);
+	}
+	return ids;
+}
+
+//-----------------------------------------------------------------------------
+
+/* FavoritesPage::apply_resolved_order:
+ * @order: complete visible order after a user reorder or sort.
+ *
+ * Merges visible identifiers back into only the resolved durable slots so a
+ * temporary application absence cannot move or erase an unresolved favourite.
+ */
+void FavoritesPage::apply_resolved_order(const std::vector<std::string>& order)
+{
+	const std::vector<std::string> original = stored_ids();
+	const std::vector<std::string> merged = favorite_merge_resolved_order(
+			original, order, available_ids());
+	for (int i = 0; i < m_settings->favorites.size(); ++i)
+	{
+		if (m_settings->favorites[i] != merged[i])
+		{
+			m_settings->favorites.set(i, merged[i]);
+		}
 	}
 }
 
 //-----------------------------------------------------------------------------
 
-void FavoritesPage::on_row_inserted(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter)
+void FavoritesPage::on_rows_reordered(GtkTreeModel* model)
 {
-	const int pos = gtk_tree_path_get_indices(path)[0];
-
-	std::string desktop_id;
-	Element* element = nullptr;
-	gtk_tree_model_get(model, iter, LauncherView::COLUMN_LAUNCHER, &element, -1);
-	if (Launcher* launcher = dynamic_cast<Launcher*>(element))
-	{
-		desktop_id = launcher->get_desktop_id();
-	}
-
-	if (pos >= m_settings->favorites.size())
-	{
-		m_settings->favorites.push_back(desktop_id);
-	}
-	else if (m_settings->favorites[pos] != desktop_id)
-	{
-		m_settings->favorites.insert(pos, desktop_id);
-	}
-}
-
-//-----------------------------------------------------------------------------
-
-void FavoritesPage::on_row_deleted(GtkTreePath* path)
-{
-	const int pos = gtk_tree_path_get_indices(path)[0];
-	if (pos < m_settings->favorites.size())
-	{
-		m_settings->favorites.erase(pos);
-	}
+	apply_resolved_order(visible_ids(model));
 }
 
 //-----------------------------------------------------------------------------
@@ -278,12 +307,13 @@ std::vector<Launcher*> FavoritesPage::sort() const
 void FavoritesPage::sort_ascending()
 {
 	const auto items = sort();
-
-	m_settings->favorites.clear();
+	std::vector<std::string> order;
+	order.reserve(items.size());
 	for (auto launcher : items)
 	{
-		m_settings->favorites.push_back(launcher->get_desktop_id());
+		order.push_back(launcher->get_desktop_id());
 	}
+	apply_resolved_order(order);
 	set_menu_items();
 }
 
@@ -292,12 +322,13 @@ void FavoritesPage::sort_ascending()
 void FavoritesPage::sort_descending()
 {
 	const auto items = sort();
-
-	m_settings->favorites.clear();
+	std::vector<std::string> order;
+	order.reserve(items.size());
 	for (auto i = items.rbegin(), end = items.rend(); i != end; ++i)
 	{
-		m_settings->favorites.push_back((*i)->get_desktop_id());
+		order.push_back((*i)->get_desktop_id());
 	}
+	apply_resolved_order(order);
 	set_menu_items();
 }
 
@@ -317,13 +348,15 @@ void FavoritesPage::move_up(Launcher* launcher)
 		return;
 	}
 
-	const int index = m_settings->favorites.find(launcher->get_desktop_id());
-	if (index <= 0 || index >= m_settings->favorites.size())
+	std::vector<std::string> order = visible_ids(get_view()->get_model());
+	const auto found = std::find(order.begin(), order.end(),
+			launcher->get_desktop_id());
+	if (found == order.end() || found == order.begin())
 	{
 		return;
 	}
-
-	m_settings->favorites.swap(index, index - 1);
+	std::iter_swap(found, found - 1);
+	apply_resolved_order(order);
 
 	set_menu_items();
 }
@@ -337,13 +370,15 @@ void FavoritesPage::move_down(Launcher* launcher)
 		return;
 	}
 
-	const int index = m_settings->favorites.find(launcher->get_desktop_id());
-	if (index < 0 || index >= m_settings->favorites.size() - 1)
+	std::vector<std::string> order = visible_ids(get_view()->get_model());
+	const auto found = std::find(order.begin(), order.end(),
+			launcher->get_desktop_id());
+	if (found == order.end() || found + 1 == order.end())
 	{
 		return;
 	}
-
-	m_settings->favorites.swap(index, index + 1);
+	std::iter_swap(found, found + 1);
+	apply_resolved_order(order);
 
 	set_menu_items();
 }

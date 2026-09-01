@@ -15,6 +15,10 @@
 #ifndef WHISKERMENU_SETTINGS_DEFAULTS_H
 #define WHISKERMENU_SETTINGS_DEFAULTS_H
 
+#include <cstring>
+
+typedef struct _XfconfChannel XfconfChannel;
+
 namespace WhiskerMenu
 {
 
@@ -31,6 +35,44 @@ inline bool should_apply_fresh_preset(bool marker, bool empty_channel)
 {
 	return !marker && empty_channel;
 }
+
+/* settings_relative_property:
+ * @property: absolute Xfconf property returned by a property-base channel.
+ * @base: absolute plugin property base without a trailing slash.
+ *
+ * Separates real plugin settings from the panel registration node stored at
+ * the base itself. Xfconf includes that node in property enumeration even
+ * though it identifies the panel slot rather than persisted launcher state.
+ *
+ * Returns: the slash-prefixed relative setting, or nullptr for the base node,
+ * an empty child, or a property outside the requested base.
+ */
+inline const char* settings_relative_property(const char* property,
+		const char* base)
+{
+	if (!property || !base)
+		return nullptr;
+	const std::size_t base_length = std::strlen(base);
+	if (std::strncmp(property, base, base_length) != 0
+			|| property[base_length] != '/'
+			|| property[base_length + 1] == '\0')
+	{
+		return nullptr;
+	}
+	return property + base_length;
+}
+
+/* migrate_layout_schema_v13:
+ * @channel: property-base-anchored panel Xfconf channel.
+ *
+ * Applies the bounded layout cleanup introduced by schema version 13. The
+ * caller remains responsible for advancing /schema-version after updating its
+ * in-memory setting. Unrelated properties, including obsolete reset markers,
+ * are never inspected or changed.
+ *
+ * Returns: the canonical sidebar value when it changed, otherwise nullptr.
+ */
+const char* migrate_layout_schema_v13(XfconfChannel* channel);
 
 }
 

@@ -3,7 +3,7 @@
  * panel-plugin/core/window-keyboard.h. Fabricates GdkEventKey values
  * directly; no display server required.
  *
- * Covers contracts/key-routing.md §"Test plan".
+ * Covers modifier filtering, text ownership, and arrow classification.
  */
 
 #include "core/window-keyboard.h"
@@ -17,7 +17,14 @@
 #include <cstring>
 
 using WhiskerMenu::Keyboard::classify_key;
+using WhiskerMenu::Keyboard::is_directional_key;
+using WhiskerMenu::Keyboard::is_calculator_navigation_origin;
 using WhiskerMenu::Keyboard::is_printable_for_search;
+using WhiskerMenu::Keyboard::is_query_space_key;
+using WhiskerMenu::Keyboard::is_search_text_event;
+using WhiskerMenu::Keyboard::should_recover_search_focus;
+using WhiskerMenu::Keyboard::tab_action;
+using WhiskerMenu::Keyboard::TabAction;
 using WhiskerMenu::Keyboard::KeyClass;
 using WhiskerMenu::Keyboard::ActivationDebounce;
 
@@ -47,6 +54,13 @@ const char* class_name(KeyClass c)
 			++g_failures; \
 		} \
 	} while (0)
+
+#define CHECK(condition) do { \
+	if (!(condition)) { \
+		std::fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #condition); \
+		++g_failures; \
+	} \
+} while (0)
 
 GdkEventKey make_event(guint keyval, guint state = 0, bool is_modifier = false)
 {
@@ -92,6 +106,68 @@ void ctrl_letter_not_printable()
 	}
 }
 
+void navigation_modifiers_do_not_route_text()
+{
+	const guint modifiers[] = {
+		GDK_CONTROL_MASK, GDK_MOD1_MASK, GDK_SUPER_MASK,
+		GDK_META_MASK, GDK_HYPER_MASK,
+	};
+	for (guint modifier : modifiers)
+	{
+		GdkEventKey event = make_event(GDK_KEY_a, modifier);
+		if (is_printable_for_search(&event))
+			++g_failures;
+	}
+}
+
+void altgr_text_remains_search_owned()
+{
+	/* GDK exposes the produced character as a non-ASCII keysym for the
+	 * common AltGr layouts. Ordinary ASCII Alt accelerators remain blocked. */
+	GdkEventKey altgr = make_event(0x01000000u | 0x00E9u, GDK_MOD1_MASK);
+	GdkEventKey alt = make_event(GDK_KEY_a, GDK_MOD1_MASK);
+	CHECK(is_printable_for_search(&altgr));
+	CHECK(!is_printable_for_search(&alt));
+}
+
+void text_events_include_ime_but_not_shortcuts()
+{
+	GdkEventKey committed = make_event(GDK_KEY_a);
+	GdkEventKey composition = make_event(GDK_KEY_a,
+			GDK_MODIFIER_RESERVED_25_MASK);
+	GdkEventKey ctrl = make_event(GDK_KEY_a, GDK_CONTROL_MASK);
+	CHECK(is_search_text_event(&committed));
+	CHECK(is_search_text_event(&composition));
+	CHECK(!is_search_text_event(&ctrl));
+}
+
+void query_space_accepts_both_keypads()
+{
+	CHECK(is_query_space_key(GDK_KEY_space));
+	CHECK(is_query_space_key(GDK_KEY_KP_Space));
+	CHECK(!is_query_space_key(GDK_KEY_Return));
+}
+
+void missing_focus_recovers_search_without_stealing_modal_input()
+{
+	CHECK(should_recover_search_focus(false, false));
+	CHECK(!should_recover_search_focus(true, false));
+	CHECK(!should_recover_search_focus(false, true));
+}
+
+void ordinary_results_do_not_use_calculator_vertical_routing()
+{
+	CHECK(!is_calculator_navigation_origin(false, true));
+	CHECK(!is_calculator_navigation_origin(true, false));
+	CHECK(is_calculator_navigation_origin(true, true));
+}
+
+void tab_mode_action_is_explicit()
+{
+	CHECK(tab_action(true) == TabAction::ToggleMode);
+	CHECK(tab_action(false) == TabAction::Inert);
+}
+
 void f5_is_function()
 {
 	GdkEventKey e = make_event(GDK_KEY_F5);
@@ -111,6 +187,32 @@ void arrow_keys_are_function()
 	{
 		GdkEventKey e = make_event(kv);
 		EQC(classify_key(&e), KeyClass::FunctionUtility);
+	}
+}
+
+void keypad_arrows_are_directional()
+{
+	const guint arrows[] = {
+		GDK_KEY_KP_Up, GDK_KEY_KP_Down,
+		GDK_KEY_KP_Left, GDK_KEY_KP_Right,
+	};
+	for (guint keyval : arrows)
+	{
+		GdkEventKey event = make_event(keyval);
+		CHECK(is_directional_key(&event));
+	}
+}
+
+void modified_arrows_are_not_directional()
+{
+	const guint modifiers[] = {
+		GDK_SHIFT_MASK, GDK_CONTROL_MASK, GDK_MOD1_MASK,
+		GDK_SUPER_MASK, GDK_META_MASK, GDK_HYPER_MASK,
+	};
+	for (guint modifier : modifiers)
+	{
+		GdkEventKey event = make_event(GDK_KEY_Right, modifier);
+		CHECK(!is_directional_key(&event));
 	}
 }
 
@@ -235,9 +337,18 @@ int main()
 	space_is_printable();
 	shift_letter_is_printable();
 	ctrl_letter_not_printable();
+	navigation_modifiers_do_not_route_text();
+	altgr_text_remains_search_owned();
+	text_events_include_ime_but_not_shortcuts();
+	query_space_accepts_both_keypads();
+	missing_focus_recovers_search_without_stealing_modal_input();
+	ordinary_results_do_not_use_calculator_vertical_routing();
+	tab_mode_action_is_explicit();
 	f5_is_function();
 	delete_is_function();
 	arrow_keys_are_function();
+	keypad_arrows_are_directional();
+	modified_arrows_are_not_directional();
 	home_end_pageup_pagedown_function();
 	menu_key_is_function();
 	shift_alone_modifier();

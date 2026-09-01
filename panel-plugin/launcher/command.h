@@ -25,6 +25,16 @@
 namespace WhiskerMenu
 {
 
+// Session buttons define the GTK size role from which neighbouring selector
+// icon proportions are derived. Themes may map it to a different pixel size.
+constexpr GtkIconSize MEOWMENU_SESSION_BUTTON_ICON_SIZE =
+		GTK_ICON_SIZE_LARGE_TOOLBAR;
+
+inline bool command_effectively_available(bool shown, bool valid)
+{
+	return shown && valid;
+}
+
 class Command
 {
 public:
@@ -68,7 +78,7 @@ public:
 
 	void set_shown(bool shown);
 
-	void check();
+	bool check();
 
 	void activate();
 
