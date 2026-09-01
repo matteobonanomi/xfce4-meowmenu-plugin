@@ -616,6 +616,8 @@ void check_fullscreen_sidebar_selector_keeps_canonical_prefix()
 			MenuDirection::LeftToRight };
 	const MenuComposition composition = meow_resolve_menu_composition(input);
 	CHECK(composition.apps_places_location == MenuControlLocation::Sidebar);
+	if (!gtk_init_check(nullptr, nullptr))
+		return;
 
 	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* selector = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);

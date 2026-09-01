@@ -223,7 +223,7 @@ void check_sidebar_scrollbar_reservation()
 	gtk_box_pack_start(GTK_BOX(row), sidebar, false, false, 0);
 	gtk_box_pack_start(GTK_BOX(row), results, true, true, 0);
 	gtk_container_add(GTK_CONTAINER(window), row);
-	gtk_widget_show_all(window);
+	gtk_widget_show_all(row);
 
 	const int reserved_width = meow_configure_vertical_sidebar_width(
 			sidebar, profile, true, true);
@@ -237,6 +237,7 @@ void check_sidebar_scrollbar_reservation()
 	assert(reserved_width >= viewport_natural + scrollbar_natural);
 
 	gtk_window_set_default_size(GTK_WINDOW(window), reserved_width + 220, 120);
+	gtk_widget_show(window);
 	drain_events();
 	const int initial_sidebar_width = gtk_widget_get_allocated_width(sidebar);
 	const int sidebar_center = 2 * translated_x(sidebar, row)
@@ -244,12 +245,11 @@ void check_sidebar_scrollbar_reservation()
 	const int icon_center = 2 * translated_x(first_icon, row)
 			+ gtk_widget_get_allocated_width(first_icon);
 	assert(std::abs(sidebar_center - icon_center) <= 1);
-	gtk_widget_hide(window);
-	drain_events();
 	for (int i = 0; i < 20; ++i)
 	{
 		GtkWidget* button = gtk_radio_button_new(nullptr);
 		gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(button), false);
+		gtk_widget_set_size_request(button, -1, 32);
 		GtkWidget* content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 		gtk_box_pack_start(GTK_BOX(content), gtk_image_new_from_icon_name(
 				"applications-other", GTK_ICON_SIZE_BUTTON), true, true, 0);
@@ -257,7 +257,6 @@ void check_sidebar_scrollbar_reservation()
 		gtk_box_pack_start(GTK_BOX(categories), button, false, false, 0);
 		gtk_widget_show_all(button);
 	}
-	gtk_widget_show(window);
 	drain_events();
 	assert(gtk_widget_get_child_visible(scrollbar));
 	assert(gtk_widget_get_allocated_width(sidebar) == initial_sidebar_width);
@@ -277,6 +276,8 @@ void check_sidebar_scrollbar_reservation()
 	assert(!meow_reset_vertical_sidebar_scroll(nullptr));
 	assert(meow_configure_vertical_sidebar_content(categories, false));
 	assert(!gtk_widget_get_hexpand(first_button));
+	assert(meow_configure_vertical_sidebar_width(sidebar, profile,
+			false, false) == -1);
 
 	gtk_widget_destroy(window);
 	gtk_widget_destroy(profile);
@@ -577,7 +578,6 @@ int main(int argc, char** argv)
 	gtk_widget_destroy(primary);
 	gtk_widget_destroy(secondary);
 	gtk_widget_destroy(allocation_grid);
-	gtk_widget_destroy(selector);
 	gtk_widget_destroy(category_button);
 	gtk_widget_destroy(outsider);
 	g_object_unref(widths);

@@ -36,6 +36,15 @@ test_window_mode_integration = executable(
 
 test('window_mode_integration', test_window_mode_integration)
 
+# Package checks run without a display. Keep the pure integration checks
+# available there while ensuring display-backed cases skip before creating GTK
+# widgets.
+test(
+  'window_mode_integration_headless',
+  test_window_mode_integration,
+  env: ['DISPLAY=', 'GDK_BACKEND=x11'],
+)
+
 test_grid_presentation = executable(
   'test_grid_presentation',
   [

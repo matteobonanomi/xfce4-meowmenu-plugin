@@ -48,6 +48,15 @@ leak:pango_layout_get_size
 # Added: 2026-08-20
 leak:gtk_widget_get_preferred_height
 
+# gtk_cell_renderer_get_preferred_width — short-lived GtkTreeView tests reach
+# the same fontconfig pattern cache while measuring text renderers. Ubuntu's
+# stripped fontconfig library leaves the allocation leaf symbolized only at
+# this GTK request boundary, so the lower-level rules above cannot match it.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-09-01
+leak:gtk_cell_renderer_get_preferred_width
+
 # atspi_get_a11y_bus — at-spi2 caches a single AT-SPI bus connection for the
 # whole process and intentionally never tears it down (a per-process
 # singleton). gtk_init_check() reaches it through the accessibility-bridge

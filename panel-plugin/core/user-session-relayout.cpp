@@ -142,6 +142,8 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 {
 	if (!GTK_IS_WIDGET(sidebar) || !GTK_IS_WIDGET(profile))
 		return -1;
+	GtkScrolledWindow* scrolled = GTK_IS_SCROLLED_WINDOW(sidebar)
+			? GTK_SCROLLED_WINDOW(sidebar) : nullptr;
 
 	int sidebar_height = -1;
 	int profile_height = -1;
@@ -156,20 +158,33 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 
 	int sidebar_natural = 0;
 	int profile_natural = 0;
+	int sidebar_chrome = 0;
 	gtk_widget_get_preferred_width(sidebar, nullptr, &sidebar_natural);
-	if (GTK_IS_SCROLLED_WINDOW(sidebar))
+	if (scrolled)
 	{
 		GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(sidebar));
 		GtkWidget* scrollbar = gtk_scrolled_window_get_vscrollbar(
-				GTK_SCROLLED_WINDOW(sidebar));
+				scrolled);
 		int viewport_natural = 0;
 		int scrollbar_natural = 0;
 		if (GTK_IS_WIDGET(viewport))
 			gtk_widget_get_preferred_width(viewport, nullptr,
 					&viewport_natural);
 		if (GTK_IS_WIDGET(scrollbar))
+		{
 			gtk_widget_get_preferred_width(scrollbar, nullptr,
 					&scrollbar_natural);
+			gint slider_width = 0;
+			gint trough_border = 0;
+			gtk_widget_style_get(scrollbar,
+					"slider-width", &slider_width,
+					"trough-border", &trough_border,
+					nullptr);
+			// Overlay scrollbar requests shrink after the indicator appears.
+			// Keep the reservation stable by including its full themed trough.
+			scrollbar_natural = MAX(scrollbar_natural,
+					MAX(0, slider_width) + 2 * MAX(0, trough_border));
+		}
 		gint scrollbar_spacing = 0;
 		gtk_widget_style_get(sidebar,
 				"scrollbar-spacing", &scrollbar_spacing, nullptr);
@@ -178,10 +193,11 @@ WhiskerMenu::meow_configure_vertical_sidebar_width(GtkWidget* sidebar,
 		GtkStyleContext* style = gtk_widget_get_style_context(sidebar);
 		gtk_style_context_get_padding(style, GTK_STATE_FLAG_NORMAL, &padding);
 		gtk_style_context_get_border(style, GTK_STATE_FLAG_NORMAL, &border);
-		const int reserved = viewport_natural + scrollbar_natural
+		sidebar_chrome = scrollbar_natural
 				+ MAX(0, scrollbar_spacing)
 				+ MAX(0, padding.left) + MAX(0, padding.right)
 				+ MAX(0, border.left) + MAX(0, border.right);
+		const int reserved = viewport_natural + sidebar_chrome;
 		sidebar_natural = MAX(sidebar_natural, reserved);
 	}
 	if (profile_visible)
