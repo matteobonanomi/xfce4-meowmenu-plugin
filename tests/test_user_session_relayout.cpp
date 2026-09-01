@@ -257,6 +257,9 @@ void check_sidebar_scrollbar_reservation()
 		gtk_box_pack_start(GTK_BOX(categories), button, false, false, 0);
 		gtk_widget_show_all(button);
 	}
+	// Wait for the resize and draw cycle that updates automatic scrollbar
+	// visibility and its adjustment after the category list grows.
+	gtk_test_widget_wait_for_draw(window);
 	drain_events();
 	assert(gtk_widget_get_child_visible(scrollbar));
 	assert(gtk_widget_get_allocated_width(sidebar) == initial_sidebar_width);
