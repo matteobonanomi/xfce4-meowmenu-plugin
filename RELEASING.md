@@ -155,17 +155,18 @@ Use manual dispatch only to recover an existing, unmodified annotated or
 lightweight tag that has no public GitHub Release. Select `main` as the
 workflow ref, choose `recover-release`, and enter the existing tag. Recovery
 refuses any workflow ref other than `main` and verifies that the workflow
-revision is reachable from `origin/main` before it can delete a stale draft or
-change a release.
+revision is reachable from `origin/main` before it can resume a draft or change
+a release.
 
 Recovery uses the corrected release tools from `main` while all source and
 package content still comes from the immutable selected tag. It runs the same
 mandatory gates and automatic publication path as a pushed tag.
 
-A stale private draft for the same tag may be deleted without deleting or
-moving the tag. A public release is terminal: another run fails instead of
-creating a duplicate or replacing assets. Runs for one tag are serialized,
-and a mandatory failure never publishes a partial complete release.
+A matching private draft for the same tag is resumed without deleting or
+replacing its verified assets. A conflicting draft fails closed, and a public
+release is terminal: another run fails instead of creating a duplicate or
+replacing assets. Runs for one tag are serialized, and a mandatory failure
+never publishes a partial release.
 
 For hosted recovery acceptance, first dispatch a disposable existing tag from
 a non-`main` ref and confirm refusal before release mutation. Then dispatch

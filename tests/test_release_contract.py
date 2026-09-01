@@ -415,6 +415,34 @@ class ReleaseContractTest(unittest.TestCase):
                 owners.append(candidate.name)
         self.assertEqual(owners, ["packaging.yml"])
 
+    def test_release_lookup_includes_unpublished_drafts(self):
+        workflow = (
+            ROOT / ".github/workflows/packaging.yml"
+        ).read_text(encoding="utf-8")
+        publication = workflow.split("  publish-release:", maxsplit=1)[1]
+        self.assertEqual(
+            publication.count(
+                '"repos/${GH_REPO}/releases?per_page=100"'
+            ),
+            2,
+        )
+        self.assertEqual(
+            publication.count("map(select(.tag_name == $tag))"),
+            2,
+        )
+        self.assertNotIn(
+            'releases/tags/${RELEASE_TAG}',
+            publication,
+        )
+        self.assertIn(
+            "multiple releases found for the selected tag",
+            publication,
+        )
+        self.assertIn(
+            "exactly one staged release is required",
+            publication,
+        )
+
     def test_publication_depends_on_every_mandatory_package_gate(self):
         workflow = (
             ROOT / ".github/workflows/packaging.yml"
@@ -628,7 +656,7 @@ class ReleaseContractTest(unittest.TestCase):
             ROOT / ".github/workflows/packaging.yml"
         ).read_text(encoding="utf-8")
         publication = workflow.split("  publish-release:", maxsplit=1)[1]
-        self.assertIn("classify-response", publication)
+        self.assertIn("remote-release-stream.json", publication)
         self.assertIn("peeledCommit", publication)
         self.assertIn("preflight", publication)
         self.assertIn("missing_assets", publication)
@@ -636,6 +664,11 @@ class ReleaseContractTest(unittest.TestCase):
         self.assertNotIn("release delete", publication)
         self.assertNotIn("delete-asset", publication)
         self.assertNotIn("--clobber", publication)
+        releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
+        self.assertIn("A matching private draft", releasing)
+        self.assertIn("A conflicting draft fails closed", releasing)
+        self.assertNotIn("delete a stale draft", releasing)
+        self.assertNotIn("may be deleted", releasing)
 
     def test_release_surfaces_exclude_retired_paths_and_internal_wording(self):
         surfaces = (

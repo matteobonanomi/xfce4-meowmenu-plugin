@@ -539,17 +539,20 @@ jobs:
         run: |
           set -euo pipefail
           echo remote-compare > "$RUNNER_TEMP/release-stage"
-          set +e
-          gh api --include \
-            "repos/${GH_REPO}/releases/tags/${RELEASE_TAG}" \
-            > "$RUNNER_TEMP/remote-response"
-          lookup_exit=$?
-          set -e
-          python3 release-tools/build-aux/release/validate_release.py \
-            classify-response \
-            --response "$RUNNER_TEMP/remote-response" \
-            --exit-code "$lookup_exit" \
-            --output "$RUNNER_TEMP/lookup.json"
+          # GitHub's release-by-tag endpoint excludes unpublished drafts. Use
+          # the authenticated collection so interrupted drafts can be resumed.
+          gh api --paginate \
+            "repos/${GH_REPO}/releases?per_page=100" \
+            --jq '.[]' > "$RUNNER_TEMP/remote-release-stream.json"
+          jq --slurp --arg tag "$RELEASE_TAG" '
+            map(select(.tag_name == $tag)) as $matches
+            | if ($matches | length) == 0 then {lookup: "absent"}
+              elif ($matches | length) == 1 then
+                {lookup: "found", release: $matches[0]}
+              else error("multiple releases found for the selected tag")
+              end
+          ' "$RUNNER_TEMP/remote-release-stream.json" \
+            > "$RUNNER_TEMP/lookup.json"
 
           if test "$(jq -r .lookup "$RUNNER_TEMP/lookup.json")" = found; then
             tag_object="$(gh api \
@@ -644,7 +647,15 @@ jobs:
         run: |
           set -euo pipefail
           echo remote-verify > "$RUNNER_TEMP/release-stage"
-          gh api "repos/${GH_REPO}/releases/tags/${RELEASE_TAG}" \
+          gh api --paginate \
+            "repos/${GH_REPO}/releases?per_page=100" \
+            --jq '.[]' > "$RUNNER_TEMP/staged-release-stream.json"
+          jq --slurp --arg tag "$RELEASE_TAG" '
+            map(select(.tag_name == $tag)) as $matches
+            | if ($matches | length) == 1 then $matches[0]
+              else error("exactly one staged release is required")
+              end
+          ' "$RUNNER_TEMP/staged-release-stream.json" \
             > "$RUNNER_TEMP/staged-release.json"
           jq --arg commit "${{ needs.validate-tag.outputs.commit }}" \
             '{lookup: "found", release: (. + {peeledCommit: $commit})}' \
