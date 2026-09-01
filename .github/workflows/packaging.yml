@@ -44,6 +44,7 @@ jobs:
       debian_version: ${{ steps.identity.outputs.debian_version }}
       rpm_version: ${{ steps.identity.outputs.rpm_version }}
       arch_version: ${{ steps.identity.outputs.arch_version }}
+      commit: ${{ steps.identity.outputs.commit }}
       publish: ${{ steps.identity.outputs.publish }}
     steps:
       - name: Checkout release tools
@@ -126,6 +127,7 @@ jobs:
             echo "debian_version=$(python3 release-tools/build-aux/news-version.py --debian-version --news candidate/NEWS)"
             echo "rpm_version=$(python3 release-tools/build-aux/news-version.py --rpm-version --news candidate/NEWS)"
             echo "arch_version=$(python3 release-tools/build-aux/news-version.py --arch-version --news candidate/NEWS)"
+            echo "commit=${commit}"
             echo "publish=${publish}"
           } >> "$GITHUB_OUTPUT"
 
@@ -509,34 +511,219 @@ jobs:
           name: package-set-${{ needs.validate-tag.outputs.version }}-${{ github.run_id }}
           path: package-set
 
-      - name: Publish one complete release
+      - name: Validate candidate and local inventory
+        env:
+          VERSION: ${{ needs.validate-tag.outputs.version }}
+          CANDIDATE_COMMIT: ${{ needs.validate-tag.outputs.commit }}
+        run: |
+          set -euo pipefail
+          echo local-validation > "$RUNNER_TEMP/release-stage"
+          python3 release-tools/build-aux/release/artifacts.py verify \
+            --assets package-set/artifacts --version "$VERSION"
+          python3 release-tools/build-aux/release/validate_release.py candidate \
+            --version "$VERSION" \
+            --tag "$RELEASE_TAG" \
+            --peeled-commit "$CANDIDATE_COMMIT" \
+            --title "MeowMenu ${VERSION}" \
+            --notes package-set/release-notes.md \
+            --output "$RUNNER_TEMP/candidate.json"
+          python3 release-tools/build-aux/release/artifacts.py inventory \
+            --assets package-set/artifacts \
+            --output "$RUNNER_TEMP/local-inventory.json"
+          echo local-validation >> "$RUNNER_TEMP/release-completed"
+
+      - name: Compare remote release before mutation
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo remote-compare > "$RUNNER_TEMP/release-stage"
+          set +e
+          gh api --include \
+            "repos/${GH_REPO}/releases/tags/${RELEASE_TAG}" \
+            > "$RUNNER_TEMP/remote-response"
+          lookup_exit=$?
+          set -e
+          python3 release-tools/build-aux/release/validate_release.py \
+            classify-response \
+            --response "$RUNNER_TEMP/remote-response" \
+            --exit-code "$lookup_exit" \
+            --output "$RUNNER_TEMP/lookup.json"
+
+          if test "$(jq -r .lookup "$RUNNER_TEMP/lookup.json")" = found; then
+            tag_object="$(gh api \
+              "repos/${GH_REPO}/git/ref/tags/${RELEASE_TAG}")"
+            tag_type="$(jq -r .object.type <<< "$tag_object")"
+            tag_sha="$(jq -r .object.sha <<< "$tag_object")"
+            tag_depth=0
+            while test "$tag_type" = tag; do
+              test "$tag_depth" -lt 5 || {
+                echo "::error::remote compare: annotated tag chain is too deep"
+                exit 1
+              }
+              tag_object="$(gh api \
+                "repos/${GH_REPO}/git/tags/${tag_sha}")"
+              tag_type="$(jq -r .object.type <<< "$tag_object")"
+              tag_sha="$(jq -r .object.sha <<< "$tag_object")"
+              tag_depth=$((tag_depth + 1))
+            done
+            test "$tag_type" = commit || {
+              echo "::error::remote compare: tag does not peel to a commit"
+              exit 1
+            }
+            jq --arg commit "$tag_sha" \
+              '.release.peeledCommit = $commit' \
+              "$RUNNER_TEMP/lookup.json" \
+              > "$RUNNER_TEMP/lookup-with-commit.json"
+            mv "$RUNNER_TEMP/lookup-with-commit.json" \
+              "$RUNNER_TEMP/lookup.json"
+          fi
+
+          python3 release-tools/build-aux/release/validate_release.py preflight \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --lookup "$RUNNER_TEMP/lookup.json" \
+            --local-assets package-set/artifacts \
+            --output "$RUNNER_TEMP/preflight.json"
+          remote_assets="$RUNNER_TEMP/remote-assets"
+          mkdir "$remote_assets"
+          if test "$(jq -r .lookup "$RUNNER_TEMP/lookup.json")" = found; then
+            while IFS=$'\t' read -r asset_id asset_name; do
+              gh api "repos/${GH_REPO}/releases/assets/${asset_id}" \
+                -H "Accept: application/octet-stream" \
+                > "$remote_assets/$asset_name"
+            done < <(jq -r \
+              '.release.assets[] | [.id, .name] | @tsv' \
+              "$RUNNER_TEMP/lookup.json")
+            python3 release-tools/build-aux/release/validate_release.py decide \
+              --candidate "$RUNNER_TEMP/candidate.json" \
+              --lookup "$RUNNER_TEMP/lookup.json" \
+              --local-assets package-set/artifacts \
+              --remote-assets "$remote_assets" \
+              --output "$RUNNER_TEMP/decision.json"
+          else
+            python3 release-tools/build-aux/release/validate_release.py decide \
+              --candidate "$RUNNER_TEMP/candidate.json" \
+              --lookup "$RUNNER_TEMP/lookup.json" \
+              --local-assets package-set/artifacts \
+              --output "$RUNNER_TEMP/decision.json"
+          fi
+          action="$(jq -r .action "$RUNNER_TEMP/decision.json")"
+          remote_state="$(jq -r .remote_state "$RUNNER_TEMP/decision.json")"
+          echo "action=${action}" >> "$GITHUB_OUTPUT"
+          echo "remote_state=${remote_state}" >> "$GITHUB_OUTPUT"
+          echo remote-compare >> "$RUNNER_TEMP/release-completed"
+
+      - name: Stage only missing assets
+        if: steps.compare.outputs.action == 'create-draft' || steps.compare.outputs.action == 'resume-draft'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE_TAG" --json isDraft >/tmp/release.json 2>/dev/null; then
-            if test "$(jq -r .isDraft /tmp/release.json)" = true; then
-              gh release delete "$RELEASE_TAG" --yes
-            else
-              echo "::error::A public release already exists for ${RELEASE_TAG}"
-              exit 1
-            fi
+          echo stage > "$RUNNER_TEMP/release-stage"
+          if test "${{ steps.compare.outputs.action }}" = create-draft; then
+            # Assets are uploaded separately so an interrupted draft can be
+            # compared and resumed without replacing verified remote bytes.
+            gh release create "$RELEASE_TAG" --draft \
+              --verify-tag \
+              --title "MeowMenu ${VERSION}" \
+              --notes-file package-set/release-notes.md
           fi
+          while IFS= read -r asset_name; do
+            gh release upload "$RELEASE_TAG" \
+              "package-set/artifacts/$asset_name"
+          done < <(jq -r '.missing_assets[]' \
+            "$RUNNER_TEMP/decision.json")
+          echo stage >> "$RUNNER_TEMP/release-completed"
+
+      - name: Verify complete staged inventory
+        if: steps.compare.outputs.action != 'skip-public'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo remote-verify > "$RUNNER_TEMP/release-stage"
+          gh api "repos/${GH_REPO}/releases/tags/${RELEASE_TAG}" \
+            > "$RUNNER_TEMP/staged-release.json"
+          jq --arg commit "${{ needs.validate-tag.outputs.commit }}" \
+            '{lookup: "found", release: (. + {peeledCommit: $commit})}' \
+            "$RUNNER_TEMP/staged-release.json" \
+            > "$RUNNER_TEMP/staged-lookup.json"
+          python3 release-tools/build-aux/release/validate_release.py preflight \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --lookup "$RUNNER_TEMP/staged-lookup.json" \
+            --local-assets package-set/artifacts \
+            --output "$RUNNER_TEMP/staged-preflight.json"
+          staged_assets="$RUNNER_TEMP/staged-assets"
+          mkdir "$staged_assets"
+          gh release download "$RELEASE_TAG" --dir "$staged_assets"
+          python3 release-tools/build-aux/release/artifacts.py verify \
+            --assets "$staged_assets" \
+            --version "${{ needs.validate-tag.outputs.version }}"
+          python3 release-tools/build-aux/release/validate_release.py decide \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --lookup "$RUNNER_TEMP/staged-lookup.json" \
+            --local-assets package-set/artifacts \
+            --remote-assets "$staged_assets" \
+            --output "$RUNNER_TEMP/staged-decision.json"
+          test "$(jq -r .action "$RUNNER_TEMP/staged-decision.json")" = \
+            publish-draft || {
+            echo "::error::remote verify: complete private draft required"
+            exit 1
+          }
+          echo remote-verify >> "$RUNNER_TEMP/release-completed"
+
+      - name: Publish verified draft
+        if: steps.compare.outputs.action != 'skip-public'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo publish > "$RUNNER_TEMP/release-stage"
           # The RC suffix is a project stability label, not a GitHub
           # prerelease flag. GitHub's default latest handling follows release
           # publication order and remains independent of that label.
-          gh release create "$RELEASE_TAG" package-set/artifacts/* \
-            --verify-tag \
-            --title "MeowMenu ${VERSION}" \
-            --notes-file package-set/release-notes.md
+          gh release edit "$RELEASE_TAG" --draft=false
+          echo publish >> "$RUNNER_TEMP/release-completed"
 
-      - name: Download and verify the published assets
+      - name: Verify public release
+        if: steps.compare.outputs.action != 'skip-public'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.validate-tag.outputs.version }}
         run: |
-          mkdir downloaded
-          gh release download "$RELEASE_TAG" --dir downloaded
+          set -euo pipefail
+          echo publish-verify > "$RUNNER_TEMP/release-stage"
+          published="$RUNNER_TEMP/published-assets"
+          mkdir "$published"
+          gh release download "$RELEASE_TAG" --dir "$published"
           python3 release-tools/build-aux/release/artifacts.py verify \
-            --assets downloaded --version "$VERSION"
+            --assets "$published" --version "$VERSION"
+          test "$(gh release view "$RELEASE_TAG" --json isDraft \
+            --jq .isDraft)" = false
+          echo publish-verify >> "$RUNNER_TEMP/release-completed"
+
+      - name: Summarize release run
+        if: always()
+        run: |
+          stage="$(cat "$RUNNER_TEMP/release-stage" 2>/dev/null || echo preflight)"
+          completed="$(paste -sd ', ' \
+            "$RUNNER_TEMP/release-completed" 2>/dev/null || echo none)"
+          action="$(jq -r '.action // "not-reached"' \
+            "$RUNNER_TEMP/decision.json" 2>/dev/null || echo not-reached)"
+          remote_state="$(jq -r '.remote_state // "unknown"' \
+            "$RUNNER_TEMP/decision.json" 2>/dev/null || echo unknown)"
+          {
+            echo "## Release run"
+            echo
+            echo "- Candidate: ${RELEASE_TAG}"
+            echo "- Result: ${{ job.status }}"
+            echo "- Last stage: ${stage}"
+            echo "- Completed stages: ${completed}"
+            echo "- Remote state: ${remote_state}"
+            echo "- Decision: ${action}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if test "${{ job.status }}" = failure; then
+            echo "::error::Release failed during ${stage}; inspect this step and earlier job logs"
+          fi

@@ -23,86 +23,45 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <cstring>
 #include <string>
 
 using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-PreStableResetDecision WhiskerMenu::inspect_pre_stable_reset(
-	XfconfChannel* channel,
-	const char* property_base)
-{
-	if (!channel || !valid_meowmenu_property_base(property_base))
-		return PreStableResetDecision::Load;
-
-	const int generation = xfconf_channel_get_int(channel,
-		COMPOSITION_RESET_GENERATION_KEY, 0);
-	gchar* state = xfconf_channel_get_string(channel,
-		COMPOSITION_RESET_STATE_KEY, nullptr);
-	const bool initialized = xfconf_channel_get_bool(channel,
-		"/initialized", FALSE);
-
-	std::size_t non_lifecycle = 0;
-	GHashTable* properties = xfconf_channel_get_properties(channel, nullptr);
-	if (properties)
-	{
-		GHashTableIter iter;
-		gpointer key = nullptr;
-		gpointer value = nullptr;
-		g_hash_table_iter_init(&iter, properties);
-		while (g_hash_table_iter_next(&iter, &key, &value))
-		{
-			(void)value;
-			std::string path(static_cast<const gchar*>(key));
-			if (path.compare(0, strlen(property_base), property_base) == 0)
-				path.erase(0, strlen(property_base));
-			if (path.empty()
-					|| path == COMPOSITION_RESET_GENERATION_KEY
-					|| path == COMPOSITION_RESET_STATE_KEY)
-				continue;
-			++non_lifecycle;
-		}
-		g_hash_table_unref(properties);
-	}
-
-	const PreStableResetDecision decision = decide_pre_stable_reset(generation,
-		state ? state : "", initialized, non_lifecycle);
-	g_free(state);
-	return decision;
-}
-
-bool WhiskerMenu::complete_pre_stable_reset(XfconfChannel* channel)
+const char* WhiskerMenu::migrate_layout_schema_v13(XfconfChannel* channel)
 {
 	if (!channel)
-		return false;
+		return nullptr;
 
-	gchar* preset = xfconf_channel_get_string(channel,
-		"/current-preset-id", nullptr);
-	gchar* mode = xfconf_channel_get_string(channel, "/layout-mode", nullptr);
-	gchar* primary = xfconf_channel_get_string(channel,
-		"/search-bar-position", nullptr);
+	const char* retired_keys[] = {
+		"/position-profile-alternate",
+		"/position-search-alternate",
+		"/position-commands-alternate",
+		"/position-categories-alternate",
+		"/position-categories-horizontal",
+		"/profile-position",
+		"/commands-position",
+		"/unified-bar",
+	};
+	for (const char* key : retired_keys)
+		xfconf_channel_reset_property(channel, key, FALSE);
+
+	const char* canonical = nullptr;
 	gchar* sidebar = xfconf_channel_get_string(channel,
-		"/sidebar-position", nullptr);
-	const bool valid = xfconf_channel_get_bool(channel, "/initialized", FALSE)
-		&& xfconf_channel_get_int(channel, "/schema-version", 0) >= 13
-		&& g_strcmp0(preset, "modern") == 0
-		&& g_strcmp0(mode, "docked") == 0
-		&& g_strcmp0(primary, "top") == 0
-		&& g_strcmp0(sidebar, "left") == 0;
-	g_free(preset);
-	g_free(mode);
-	g_free(primary);
-	g_free(sidebar);
+			"/sidebar-position", nullptr);
+	if (g_strcmp0(sidebar, "top") == 0
+			|| g_strcmp0(sidebar, "bottom") == 0)
+		canonical = "horizontal";
+	else if (g_strcmp0(sidebar, "left") != 0
+			&& g_strcmp0(sidebar, "right") != 0
+			&& g_strcmp0(sidebar, "horizontal") != 0)
+		canonical = "left";
 
-	if (!valid)
-		return false;
-	if (!xfconf_channel_set_int(channel, COMPOSITION_RESET_GENERATION_KEY,
-			COMPOSITION_RESET_GENERATION))
-		return false;
-	return xfconf_channel_set_string(channel, COMPOSITION_RESET_STATE_KEY,
-		"complete");
+	if (canonical)
+		xfconf_channel_set_string(channel, "/sidebar-position", canonical);
+	g_free(sidebar);
+	return canonical;
 }
 
 //-----------------------------------------------------------------------------
@@ -491,35 +450,9 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 	if (schema_version < 13)
 	{
-		const char* retired_keys[] = {
-			"/position-profile-alternate",
-			"/position-search-alternate",
-			"/position-commands-alternate",
-			"/position-categories-alternate",
-			"/position-categories-horizontal",
-			"/profile-position",
-			"/commands-position",
-			"/unified-bar",
-		};
-		for (const char* key : retired_keys)
-			xfconf_channel_reset_property(channel, key, FALSE);
-
-		gchar* sidebar = xfconf_channel_get_string(channel,
-				"/sidebar-position", nullptr);
-		if (g_strcmp0(sidebar, "top") == 0
-				|| g_strcmp0(sidebar, "bottom") == 0)
-		{
-			xfconf_channel_set_string(channel, "/sidebar-position", "horizontal");
-			sidebar_position = "horizontal";
-		}
-		else if (g_strcmp0(sidebar, "left") != 0
-				&& g_strcmp0(sidebar, "right") != 0
-				&& g_strcmp0(sidebar, "horizontal") != 0)
-		{
-			xfconf_channel_set_string(channel, "/sidebar-position", "left");
-			sidebar_position = "left";
-		}
-		g_free(sidebar);
+		const char* canonical = migrate_layout_schema_v13(channel);
+		if (canonical)
+			sidebar_position = canonical;
 		schema_version = 13;
 	}
 

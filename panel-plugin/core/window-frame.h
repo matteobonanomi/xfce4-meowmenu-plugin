@@ -24,6 +24,9 @@ typedef struct _GtkWidget GtkWidget;
 namespace meow
 {
 
+/* Reports page-owned layout readiness from a mapped launcher frame. */
+typedef bool (*MeowMenuResultFramePrepare)(void* data);
+
 /* meowmenu_clamp_corner_radius:
  * @radius: a requested corner radius in logical pixels (may be out of range).
  *
@@ -78,6 +81,65 @@ const char* meowmenu_list_selection_css();
  * Returns: true when a valid widget was queued.
  */
 bool meowmenu_queue_complete_window_frame(GtkWidget* widget);
+
+/* meowmenu_queue_complete_result_frame:
+ * @toplevel: launcher toplevel that owns composition and clipping.
+ * @result: concrete visible result widget.
+ *
+ * Invalidates both presentation surfaces independently. A valid composed
+ * toplevel never suppresses the concrete result damage required after a model
+ * was populated while hidden.
+ *
+ * Returns: true when at least one valid widget was queued.
+ */
+bool meowmenu_queue_complete_result_frame(GtkWidget* toplevel,
+		GtkWidget* result);
+
+/* meowmenu_schedule_mapped_result_frame:
+ * @owner: mapped lifecycle widget that owns the callback, normally @toplevel.
+ * @toplevel: launcher toplevel that owns composition and clipping.
+ * @result: concrete result widget to invalidate.
+ * @callback_id: page-owned callback slot; zero means no callback is pending.
+ * @prepare: optional layout-readiness callback invoked at the mapped frame.
+ * @prepare_data: borrowed callback context owned by the caller.
+ *
+ * Coalesces layout preparation and complete-result invalidation on @owner's
+ * frame clock. A request made while a stack child is hidden remains
+ * active for a bounded number of frames until the concrete result reports
+ * readiness, then damages both surfaces. The caller must cancel the slot before
+ * destroying or replacing @owner, @result, or @prepare_data.
+ *
+ * Returns: true when a callback is already pending or was scheduled.
+ */
+bool meowmenu_schedule_mapped_result_frame(GtkWidget* owner,
+		GtkWidget* toplevel, GtkWidget* result, unsigned int* callback_id,
+		MeowMenuResultFramePrepare prepare = nullptr,
+		void* prepare_data = nullptr);
+
+/* meowmenu_cancel_mapped_result_frame:
+ * @owner: exact widget used to register the pending callback.
+ * @callback_id: page-owned callback slot to clear.
+ *
+ * Removes a pending mapped-frame invalidation before page teardown or result
+ * replacement. Invalid or already-clear slots are harmless.
+ */
+void meowmenu_cancel_mapped_result_frame(GtkWidget* owner,
+		unsigned int* callback_id);
+
+/* meowmenu_create_default_heading_page:
+ * @content: built-in result page to wrap.
+ * @text: translated heading text for the page.
+ * @heading_out: optional borrowed pointer to the created heading label.
+ *
+ * Creates the common sidebar-disabled page surface. The heading ignores
+ * show-all and starts hidden; the resolved sidebar presentation owns its
+ * visibility. The returned floating GtkBox is intended to be adopted by a
+ * GtkStack.
+ *
+ * Returns: the new wrapper, or NULL for invalid input.
+ */
+GtkWidget* meowmenu_create_default_heading_page(GtkWidget* content,
+		const char* text, GtkWidget** heading_out);
 
 } // namespace meow
 

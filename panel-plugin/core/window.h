@@ -92,6 +92,8 @@ public:
 	PlacesPage* get_places() const { return m_places; }
 	bool is_places_active() const { return m_places_active; }
 	void switch_mode(bool to_places);
+	int get_result_toplevel_width_authority() const;
+	int get_result_viewport_width_cap() const;
 
 	void hide(bool lost_focus = false);
 	void show(const Position position);
@@ -134,6 +136,8 @@ private:
 	 * whenever the application categories change.
 	 */
 	void sync_category_label_width();
+	void bind_category_focus_adjustments();
+	void reveal_active_category();
 
 	GtkWidget* get_active_category_button();
 	gboolean on_key_press_event(GtkWidget* widget, GdkEventKey* key_event);
@@ -191,9 +195,9 @@ private:
 	void prepare_results_width_resize(int current_width,
 			int requested_width);
 	void check_scrollbar_needed();
-	void favorites_toggled();
-	void recent_toggled();
-	void category_toggled();
+	void favorites_toggled(GtkToggleButton* button);
+	void recent_toggled(GtkToggleButton* button);
+	void category_toggled(GtkToggleButton* button);
 	void center_window();
 	void move_window();
 	// True when /layout-mode resolves to Centered. Drives the centred
@@ -208,7 +212,8 @@ private:
 	void validate_resize_display();
 	void apply_resize_rectangle(
 			const InteractiveResize::Rectangle& rectangle);
-	void set_results_interactive_resize(bool active);
+	void schedule_resize_frame();
+	void cancel_resize_frame();
 	void settle_resize_position();
 	bool set_size(int width, int height);
 	void reset_default_button();
@@ -312,6 +317,8 @@ private:
 	FavoritesPage* m_favorites;
 	RecentPage* m_recent;
 	ApplicationsPage* m_applications;
+	GtkWidget* m_favorites_heading;
+	GtkWidget* m_recent_heading;
 
 	// Places mode (current behavior)
 	PlacesPage* m_places;
@@ -392,6 +399,7 @@ private:
 	bool m_child_has_focus;
 	bool m_resizing;
 	InteractiveResize::Transaction m_resize_transaction;
+	guint m_resize_tick_id;
 	GdkMonitor* m_resize_monitor;
 	gulong m_resize_monitor_notify_slot;
 	gulong m_resize_monitor_removed_slot;

@@ -448,6 +448,7 @@ void LauncherTreeView::set_model(GtkTreeModel* model)
 	m_model = model;
 	gtk_tree_view_set_model(m_view, model);
 	gtk_tree_view_set_search_column(m_view, -1);
+	request_content_redraw();
 }
 
 //-----------------------------------------------------------------------------
@@ -456,6 +457,7 @@ void LauncherTreeView::unset_model()
 {
 	m_model = nullptr;
 	gtk_tree_view_set_model(m_view, nullptr);
+	request_content_redraw();
 }
 
 //-----------------------------------------------------------------------------

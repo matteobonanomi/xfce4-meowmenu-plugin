@@ -23,7 +23,6 @@
 #include "presets/preset.h"
 #include "presets/preset-io.h"
 #include "settings.h"
-#include "settings-defaults.h"
 #include "ui/slot.h"
 
 #include <climits>
@@ -516,8 +515,6 @@ GtkWidget* SettingsDialog::init_general_tab()
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_settings->schema_version = 13;
 				m_settings->initialized = true;
-				if (!complete_pre_stable_reset(m_settings->channel))
-					g_warning("meowmenu: failed to preserve the completed reset boundary");
 				m_plugin->reload_menu();
 				sync_preset_widgets();
 				refresh_preset_combo("modern");

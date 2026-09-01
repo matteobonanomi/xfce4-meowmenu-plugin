@@ -122,7 +122,7 @@ Settings::Settings(Plugin* plugin) :
 	panel_gap(this, "/panel-gap", 0, 0, 50),
 
 	// NOTE: GUI and preset storage use the closed left/right/horizontal domain.
-	// Unknown values render safely as Left and are reset by the pre-stable gate.
+	// Unknown values render safely as Left.
 	sidebar_position(this, "/sidebar-position", "left"),
 	sidebar_enabled(this, "/sidebar-enabled", true),
 	search_bar_position(this, "/search-bar-position", "top"),
@@ -337,20 +337,10 @@ void Settings::load(const gchar* file, bool is_default)
 
 void Settings::load(const gchar* base)
 {
-	PreStableResetDecision reset_decision = PreStableResetDecision::Load;
-	bool reset_ready = true;
-
-	// Set up Xfconf channel and settle the reset boundary before old values can
-	// enter the Settings value bag.
+	// Set up the property-base-anchored channel before loading stored values.
 	if (base && xfconf_init(nullptr))
 	{
 		channel = xfconf_channel_new_with_property_base(xfce_panel_get_channel_name(), base);
-		reset_decision = inspect_pre_stable_reset(channel, base);
-		if (reset_decision == PreStableResetDecision::Reset)
-			reset_ready = reset_instance_for_composition_upgrade(channel, base);
-		if (!reset_ready)
-			reset_decision = PreStableResetDecision::Load;
-
 		m_change_slot = connect(channel, "property-changed",
 			[this](XfconfChannel*, const gchar* property, const GValue* value)
 			{
@@ -365,19 +355,21 @@ void Settings::load(const gchar* base)
 
 	// Fetch all settings
 	GHashTable* properties = xfconf_channel_get_properties(channel, nullptr);
-	const guint loaded_property_count = properties
-		? g_hash_table_size(properties) : 0;
+	guint loaded_property_count = 0;
 	if (properties)
 	{
-		const int base_len = strlen(base);
 		GHashTableIter iter;
 		gpointer key = nullptr;
 		gpointer value = nullptr;
 		g_hash_table_iter_init(&iter, properties);
 		while (g_hash_table_iter_next(&iter, &key, &value))
 		{
-			property_changed(static_cast<const gchar*>(key) + base_len,
-				static_cast<GValue*>(value));
+			const char* relative = settings_relative_property(
+					static_cast<const gchar*>(key), base);
+			if (!relative)
+				continue;
+			++loaded_property_count;
+			property_changed(relative, static_cast<GValue*>(value));
 		}
 		g_hash_table_destroy(properties);
 	}
@@ -385,15 +377,7 @@ void Settings::load(const gchar* base)
 	prevent_invalid();
 	load_aliases(channel);
 
-	const bool needs_modern_defaults =
-		reset_decision != PreStableResetDecision::Load;
-	migrate_schema(needs_modern_defaults ? false : static_cast<bool>(initialized),
-		needs_modern_defaults || loaded_property_count == 0);
-	if (needs_modern_defaults && !complete_pre_stable_reset(channel))
-	{
-		g_warning("meowmenu: reset for %s remains pending because defaults could not be verified",
-			base);
-	}
+	migrate_schema(static_cast<bool>(initialized), loaded_property_count == 0);
 }
 
 //-----------------------------------------------------------------------------

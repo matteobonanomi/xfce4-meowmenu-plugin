@@ -103,30 +103,13 @@ GridCellWidth meow_grid_cell_width(int padding, int icon_size, bool stretch);
 GridColumnLayout meow_grid_column_layout(int viewport_width, int margin,
 		int spacing, int item_padding, int minimum_item_width);
 
-/* meow_grid_queue_frame_width:
- * @viewport_width: latest positive viewport width from resize motion.
- * @pending_width: retained latest width; zero means no frame is queued.
- *
- * Replaces any older pending width. The first queued width tells the caller to
- * register one frame callback; later motion before that frame only updates the
- * retained value.
- *
- * Returns: true only when a new frame callback is required.
- */
-bool meow_grid_queue_frame_width(int viewport_width, int* pending_width);
-
-/* meow_grid_take_frame_width:
- * @pending_width: retained latest width, reset to zero on return.
- *
- * Returns: the latest queued positive width, or zero when none is pending.
- */
-int meow_grid_take_frame_width(int* pending_width);
-
 /* meow_grid_effective_viewport_width:
  * @scroller_width: allocated Results scroller width.
  * @toplevel_width: allocated launcher toplevel width.
  * @requested_toplevel_width: explicit launcher width, or non-positive when
  * uncapped.
+ * @maximum_viewport_width: authoritative Results width, or non-positive when
+ * the layout has no independent viewport cap.
  *
  * Removes toplevel natural-size overshoot from the apparent Results width so
  * child requisitions cannot feed a larger viewport back into themselves.
@@ -134,7 +117,8 @@ int meow_grid_take_frame_width(int* pending_width);
  * Returns: a positive effective Results viewport width.
  */
 int meow_grid_effective_viewport_width(int scroller_width,
-		int toplevel_width, int requested_toplevel_width);
+		int toplevel_width, int requested_toplevel_width,
+		int maximum_viewport_width = -1);
 
 /* meow_grid_resized_viewport_width:
  * @current_viewport_width: last effective Results width.

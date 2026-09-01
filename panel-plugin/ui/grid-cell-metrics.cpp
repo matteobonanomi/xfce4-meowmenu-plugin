@@ -122,43 +122,13 @@ GridColumnLayout meow_grid_column_layout(int viewport_width, int margin,
 	return GridColumnLayout{ columns, item_width };
 }
 
-/* meow_grid_queue_frame_width:
- * @viewport_width: latest positive viewport width from resize motion.
- * @pending_width: retained latest width; zero means no frame is queued.
- *
- * Keeps raw input delivery cheap while preserving the newest geometry. The
- * caller schedules at most one GTK frame and consumes the value there.
- *
- * Returns: true only when a new frame callback is required.
- */
-bool meow_grid_queue_frame_width(int viewport_width, int* pending_width)
-{
-	if (!pending_width || viewport_width < 1)
-		return false;
-	const bool schedule = *pending_width < 1;
-	*pending_width = viewport_width;
-	return schedule;
-}
-
-/* meow_grid_take_frame_width:
- * @pending_width: retained latest width, reset to zero on return.
- *
- * Returns: the latest queued positive width, or zero when none is pending.
- */
-int meow_grid_take_frame_width(int* pending_width)
-{
-	if (!pending_width)
-		return 0;
-	const int width = *pending_width;
-	*pending_width = 0;
-	return width;
-}
-
 /* meow_grid_effective_viewport_width:
  * @scroller_width: current allocated width of the Results scroller.
  * @toplevel_width: current allocated launcher toplevel width.
  * @requested_toplevel_width: current explicit launcher width, or a non-positive
  * value when no windowed width cap applies.
+ * @maximum_viewport_width: independent Results-column cap, or a non-positive
+ * value when the layout does not define one.
  *
  * Removes GTK natural-size overshoot already added to the toplevel from the
  * apparent Results allocation. This keeps a child requisition from becoming a
@@ -167,17 +137,24 @@ int meow_grid_take_frame_width(int* pending_width)
  * Returns: a positive effective Results viewport width.
  */
 int meow_grid_effective_viewport_width(int scroller_width,
-		int toplevel_width, int requested_toplevel_width)
+		int toplevel_width, int requested_toplevel_width,
+		int maximum_viewport_width)
 {
 	if (scroller_width < 1)
 		scroller_width = 1;
-	if (requested_toplevel_width <= 0
-			|| toplevel_width <= requested_toplevel_width)
+	if (requested_toplevel_width > 0
+			&& toplevel_width > requested_toplevel_width)
 	{
-		return scroller_width;
+		const int overshoot = toplevel_width - requested_toplevel_width;
+		scroller_width = scroller_width > overshoot
+				? scroller_width - overshoot : 1;
 	}
-	const int overshoot = toplevel_width - requested_toplevel_width;
-	return scroller_width > overshoot ? scroller_width - overshoot : 1;
+	if (maximum_viewport_width > 0
+			&& scroller_width > maximum_viewport_width)
+	{
+		scroller_width = maximum_viewport_width;
+	}
+	return scroller_width;
 }
 
 /* meow_grid_resized_viewport_width:

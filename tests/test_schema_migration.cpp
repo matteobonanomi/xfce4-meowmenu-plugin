@@ -1,9 +1,9 @@
 /*
  * Unit tests for Settings::migrate_schema() logic.
  *
- * Full Xfconf round-trip tests require a live xfconfd and are marked
- * TODO-INTEGRATION; they will be covered in a follow-up when a
- * lightweight xfconfd fixture is added.
+ * Full upgrade-preservation round trips run in test_preset_xfconf against a
+ * private xfconfd. This file keeps the schema decision tables and source-level
+ * ownership checks small and display-independent.
  *
  * What IS tested here:
  *   - is_fresh_install determination from property count (pure logic)
@@ -465,23 +465,29 @@ static void test_supported_layout_v13()
 	assert(source.find("\"horizontal\"") != std::string::npos);
 }
 
-static void test_pre_stable_reset_decision()
+static void test_startup_uses_only_bounded_schema_migration()
 {
-	using WhiskerMenu::PreStableResetDecision;
-	using WhiskerMenu::decide_pre_stable_reset;
+	std::ifstream settings(MEOWMENU_SETTINGS_SOURCE);
+	std::ifstream defaults(MEOWMENU_SETTINGS_DEFAULTS_SOURCE);
+	assert(settings.good());
+	assert(defaults.good());
+	const std::string settings_source((std::istreambuf_iterator<char>(settings)),
+		std::istreambuf_iterator<char>());
+	const std::string defaults_source((std::istreambuf_iterator<char>(defaults)),
+		std::istreambuf_iterator<char>());
 
-	assert(decide_pre_stable_reset(1, "complete", true, 8)
-		== PreStableResetDecision::Load);
-	assert(decide_pre_stable_reset(1, "pending", false, 0)
-		== PreStableResetDecision::Reset);
-	assert(decide_pre_stable_reset(0, "", true, 0)
-		== PreStableResetDecision::Reset);
-	assert(decide_pre_stable_reset(0, "", false, 1)
-		== PreStableResetDecision::Reset);
-	assert(decide_pre_stable_reset(0, "", false, 0)
-		== PreStableResetDecision::Fresh);
-	assert(decide_pre_stable_reset(99, "complete", false, 0)
-		== PreStableResetDecision::Fresh);
+	assert(settings_source.find("reset_instance_for_composition_upgrade")
+		== std::string::npos);
+	assert(settings_source.find("inspect_pre_stable_reset") == std::string::npos);
+	assert(settings_source.find("complete_pre_stable_reset") == std::string::npos);
+	assert(defaults_source.find("composition-reset-generation")
+		== std::string::npos);
+	assert(defaults_source.find("composition-reset-state") == std::string::npos);
+	assert(defaults_source.find("migrate_layout_schema_v13(channel)")
+		!= std::string::npos);
+	assert(settings_source.find(
+		"migrate_schema(static_cast<bool>(initialized), loaded_property_count == 0)")
+		!= std::string::npos);
 }
 
 static void test_fresh_install_lands_on_modern()
@@ -571,6 +577,21 @@ static void test_fresh_install_detection()
 	assert(detect_fresh_install(0) == true);
 	assert(detect_fresh_install(1) == false);
 	assert(detect_fresh_install(42) == false);
+}
+
+static void test_panel_registration_is_not_plugin_state()
+{
+	const char* base = "/plugins/plugin-2";
+	assert(WhiskerMenu::settings_relative_property(base, base) == nullptr);
+	assert(std::strcmp(WhiskerMenu::settings_relative_property(
+			"/plugins/plugin-2/view-mode", base), "/view-mode") == 0);
+	assert(std::strcmp(WhiskerMenu::settings_relative_property(
+			"/plugins/plugin-2/places/enabled", base),
+			"/places/enabled") == 0);
+	assert(WhiskerMenu::settings_relative_property(
+			"/plugins/plugin-20/view-mode", base) == nullptr);
+	assert(WhiskerMenu::settings_relative_property(
+			"/plugins/plugin-3/view-mode", base) == nullptr);
 }
 
 static void test_legacy_opacity_mapping()
@@ -806,23 +827,15 @@ static void test_v7_fresh_install_lands_on_100_no_old_keys()
 		assert(v7_resets_key(k) == true);
 }
 
-// TODO-INTEGRATION: test_v0_to_v1_snapshot()
-//   Bring up a real xfconfd on XDG_CONFIG_HOME=/tmp/meow-test-XXXXXX,
-//   write a v0 property set (favorites, view-mode, menu-opacity=60),
-//   instantiate Settings, call migrate_schema(false),
-//   assert: schema-version==5, categories-opacity==60, and the active-preset
-//            identity derived from the live layout (NOT hard-defaulted to
-//            "classic"; an exact built-in match adopts it, otherwise "Custom").
-//
-// TODO-INTEGRATION: test_fresh_install_sets_modern()
-//   Same fixture, but empty channel.
-//   assert: current-preset-id=="modern" (runtime implementation wired: apply_preset(BUILTIN_PRESETS[MODERN])
-//   is now called in migrate_schema when is_fresh_install==true).
+// Private-Xfconf preservation, marker, and repeat-pass coverage lives in
+// test_preset_xfconf. These pure checks intentionally retain the complete
+// historical schema decision table without duplicating that daemon fixture.
 
 int main()
 {
 	test_schema_version_guard();
 	test_fresh_install_detection();
+	test_panel_registration_is_not_plugin_state();
 	test_marker_decision_table();
 	test_upgrade_preserves_stored_presentation_values();
 	test_080_fixture_preserves_release_baseline();
@@ -848,6 +861,6 @@ int main()
 	test_visibility_intent_v12();
 	test_retired_selector_shape_stays_dormant();
 	test_supported_layout_v13();
-	test_pre_stable_reset_decision();
+	test_startup_uses_only_bounded_schema_migration();
 	return 0;
 }

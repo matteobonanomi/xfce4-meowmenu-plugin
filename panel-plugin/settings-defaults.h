@@ -15,8 +15,6 @@
 #ifndef WHISKERMENU_SETTINGS_DEFAULTS_H
 #define WHISKERMENU_SETTINGS_DEFAULTS_H
 
-#include <cstddef>
-#include <cctype>
 #include <cstring>
 
 typedef struct _XfconfChannel XfconfChannel;
@@ -38,101 +36,43 @@ inline bool should_apply_fresh_preset(bool marker, bool empty_channel)
 	return !marker && empty_channel;
 }
 
-constexpr int COMPOSITION_RESET_GENERATION = 1;
-constexpr const char* COMPOSITION_RESET_GENERATION_KEY =
-	"/migration/composition-reset-generation";
-constexpr const char* COMPOSITION_RESET_STATE_KEY =
-	"/migration/composition-reset-state";
-
-enum class PreStableResetDecision
-{
-	Fresh,
-	Reset,
-	Load,
-};
-
-/* decide_pre_stable_reset:
- * @generation: persisted reset generation, or zero when absent.
- * @state: persisted lifecycle state, or an empty string when absent.
- * @initialized: whether the instance had completed older initialization.
- * @non_lifecycle_properties: number of stored instance descendants excluding
- *   the reset lifecycle keys and the bare registration value.
+/* settings_relative_property:
+ * @property: absolute Xfconf property returned by a property-base channel.
+ * @base: absolute plugin property base without a trailing slash.
  *
- * Classifies one instance without consulting product version strings. Pending
- * and incomplete generations retry, initialized/nonempty instances reset, and
- * a genuinely empty instance receives fresh defaults.
+ * Separates real plugin settings from the panel registration node stored at
+ * the base itself. Xfconf includes that node in property enumeration even
+ * though it identifies the panel slot rather than persisted launcher state.
  *
- * Returns: the startup action for this instance.
+ * Returns: the slash-prefixed relative setting, or nullptr for the base node,
+ * an empty child, or a property outside the requested base.
  */
-inline PreStableResetDecision decide_pre_stable_reset(int generation,
-	const char* state,
-	bool initialized,
-	std::size_t non_lifecycle_properties)
+inline const char* settings_relative_property(const char* property,
+		const char* base)
 {
-	const char* stored_state = state ? state : "";
-	if (generation == COMPOSITION_RESET_GENERATION
-			&& std::strcmp(stored_state, "complete") == 0)
-		return PreStableResetDecision::Load;
-	if (generation == COMPOSITION_RESET_GENERATION
-			&& std::strcmp(stored_state, "pending") == 0)
-		return PreStableResetDecision::Reset;
-	return (initialized || non_lifecycle_properties > 0)
-		? PreStableResetDecision::Reset
-		: PreStableResetDecision::Fresh;
+	if (!property || !base)
+		return nullptr;
+	const std::size_t base_length = std::strlen(base);
+	if (std::strncmp(property, base, base_length) != 0
+			|| property[base_length] != '/'
+			|| property[base_length + 1] == '\0')
+	{
+		return nullptr;
+	}
+	return property + base_length;
 }
 
-/* inspect_pre_stable_reset:
- * @channel: property-base-anchored panel Xfconf channel.
- * @property_base: concrete per-instance base such as
- *   "/plugins/plugin-7".
- *
- * Reads only lifecycle and existence state. A malformed base fails closed and
- * returns Load so no destructive operation can be attempted.
- *
- * Returns: the startup action for this instance.
- */
-PreStableResetDecision inspect_pre_stable_reset(XfconfChannel* channel,
-	const char* property_base);
-
-inline bool valid_meowmenu_property_base(const char* property_base)
-{
-	// Xfce assigns live panel instances the generic plugin-N base. Keep the
-	// former product-specific spelling valid for older migration fixtures.
-	static const char* const prefixes[] = {
-		"/plugins/plugin-",
-		"/plugins/meowmenu-",
-	};
-	const char* id = nullptr;
-	for (const char* prefix : prefixes)
-	{
-		const std::size_t prefix_length = std::strlen(prefix);
-		if (property_base && std::strncmp(property_base, prefix,
-				prefix_length) == 0)
-		{
-			id = property_base + prefix_length;
-			break;
-		}
-	}
-	if (!id || !*id)
-		return false;
-	for (const char* p = id; *p; ++p)
-	{
-		if (!std::isdigit(static_cast<unsigned char>(*p)))
-			return false;
-	}
-	return true;
-}
-
-/* complete_pre_stable_reset:
+/* migrate_layout_schema_v13:
  * @channel: property-base-anchored panel Xfconf channel.
  *
- * Verifies the required Modern state and records completion last. Call only
- * after defaults have been persisted.
+ * Applies the bounded layout cleanup introduced by schema version 13. The
+ * caller remains responsible for advancing /schema-version after updating its
+ * in-memory setting. Unrelated properties, including obsolete reset markers,
+ * are never inspected or changed.
  *
- * Returns: true when the required values were readable and completion was
- * persisted.
+ * Returns: the canonical sidebar value when it changed, otherwise nullptr.
  */
-bool complete_pre_stable_reset(XfconfChannel* channel);
+const char* migrate_layout_schema_v13(XfconfChannel* channel);
 
 }
 

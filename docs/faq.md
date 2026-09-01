@@ -38,6 +38,13 @@ Check three things: (1) the file is in `~/.local/share/meowmenu/presets/`;
 `my-preset.meowpreset` must contain `Id=my-preset`); (3) you restarted the
 panel with `xfce4-panel -r` after placing the file.
 
+### My favourites disappeared after testing a development build. Can they be recovered?
+
+MeowMenu preserves the favourite identifiers that are still stored, including
+applications that are temporarily unavailable. It cannot reconstruct choices
+that an earlier development build already erased. Restore a saved preset that
+contains the missing favourites, or add the applications again manually.
+
 ### Can I contribute a translation?
 
 Yes — edit the relevant `po/<lang>.po` file, run `msgfmt --check`, and open a

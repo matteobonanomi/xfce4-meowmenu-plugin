@@ -63,6 +63,20 @@ bool meow_box_contains_child(GtkBox* box, GtkWidget* child);
 bool meow_box_repack_child(GtkBox* box, GtkWidget* child, bool pack_end,
                            bool expand, bool fill, guint padding);
 
+/* meow_restore_vertical_selector_prefix:
+ * @box: vertical category box.
+ * @selector: Apps/Places selector owned by @box.
+ * @separator: selector separator owned by @box.
+ *
+ * Reasserts the canonical selector/separator prefix after the final layout
+ * composition pass. Missing or differently-parented children are a no-op so
+ * horizontal and selector-hidden presentations remain unaffected.
+ *
+ * Returns: true when both children were reordered.
+ */
+bool meow_restore_vertical_selector_prefix(GtkBox* box, GtkWidget* selector,
+		GtkWidget* separator);
+
 /* meow_box_reorder_child_if_present:
  * @box: target GtkBox.
  * @child: child to reorder.
@@ -177,6 +191,31 @@ int meow_configure_profile_sidebar_alignment(GtkWidget* profile,
  * Returns: true when a valid adjustment was reset.
  */
 bool meow_reset_vertical_sidebar_scroll(GtkScrolledWindow* sidebar);
+
+/* meow_bind_navigation_scroller:
+ * @categories: category box whose focus chain owns navigation.
+ * @scroller: currently presented vertical sidebar or horizontal strip.
+ * @orientation: scrolling axis used by @scroller.
+ *
+ * Clears stale adjustment bindings left by reparenting and binds focus
+ * scrolling only to the navigation host currently visible to the user.
+ *
+ * Returns: true when both inputs are valid and the binding was applied.
+ */
+bool meow_bind_navigation_scroller(GtkContainer* categories,
+		GtkScrolledWindow* scroller, GtkOrientation orientation);
+
+/* meow_reveal_navigation_widget:
+ * @scroller: currently presented navigation host.
+ * @widget: active or focused descendant to reveal after allocation.
+ *
+ * Moves only the adjustment axes needed to bring @widget inside the visible
+ * viewport. An inactive or unrelated host is never reset.
+ *
+ * Returns: true when @widget belongs to @scroller and was evaluated.
+ */
+bool meow_reveal_navigation_widget(GtkScrolledWindow* scroller,
+		GtkWidget* widget);
 
 /* meow_widget_set_visible_if_valid:
  * @widget: widget to show or hide.

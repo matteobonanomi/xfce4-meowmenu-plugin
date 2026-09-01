@@ -28,6 +28,7 @@ test_window_mode_integration = executable(
 	'..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
 	'..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
 	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
+	'..' / 'panel-plugin' / 'core' / 'user-session-relayout.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [gtk, libxfce4util, xfconf],
@@ -54,6 +55,7 @@ test_launcher_icon_view = executable(
     '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
     '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
     '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
@@ -139,6 +141,13 @@ test(
   'dependency_contract',
   python3,
   args: [meson.current_source_dir() / 'test_dependency_contract.py'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
+)
+
+test(
+  'dev_install_contract',
+  python3,
+  args: [meson.current_source_dir() / 'test_dev_install_contract.py'],
   env: ['PYTHONDONTWRITEBYTECODE=1'],
 )
 
@@ -296,13 +305,19 @@ test_preset_xfconf_sources = [
   '..' / 'panel-plugin' / 'presets' / 'preset.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-io.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'favorite-projection.cpp',
   '..' / 'panel-plugin' / 'settings-defaults.cpp',
 ]
 
 test_preset_xfconf = executable(
   'test_preset_xfconf',
   test_preset_xfconf_sources,
-  cpp_args: xfce_helper_cpp_args + ['-ffunction-sections', '-fdata-sections'],
+  cpp_args: xfce_helper_cpp_args + [
+    '-ffunction-sections',
+    '-fdata-sections',
+    '-DMEOWMENU_RC_UPGRADE_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-1.0.0-rc1.xml' + '"',
+    '-DMEOWMENU_AFFECTED_UPGRADE_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-affected-composition-reset.xml' + '"',
+  ],
   link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
   dependencies: [glib, gio, xfconf, libxfce4ui],
@@ -358,6 +373,7 @@ test('places', test_places)
 test_drag_to_favourites_sources = [
   'test_drag_to_favourites.cpp',
   '..' / 'panel-plugin' / 'core' / 'drag-to-favourites.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'favorite-projection.cpp',
   '..' / 'panel-plugin' / 'ui' / 'icon-size.cpp',
 ]
 
@@ -442,19 +458,6 @@ test_settings_key_inventory = executable(
 )
 
 test('settings_key_inventory', test_settings_key_inventory)
-
-test_pre_stable_reset = executable(
-  'test_pre_stable_reset',
-  'test_pre_stable_reset.cpp',
-  cpp_args: [
-    '-DMEOWMENU_080_RESET_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-0.8.0.xml' + '"',
-    '-DMEOWMENU_RC_RESET_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-1.0.0-rc1.xml' + '"',
-  ],
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, xfconf],
-)
-
-test('pre_stable_reset', test_pre_stable_reset)
 
 # test_search_ranking: characterization gate over query.cpp's match
 # scoring (RF-SEARCH-001..005). Pure unit test: query.cpp depends only on

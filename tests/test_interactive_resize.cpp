@@ -1,5 +1,5 @@
 /*
- * Display-free checks for interactive resize geometry.
+ * Display-free checks for interactive resize geometry and delivery state.
  */
 
 #include "core/interactive-resize.h"
@@ -28,6 +28,14 @@ PointerSample point(std::int64_t x, std::int64_t y)
 	return {x, y, 0, CoordinateSpace::Screen};
 }
 
+bool same_rectangle(const Rectangle& left, const Rectangle& right)
+{
+	return left.x == right.x
+			&& left.y == right.y
+			&& left.width == right.width
+			&& left.height == right.height;
+}
+
 ReducerState docked(Direction direction,
 		const Rectangle& rectangle = {100, 200, 300, 240})
 {
@@ -36,8 +44,20 @@ ReducerState docked(Direction direction,
 		rectangle,
 		point(500, 500),
 		{{10, 2000}, {10, 2000}},
-		opposite_edge_anchor(rectangle)
+		opposite_edge_anchor(rectangle),
+		rectangle
 	};
+}
+
+Rectangle candidate(const ReducerState& state,
+		const PointerSample& sample,
+		bool* valid = nullptr)
+{
+	Rectangle rectangle = {};
+	const bool accepted = calculate_candidate(state, sample, &rectangle);
+	if (valid)
+		*valid = accepted;
+	return rectangle;
 }
 
 DisplaySignature display_signature()
@@ -95,12 +115,14 @@ void all_edges_keep_opposite_anchor()
 	};
 	for (Direction direction : directions)
 	{
-		ReducerState state = docked(direction);
+		const ReducerState state = docked(direction);
 		const DirectionAxes axes = direction_axes(direction);
-		const Rectangle result = reduce(state,
+		bool valid = false;
+		const Rectangle result = candidate(state,
 				point(500 + (axes.horizontal * 25),
-					500 + (axes.vertical * 30)));
+					500 + (axes.vertical * 30)), &valid);
 
+		CHECK(valid);
 		CHECK(result.width == 300 + (axes.horizontal ? 25 : 0));
 		CHECK(result.height == 240 + (axes.vertical ? 30 : 0));
 		if (axes.horizontal < 0)
@@ -114,56 +136,49 @@ void all_edges_keep_opposite_anchor()
 	}
 }
 
-void grouped_and_single_motion_match()
+void every_sample_is_press_relative()
 {
-	ReducerState grouped = docked(Direction::BottomRight);
-	ReducerState singles = grouped;
-	reduce(grouped, point(580, 440));
-	reduce(singles, point(520, 490));
-	reduce(singles, point(545, 470));
-	reduce(singles, point(580, 440));
-	CHECK(grouped.current.x == singles.current.x);
-	CHECK(grouped.current.y == singles.current.y);
-	CHECK(grouped.current.width == singles.current.width);
-	CHECK(grouped.current.height == singles.current.height);
+	const ReducerState state = docked(Direction::BottomRight);
+	const Rectangle direct = candidate(state, point(580, 440));
+	(void)candidate(state, point(520, 490));
+	(void)candidate(state, point(545, 470));
+	const Rectangle after_intermediates = candidate(state, point(580, 440));
+	CHECK(same_rectangle(direct, after_intermediates));
+	CHECK(direct.width == 380);
+	CHECK(direct.height == 180);
 }
 
-void initial_offset_and_origin_crossing()
-{
-	ReducerState state = docked(Direction::TopLeft);
-	const Rectangle unchanged = reduce(state, point(500, 500));
-	CHECK(unchanged.x == 100 && unchanged.y == 200);
-	CHECK(unchanged.width == 300 && unchanged.height == 240);
-
-	const Rectangle crossed = reduce(state, point(525, 535));
-	CHECK(crossed.width == 275);
-	CHECK(crossed.height == 205);
-	CHECK(crossed.x == 125);
-	CHECK(crossed.y == 235);
-}
-
-void clamp_discards_overshoot()
+void invalid_edge_request_retains_last_displayed()
 {
 	ReducerState state = docked(Direction::Right);
 	state.bounds.width = {200, 320};
-	CHECK(reduce(state, point(600, 500)).width == 320);
-	CHECK(reduce(state, point(599, 500)).width == 319);
+	state.last_displayed = {100, 200, 315, 240};
+	bool valid = true;
+	const Rectangle invalid = candidate(state, point(600, 500), &valid);
+	CHECK(!valid);
+	CHECK(same_rectangle(invalid, state.last_displayed));
 
-	state.bounds.width = {290, 320};
-	CHECK(reduce(state, point(500, 500)).width == 290);
-	CHECK(reduce(state, point(501, 500)).width == 291);
+	const Rectangle reversed = candidate(state, point(519, 500), &valid);
+	CHECK(valid);
+	CHECK(reversed.width == 319);
+	CHECK(reversed.x == 100);
 }
 
-void corner_axes_are_independent()
+void invalid_corner_request_rejects_both_axes()
 {
 	ReducerState state = docked(Direction::BottomRight);
 	state.bounds.width = {100, 310};
 	state.bounds.height = {100, 500};
-	const Rectangle result = reduce(state, point(700, 560));
-	CHECK(result.width == 310);
-	CHECK(result.height == 300);
-	CHECK(result.x == 100);
-	CHECK(result.y == 200);
+	state.last_displayed = {100, 200, 305, 270};
+	bool valid = true;
+	const Rectangle invalid = candidate(state, point(700, 560), &valid);
+	CHECK(!valid);
+	CHECK(same_rectangle(invalid, state.last_displayed));
+
+	const Rectangle accepted = candidate(state, point(508, 560), &valid);
+	CHECK(valid);
+	CHECK(accepted.width == 308);
+	CHECK(accepted.height == 300);
 }
 
 void centered_geometry_is_symmetric()
@@ -174,57 +189,133 @@ void centered_geometry_is_symmetric()
 		{-1360, 40, 800, 600},
 		point(0, 0),
 		{{100, 1920}, {100, 1080}},
-		monitor_center_anchor(monitor)
+		monitor_center_anchor(monitor),
+		{-1360, 40, 800, 600}
 	};
 
-	const Rectangle result = reduce(state, point(25, -10));
+	bool valid = false;
+	const Rectangle result = candidate(state, point(25, -10), &valid);
+	CHECK(valid);
 	CHECK(result.width == 850);
 	CHECK(result.height == 620);
 	CHECK(result.x == -1385);
 	CHECK(result.y == 30);
 	CHECK((result.x * 2) + result.width == -1920);
 	CHECK((result.y * 2) + result.height == 680);
+
+	state.bounds.width.maximum = 840;
+	state.last_displayed = result;
+	const Rectangle invalid = candidate(state, point(30, -15), &valid);
+	CHECK(!valid);
+	CHECK(same_rectangle(invalid, result));
 }
 
-void integer_boundaries_are_safe()
+void wide_intermediates_are_rejected_safely()
 {
 	ReducerState state = docked(Direction::BottomRight,
 			{INT_MIN, INT_MIN, 100, 100});
-	state.last_pointer = point(INT64_MIN, INT64_MIN);
+	state.press_pointer = point(INT64_MIN, INT64_MIN);
 	state.bounds = {{1, INT_MAX}, {1, INT_MAX}};
-	const Rectangle result = reduce(state, point(INT64_MAX, INT64_MAX));
-	CHECK(result.width == INT_MAX);
-	CHECK(result.height == INT_MAX);
+	bool valid = true;
+	const Rectangle result = candidate(
+			state, point(INT64_MAX, INT64_MAX), &valid);
+	CHECK(!valid);
+	CHECK(same_rectangle(result, state.last_displayed));
 
-	state.last_pointer = point(INT64_MAX, INT64_MAX);
-	const Rectangle shrunk = reduce(state, point(INT64_MIN, INT64_MIN));
-	CHECK(shrunk.width == 1);
-	CHECK(shrunk.height == 1);
-
-	ReducerState origin = docked(
-			Direction::Left,
-			{INT_MAX - 5, 20, 10, 100});
-	origin.bounds.width = {1, INT_MAX};
-	CHECK(reduce(origin, point(600, 500)).x == INT_MAX);
+	state.press_pointer = point(INT64_MAX, INT64_MAX);
+	const Rectangle other_direction = candidate(
+			state, point(INT64_MIN, INT64_MIN), &valid);
+	CHECK(!valid);
+	CHECK(same_rectangle(other_direction, state.last_displayed));
 }
 
 void coordinate_spaces_do_not_mix()
 {
-	ReducerState state = docked(Direction::Right);
-	PointerSample local = {900, 500, 0, CoordinateSpace::Handle};
-	const Rectangle result = reduce(state, local);
-	CHECK(result.width == 300);
-	CHECK(state.last_pointer.space == CoordinateSpace::Screen);
+	const ReducerState state = docked(Direction::Right);
+	const PointerSample local = {900, 500, 0, CoordinateSpace::Handle};
+	bool valid = true;
+	const Rectangle result = candidate(state, local, &valid);
+	CHECK(!valid);
+	CHECK(same_rectangle(result, state.last_displayed));
 }
 
-void completion_consumes_release_and_is_idempotent()
+void motion_coalesces_to_one_latest_frame()
+{
+	Transaction state;
+	const Rectangle initial = {100, 200, 300, 240};
+	CHECK(state.begin(
+			Direction::BottomRight,
+			BackendPolicy::X11Live,
+			initial,
+			point(500, 500),
+			{{100, 10000}, {100, 10000}},
+			opposite_edge_anchor(initial),
+			{300, 240},
+			display_signature(),
+			true));
+
+	Rectangle rectangle = {};
+	int requested_frames = 0;
+	for (int i = 1; i <= 5000; ++i)
+	{
+		if (!state.frame_pending())
+			++requested_frames;
+		CHECK(state.motion(point(500 + i, 500 + i), &rectangle));
+	}
+	CHECK(requested_frames == 1);
+	CHECK(state.frame_pending());
+	CHECK(state.has_pending_geometry());
+	CHECK(rectangle.width == 5300 && rectangle.height == 5240);
+	CHECK(state.rectangle().width == 300 && state.rectangle().height == 240);
+
+	CHECK(state.take_pending(&rectangle));
+	CHECK(!state.frame_pending());
+	CHECK(!state.has_pending_geometry());
+	CHECK(rectangle.width == 5300 && rectangle.height == 5240);
+	state.mark_displayed(rectangle);
+	CHECK(state.rectangle().width == 5300);
+	CHECK(!state.take_pending(&rectangle));
+}
+
+void invalid_latest_motion_discards_older_pending_geometry()
+{
+	Transaction state = transaction();
+	Rectangle rectangle = {};
+	CHECK(state.motion(point(600, 600), &rectangle));
+	CHECK(state.frame_pending());
+	CHECK(state.has_pending_geometry());
+	CHECK(state.motion(point(1500, 600), &rectangle));
+	CHECK(same_rectangle(rectangle, state.pre_drag_rectangle()));
+	CHECK(state.frame_pending());
+	CHECK(!state.has_pending_geometry());
+	CHECK(!state.take_pending(&rectangle));
+	CHECK(!state.frame_pending());
+}
+
+void displayed_geometry_advances_only_after_acknowledgement()
+{
+	Transaction state = transaction();
+	Rectangle rectangle = {};
+	CHECK(state.motion(point(560, 540), &rectangle));
+	CHECK(rectangle.width == 360 && rectangle.height == 280);
+	CHECK(state.rectangle().width == 300 && state.rectangle().height == 240);
+	CHECK(state.take_pending(&rectangle));
+	CHECK(state.rectangle().width == 300 && state.rectangle().height == 240);
+	state.mark_displayed(rectangle);
+	CHECK(state.rectangle().width == 360 && state.rectangle().height == 280);
+}
+
+void valid_release_is_synchronous_and_idempotent()
 {
 	Transaction state = transaction();
 	Rectangle rectangle = {};
 	SavedNormalSize saved = {};
 	CHECK(state.motion(point(520, 530), &rectangle));
-	CHECK(rectangle.width == 320 && rectangle.height == 270);
+	CHECK(state.frame_pending());
 	CHECK(state.complete(point(545, 565), &rectangle, &saved));
+	CHECK(!state.frame_pending());
+	CHECK(!state.has_pending_geometry());
+	CHECK(state.completion_valid());
 	CHECK(rectangle.width == 345 && rectangle.height == 305);
 	CHECK(saved.width == 345 && saved.height == 305);
 	CHECK(state.lifecycle() == Lifecycle::Completed);
@@ -235,18 +326,38 @@ void completion_consumes_release_and_is_idempotent()
 	CHECK(!state.cancel(&rectangle, &saved));
 }
 
+void invalid_release_retains_displayed_geometry()
+{
+	Transaction state = transaction();
+	Rectangle rectangle = {};
+	SavedNormalSize saved = {};
+	CHECK(state.motion(point(560, 540), &rectangle));
+	CHECK(state.take_pending(&rectangle));
+	state.mark_displayed(rectangle);
+	const Rectangle displayed = rectangle;
+
+	CHECK(state.complete(point(1500, 1500), &rectangle, &saved));
+	CHECK(!state.completion_valid());
+	CHECK(same_rectangle(rectangle, displayed));
+	CHECK(saved.width == 300 && saved.height == 240);
+	CHECK(!state.frame_pending());
+}
+
 void cancellation_restores_exact_geometry()
 {
 	Transaction state = transaction();
 	Rectangle rectangle = {};
 	SavedNormalSize saved = {};
 	CHECK(state.motion(point(650, 700), &rectangle));
-	CHECK(rectangle.width == 450 && rectangle.height == 440);
+	CHECK(state.take_pending(&rectangle));
+	state.mark_displayed(rectangle);
 	CHECK(state.cancel(&rectangle, &saved));
-	CHECK(rectangle.x == 100 && rectangle.y == 200);
-	CHECK(rectangle.width == 300 && rectangle.height == 240);
+	CHECK(same_rectangle(rectangle, state.pre_drag_rectangle()));
 	CHECK(saved.width == 300 && saved.height == 240);
+	CHECK(!state.frame_pending());
+	CHECK(!state.has_pending_geometry());
 	CHECK(state.cancel(&rectangle, &saved));
+	CHECK(same_rectangle(rectangle, state.pre_drag_rectangle()));
 	CHECK(!state.motion(point(800, 800), &rectangle));
 	CHECK(!state.complete(point(800, 800), &rectangle, &saved));
 }
@@ -268,22 +379,22 @@ void wayland_applies_only_at_release()
 	SavedNormalSize saved = {};
 	CHECK(state.motion(point(600, 600), &rectangle));
 	CHECK(rectangle.width == 300 && rectangle.height == 240);
+	CHECK(!state.frame_pending());
 	CHECK(state.complete(point(620, 650), &rectangle, &saved));
+	CHECK(state.completion_valid());
 	CHECK(rectangle.width == 420 && rectangle.height == 390);
 	CHECK(saved.width == 420 && saved.height == 390);
 }
 
-void wayland_cancellation_keeps_press_geometry()
+void wayland_invalid_release_retains_press_geometry()
 {
 	Transaction state = transaction(BackendPolicy::WaylandReleaseToApply);
 	Rectangle rectangle = {};
 	SavedNormalSize saved = {};
 	CHECK(state.motion(point(900, 850), &rectangle));
-	CHECK(rectangle.x == 100 && rectangle.y == 200);
-	CHECK(rectangle.width == 300 && rectangle.height == 240);
-	CHECK(state.cancel(&rectangle, &saved));
-	CHECK(rectangle.x == 100 && rectangle.y == 200);
-	CHECK(rectangle.width == 300 && rectangle.height == 240);
+	CHECK(state.complete(point(1600, 1600), &rectangle, &saved));
+	CHECK(!state.completion_valid());
+	CHECK(same_rectangle(rectangle, state.pre_drag_rectangle()));
 	CHECK(saved.width == 300 && saved.height == 240);
 }
 
@@ -310,7 +421,6 @@ void display_invalidation_is_detected()
 	Rectangle restored = {};
 	SavedNormalSize saved = {};
 	CHECK(state.cancel(&restored, &saved));
-	CHECK(restored.width == 300 && restored.height == 240);
 	CHECK(!state.display_matches(display_signature()));
 }
 
@@ -337,74 +447,6 @@ void terminal_transaction_can_be_replaced()
 	CHECK(rectangle.x == 10 && rectangle.width == 410);
 }
 
-void rapid_alternating_delivery_has_no_drift()
-{
-	ReducerState state = docked(Direction::BottomRight);
-	const PointerSample samples[] = {
-		point(560, 540),
-		point(510, 490),
-		point(580, 570),
-		point(505, 505),
-		point(530, 520)
-	};
-	for (const PointerSample& sample : samples)
-		reduce(state, sample);
-	CHECK(state.current.width == 330);
-	CHECK(state.current.height == 260);
-	CHECK(state.current.x == 100 && state.current.y == 200);
-}
-
-void constrained_corner_continues_and_reverses_immediately()
-{
-	ReducerState state = docked(Direction::BottomRight);
-	state.bounds = {{250, 320}, {200, 500}};
-	Rectangle rectangle = reduce(state, point(800, 650));
-	CHECK(rectangle.width == 320);
-	CHECK(rectangle.height == 390);
-
-	rectangle = reduce(state, point(799, 700));
-	CHECK(rectangle.width == 319);
-	CHECK(rectangle.height == 440);
-
-	rectangle = reduce(state, point(400, 699));
-	CHECK(rectangle.width == 250);
-	CHECK(rectangle.height == 439);
-	CHECK(reduce(state, point(401, 699)).width == 251);
-}
-
-void delivery_policy_is_environment_independent()
-{
-	Transaction composited = transaction();
-	Transaction uncomposited = transaction();
-	Rectangle left = {};
-	Rectangle right = {};
-	SavedNormalSize left_saved = {};
-	SavedNormalSize right_saved = {};
-
-	CHECK(composited.motion(point(540, 520), &left));
-	CHECK(uncomposited.motion(point(540, 520), &right));
-	CHECK(composited.motion(point(610, 580), &left));
-	CHECK(uncomposited.motion(point(610, 580), &right));
-	CHECK(composited.complete(point(625, 590), &left, &left_saved));
-	CHECK(uncomposited.complete(point(625, 590), &right, &right_saved));
-	CHECK(left.x == right.x && left.y == right.y);
-	CHECK(left.width == right.width && left.height == right.height);
-	CHECK(left_saved.width == right_saved.width);
-	CHECK(left_saved.height == right_saved.height);
-}
-
-void release_after_compressed_motion_is_not_lost()
-{
-	Transaction state = transaction();
-	Rectangle rectangle = {};
-	SavedNormalSize saved = {};
-	CHECK(state.motion(point(510, 510), &rectangle));
-	CHECK(rectangle.width == 310 && rectangle.height == 250);
-	CHECK(state.complete(point(800, 720), &rectangle, &saved));
-	CHECK(rectangle.width == 600 && rectangle.height == 460);
-	CHECK(saved.width == 600 && saved.height == 460);
-}
-
 void centered_all_directions_keep_monitor_center()
 {
 	const Direction directions[] = {
@@ -415,15 +457,17 @@ void centered_all_directions_keep_monitor_center()
 	const Rectangle monitor = {-2560, 180, 2560, 1440};
 	for (Direction direction : directions)
 	{
-		ReducerState state = {
+		const Rectangle press = {-1760, 600, 960, 600};
+		const ReducerState state = {
 			direction,
-			{-1760, 600, 960, 600},
+			press,
 			point(300, 300),
 			{{100, 2560}, {100, 1440}},
-			monitor_center_anchor(monitor)
+			monitor_center_anchor(monitor),
+			press
 		};
 		const DirectionAxes axes = direction_axes(direction);
-		const Rectangle result = reduce(state,
+		const Rectangle result = candidate(state,
 				point(300 + (axes.horizontal * 37),
 					300 + (axes.vertical * 29)));
 		CHECK((result.x * 2) + result.width == -2560);
@@ -439,8 +483,7 @@ void panel_gap_uses_a_stable_base()
 	const Rectangle bottom_base = {300, 550, 400, 300};
 	const Rectangle right_base = {900, 220, 400, 300};
 
-	const Rectangle top = place_docked(
-			top_base, monitor, PanelEdge::Top, 12);
+	const Rectangle top = place_docked(top_base, monitor, PanelEdge::Top, 12);
 	const Rectangle top_again = place_docked(
 			top_base, monitor, PanelEdge::Top, 12);
 	CHECK(top.y == 62 && top_again.y == 62);
@@ -452,95 +495,31 @@ void panel_gap_uses_a_stable_base()
 			PanelEdge::Right, 12).x == 888);
 }
 
-void completed_normal_size_is_the_next_opening_size()
-{
-	Transaction first = transaction();
-	Rectangle rectangle = {};
-	SavedNormalSize saved = {};
-	CHECK(first.complete(point(640, 610), &rectangle, &saved));
-	CHECK(saved.width == rectangle.width);
-	CHECK(saved.height == rectangle.height);
-
-	Transaction reopened;
-	CHECK(reopened.begin(
-			Direction::Top,
-			BackendPolicy::X11Live,
-			{80, 90, saved.width, saved.height},
-			point(200, 200),
-			{{10, 1000}, {10, 900}},
-			opposite_edge_anchor(
-					{80, 90, saved.width, saved.height}),
-			saved,
-			display_signature(),
-			true));
-	CHECK(reopened.rectangle().width == saved.width);
-	CHECK(reopened.rectangle().height == saved.height);
-}
-
-void every_interruption_uses_exact_rollback()
-{
-	enum class Interruption
-	{
-		Escape,
-		Hide,
-		FocusLoss,
-		GrabBroken,
-		MissingButton,
-		LayoutChange,
-		Destruction
-	};
-	const Interruption interruptions[] = {
-		Interruption::Escape,
-		Interruption::Hide,
-		Interruption::FocusLoss,
-		Interruption::GrabBroken,
-		Interruption::MissingButton,
-		Interruption::LayoutChange,
-		Interruption::Destruction
-	};
-	for (Interruption interruption : interruptions)
-	{
-		(void)interruption;
-		Transaction state = transaction();
-		Rectangle rectangle = {};
-		SavedNormalSize saved = {};
-		CHECK(state.motion(point(700, 650), &rectangle));
-		CHECK(state.cancel(&rectangle, &saved));
-		CHECK(rectangle.x == 100 && rectangle.y == 200);
-		CHECK(rectangle.width == 300 && rectangle.height == 240);
-		CHECK(saved.width == 300 && saved.height == 240);
-		CHECK(!state.motion(point(701, 651), &rectangle));
-	}
-}
-
 } // namespace
 
 int main()
 {
 	direction_mapping();
 	all_edges_keep_opposite_anchor();
-	grouped_and_single_motion_match();
-	initial_offset_and_origin_crossing();
-	clamp_discards_overshoot();
-	corner_axes_are_independent();
+	every_sample_is_press_relative();
+	invalid_edge_request_retains_last_displayed();
+	invalid_corner_request_rejects_both_axes();
 	centered_geometry_is_symmetric();
-	integer_boundaries_are_safe();
+	wide_intermediates_are_rejected_safely();
 	coordinate_spaces_do_not_mix();
-	completion_consumes_release_and_is_idempotent();
+	motion_coalesces_to_one_latest_frame();
+	invalid_latest_motion_discards_older_pending_geometry();
+	displayed_geometry_advances_only_after_acknowledgement();
+	valid_release_is_synchronous_and_idempotent();
+	invalid_release_retains_displayed_geometry();
 	cancellation_restores_exact_geometry();
 	fullscreen_completion_does_not_persist();
 	wayland_applies_only_at_release();
-	wayland_cancellation_keeps_press_geometry();
+	wayland_invalid_release_retains_press_geometry();
 	display_invalidation_is_detected();
 	terminal_transaction_can_be_replaced();
-	rapid_alternating_delivery_has_no_drift();
-	constrained_corner_continues_and_reverses_immediately();
-	delivery_policy_is_environment_independent();
-	release_after_compressed_motion_is_not_lost();
 	centered_all_directions_keep_monitor_center();
 	panel_gap_uses_a_stable_base();
-	completed_normal_size_is_the_next_opening_size();
-	every_interruption_uses_exact_rollback();
 
 	if (g_failures)
 	{

@@ -39,8 +39,28 @@ bool launcher_icon_view_get_path_rectangle(GtkIconView* view,
 		Keyboard::NavigationRect* rectangle);
 bool launcher_icon_view_apply_keyboard_target(GtkIconView* view,
 		GtkTreeModel* model, GtkTreePath* path);
-void launcher_icon_view_apply_grid_width(GtkIconView* view, int icon_size,
-		int viewport_width);
+void launcher_icon_view_apply_automatic_layout(GtkIconView* view,
+		int icon_size, int viewport_width);
+
+/* Tracks one icon view's layout generation and bounded presentation work. */
+struct LauncherIconPresentationState
+{
+	guint64 requested_generation = 0;
+	guint64 mapped_request_generation = 0;
+	guint64 prepared_generation = 0;
+	unsigned int prepare_calls = 0;
+	unsigned int layout_requests = 0;
+	unsigned int mapped_layout_requests = 0;
+	unsigned int geometry_checks = 0;
+	unsigned int completions = 0;
+	unsigned int ready_reuses = 0;
+};
+
+bool launcher_icon_view_prepare_layout(GtkIconView* view,
+		guint64 layout_generation, LauncherIconPresentationState* state);
+bool launcher_icon_view_complete_layout(GtkIconView* view,
+		GtkCellRenderer* renderer, guint64 layout_generation,
+		LauncherIconPresentationState* state);
 
 class LauncherIconView : public LauncherView
 {
@@ -87,7 +107,7 @@ public:
 
 	void reload_icon_size() override;
 	void set_viewport_width(int viewport_width) override;
-	void set_interactive_resize(bool active) override;
+	bool prepare_presentation() override;
 	int get_minimum_viewport_width() const override;
 	int get_item_height() const override;
 	int get_icon_size() const override { return m_icon_size; }
@@ -95,8 +115,6 @@ public:
 
 private:
 	void sync_transparent_grid_style();
-	void schedule_grid_width_frame();
-	void flush_grid_width_frame();
 
 private:
 	Settings* const m_settings;
@@ -104,9 +122,8 @@ private:
 	GtkCellRenderer* m_icon_renderer;
 	int m_icon_size;
 	int m_viewport_width;
-	int m_pending_viewport_width;
-	guint m_resize_tick_id;
-	bool m_interactive_resize;
+	guint64 m_layout_generation;
+	LauncherIconPresentationState m_presentation;
 	std::string m_grid_density;
 	std::string m_layout_mode;
 	bool m_transparent_grid;

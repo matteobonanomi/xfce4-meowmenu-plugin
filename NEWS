@@ -13,6 +13,9 @@
 - Bugfix: fix grid sizing, resizing glitches, clipping, and overflow during layout changes and scrolling
 - Bugfix: ensure Favorites, Recently Used, and All Applications appear correctly on the first opening
 - Bugfix: preserve the configured default page after initial loading
+- Bugfix: preserve favourites and other durable settings during upgrades, including temporarily unavailable applications
+- Bugfix: retain unresolved favourite identifiers and restore their rows when applications return
+- Documentation: explain preset and manual recovery when an earlier development build already erased favourites
 - Bugfix: restore arrow-key navigation after live layout changes and prevent focus regressions
 - Installer: prevent the development installer from building the package twice
 

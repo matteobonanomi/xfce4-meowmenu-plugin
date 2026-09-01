@@ -89,7 +89,8 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	m_launcher_dragged(false),
 	m_favourite_drag_payload_delivered(false),
 	m_reorderable(false),
-	m_viewport_width(0)
+	m_viewport_width(0),
+	m_present_tick_id(0)
 {
 	// Create button
 	if (icon && text)
@@ -122,10 +123,7 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	connect(m_widget, "map",
 			[this](GtkWidget*)
 			{
-				sync_viewport_width();
-				GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
-				if (!meow::meowmenu_queue_complete_window_frame(toplevel))
-					m_view->request_content_redraw();
+				present();
 			});
 }
 
@@ -133,6 +131,8 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 
 Page::~Page()
 {
+	meow::meowmenu_cancel_mapped_result_frame(
+			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
 	delete m_button;
 	delete m_view;
 	gtk_widget_destroy(m_widget);
@@ -235,6 +235,8 @@ void Page::update_view()
 
 	g_assert(m_view);
 	LauncherView* view = m_view;
+	meow::meowmenu_cancel_mapped_result_frame(
+			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
 	create_view();
 	m_view->set_model(view->get_model());
 	delete view;
@@ -249,27 +251,54 @@ void Page::update_view()
 /* sync_viewport_width:
  *
  * Supplies the launcher view with the scroller's allocation after removing any
- * natural-size overshoot GTK has already added beyond the requested toplevel
- * width. Full Screen has no windowed cap, while interactive resize remains
- * authoritative because it updates the toplevel size request.
+ * natural-size overshoot GTK has already added beyond the authoritative
+ * toplevel width. Full Screen also caps the result to its work-area-derived
+ * main column, while interactive resize remains authoritative through the
+ * windowed size request.
  */
 void Page::sync_viewport_width()
 {
 	if (!m_view || !GTK_IS_SCROLLED_WINDOW(m_widget))
 		return;
 	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
-	int requested_width = -1;
-	if (GTK_IS_WIDGET(toplevel)
-			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
-	{
-		gtk_widget_get_size_request(toplevel, &requested_width, nullptr);
-	}
 	m_viewport_width = meow_grid_effective_viewport_width(
 			gtk_widget_get_allocated_width(m_widget),
 			GTK_IS_WIDGET(toplevel)
 					? gtk_widget_get_allocated_width(toplevel) : 0,
-			requested_width);
+			m_window->get_result_toplevel_width_authority(),
+			m_window->get_result_viewport_width_cap());
 	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* Page::present:
+ *
+ * Synchronizes geometry and invalidates both the concrete result and composed
+ * toplevel after this page becomes visible. The two immediate draws are
+ * independent, and one coalesced mapped-frame draw closes the case where GTK
+ * consumes hidden-stack damage before the page receives its visible allocation.
+ */
+void Page::present()
+{
+	if (!m_view)
+		return;
+	sync_viewport_width();
+	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+	const bool ready = m_view->prepare_presentation();
+	meow::meowmenu_queue_complete_result_frame(
+			toplevel, m_view->get_widget());
+	if (!ready)
+	{
+		meow::meowmenu_schedule_mapped_result_frame(toplevel,
+				toplevel, m_view->get_widget(),
+				&m_present_tick_id,
+				+[](void* data) -> bool
+				{
+					return static_cast<LauncherView*>(data)
+							->prepare_presentation();
+				}, m_view);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -298,14 +327,6 @@ void Page::prepare_viewport_resize(int current_toplevel_width,
 		return;
 	m_viewport_width = viewport_width;
 	m_view->set_viewport_width(m_viewport_width);
-}
-
-//-----------------------------------------------------------------------------
-
-void Page::set_interactive_resize(bool active)
-{
-	if (m_view)
-		m_view->set_interactive_resize(active);
 }
 
 //-----------------------------------------------------------------------------

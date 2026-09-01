@@ -137,8 +137,15 @@ public:
 	virtual void set_viewport_width(int)
 	{
 	}
-	virtual void set_interactive_resize(bool)
+	/* prepare_presentation:
+	 *
+	 * Gives a concrete result view one chance to complete layout work after its
+	 * owner has supplied the visible viewport. List/tree views need no extra
+	 * preparation; icon grids override this for hidden-model layout.
+	 */
+	virtual bool prepare_presentation()
 	{
+		return true;
 	}
 	virtual int get_minimum_viewport_width() const { return 0; }
 
@@ -159,13 +166,14 @@ public:
 
 	/* request_content_redraw:
 	 *
-	 * Repaints the complete result surface when transparent composition needs a
-	 * parent-level refresh. Ordinary opaque surfaces retain GTK's narrow damage
-	 * path and pay no extra redraw cost.
+	 * Invalidates the concrete result after model replacement or first
+	 * presentation. Unlike the interaction safeguard, this operation is
+	 * unconditional because opaque and hidden-then-mapped pages require the same
+	 * first-frame guarantee.
 	 */
 	void request_content_redraw()
 	{
-		queue_full_redraw_safeguard();
+		gtk_widget_queue_draw(get_widget());
 	}
 
 	enum Columns

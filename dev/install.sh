@@ -7,9 +7,11 @@
 #   wrapper, so the old libmeowmenu.so stays loaded.  This script kills the wrapper
 #   explicitly so the panel re-spawns it against the freshly installed library.
 #
-#   There must also never be two copies of the .so on disk at the same time: Xfce
-#   searches XDG_DATA_DIRS user-first, so a stale ~/.local copy silently shadows the
-#   one you just installed under /usr/local.  The script removes that stale copy.
+#   Every run is a clean-install transaction: prior MeowMenu user data and settings
+#   are removed, the complete current payload is installed into the Meson-configured
+#   prefix, and the restarted plugin performs its normal first-run initialization.
+#   Configure Meson with a system prefix to exercise system paths; a user-local
+#   prefix exercises the same payload and first-run behavior without root access.
 #
 # USAGE
 #   ./dev/install.sh [--icons] [--reconfigure] [BUILD_DIR]
@@ -176,16 +178,59 @@ run "Compile" \
 PREFIX="$(meson introspect --buildoptions "${BUILD_DIR}" \
     | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="prefix"][0])')"
 
+# Resolve destinations from Meson's install manifest rather than assuming the
+# Debian multiarch libdir. This also covers Arch lib and Fedora lib64 layouts.
+INSTALLED_MODULE="$(meson introspect --installed "${BUILD_DIR}" \
+    | python3 -c '
+import json
+import sys
+installed = json.load(sys.stdin)
+print(next(destination for source, destination in installed.items()
+           if source.endswith("libmeowmenu.so")))
+')"
+mapfile -t INSTALLED_PRESETS < <(
+    meson introspect --installed "${BUILD_DIR}" \
+        | python3 -c '
+import json
+import sys
+installed = json.load(sys.stdin)
+for source, destination in installed.items():
+    if source.endswith(".meowpreset"):
+        print(destination)
+'
+)
+mapfile -t INSTALLED_PAYLOAD < <(
+    meson introspect --installed "${BUILD_DIR}" \
+        | python3 -c '
+import json
+import sys
+installed = json.load(sys.stdin)
+for destination in installed.values():
+    print(destination)
+'
+)
+if (( ${#INSTALLED_PRESETS[@]} == 0 )); then
+    echo "FAILED: Meson install manifest contains no built-in presets."
+    exit 1
+fi
+
 # Do not call uninstall.sh here. It deliberately removes the active plugin and
 # kills its wrapper, which makes Xfce see a configured slot with no module and
 # show the "remove plugin" prompt before the new install can complete. Meson
 # overwrites the installed files in place; the wrapper is recycled only after
 # the new files are present.
 
-# If a previous install left a copy in ~/.local, it silently wins over the
-# system prefix because XDG_DATA_DIRS is searched user-first. Keep it until
-# after the new system copy is installed so a failed install remains usable.
-USER_SO="${HOME}/.local/lib/x86_64-linux-gnu/xfce4/panel/plugins/libmeowmenu.so"
+# User preset drop-ins and a user-local package prefix intentionally share the
+# XDG data directory. Remove the old tree before installation so Meson restores
+# the packaged built-ins afterward instead of deleting the new payload.
+USER_DATA_ROOT="${XDG_DATA_HOME:-${HOME}/.local/share}"
+USER_MEOWMENU_DATA="${USER_DATA_ROOT%/}/meowmenu"
+if [[ "${USER_MEOWMENU_DATA}" == "/meowmenu" ]]; then
+    echo "Refusing unsafe user-data target '${USER_MEOWMENU_DATA}'."
+    exit 1
+fi
+step "Remove prior MeowMenu user data"
+rm -rf -- "${USER_MEOWMENU_DATA}"
 
 # The explicit compile above is authoritative. --no-rebuild prevents Meson
 # from launching Ninja again as part of installation.
@@ -206,20 +251,72 @@ else
     fi
 fi
 
+# A stale user-local module shadows a system-prefix install. Locate it without
+# assuming a distribution libdir, but retain the module installed by this run.
+USER_LIB_ROOT="${HOME}/.local/lib"
+if [[ -d "${USER_LIB_ROOT}" ]]; then
+    while IFS= read -r -d '' candidate; do
+        if [[ "${candidate}" != "${INSTALLED_MODULE}" ]]; then
+            step "Remove stale ${candidate}"
+            rm -f -- "${candidate}"
+        fi
+    done < <(find "${USER_LIB_ROOT}" -path \
+        '*/xfce4/panel/plugins/libmeowmenu.so' -print0 2>/dev/null)
+fi
+
+# A package-equivalent install must leave both the loadable module and every
+# built-in preset from the current manifest present on disk.
+if [[ ! -f "${INSTALLED_MODULE}" ]]; then
+    echo "FAILED: installed module is missing: ${INSTALLED_MODULE}"
+    exit 1
+fi
+for preset in "${INSTALLED_PRESETS[@]}"; do
+    if [[ ! -f "${preset}" ]]; then
+        echo "FAILED: installed built-in preset is missing: ${preset}"
+        exit 1
+    fi
+done
+for payload in "${INSTALLED_PAYLOAD[@]}"; do
+    if [[ ! -e "${payload}" ]]; then
+        echo "FAILED: installed package payload is missing: ${payload}"
+        exit 1
+    fi
+done
+
 # ---------------------------------------------------------------------------
 # Reset user state after the replacement is installed
 # ---------------------------------------------------------------------------
 # Keep the panel slot and its live wrapper valid throughout installation.
-# Resetting state here still gives every development run a clean configuration
-# while avoiding the transient missing-plugin state caused by uninstall first.
+# Stop the panel only after the new module is in place. Resetting a live plugin
+# makes its settings callbacks repopulate keys while they are being removed,
+# producing a hybrid "Custom" profile instead of the fresh Modern preset.
+# Keeping the registered panel slot and installed module intact avoids the
+# missing-plugin prompt while the short reset is in progress.
 
-if [[ "${PREFIX}" != "${HOME}/.local" && -e "${USER_SO}" ]]; then
-    step "Remove stale ${USER_SO}"
-    rm -f "${USER_SO}"
-fi
+# stop_panel_for_reset:
+#
+# Stops the panel and its out-of-process plugin wrapper before Xfconf mutation.
+# Returns only when no old MeowMenu instance can write settings back into the
+# channel; restart_panel restores the saved panel configuration afterward.
+stop_panel_for_reset() {
+    if pgrep -x xfce4-panel >/dev/null 2>&1; then
+        step "Stop Xfce panel for clean state reset"
+        xfce4-panel --quit >> "${LOG_FILE}" 2>&1 || true
+        for _ in {1..20}; do
+            pgrep -x xfce4-panel >/dev/null 2>&1 || break
+            sleep 0.1
+        done
+    fi
 
-step "Remove user presets"
-rm -rf "${HOME}/.local/share/meowmenu/" 2>/dev/null || true
+    pkill -f 'wrapper-2.0.*libmeowmenu\.so' 2>/dev/null || true
+    if pgrep -x xfce4-panel >/dev/null 2>&1; then
+        echo "FAILED: Xfce panel did not stop before the state reset"
+        echo "See ${LOG_FILE} for command output."
+        exit 1
+    fi
+}
+
+stop_panel_for_reset
 
 # Legacy on-disk channel file (pre-rename installs); harmless to remove if
 # present. Live settings are reset through xfconfd below.
@@ -270,12 +367,8 @@ fi
 # ---------------------------------------------------------------------------
 # Reload panel
 # ---------------------------------------------------------------------------
-# Kill the wrapper process that holds the old .so in memory, then ask the
-# panel to relaunch any missing plugins. If the panel process is already gone,
-# --restart is only a request to a nonexistent instance, so start it directly
-# from the preserved Xfconf configuration instead.
-
-pkill -f 'wrapper-2.0.*libmeowmenu\.so' 2>/dev/null || true
+# Start the panel from its preserved slot configuration. The reset above keeps
+# the slot root registered while removing only MeowMenu's child settings.
 
 # restart_panel:
 #
@@ -284,6 +377,7 @@ pkill -f 'wrapper-2.0.*libmeowmenu\.so' 2>/dev/null || true
 # success while the saved panel configuration is not visible on screen.
 restart_panel() {
     local panel_pid=""
+    local stable_checks=0
 
     panel_pid="$(pgrep -xo xfce4-panel || true)"
     if [[ -n "${panel_pid}" ]]; then
@@ -295,16 +389,27 @@ restart_panel() {
 
     if ! pgrep -x xfce4-panel >/dev/null 2>&1; then
         step "Start Xfce panel from saved configuration"
-        xfce4-panel --disable-wm-check >> "${LOG_FILE}" 2>&1 &
-        disown || true
+        setsid -f xfce4-panel --disable-wm-check >> "${LOG_FILE}" 2>&1
     fi
 
-    for _ in {1..20}; do
-        pgrep -x xfce4-panel >/dev/null 2>&1 && return 0
-        sleep 0.25
+    # The launcher process can briefly exist before it daemonizes or fails.
+    # Require both processes to survive several checks so a transient PID
+    # cannot turn a failed reload into a reported success.
+    for _ in {1..50}; do
+        if pgrep -x xfce4-panel >/dev/null 2>&1 \
+                && pgrep -f 'wrapper-2\.0 .*libmeowmenu\.so' \
+                    >/dev/null 2>&1; then
+            stable_checks=$((stable_checks + 1))
+            if (( stable_checks >= 5 )); then
+                return 0
+            fi
+        else
+            stable_checks=0
+        fi
+        sleep 0.2
     done
 
-    echo "FAILED: Xfce panel did not stay running"
+    echo "FAILED: Xfce panel and MeowMenu wrapper did not stay running"
     echo "Last output (see ${LOG_FILE} for the full log):"
     tail -20 "${LOG_FILE}"
     exit 1

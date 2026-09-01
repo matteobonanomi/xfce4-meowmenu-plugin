@@ -13,9 +13,90 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-bool WhiskerMenu::application_load_generation_can_commit(guint64 current_generation,
-		guint64 job_generation, bool cancelled, bool owner_alive)
+ApplicationLoadGeneration::ApplicationLoadGeneration(guint64 generation) :
+	m_generation(generation),
+	m_status(ApplicationLoadStatus::Queued),
+	m_cancelled(false),
+	m_invalidated(false)
 {
-	return owner_alive && !cancelled && (current_generation == job_generation);
 }
 
+//-----------------------------------------------------------------------------
+
+bool ApplicationLoadGeneration::start()
+{
+	if (m_status != ApplicationLoadStatus::Queued)
+	{
+		return false;
+	}
+	m_status = ApplicationLoadStatus::Loading;
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+void ApplicationLoadGeneration::invalidate()
+{
+	if (m_status == ApplicationLoadStatus::Queued
+			|| m_status == ApplicationLoadStatus::Loading
+			|| m_status == ApplicationLoadStatus::CandidateReady)
+	{
+		m_invalidated = true;
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+void ApplicationLoadGeneration::cancel()
+{
+	if (m_status == ApplicationLoadStatus::Committed
+			|| m_status == ApplicationLoadStatus::Discarded)
+	{
+		return;
+	}
+	m_cancelled = true;
+	m_status = ApplicationLoadStatus::Discarded;
+}
+
+//-----------------------------------------------------------------------------
+
+bool ApplicationLoadGeneration::candidate_ready(bool coherent)
+{
+	if (m_status != ApplicationLoadStatus::Loading)
+	{
+		return false;
+	}
+	if (!coherent || m_cancelled || m_invalidated)
+	{
+		m_status = ApplicationLoadStatus::Discarded;
+		return false;
+	}
+	m_status = ApplicationLoadStatus::CandidateReady;
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+bool ApplicationLoadGeneration::commit(guint64 current_generation,
+		bool owner_alive)
+{
+	if (m_status != ApplicationLoadStatus::CandidateReady
+			|| !owner_alive || m_cancelled || m_invalidated
+			|| current_generation != m_generation)
+	{
+		discard();
+		return false;
+	}
+	m_status = ApplicationLoadStatus::Committed;
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+void ApplicationLoadGeneration::discard()
+{
+	if (m_status != ApplicationLoadStatus::Committed)
+	{
+		m_status = ApplicationLoadStatus::Discarded;
+	}
+}

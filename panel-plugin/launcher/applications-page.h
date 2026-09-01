@@ -39,7 +39,7 @@ public:
 	ApplicationsPage(Settings* settings, Window* window);
 	~ApplicationsPage();
 
-	GtkTreeModel* create_launcher_model(StringList& desktop_ids) const;
+	GtkTreeModel* create_launcher_model(const StringList& desktop_ids) const;
 	Launcher* find(const std::string& desktop_id) const;
 	std::vector<Launcher*> find_all() const;
 
@@ -52,33 +52,35 @@ public:
 	GtkWidget* get_outer_widget() const { return m_outer; }
 
 	/* set_default_heading:
-	 * @visible: TRUE to show the heading (sidebar disabled, the documented behavior).
-	 * @default_category: Settings::DefaultCategory selecting the heading text.
+	 * @visible: TRUE to show the heading when the sidebar is disabled.
 	 *
-	 * Shows/hides an uppercase heading (FAVORITES / RECENTLY USED / ALL
-	 * APPLICATIONS) at the top-left of the results view. A no-op styling-wise
-	 * beyond toggling visibility and text.
+	 * Shows or hides the All Applications page heading. Other built-in pages own
+	 * their corresponding heading wrappers at the Window composition boundary.
 	 */
-	void set_default_heading(bool visible, int default_category);
+	void set_default_heading(bool visible);
 
 	void invalidate();
 	bool load();
+	bool has_publication() const { return m_has_publication; }
 	void reload_category_icon_size();
 
 private:
+	struct ApplicationCandidate;
 	struct LoadJob;
 
 	void show_category(GtkToggleButton* togglebutton, std::vector<Category*>::size_type index);
 	void cancel_pending_load();
 	void clear();
-	void load_garcon_menus();
-	void populate_garcon_menus();
-	void load_contents();
-	bool load_menu(GarconMenu* menu, Category* parent_category, bool load_hierarchy);
+	void load_garcon_menus(ApplicationCandidate& candidate);
+	void populate_candidate(ApplicationCandidate& candidate);
+	void publish_candidate(ApplicationCandidate& candidate);
+	std::vector<Launcher*> find_all(const ApplicationCandidate& candidate) const;
+	bool load_menu(ApplicationCandidate& candidate, GarconMenu* menu,
+			Category* parent_category, bool load_hierarchy);
 
 private:
-	// Outer container = [default-category heading, base launcher view]. The
-	// heading is hidden unless the sidebar is disabled (the documented behavior).
+	// Outer container = [page heading, base launcher view]. The heading is hidden
+	// unless the sidebar is disabled.
 	GtkWidget* m_outer;
 	GtkWidget* m_default_heading;
 
@@ -88,6 +90,7 @@ private:
 	std::unordered_map<std::string, Launcher*> m_items;
 	LoadJob* m_load_job;
 	guint64 m_load_generation;
+	bool m_has_publication;
 
 	enum class LoadStatus
 	{

@@ -67,37 +67,42 @@ GtkWidget* WhiskerMenu::Window::get_active_category_button()
 
 //-----------------------------------------------------------------------------
 
-// NOTE: the three category toggles below switch the visible panel and then hand
-// keyboard focus to the search entry so a pointer selection lets the user type
-// immediately. A keyboard-driven activation sets m_keyboard_category_nav, in
-// which case the handoff is skipped and focus stays on the active category
-// button so arrow navigation can continue (the documented behavior; C1/C2). The guard,
-// and only the guard, distinguishes the keyboard origin from the pointer origin.
+// NOTE: the three category toggles below preserve each page's selection and
+// scroll state while switching the visible panel. A fresh menu opening resets
+// those states centrally; switching an already-open populated page must not.
+// Pointer activation hands focus to Search, while keyboard activation keeps it
+// on the category button so arrow navigation can continue.
 
-void WhiskerMenu::Window::favorites_toggled()
+void WhiskerMenu::Window::favorites_toggled(GtkToggleButton* button)
 {
-	m_favorites->reset_selection();
+	if (!category_toggle_transition_is_active(button))
+		return;
 	gtk_stack_set_visible_child_name(m_panels_stack, "favorites");
+	m_favorites->present();
 	if (!m_keyboard_category_nav)
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 }
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::recent_toggled()
+void WhiskerMenu::Window::recent_toggled(GtkToggleButton* button)
 {
-	m_recent->reset_selection();
+	if (!category_toggle_transition_is_active(button))
+		return;
 	gtk_stack_set_visible_child_name(m_panels_stack, "recent");
+	m_recent->present();
 	if (!m_keyboard_category_nav)
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 }
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::category_toggled()
+void WhiskerMenu::Window::category_toggled(GtkToggleButton* button)
 {
-	m_applications->reset_selection();
+	if (!category_toggle_transition_is_active(button))
+		return;
 	gtk_stack_set_visible_child_name(m_panels_stack, "applications");
+	m_applications->present();
 	if (!m_keyboard_category_nav)
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 }
@@ -184,7 +189,10 @@ void WhiskerMenu::Window::show_favorites()
 	}
 
 	// Switch to favorites panel
+	const bool already_active = m_favorites->get_button()->get_active();
 	m_favorites->get_button()->set_active(true);
+	if (already_active)
+		m_favorites->present();
 
 	// Clear search entry
 	gtk_entry_set_text(m_search_entry, "");
@@ -197,16 +205,27 @@ void WhiskerMenu::Window::show_default_page()
 {
 	if (m_places_active)
 	{
+		const bool already_active = m_places_home_btn->get_active();
 		m_places_home_btn->set_active(true);
-		m_places->set_active_section(m_places->get_home_section());
-		gtk_stack_set_visible_child_name(m_panels_stack, "places");
+		if (already_active)
+		{
+			m_places->set_active_section(m_places->get_home_section());
+			gtk_stack_set_visible_child_name(m_panels_stack, "places");
+			m_places->present();
+		}
 		gtk_entry_set_text(m_search_entry, "");
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		return;
 	}
 
 	// Switch to favorites panel
+	const bool already_active = m_default_button->get_active();
 	m_default_button->set_active(true);
+	if (already_active)
+	{
+		if (Page* page = get_active_page())
+			page->present();
+	}
 
 	// Clear search entry
 	gtk_entry_set_text(m_search_entry, "");
@@ -229,6 +248,7 @@ void WhiskerMenu::Window::search()
 		// Places mode: stay on the places panel; filter the active section.
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		m_places->set_filter(text);
+		m_places->present();
 		if (text)
 			m_places->focus_first_result();
 		// the documented behavior: query empty → return focus to the search entry so the
@@ -258,6 +278,8 @@ void WhiskerMenu::Window::search()
 
 	// Apply filter
 	m_search_results->set_filter(text);
+	if (Page* page = get_active_page())
+		page->present();
 
 	if (text)
 	{
@@ -387,35 +409,51 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 		gtk_entry_set_text(m_search_entry, "");
 	}
 
+	bool content_presented_by_activation = false;
 	switch (resolution.content)
 	{
 	case MenuContentTarget::ApplicationsDefault:
 	{
 		const char* page = "favorites";
-		switch (m_settings->default_category)
+		CategoryButton* button = m_favorites->get_button();
+		switch (resolve_application_opening_target(
+				m_settings->default_category,
+				true,
+				m_settings->recent_items_max > 0))
 		{
-		case Settings::CategoryRecent: page = "recent";       break;
-		case Settings::CategoryAll:    page = "applications"; break;
-		default: break;
+		case ApplicationOpeningTarget::Recent:
+			page = "recent";
+			button = m_recent->get_button();
+			break;
+		case ApplicationOpeningTarget::All:
+			page = "applications";
+			button = m_applications->get_button();
+			break;
+		case ApplicationOpeningTarget::Favorites:
+			break;
 		}
 		gtk_stack_set_visible_child_name(m_panels_stack, page);
-		m_default_button->set_active(true);
+		content_presented_by_activation = !button->get_active();
+		button->set_active(true);
 		break;
 	}
 
 	case MenuContentTarget::PlacesHistory:
+		content_presented_by_activation = !m_places_history_btn->get_active();
 		m_places_history_btn->set_active(true);
 		m_places->set_active_section(m_places->get_history_section());
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		break;
 
 	case MenuContentTarget::PlacesFavourites:
+		content_presented_by_activation = !m_places_fav_btn->get_active();
 		m_places_fav_btn->set_active(true);
 		m_places->set_active_section(m_places->get_favourites_section());
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		break;
 
 	case MenuContentTarget::PlacesHome:
+		content_presented_by_activation = !m_places_home_btn->get_active();
 		m_places_home_btn->set_active(true);
 		m_places->set_active_section(m_places->get_home_section());
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
@@ -439,6 +477,13 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 		}
 	}
 	m_mode_switch_in_progress = false;
+	if (!content_presented_by_activation)
+	{
+		if (places)
+			m_places->present();
+		else if (Page* page = get_active_page())
+			page->present();
+	}
 	update_favourite_drop_targets();
 }
 

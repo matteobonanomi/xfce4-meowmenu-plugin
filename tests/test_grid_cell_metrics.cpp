@@ -264,6 +264,14 @@ void viewport_width_rejects_toplevel_natural_size_overshoot()
 	}
 	CHECK(meow_grid_effective_viewport_width(432, 600, 600) == 432);
 	CHECK(meow_grid_effective_viewport_width(900, 1920, -1) == 900);
+	CHECK(meow_grid_effective_viewport_width(1280, 1920, 1920, 1280)
+			== 1280);
+	CHECK(meow_grid_effective_viewport_width(1310, 1950, 1920, 1280)
+			== 1280);
+	CHECK(meow_grid_effective_viewport_width(1400, 1920, 1920, 1280)
+			== 1280);
+	CHECK(meow_grid_effective_viewport_width(900, 1920, -1, 1280)
+			== 900);
 }
 
 void live_resize_releases_the_current_grid_floor()
@@ -275,40 +283,57 @@ void live_resize_releases_the_current_grid_floor()
 	CHECK(meow_grid_release_resize_minimum(300, 132, 132) == 300);
 }
 
-void live_resize_distributes_each_delivered_frame()
+void exact_layout_continuously_consumes_each_width()
 {
-	int previous_columns = 0;
+	GridColumnLayout previous = {0, 0};
 	int column_transitions = 0;
 	for (int width = 240; width <= 1200; ++width)
 	{
 		const GridColumnLayout layout = meow_grid_column_layout(
 				width, 6, 4, 4, 120);
-		const int complete_item_width = layout.item_width + 8;
-		const int used = 12 + (layout.columns * complete_item_width)
+		const GridColumnLayout repeated = meow_grid_column_layout(
+				width, 6, 4, 4, 120);
+		const int used = 12 + (layout.columns * (layout.item_width + 8))
 				+ ((layout.columns - 1) * 4);
+		CHECK(layout.columns == repeated.columns);
+		CHECK(layout.item_width == repeated.item_width);
 		CHECK(used <= width);
 		CHECK(width - used < layout.columns);
-		CHECK(layout.columns >= previous_columns);
-		if (previous_columns != 0 && layout.columns != previous_columns)
+		CHECK(layout.columns >= previous.columns);
+		if (previous.columns != 0 && layout.columns != previous.columns)
 			++column_transitions;
-		previous_columns = layout.columns;
+		else if (previous.item_width != 0)
+			CHECK(layout.item_width - previous.item_width <= 1);
+		previous = layout;
 	}
 	CHECK(column_transitions < 10);
 
-	int pending_width = 0;
-	int schedules = 0;
-	for (int width = 240; width <= 1200; ++width)
+	// Widening and narrowing choose identical layouts at every width.
+	for (int width = 1200; width >= 240; --width)
 	{
-		if (meow_grid_queue_frame_width(width, &pending_width))
-			++schedules;
+		const GridColumnLayout exact = meow_grid_column_layout(
+				width, 6, 4, 4, 120);
+		const GridColumnLayout repeated = meow_grid_column_layout(
+				width, 6, 4, 4, 120);
+		CHECK(exact.columns == repeated.columns);
+		CHECK(exact.item_width == repeated.item_width);
 	}
-	CHECK(schedules == 1);
-	CHECK(meow_grid_take_frame_width(&pending_width) == 1200);
-	CHECK(pending_width == 0);
-	CHECK(meow_grid_queue_frame_width(420, &pending_width));
-	CHECK(!meow_grid_queue_frame_width(421, &pending_width));
-	CHECK(meow_grid_take_frame_width(&pending_width) == 421);
-	CHECK(meow_grid_take_frame_width(&pending_width) == 0);
+
+	// Exact thresholds change once, and direct multi-threshold jumps have no
+	// history-dependent state.
+	for (int columns = 2; columns <= 8; ++columns)
+	{
+		const int threshold = 12 + (columns * 120)
+				+ ((columns - 1) * 4);
+		CHECK(meow_grid_column_layout(threshold - 1,
+				6, 4, 4, 120).columns == columns - 1);
+		CHECK(meow_grid_column_layout(threshold,
+				6, 4, 4, 120).columns == columns);
+	}
+	const GridColumnLayout direct = meow_grid_column_layout(
+			1200, 6, 4, 4, 120);
+	CHECK(direct.columns == previous.columns);
+	CHECK(direct.item_width == previous.item_width);
 }
 
 } // namespace
@@ -325,7 +350,7 @@ int main()
 	viewport_width_uses_maximum_complete_columns();
 	viewport_width_rejects_toplevel_natural_size_overshoot();
 	live_resize_releases_the_current_grid_floor();
-	live_resize_distributes_each_delivered_frame();
+	exact_layout_continuously_consumes_each_width();
 
 	if (g_failures != 0)
 	{

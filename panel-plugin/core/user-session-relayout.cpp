@@ -46,6 +46,12 @@ WhiskerMenu::meow_box_repack_child(GtkBox* box, GtkWidget* child,
 {
 	if (!GTK_IS_BOX(box) || !GTK_IS_WIDGET(child))
 		return false;
+	if (gtk_widget_get_parent(child) == GTK_WIDGET(box))
+	{
+		gtk_box_set_child_packing(box, child, expand, fill, padding,
+				pack_end ? GTK_PACK_END : GTK_PACK_START);
+		return true;
+	}
 
 	g_object_ref(child);
 	if (GtkWidget* parent = gtk_widget_get_parent(child))
@@ -60,6 +66,20 @@ WhiskerMenu::meow_box_repack_child(GtkBox* box, GtkWidget* child,
 		gtk_box_pack_start(box, child, expand, fill, padding);
 
 	g_object_unref(child);
+	return true;
+}
+
+bool
+WhiskerMenu::meow_restore_vertical_selector_prefix(GtkBox* box,
+		GtkWidget* selector, GtkWidget* separator)
+{
+	if (!meow_box_contains_child(box, selector)
+			|| !meow_box_contains_child(box, separator))
+	{
+		return false;
+	}
+	gtk_box_reorder_child(box, selector, 0);
+	gtk_box_reorder_child(box, separator, 1);
 	return true;
 }
 
@@ -314,6 +334,80 @@ WhiskerMenu::meow_reset_vertical_sidebar_scroll(GtkScrolledWindow* sidebar)
 		return false;
 	gtk_adjustment_set_value(adjustment,
 			gtk_adjustment_get_lower(adjustment));
+	return true;
+}
+
+/* meow_bind_navigation_scroller:
+ *
+ * See the public declaration for the reparenting and focus-adjustment rules.
+ */
+bool
+WhiskerMenu::meow_bind_navigation_scroller(GtkContainer* categories,
+		GtkScrolledWindow* scroller, GtkOrientation orientation)
+{
+	if (!GTK_IS_CONTAINER(categories) || !GTK_IS_SCROLLED_WINDOW(scroller))
+		return false;
+
+	gtk_container_set_focus_hadjustment(categories, nullptr);
+	gtk_container_set_focus_vadjustment(categories, nullptr);
+	if (orientation == GTK_ORIENTATION_HORIZONTAL)
+	{
+		gtk_container_set_focus_hadjustment(categories,
+				gtk_scrolled_window_get_hadjustment(scroller));
+	}
+	else
+	{
+		gtk_container_set_focus_vadjustment(categories,
+				gtk_scrolled_window_get_vadjustment(scroller));
+	}
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+/* reveal_axis:
+ * @adjustment: presented viewport axis.
+ * @start: child offset relative to the viewport allocation.
+ * @extent: child size along the same axis.
+ *
+ * Moves the smallest distance needed to reveal the child and clamps the
+ * result to the adjustment's valid range.
+ */
+static void reveal_axis(GtkAdjustment* adjustment, int start, int extent)
+{
+	if (!GTK_IS_ADJUSTMENT(adjustment))
+		return;
+	const double current = gtk_adjustment_get_value(adjustment);
+	const double page = gtk_adjustment_get_page_size(adjustment);
+	double requested = current;
+	if (start < 0)
+		requested += start;
+	else if (start + extent > page)
+		requested += start + extent - page;
+	const double upper = MAX(gtk_adjustment_get_lower(adjustment),
+			gtk_adjustment_get_upper(adjustment) - page);
+	gtk_adjustment_set_value(adjustment,
+			MIN(upper, MAX(gtk_adjustment_get_lower(adjustment), requested)));
+}
+
+bool
+WhiskerMenu::meow_reveal_navigation_widget(GtkScrolledWindow* scroller,
+		GtkWidget* widget)
+{
+	if (!GTK_IS_SCROLLED_WINDOW(scroller) || !GTK_IS_WIDGET(widget))
+		return false;
+	GtkWidget* viewport = gtk_bin_get_child(GTK_BIN(scroller));
+	if (!GTK_IS_WIDGET(viewport) || !gtk_widget_is_ancestor(widget, viewport))
+		return false;
+
+	int x = 0;
+	int y = 0;
+	if (!gtk_widget_translate_coordinates(widget, viewport, 0, 0, &x, &y))
+		return false;
+	reveal_axis(gtk_scrolled_window_get_hadjustment(scroller), x,
+			gtk_widget_get_allocated_width(widget));
+	reveal_axis(gtk_scrolled_window_get_vadjustment(scroller), y,
+			gtk_widget_get_allocated_height(widget));
 	return true;
 }
 

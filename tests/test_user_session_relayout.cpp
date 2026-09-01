@@ -282,6 +282,69 @@ void check_sidebar_scrollbar_reservation()
 	gtk_widget_destroy(profile);
 }
 
+void check_presented_navigation_reveal()
+{
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	GtkWidget* host = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* vertical = gtk_scrolled_window_new(nullptr, nullptr);
+	GtkWidget* horizontal = gtk_scrolled_window_new(nullptr, nullptr);
+	GtkWidget* categories = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vertical),
+			GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(horizontal),
+			GTK_POLICY_ALWAYS, GTK_POLICY_NEVER);
+	gtk_widget_set_size_request(vertical, 120, 80);
+	gtk_widget_set_size_request(horizontal, 120, 80);
+	gtk_box_pack_start(GTK_BOX(host), vertical, true, true, 0);
+	gtk_box_pack_start(GTK_BOX(host), horizontal, true, true, 0);
+	gtk_container_add(GTK_CONTAINER(vertical), categories);
+	GtkWidget* first = nullptr;
+	GtkWidget* last = nullptr;
+	for (int i = 0; i < 20; ++i)
+	{
+		last = gtk_button_new_with_label("Oversized category");
+		if (!first)
+			first = last;
+		gtk_widget_set_size_request(last, 150, 28);
+		gtk_box_pack_start(GTK_BOX(categories), last, false, false, 0);
+	}
+	gtk_container_add(GTK_CONTAINER(window), host);
+	gtk_widget_show_all(window);
+	drain_events();
+
+	assert(meow_bind_navigation_scroller(GTK_CONTAINER(categories),
+			GTK_SCROLLED_WINDOW(vertical), GTK_ORIENTATION_VERTICAL));
+	GtkAdjustment* vertical_adjustment =
+			gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(vertical));
+	assert(meow_reveal_navigation_widget(GTK_SCROLLED_WINDOW(vertical), last));
+	assert(gtk_adjustment_get_value(vertical_adjustment) > 0.0);
+
+	const double inactive_value = gtk_adjustment_get_value(vertical_adjustment);
+	g_object_ref(categories);
+	gtk_container_remove(GTK_CONTAINER(gtk_widget_get_parent(categories)),
+			categories);
+	gtk_orientable_set_orientation(GTK_ORIENTABLE(categories),
+			GTK_ORIENTATION_HORIZONTAL);
+	gtk_container_add(GTK_CONTAINER(horizontal), categories);
+	g_object_unref(categories);
+	gtk_widget_hide(vertical);
+	gtk_widget_show_all(horizontal);
+	gtk_widget_queue_resize(categories);
+	drain_events();
+	assert(meow_bind_navigation_scroller(GTK_CONTAINER(categories),
+			GTK_SCROLLED_WINDOW(horizontal), GTK_ORIENTATION_HORIZONTAL));
+	GtkAdjustment* horizontal_adjustment =
+			gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(horizontal));
+	gtk_adjustment_configure(horizontal_adjustment, 300.0,
+			0.0, 600.0, 1.0, 20.0, 120.0);
+	assert(meow_reveal_navigation_widget(GTK_SCROLLED_WINDOW(horizontal), first));
+	assert(gtk_adjustment_get_value(horizontal_adjustment) < 300.0);
+	assert(gtk_adjustment_get_value(vertical_adjustment) == inactive_value);
+	assert(!meow_reveal_navigation_widget(GTK_SCROLLED_WINDOW(vertical), last));
+
+	gtk_widget_destroy(window);
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -297,6 +360,7 @@ int main(int argc, char** argv)
 	check_session_allocated_edge(true, false);
 	check_profile_allocated_geometry();
 	check_sidebar_scrollbar_reservation();
+	check_presented_navigation_reveal();
 
 	GtkWidget* leading = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	GtkWidget* trailing = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -396,9 +460,24 @@ int main(int argc, char** argv)
 
 	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* selector = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* selector_separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 	GtkWidget* wide_category = gtk_label_new("All Applications");
 	gtk_widget_set_size_request(wide_category, 180, -1);
+	gtk_box_pack_start(GTK_BOX(sidebar), selector, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(sidebar), selector_separator, false, false, 4);
 	gtk_box_pack_start(GTK_BOX(sidebar), wide_category, false, false, 0);
+	for (int pass = 0; pass < 40; ++pass)
+	{
+		assert(meow_box_repack_child(GTK_BOX(sidebar), selector,
+				false, false, false, 0));
+		assert(meow_restore_vertical_selector_prefix(GTK_BOX(sidebar),
+				selector, selector_separator));
+		GList* children = gtk_container_get_children(GTK_CONTAINER(sidebar));
+		assert(g_list_nth_data(children, 0) == selector);
+		assert(g_list_nth_data(children, 1) == selector_separator);
+		assert(g_list_nth_data(children, 2) == wide_category);
+		g_list_free(children);
+	}
 	gtk_widget_show_all(sidebar);
 	const int sidebar_width = meow_configure_vertical_sidebar_width(
 			sidebar, profile, true, true);

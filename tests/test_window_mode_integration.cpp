@@ -12,8 +12,12 @@
 #include "core/sidebar-layout.h"
 #include "core/window-keyboard.h"
 #include "core/window-frame.h"
+#include "core/window-geometry.h"
+#include "core/window-pages.h"
+#include "core/user-session-relayout.h"
 #include "launcher/command.h"
 #include "launcher/page.h"
+#include "settings.h"
 
 #include <gtk/gtk.h>
 
@@ -416,6 +420,450 @@ void check_results_clip_tracks_real_grid_boundary()
 	g_object_unref(model);
 }
 
+/* check_mapped_result_frame_orders_preparation_and_damage:
+ *
+ * Reproduces hidden model publication through the nested production stack and
+ * verifies that mapped preparation precedes concrete and toplevel damage.
+ */
+void check_mapped_result_frame_orders_preparation_and_damage()
+{
+	if (!gtk_init_check(nullptr, nullptr))
+		return;
+
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	g_object_ref_sink(window);
+	GtkWidget* outer = gtk_stack_new();
+	GtkWidget* loading = gtk_spinner_new();
+	GtkWidget* contents = gtk_stack_new();
+	GtkWidget* favorites_page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* applications_page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkListStore* model = gtk_list_store_new(1, G_TYPE_STRING);
+	GtkListStore* applications_model = gtk_list_store_new(1, G_TYPE_STRING);
+	for (int row = 0; row < 3; ++row)
+	{
+		GtkTreeIter iter;
+		gtk_list_store_append(model, &iter);
+		gtk_list_store_set(model, &iter, 0, "Application", -1);
+		gtk_list_store_append(applications_model, &iter);
+		gtk_list_store_set(applications_model, &iter, 0, "Application", -1);
+	}
+	GtkWidget* result = gtk_icon_view_new();
+	GtkWidget* applications_result = gtk_icon_view_new();
+	gtk_icon_view_set_text_column(GTK_ICON_VIEW(result), 0);
+	gtk_icon_view_set_text_column(GTK_ICON_VIEW(applications_result), 0);
+	gtk_box_pack_start(GTK_BOX(favorites_page), result, true, true, 0);
+	gtk_box_pack_start(GTK_BOX(applications_page), applications_result,
+			true, true, 0);
+	GtkWidget* favorites_heading = nullptr;
+	GtkWidget* favorites_outer =
+			meow::meowmenu_create_default_heading_page(favorites_page,
+					"FAVORITES", &favorites_heading);
+	gtk_stack_add_named(GTK_STACK(contents), favorites_outer, "favorites");
+	gtk_stack_add_named(GTK_STACK(contents), applications_page, "applications");
+	gtk_stack_add_named(GTK_STACK(outer), loading, "loading");
+	gtk_stack_add_named(GTK_STACK(outer), contents, "contents");
+	gtk_container_add(GTK_CONTAINER(window), outer);
+	gtk_widget_show_all(window);
+	gtk_stack_set_visible_child_name(GTK_STACK(outer), "loading");
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+
+	// Populate while both the contents stack and concrete result are hidden.
+	gtk_icon_view_set_model(GTK_ICON_VIEW(result), GTK_TREE_MODEL(model));
+	gtk_icon_view_set_model(GTK_ICON_VIEW(applications_result),
+			GTK_TREE_MODEL(applications_model));
+	int toplevel_draws = 0;
+	int result_draws = 0;
+	int applications_draws = 0;
+	g_signal_connect(window, "draw",
+			G_CALLBACK(+[](GtkWidget*, cairo_t*, gpointer data) -> gboolean
+			{
+				++*static_cast<int*>(data);
+				return GDK_EVENT_PROPAGATE;
+			}), &toplevel_draws);
+	g_signal_connect(result, "draw",
+			G_CALLBACK(+[](GtkWidget*, cairo_t*, gpointer data) -> gboolean
+			{
+				++*static_cast<int*>(data);
+				return GDK_EVENT_PROPAGATE;
+			}), &result_draws);
+	g_signal_connect(applications_result, "draw",
+			G_CALLBACK(+[](GtkWidget*, cairo_t*, gpointer data) -> gboolean
+			{
+				++*static_cast<int*>(data);
+				return GDK_EVENT_PROPAGATE;
+			}), &applications_draws);
+	guint favorites_frame_id = 0;
+	int favorites_preparations = 0;
+	CHECK(meow::meowmenu_queue_complete_result_frame(window, result));
+	CHECK(meow::meowmenu_schedule_mapped_result_frame(window, window,
+			result, &favorites_frame_id,
+			+[](void* data) -> bool
+			{
+				++*static_cast<int*>(data);
+				return true;
+			}, &favorites_preparations));
+	CHECK(favorites_frame_id != 0);
+	CHECK(!meow::meowmenu_queue_complete_result_frame(nullptr, nullptr));
+	gtk_widget_set_visible(favorites_heading, TRUE);
+	gtk_stack_set_visible_child_name(GTK_STACK(contents), "favorites");
+	gtk_stack_set_visible_child_name(GTK_STACK(outer), "contents");
+	gtk_test_widget_wait_for_draw(window);
+	gtk_test_widget_wait_for_draw(result);
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	CHECK(gtk_widget_get_mapped(result));
+	CHECK(favorites_frame_id == 0);
+	CHECK(favorites_preparations == 1);
+	CHECK(gtk_widget_get_visible(favorites_heading));
+	CHECK(std::string(gtk_label_get_text(GTK_LABEL(favorites_heading)))
+			== "FAVORITES");
+	CHECK(toplevel_draws > 0);
+	CHECK(result_draws > 0);
+	CHECK(gtk_tree_model_iter_n_children(GTK_TREE_MODEL(model), nullptr) == 3);
+	guint cancelled_frame_id = 0;
+	int cancelled_preparations = 0;
+	CHECK(meow::meowmenu_schedule_mapped_result_frame(window,
+			window, applications_result, &cancelled_frame_id,
+			+[](void* data) -> bool
+			{
+				++*static_cast<int*>(data);
+				return true;
+			}, &cancelled_preparations));
+	CHECK(cancelled_frame_id != 0);
+	meow::meowmenu_cancel_mapped_result_frame(window,
+			&cancelled_frame_id);
+	CHECK(cancelled_frame_id == 0);
+	CHECK(cancelled_preparations == 0);
+	guint applications_frame_id = 0;
+	struct HiddenPreparation
+	{
+		GtkWidget* result;
+		int calls;
+	};
+	HiddenPreparation applications_preparation = {
+			applications_result, 0 };
+	CHECK(meow::meowmenu_queue_complete_result_frame(window,
+			applications_result));
+	CHECK(meow::meowmenu_schedule_mapped_result_frame(window,
+			window, applications_result, &applications_frame_id,
+			+[](void* data) -> bool
+			{
+				auto* preparation = static_cast<HiddenPreparation*>(data);
+				++preparation->calls;
+				return gtk_widget_get_mapped(preparation->result);
+			}, &applications_preparation));
+	gtk_test_widget_wait_for_draw(window);
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	CHECK(applications_preparation.calls > 0);
+	CHECK(applications_frame_id != 0);
+	gtk_stack_set_visible_child_name(GTK_STACK(contents), "applications");
+	gtk_test_widget_wait_for_draw(window);
+	gtk_test_widget_wait_for_draw(applications_result);
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	for (int frame = 0; applications_frame_id != 0 && frame < 8; ++frame)
+	{
+		gtk_test_widget_wait_for_draw(window);
+		while (g_main_context_pending(nullptr))
+			g_main_context_iteration(nullptr, FALSE);
+	}
+	CHECK(gtk_widget_get_mapped(applications_result));
+	CHECK(applications_frame_id == 0);
+	CHECK(applications_preparation.calls > 1);
+	CHECK(applications_draws > 0);
+	CHECK(gtk_tree_model_iter_n_children(
+			GTK_TREE_MODEL(applications_model), nullptr) == 3);
+
+	GtkTreePath* favorites_selection = gtk_tree_path_new_from_indices(1, -1);
+	GtkTreePath* applications_selection = gtk_tree_path_new_from_indices(2, -1);
+	gtk_icon_view_select_path(GTK_ICON_VIEW(result), favorites_selection);
+	gtk_icon_view_select_path(GTK_ICON_VIEW(applications_result),
+			applications_selection);
+	const int initial_width = gtk_widget_get_allocated_width(window);
+	const int initial_height = gtk_widget_get_allocated_height(window);
+	for (int transition = 0; transition < 40; ++transition)
+	{
+		gtk_stack_set_visible_child_name(GTK_STACK(contents),
+				(transition % 2) == 0 ? "favorites" : "applications");
+		gtk_test_widget_wait_for_draw(window);
+		while (g_main_context_pending(nullptr))
+			g_main_context_iteration(nullptr, FALSE);
+		CHECK(gtk_icon_view_get_model(GTK_ICON_VIEW(result))
+				== GTK_TREE_MODEL(model));
+		CHECK(gtk_icon_view_get_model(GTK_ICON_VIEW(applications_result))
+				== GTK_TREE_MODEL(applications_model));
+		CHECK(gtk_icon_view_path_is_selected(GTK_ICON_VIEW(result),
+				favorites_selection));
+		CHECK(gtk_icon_view_path_is_selected(GTK_ICON_VIEW(applications_result),
+				applications_selection));
+		CHECK(gtk_widget_get_allocated_width(window) == initial_width);
+		CHECK(gtk_widget_get_allocated_height(window) == initial_height);
+	}
+	gtk_tree_path_free(applications_selection);
+	gtk_tree_path_free(favorites_selection);
+	gtk_widget_destroy(window);
+	g_object_unref(window);
+	g_object_unref(model);
+	g_object_unref(applications_model);
+}
+
+void check_fullscreen_sidebar_selector_keeps_canonical_prefix()
+{
+	MenuCompositionInput input = { LayoutMode::FullScreen, PrimaryEdge::Top,
+			CompositionSidebar::Left, true, true, 4, true,
+			MenuDirection::LeftToRight };
+	const MenuComposition composition = meow_resolve_menu_composition(input);
+	CHECK(composition.apps_places_location == MenuControlLocation::Sidebar);
+
+	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* selector = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	GtkWidget* category = gtk_button_new_with_label("All Applications");
+	g_object_ref_sink(sidebar);
+	gtk_box_pack_start(GTK_BOX(sidebar), selector, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(sidebar), separator, false, false, 4);
+	gtk_box_pack_start(GTK_BOX(sidebar), category, false, false, 0);
+
+	for (int pass = 0; pass < 40; ++pass)
+	{
+		CHECK(meow_box_repack_child(GTK_BOX(sidebar), selector,
+				false, false, false, 0));
+		CHECK(meow_restore_vertical_selector_prefix(GTK_BOX(sidebar),
+				selector, separator));
+		GList* children = gtk_container_get_children(GTK_CONTAINER(sidebar));
+		CHECK(g_list_nth_data(children, 0) == selector);
+		CHECK(g_list_nth_data(children, 1) == separator);
+		CHECK(g_list_nth_data(children, 2) == category);
+		g_list_free(children);
+	}
+
+	gtk_widget_destroy(sidebar);
+	g_object_unref(sidebar);
+}
+
+void check_sidebar_disabled_builtin_headings_identify_empty_and_populated_pages()
+{
+	if (!gtk_init_check(nullptr, nullptr))
+		return;
+
+	GtkWidget* stack = gtk_stack_new();
+	g_object_ref_sink(stack);
+	const char* names[] = { "favorites", "recent", "applications" };
+	const char* labels[] = { "FAVORITES", "RECENTLY USED", "ALL APPLICATIONS" };
+	const int rows[] = { 2, 0, 3 };
+	GtkWidget* headings[3] = { nullptr, nullptr, nullptr };
+	GtkListStore* models[3] = { nullptr, nullptr, nullptr };
+
+	for (int page = 0; page < 3; ++page)
+	{
+		models[page] = gtk_list_store_new(1, G_TYPE_STRING);
+		for (int row = 0; row < rows[page]; ++row)
+		{
+			GtkTreeIter iter;
+			gtk_list_store_append(models[page], &iter);
+			gtk_list_store_set(models[page], &iter, 0, "Application", -1);
+		}
+		GtkWidget* result = gtk_tree_view_new_with_model(
+				GTK_TREE_MODEL(models[page]));
+		GtkWidget* outer = meow::meowmenu_create_default_heading_page(
+				result, labels[page], &headings[page]);
+		gtk_stack_add_named(GTK_STACK(stack), outer, names[page]);
+	}
+	gtk_widget_show_all(stack);
+	for (GtkWidget* heading : headings)
+		gtk_widget_set_visible(heading, TRUE);
+
+	for (int page = 0; page < 3; ++page)
+	{
+		gtk_stack_set_visible_child_name(GTK_STACK(stack), names[page]);
+		CHECK(gtk_widget_get_visible(headings[page]));
+		CHECK(std::string(gtk_label_get_text(GTK_LABEL(headings[page])))
+				== labels[page]);
+		CHECK(gtk_tree_model_iter_n_children(
+				GTK_TREE_MODEL(models[page]), nullptr) == rows[page]);
+	}
+
+	gtk_widget_destroy(stack);
+	g_object_unref(stack);
+	for (GtkListStore* model : models)
+		g_object_unref(model);
+}
+
+void check_radio_group_performs_one_effective_transition()
+{
+	if (!gtk_init_check(nullptr, nullptr))
+		return;
+
+	struct TransitionCounts
+	{
+		int signals = 0;
+		int effective = 0;
+		GtkToggleButton* active = nullptr;
+	};
+	TransitionCounts counts;
+	GtkWidget* first = gtk_radio_button_new(nullptr);
+	GSList* group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(first));
+	GtkWidget* second = gtk_radio_button_new(group);
+	g_object_ref_sink(first);
+	g_object_ref_sink(second);
+	auto callback = +[](GtkToggleButton* button, gpointer data)
+	{
+		TransitionCounts* state = static_cast<TransitionCounts*>(data);
+		++state->signals;
+		if (!category_toggle_transition_is_active(button))
+			return;
+		++state->effective;
+		state->active = button;
+	};
+	g_signal_connect(first, "toggled", G_CALLBACK(callback), &counts);
+	g_signal_connect(second, "toggled", G_CALLBACK(callback), &counts);
+
+	// Programmatic selection emits inactive-old and active-new signals.
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(second), true);
+	CHECK(counts.signals == 2);
+	CHECK(counts.effective == 1);
+	CHECK(counts.active == GTK_TOGGLE_BUTTON(second));
+
+	// GtkButton activation is shared by pointer and keyboard activation paths.
+	gtk_button_clicked(GTK_BUTTON(first));
+	CHECK(counts.signals == 4);
+	CHECK(counts.effective == 2);
+	CHECK(counts.active == GTK_TOGGLE_BUTTON(first));
+	gtk_widget_grab_focus(second);
+	gtk_button_clicked(GTK_BUTTON(second));
+	CHECK(counts.signals == 6);
+	CHECK(counts.effective == 3);
+	CHECK(counts.active == GTK_TOGGLE_BUTTON(second));
+
+	g_object_unref(first);
+	g_object_unref(second);
+}
+
+void check_fullscreen_search_column_does_not_ratchet()
+{
+	if (!gtk_init_check(nullptr, nullptr))
+		return;
+
+	const int workarea_width = 960;
+	const FullscreenMainColumn column =
+			meow_fullscreen_main_column(workarea_width);
+	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	g_object_ref_sink(window);
+	GtkWidget* layout = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* middle = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	GtkWidget* mode = gtk_button_new_with_label("Applications");
+	GtkWidget* search = gtk_search_entry_new();
+	GtkWidget* result_band = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* scroller = gtk_scrolled_window_new(nullptr, nullptr);
+	GtkWidget* result = gtk_icon_view_new();
+	GtkListStore* model = gtk_list_store_new(1, G_TYPE_STRING);
+	for (int row_index = 0; row_index < 64; ++row_index)
+	{
+		GtkTreeIter iter;
+		gtk_list_store_append(model, &iter);
+		gtk_list_store_set(model, &iter, 0, "Application", -1);
+	}
+	gtk_icon_view_set_text_column(GTK_ICON_VIEW(result), 0);
+	gtk_widget_set_size_request(middle, column.width, -1);
+	gtk_box_pack_start(GTK_BOX(middle), mode, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(middle), search, true, true, 0);
+	gtk_box_set_center_widget(GTK_BOX(row), middle);
+	gtk_container_add(GTK_CONTAINER(scroller), result);
+	gtk_widget_set_margin_start(result_band, column.margin);
+	gtk_widget_set_margin_end(result_band, column.margin);
+	gtk_box_pack_start(GTK_BOX(result_band), scroller, true, true, 0);
+	gtk_box_pack_start(GTK_BOX(layout), row, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(layout), result_band, true, true, 0);
+	gtk_container_add(GTK_CONTAINER(window), layout);
+	gtk_widget_set_size_request(window, workarea_width, 600);
+	gtk_widget_show_all(window);
+	gtk_icon_view_set_model(GTK_ICON_VIEW(result), GTK_TREE_MODEL(model));
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+
+	int initial_x = 0;
+	int ignored_y = 0;
+	CHECK(gtk_widget_translate_coordinates(search, window, 0, 0,
+			&initial_x, &ignored_y));
+	const int initial_search_width = gtk_widget_get_allocated_width(search);
+	const int initial_window_width = gtk_widget_get_allocated_width(window);
+	for (int transition = 1; transition <= 40; ++transition)
+	{
+		gtk_icon_view_set_model(GTK_ICON_VIEW(result), nullptr);
+		const int overshoot = transition * 19;
+		const int apparent_result_width = column.width + overshoot;
+		const int toplevel_overshoot = overshoot;
+		const int effective = std::min(column.width,
+				apparent_result_width - toplevel_overshoot);
+		CHECK(effective == column.width);
+		gtk_icon_view_set_columns(GTK_ICON_VIEW(result), -1);
+		gtk_icon_view_set_item_width(GTK_ICON_VIEW(result), -1);
+		gtk_icon_view_set_model(GTK_ICON_VIEW(result), GTK_TREE_MODEL(model));
+		meow::meowmenu_queue_complete_result_frame(window, result);
+		while (g_main_context_pending(nullptr))
+			g_main_context_iteration(nullptr, FALSE);
+		int current_x = 0;
+		CHECK(gtk_widget_translate_coordinates(search, window, 0, 0,
+				&current_x, &ignored_y));
+		CHECK(current_x == initial_x);
+		CHECK(gtk_widget_get_allocated_width(search) == initial_search_width);
+		CHECK(gtk_widget_get_allocated_width(window) == initial_window_width);
+		CHECK(gtk_icon_view_get_columns(GTK_ICON_VIEW(result)) == -1);
+		CHECK(gtk_icon_view_get_item_width(GTK_ICON_VIEW(result)) == -1);
+	}
+
+	gtk_widget_destroy(window);
+	g_object_unref(window);
+	g_object_unref(model);
+}
+
+/* check_resize_frame_plan_keeps_one_axis_specific_transaction:
+ *
+ * Exercises the immutable plan consumed by Window's sole X11 frame callback.
+ * The accepted toplevel widths must reach the result-width update unchanged,
+ * while height-only, origin-only, and no-op frames skip unrelated work.
+ */
+void check_resize_frame_plan_keeps_one_axis_specific_transaction()
+{
+	const InteractiveResize::Rectangle displayed = {100, 200, 640, 480};
+	for (int sample = 1; sample <= 100; ++sample)
+	{
+		const InteractiveResize::Rectangle requested = {
+			100, 200, 640 + sample, 480
+		};
+		const WindowResizeFramePlan plan = window_resize_frame_plan(
+				displayed, requested);
+		CHECK(!plan.empty());
+		CHECK(plan.changes.width);
+		CHECK(!plan.changes.height && !plan.changes.origin);
+		CHECK(plan.current_toplevel_width == displayed.width);
+		CHECK(plan.requested_toplevel_width == requested.width);
+		CHECK(plan.updates_result_width());
+		CHECK(!plan.updates_vertical_overflow());
+		CHECK(!plan.moves_window());
+	}
+
+	WindowResizeFramePlan plan = window_resize_frame_plan(displayed,
+			{100, 200, 640, 520});
+	CHECK(!plan.updates_result_width());
+	CHECK(plan.updates_vertical_overflow());
+	CHECK(!plan.moves_window());
+
+	plan = window_resize_frame_plan(displayed, {90, 180, 640, 480});
+	CHECK(!plan.updates_result_width());
+	CHECK(!plan.updates_vertical_overflow());
+	CHECK(plan.moves_window());
+
+	plan = window_resize_frame_plan(displayed, displayed);
+	CHECK(plan.empty());
+	CHECK(!plan.updates_result_width());
+	CHECK(!plan.updates_vertical_overflow());
+	CHECK(!plan.moves_window());
+}
+
 }
 
 int main()
@@ -424,6 +872,12 @@ int main()
 	check_horizontal_secondary_boundary_keeps_layout_geometry();
 	check_contents_frame_margin_follows_adjacent_secondary_band();
 	check_results_clip_tracks_real_grid_boundary();
+	check_mapped_result_frame_orders_preparation_and_damage();
+	check_fullscreen_sidebar_selector_keeps_canonical_prefix();
+	check_sidebar_disabled_builtin_headings_identify_empty_and_populated_pages();
+	check_radio_group_performs_one_effective_transition();
+	check_fullscreen_search_column_does_not_ratchet();
+	check_resize_frame_plan_keeps_one_axis_specific_transaction();
 	if (!gtk_init_check(nullptr, nullptr))
 	{
 		std::printf("# SKIP: GTK could not initialise (no display)\n");
@@ -457,6 +911,28 @@ int main()
 			== MenuMode::Applications);
 	CHECK(resolve_opening_mode(true, true, "places")
 			== MenuMode::Places);
+	CHECK(resolve_application_opening_target(Settings::CategoryFavorites,
+			true, true) == ApplicationOpeningTarget::Favorites);
+	CHECK(resolve_application_opening_target(Settings::CategoryRecent,
+			true, true) == ApplicationOpeningTarget::Recent);
+	CHECK(resolve_application_opening_target(Settings::CategoryRecent,
+			true, false) == ApplicationOpeningTarget::All);
+	CHECK(resolve_application_opening_target(Settings::CategoryFavorites,
+			false, true) == ApplicationOpeningTarget::All);
+	CHECK(resolve_application_opening_target(Settings::CategoryAll,
+			false, false) == ApplicationOpeningTarget::All);
+	const InteractiveResize::Rectangle displayed = {100, 100, 640, 480};
+	WindowGeometryChanges changes = window_geometry_changes(displayed,
+			{100, 100, 700, 480});
+	CHECK(changes.width && !changes.height && !changes.origin);
+	changes = window_geometry_changes(displayed, {100, 100, 640, 520});
+	CHECK(!changes.width && changes.height && !changes.origin);
+	changes = window_geometry_changes(displayed, {90, 100, 640, 480});
+	CHECK(!changes.width && !changes.height && changes.origin);
+	CHECK(window_geometry_changes(displayed, displayed).empty());
+	CHECK(window_resize_frame_should_schedule(0, true));
+	CHECK(!window_resize_frame_should_schedule(7, true));
+	CHECK(!window_resize_frame_should_schedule(0, false));
 
 	ModeWidgets widgets;
 	for (MenuMode mode : { MenuMode::Applications, MenuMode::Places })

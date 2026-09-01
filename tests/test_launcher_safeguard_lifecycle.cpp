@@ -211,7 +211,8 @@ int main()
 	gtk_container_add(GTK_CONTAINER(scrolled), view->get_widget());
 	int before = g_get_widget_calls;
 	view->request_content_redraw();
-	CHECK(g_get_widget_calls == before);
+	CHECK(g_get_widget_calls > before);
+	before = g_get_widget_calls;
 	view->set_full_redraw_safeguard(true);
 	view->request_content_redraw();
 	CHECK(g_get_widget_calls > before);

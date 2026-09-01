@@ -18,6 +18,42 @@ using namespace WhiskerMenu;
 int main()
 {
 	int failures = 0;
+	struct PresetSurface
+	{
+		const char* name;
+		int opacity;
+		LauncherViewKind kind;
+		bool transparent;
+		bool sidebar;
+		bool hover;
+		bool places;
+		int default_category;
+		bool expected_safeguard;
+	};
+	const PresetSurface presets[] = {
+		{ "Classic", 100, LauncherViewKind::List, false,
+				true, false, false, 0, false },
+		{ "Modern", 100, LauncherViewKind::IconGrid, true,
+				true, true, true, 1, true },
+		{ "Full Screen", 80, LauncherViewKind::IconGrid, true,
+				true, true, true, 2, true },
+		{ "Minimal", 60, LauncherViewKind::List, false,
+				false, true, true, 1, true },
+	};
+	for (const PresetSurface& preset : presets)
+	{
+		(void)preset.sidebar;
+		(void)preset.hover;
+		(void)preset.places;
+		(void)preset.default_category;
+		if (full_redraw_safeguard_required(preset.opacity, preset.kind,
+				preset.transparent) != preset.expected_safeguard)
+		{
+			std::fprintf(stderr, "FAIL preset=%s\n", preset.name);
+			++failures;
+		}
+	}
+
 	for (int opacity : { 0, 1, 99, 100 })
 	{
 		for (LauncherViewKind kind : {

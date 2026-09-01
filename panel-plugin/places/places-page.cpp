@@ -13,6 +13,7 @@
 #include "favourites-section.h"
 #include "history-section.h"
 #include "home-section.h"
+#include "core/window-frame.h"
 #include "launcher/page.h"
 #include "ui/grid-cell-metrics.h"
 #include "ui/grid-presentation.h"
@@ -53,6 +54,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_empty_message(nullptr),
 	m_model(nullptr),
 	m_viewport_width(0),
+	m_present_tick_id(0),
 	m_item_dragged(false),
 	m_pressed_drag_item(nullptr),
 	m_pressed_drag_info(0),
@@ -84,6 +86,11 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 			{
 				sync_viewport_width();
 			});
+	connect(m_widget, "map",
+			[this](GtkWidget*)
+			{
+				present();
+			});
 
 	m_empty_message = gtk_label_new(_("No items to show."));
 	gtk_widget_set_halign(m_empty_message, GTK_ALIGN_CENTER);
@@ -95,6 +102,8 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 
 PlacesPage::~PlacesPage()
 {
+	meow::meowmenu_cancel_mapped_result_frame(
+			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
 	clear_drag_state();
 	cancel_home_search();
 	clear_home_search_items();
@@ -218,6 +227,8 @@ void PlacesPage::reload_view()
 		return;
 	}
 
+	meow::meowmenu_cancel_mapped_result_frame(
+			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
 	gtk_container_remove(GTK_CONTAINER(m_widget), m_view->get_widget());
 	delete m_view;
 	m_view = nullptr;
@@ -232,26 +243,51 @@ void PlacesPage::reload_view()
 /* sync_viewport_width:
  *
  * Supplies the Places grid with the same effective Results allocation used by
- * application pages. Toplevel overshoot is removed so explicit grid columns
- * cannot feed their current requisition back into the next allocation.
+ * application pages. Toplevel overshoot and the Full Screen main-column cap
+ * prevent explicit grid columns from feeding their current requisition back
+ * into the next allocation.
  */
 void PlacesPage::sync_viewport_width()
 {
 	if (!m_view || !GTK_IS_SCROLLED_WINDOW(m_widget))
 		return;
 	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
-	int requested_width = -1;
-	if (GTK_IS_WIDGET(toplevel)
-			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0)
-	{
-		gtk_widget_get_size_request(toplevel, &requested_width, nullptr);
-	}
 	m_viewport_width = meow_grid_effective_viewport_width(
 			gtk_widget_get_allocated_width(m_widget),
 			GTK_IS_WIDGET(toplevel)
 					? gtk_widget_get_allocated_width(toplevel) : 0,
-			requested_width);
+			m_window->get_result_toplevel_width_authority(),
+			m_window->get_result_viewport_width_cap());
 	m_view->set_viewport_width(m_viewport_width);
+}
+
+//-----------------------------------------------------------------------------
+
+/* PlacesPage::present:
+ *
+ * Applies the same immediate and mapped-frame two-surface presentation
+ * boundary as application pages after a Places section or mode becomes visible.
+ */
+void PlacesPage::present()
+{
+	if (!m_view)
+		return;
+	sync_viewport_width();
+	GtkWidget* toplevel = gtk_widget_get_toplevel(m_widget);
+	const bool ready = m_view->prepare_presentation();
+	meow::meowmenu_queue_complete_result_frame(
+			toplevel, m_view->get_widget());
+	if (!ready)
+	{
+		meow::meowmenu_schedule_mapped_result_frame(toplevel,
+				toplevel, m_view->get_widget(),
+				&m_present_tick_id,
+				+[](void* data) -> bool
+				{
+					return static_cast<LauncherView*>(data)
+							->prepare_presentation();
+				}, m_view);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -279,14 +315,6 @@ void PlacesPage::prepare_viewport_resize(int current_toplevel_width,
 		return;
 	m_viewport_width = viewport_width;
 	m_view->set_viewport_width(m_viewport_width);
-}
-
-//-----------------------------------------------------------------------------
-
-void PlacesPage::set_interactive_resize(bool active)
-{
-	if (m_view)
-		m_view->set_interactive_resize(active);
 }
 
 //-----------------------------------------------------------------------------

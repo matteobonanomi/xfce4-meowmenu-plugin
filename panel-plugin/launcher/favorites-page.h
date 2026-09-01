@@ -20,6 +20,7 @@
 
 #include "page.h"
 
+#include <string>
 #include <vector>
 
 namespace WhiskerMenu
@@ -43,9 +44,11 @@ public:
 private:
 	void extend_context_menu(GtkWidget* menu) override;
 	bool remember_launcher(Launcher* launcher) override;
-	void on_row_changed(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter);
-	void on_row_inserted(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter);
-	void on_row_deleted(GtkTreePath* path);
+	void on_rows_reordered(GtkTreeModel* model);
+	std::vector<std::string> stored_ids() const;
+	std::vector<std::string> available_ids() const;
+	std::vector<std::string> visible_ids(GtkTreeModel* model) const;
+	void apply_resolved_order(const std::vector<std::string>& order);
 	std::vector<Launcher*> sort() const;
 	void sort_ascending();
 	void sort_descending();

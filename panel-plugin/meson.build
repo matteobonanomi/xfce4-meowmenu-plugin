@@ -2,6 +2,7 @@ plugin_sources = [
   'config/xfce-helpers.cpp',
   'launcher/applications-page.cpp',
   'launcher/application-load-generation.cpp',
+  'launcher/favorite-projection.cpp',
   'presets/preset.cpp',
   'presets/preset-builtins.cpp',
   'presets/preset-io.cpp',

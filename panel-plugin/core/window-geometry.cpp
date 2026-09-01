@@ -142,8 +142,6 @@ bool WhiskerMenu::Window::interactive_resize_begin(
 		return false;
 	}
 
-	if (policy == InteractiveResize::BackendPolicy::X11Live)
-		set_results_interactive_resize(true);
 	start_resize_display_watch(gdk_monitor);
 	m_resizing = true;
 	set_child_has_focus();
@@ -162,26 +160,81 @@ bool WhiskerMenu::Window::interactive_resize_begin(
 void WhiskerMenu::Window::apply_resize_rectangle(
 		const InteractiveResize::Rectangle& rectangle)
 {
-	const bool size_changed = set_size(rectangle.width, rectangle.height);
+	const InteractiveResize::Rectangle displayed = {
+		m_geometry.x, m_geometry.y, m_geometry.width, m_geometry.height
+	};
+	const WindowResizeFramePlan plan =
+			window_resize_frame_plan(displayed, rectangle);
+	if (plan.empty())
+		return;
+
+	// set_size() synchronously forwards this exact accepted width to the active
+	// result before requesting the matching toplevel allocation.
+	const bool size_changed = set_size(plan.requested_toplevel_width,
+			rectangle.height);
 	m_geometry.x = rectangle.x;
 	m_geometry.y = rectangle.y;
 
+	if (plan.moves_window())
+	{
 #ifdef HAVE_GTK_LAYER_SHELL
-	if (gtk_layer_is_supported())
-	{
-		gtk_layer_set_margin(m_window, GTK_LAYER_SHELL_EDGE_LEFT,
-				m_geometry.x - m_monitor.x);
-		gtk_layer_set_margin(m_window, GTK_LAYER_SHELL_EDGE_TOP,
-				m_geometry.y - m_monitor.y);
-	}
-	else
+		if (gtk_layer_is_supported())
+		{
+			gtk_layer_set_margin(m_window, GTK_LAYER_SHELL_EDGE_LEFT,
+					m_geometry.x - m_monitor.x);
+			gtk_layer_set_margin(m_window, GTK_LAYER_SHELL_EDGE_TOP,
+					m_geometry.y - m_monitor.y);
+		}
+		else
 #endif
-	{
-		gtk_window_move(m_window, m_geometry.x, m_geometry.y);
+		{
+			gtk_window_move(m_window, m_geometry.x, m_geometry.y);
+		}
 	}
 
-	if (size_changed)
+	if (plan.updates_vertical_overflow())
 		check_scrollbar_needed();
+	if (size_changed || plan.moves_window())
+		gtk_widget_queue_draw(GTK_WIDGET(m_window));
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::schedule_resize_frame:
+ *
+ * Owns the single X11 frame callback for a resize transaction. Motion updates
+ * only the pending rectangle; the callback consumes the newest valid request
+ * and acknowledges it as displayed before another frame can be scheduled.
+ */
+void WhiskerMenu::Window::schedule_resize_frame()
+{
+	if (!window_resize_frame_should_schedule(m_resize_tick_id,
+			m_resize_transaction.frame_pending()))
+		return;
+	m_resize_tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(m_window),
+		+[](GtkWidget*, GdkFrameClock*, gpointer data) -> gboolean
+		{
+			Window* self = static_cast<Window*>(data);
+			self->m_resize_tick_id = 0;
+			InteractiveResize::Rectangle pending = {};
+			if (self->m_resize_transaction.take_pending(&pending))
+			{
+				self->apply_resize_rectangle(pending);
+				self->m_resize_transaction.mark_displayed(pending);
+			}
+			return G_SOURCE_REMOVE;
+		}, this, nullptr);
+}
+
+//-----------------------------------------------------------------------------
+
+void WhiskerMenu::Window::cancel_resize_frame()
+{
+	if (m_resize_tick_id != 0)
+	{
+		gtk_widget_remove_tick_callback(GTK_WIDGET(m_window), m_resize_tick_id);
+		m_resize_tick_id = 0;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -189,9 +242,8 @@ void WhiskerMenu::Window::apply_resize_rectangle(
 /* Window::interactive_resize_step:
  * @pointer: next event-time pointer coordinate.
  *
- * Advances the transaction. X11 applies accepted geometry immediately, while
- * release-to-apply policies leave GTK untouched until completion. Icon grids
- * keep stable preview cells so immediate delivery stays lightweight.
+ * Advances the transaction. X11 schedules the Window-owned frame transaction,
+ * while release-to-apply policies leave GTK untouched until completion.
  *
  * Returns: true when the active transaction accepted the sample.
  */
@@ -204,7 +256,7 @@ bool WhiskerMenu::Window::interactive_resize_step(
 	if (m_resize_transaction.policy()
 			== InteractiveResize::BackendPolicy::X11Live)
 	{
-		apply_resize_rectangle(accepted);
+		schedule_resize_frame();
 	}
 	return true;
 }
@@ -255,6 +307,7 @@ bool WhiskerMenu::Window::interactive_resize_complete(
 	if (!m_resize_transaction.active())
 		return false;
 
+	cancel_resize_frame();
 	InteractiveResize::Rectangle accepted = {};
 	InteractiveResize::SavedNormalSize saved = {};
 	if (!m_resize_transaction.complete(pointer, &accepted, &saved))
@@ -262,7 +315,7 @@ bool WhiskerMenu::Window::interactive_resize_complete(
 
 	stop_resize_display_watch();
 	apply_resize_rectangle(accepted);
-	set_results_interactive_resize(false);
+	m_resize_transaction.mark_displayed(accepted);
 	m_settings->menu_width = saved.width;
 	m_settings->menu_height = saved.height;
 	settle_resize_position();
@@ -291,6 +344,7 @@ bool WhiskerMenu::Window::interactive_resize_cancel()
 	if (!m_resize_transaction.active())
 		return false;
 
+	cancel_resize_frame();
 	InteractiveResize::Rectangle restored = {};
 	InteractiveResize::SavedNormalSize saved = {};
 	if (!m_resize_transaction.cancel(&restored, &saved))
@@ -298,7 +352,6 @@ bool WhiskerMenu::Window::interactive_resize_cancel()
 
 	stop_resize_display_watch();
 	apply_resize_rectangle(restored);
-	set_results_interactive_resize(false);
 	// Motion never changes Xfconf. The snapshot is returned for contract
 	// verification, but rollback deliberately performs no settings assignment.
 	(void)saved;

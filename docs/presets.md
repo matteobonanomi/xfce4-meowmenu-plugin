@@ -59,7 +59,7 @@ Launcher fills the entire screen over a translucent backdrop (menu opacity
 80%). The single primary row stays at the top with Profile and Session shown.
 Ideal for touch or keyboard-first workflows. Places is enabled, and the left
 category sidebar uses Small (32 px) icons. The Apps/Places switch uses text
-labels.
+labels and remains the first control at the top of the sidebar.
 
 
 ### Minimal
@@ -71,6 +71,9 @@ sidebar, Profile, or Session controls. Opens centred on screen in a
 short window with a lightly translucent background (menu opacity 60%), Places
 enabled with icons, opening on the Recent category. Switch to any other built-in
 to bring the sidebar, Profile, and Session controls back.
+The `RECENTLY USED` heading remains visible when no applications have been used
+yet; populated sidebar-free Favourites or All Applications defaults use their
+matching headings and paint immediately.
 
 Calculator defaults are **None / Auto / 4** for Classic and **bc / Auto / 4**
 for Modern, Full Screen, and Minimal. The Apps/Places switch uses icons in

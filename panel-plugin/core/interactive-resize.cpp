@@ -17,21 +17,17 @@ using namespace WhiskerMenu::InteractiveResize;
 namespace
 {
 
-/* clamp_axis:
+/* axis_within_bounds:
  * @value: wide candidate size.
  * @bounds: accepted inclusive range; reversed values are normalized.
  *
- * Returns: @value clamped before conversion to a window integer.
+ * Returns: true when @value belongs to the complete accepted range.
  */
-int clamp_axis(__int128 value, const AxisBounds& bounds)
+bool axis_within_bounds(__int128 value, const AxisBounds& bounds)
 {
 	const int low = std::min(bounds.minimum, bounds.maximum);
 	const int high = std::max(bounds.minimum, bounds.maximum);
-	if (value < low)
-		return low;
-	if (value > high)
-		return high;
-	return static_cast<int>(value);
+	return value >= low && value <= high;
 }
 
 /* clamp_window_integer:
@@ -46,6 +42,14 @@ int clamp_window_integer(__int128 value)
 	if (value > std::numeric_limits<int>::max())
 		return std::numeric_limits<int>::max();
 	return static_cast<int>(value);
+}
+
+bool same_rectangle(const Rectangle& left, const Rectangle& right)
+{
+	return left.x == right.x
+			&& left.y == right.y
+			&& left.width == right.width
+			&& left.height == right.height;
 }
 
 } // namespace
@@ -159,71 +163,78 @@ Rectangle WhiskerMenu::InteractiveResize::place_docked(
 	const std::int64_t maximum_y = static_cast<std::int64_t>(monitor.y)
 			+ monitor.height - base.height;
 	Rectangle result = base;
-	result.x = clamp_axis(x,
-			{monitor.x, clamp_window_integer(maximum_x)});
-	result.y = clamp_axis(y,
-			{monitor.y, clamp_window_integer(maximum_y)});
+	result.x = std::max(monitor.x,
+			std::min(clamp_window_integer(maximum_x),
+					clamp_window_integer(x)));
+	result.y = std::max(monitor.y,
+			std::min(clamp_window_integer(maximum_y),
+					clamp_window_integer(y)));
 	return result;
 }
 
-/* reduce:
- * See interactive-resize.h for the independent-axis reducer contract.
+/* calculate_candidate:
+ * See interactive-resize.h for the absolute request-validation contract.
  */
-Rectangle WhiskerMenu::InteractiveResize::reduce(
-		ReducerState& state,
-		const PointerSample& sample)
+bool WhiskerMenu::InteractiveResize::calculate_candidate(
+		const ReducerState& state,
+		const PointerSample& sample,
+		Rectangle* candidate)
 {
-	if (sample.space != state.last_pointer.space)
-		return state.current;
+	if (!candidate)
+		return false;
+	*candidate = state.last_displayed;
+	if (sample.space != state.press_pointer.space)
+		return false;
 
 	const DirectionAxes axes = direction_axes(state.direction);
 	const __int128 delta_x = static_cast<__int128>(sample.x)
-			- state.last_pointer.x;
+			- state.press_pointer.x;
 	const __int128 delta_y = static_cast<__int128>(sample.y)
-			- state.last_pointer.y;
+			- state.press_pointer.y;
 	const int scale = state.anchor.kind == AnchorKind::MonitorCenter ? 2 : 1;
 
-	int width = state.current.width;
-	int height = state.current.height;
+	__int128 width = state.press_rectangle.width;
+	__int128 height = state.press_rectangle.height;
 	if (axes.horizontal)
-	{
-		width = clamp_axis(static_cast<__int128>(width)
-				+ (delta_x * axes.horizontal * scale), state.bounds.width);
-	}
+		width += delta_x * axes.horizontal * scale;
 	if (axes.vertical)
+		height += delta_y * axes.vertical * scale;
+
+	// Corner requests are atomic: one invalid selected axis rejects both.
+	if ((axes.horizontal && !axis_within_bounds(width, state.bounds.width))
+			|| (axes.vertical
+					&& !axis_within_bounds(height, state.bounds.height)))
 	{
-		height = clamp_axis(static_cast<__int128>(height)
-				+ (delta_y * axes.vertical * scale), state.bounds.height);
+		return false;
 	}
 
-	Rectangle accepted = state.current;
-	accepted.width = width;
-	accepted.height = height;
+	Rectangle accepted = state.press_rectangle;
+	accepted.width = static_cast<int>(width);
+	accepted.height = static_cast<int>(height);
 	if (state.anchor.kind == AnchorKind::MonitorCenter)
 	{
 		accepted.x = clamp_window_integer(
-				(state.anchor.center_x_twice - width) / 2);
+				(static_cast<__int128>(state.anchor.center_x_twice) - width) / 2);
 		accepted.y = clamp_window_integer(
-				(state.anchor.center_y_twice - height) / 2);
+				(static_cast<__int128>(state.anchor.center_y_twice) - height) / 2);
 	}
 	else
 	{
 		if (axes.horizontal < 0)
-			accepted.x = clamp_window_integer(state.anchor.right - width);
+			accepted.x = clamp_window_integer(
+					static_cast<__int128>(state.anchor.right) - width);
 		else if (axes.horizontal > 0)
 			accepted.x = clamp_window_integer(state.anchor.left);
 
 		if (axes.vertical < 0)
-			accepted.y = clamp_window_integer(state.anchor.bottom - height);
+			accepted.y = clamp_window_integer(
+					static_cast<__int128>(state.anchor.bottom) - height);
 		else if (axes.vertical > 0)
 			accepted.y = clamp_window_integer(state.anchor.top);
 	}
 
-	// A constrained sample still becomes the new baseline. This intentionally
-	// drops excess movement instead of creating a reversal dead zone.
-	state.last_pointer = sample;
-	state.current = accepted;
-	return accepted;
+	*candidate = accepted;
+	return true;
 }
 
 /* Transaction::Transaction:
@@ -234,17 +245,24 @@ Rectangle WhiskerMenu::InteractiveResize::reduce(
 Transaction::Transaction() :
 	m_lifecycle(Lifecycle::Idle),
 	m_policy(BackendPolicy::X11Live),
-	m_reducer{
+	m_geometry{
 		Direction::BottomRight,
 		{0, 0, 1, 1},
 		{0, 0, 0, CoordinateSpace::Screen},
 		{{1, 1}, {1, 1}},
-		{AnchorKind::OppositeEdge, 0, 1, 0, 1, 0, 0}},
+		{AnchorKind::OppositeEdge, 0, 1, 0, 1, 0, 0},
+		{0, 0, 1, 1}},
+	m_latest_input{0, 0, 0, CoordinateSpace::Screen},
+	m_pending_geometry{0, 0, 1, 1},
+	m_terminal_rectangle{0, 0, 1, 1},
 	m_pre_drag{0, 0, 1, 1},
 	m_saved_before{1, 1},
 	m_saved_after{1, 1},
 	m_display{0, {0, 0, 1, 1}, {0, 0, 1, 1}, 1, 0},
-	m_normal_presentation(true)
+	m_normal_presentation(true),
+	m_has_pending_geometry(false),
+	m_frame_pending(false),
+	m_completion_valid(false)
 {
 }
 
@@ -266,12 +284,18 @@ bool Transaction::begin(
 		return false;
 
 	m_policy = policy;
-	m_reducer = {direction, rectangle, pointer, bounds, anchor};
+	m_geometry = {direction, rectangle, pointer, bounds, anchor, rectangle};
+	m_latest_input = pointer;
+	m_pending_geometry = rectangle;
+	m_terminal_rectangle = rectangle;
 	m_pre_drag = rectangle;
 	m_saved_before = saved_size;
 	m_saved_after = saved_size;
 	m_display = display;
 	m_normal_presentation = normal_presentation;
+	m_has_pending_geometry = false;
+	m_frame_pending = false;
+	m_completion_valid = false;
 	m_lifecycle = Lifecycle::Active;
 	return true;
 }
@@ -283,13 +307,55 @@ bool Transaction::motion(
 		const PointerSample& sample,
 		Rectangle* accepted)
 {
-	if (!active() || sample.space != m_reducer.last_pointer.space)
+	if (!active() || sample.space != m_geometry.press_pointer.space)
 		return false;
 
-	if (m_policy == BackendPolicy::X11Live)
-		reduce(m_reducer, sample);
-	*accepted = m_reducer.current;
+	m_latest_input = sample;
+	*accepted = m_geometry.last_displayed;
+	if (m_policy == BackendPolicy::WaylandReleaseToApply)
+		return true;
+
+	Rectangle candidate = {};
+	const bool valid = calculate_candidate(m_geometry, sample, &candidate);
+	m_has_pending_geometry = valid
+			&& !same_rectangle(candidate, m_geometry.last_displayed);
+	if (m_has_pending_geometry)
+	{
+		m_pending_geometry = candidate;
+		m_frame_pending = true;
+		*accepted = candidate;
+	}
+	else if (!valid)
+	{
+		// A queued callback may still run, but it must not display an older
+		// valid request after newer invalid input was received.
+		m_has_pending_geometry = false;
+	}
 	return true;
+}
+
+/* Transaction::take_pending:
+ * See interactive-resize.h for single-frame delivery ownership.
+ */
+bool Transaction::take_pending(Rectangle* pending)
+{
+	if (!pending || !m_frame_pending)
+		return false;
+
+	m_frame_pending = false;
+	if (!m_has_pending_geometry)
+		return false;
+	*pending = m_pending_geometry;
+	m_has_pending_geometry = false;
+	return true;
+}
+
+/* Transaction::mark_displayed:
+ * See interactive-resize.h for Window acknowledgement semantics.
+ */
+void Transaction::mark_displayed(const Rectangle& rectangle)
+{
+	m_geometry.last_displayed = rectangle;
 }
 
 /* Transaction::complete:
@@ -302,23 +368,27 @@ bool Transaction::complete(
 {
 	if (m_lifecycle == Lifecycle::Completed)
 	{
-		*accepted = m_reducer.current;
+		*accepted = m_terminal_rectangle;
 		*saved_size = m_saved_after;
 		return true;
 	}
-	if (!active() || release.space != m_reducer.last_pointer.space)
+	if (!active() || release.space != m_geometry.press_pointer.space)
 		return false;
 
-	// X11 consumes movement after the last motion event; Wayland consumes the
-	// complete press-to-release displacement because motion kept the baseline.
-	reduce(m_reducer, release);
-	if (m_normal_presentation)
+	m_latest_input = release;
+	m_has_pending_geometry = false;
+	m_frame_pending = false;
+	Rectangle candidate = {};
+	m_completion_valid = calculate_candidate(m_geometry, release, &candidate);
+	m_terminal_rectangle = m_completion_valid
+			? candidate : m_geometry.last_displayed;
+	if (m_normal_presentation && m_completion_valid)
 	{
-		m_saved_after.width = m_reducer.current.width;
-		m_saved_after.height = m_reducer.current.height;
+		m_saved_after.width = m_terminal_rectangle.width;
+		m_saved_after.height = m_terminal_rectangle.height;
 	}
 	m_lifecycle = Lifecycle::Completed;
-	*accepted = m_reducer.current;
+	*accepted = m_terminal_rectangle;
 	*saved_size = m_saved_after;
 	return true;
 }
@@ -330,9 +400,18 @@ bool Transaction::cancel(
 		Rectangle* restored,
 		SavedNormalSize* saved_size)
 {
+	if (m_lifecycle == Lifecycle::Cancelled)
+	{
+		*restored = m_pre_drag;
+		*saved_size = m_saved_before;
+		return true;
+	}
 	if (m_lifecycle == Lifecycle::Completed || m_lifecycle == Lifecycle::Idle)
 		return false;
 
+	m_has_pending_geometry = false;
+	m_frame_pending = false;
+	m_terminal_rectangle = m_pre_drag;
 	m_lifecycle = Lifecycle::Cancelled;
 	*restored = m_pre_drag;
 	*saved_size = m_saved_before;

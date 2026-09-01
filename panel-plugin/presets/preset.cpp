@@ -17,7 +17,6 @@
 
 #include "preset.h"
 #include "preset-io.h"
-#include "settings-defaults.h"
 #include "settings.h"
 
 #include <cstring>
@@ -37,6 +36,13 @@ static std::vector<LayoutPreset> g_user_presets;
 // When non-empty, these shadow BUILTIN_PRESETS[] for matching ids.
 // ---------------------------------------------------------------------------
 static std::vector<LayoutPreset> g_file_presets;
+
+// Retain obsolete startup-reset markers as inert history. Neither startup nor
+// an explicit settings reset uses them to authorize configuration changes.
+static constexpr const char* LEGACY_RESET_GENERATION_KEY =
+	"/migration/composition-reset-generation";
+static constexpr const char* LEGACY_RESET_STATE_KEY =
+	"/migration/composition-reset-state";
 
 // NOTE: BUILTIN_PRESETS[] and governed_keys() live in preset-builtins.cpp —
 // a Settings-free translation unit so the unit tests can link the real table
@@ -668,10 +674,10 @@ int WhiskerMenu::reset_settings_to_defaults(XfconfChannel* channel,
 			rel.erase(0, property_base.size());
 		}
 
-		// Preserve saved user presets and the completed lifecycle boundary.
+		// Preserve saved user presets and inert legacy migration markers.
 		if (g_str_has_prefix(rel.c_str(), "/presets")
-				|| rel == COMPOSITION_RESET_GENERATION_KEY
-				|| rel == COMPOSITION_RESET_STATE_KEY)
+				|| rel == LEGACY_RESET_GENERATION_KEY
+				|| rel == LEGACY_RESET_STATE_KEY)
 		{
 			continue;
 		}
@@ -682,42 +688,4 @@ int WhiskerMenu::reset_settings_to_defaults(XfconfChannel* channel,
 
 	g_hash_table_unref(props);
 	return reset_count;
-}
-
-bool WhiskerMenu::reset_instance_for_composition_upgrade(
-	XfconfChannel* channel,
-	const std::string& property_base)
-{
-	if (!channel || !valid_meowmenu_property_base(property_base.c_str()))
-		return false;
-	if (!xfconf_channel_set_int(channel, COMPOSITION_RESET_GENERATION_KEY,
-			COMPOSITION_RESET_GENERATION)
-			|| !xfconf_channel_set_string(channel, COMPOSITION_RESET_STATE_KEY,
-				"pending"))
-	{
-		return false;
-	}
-
-	GHashTable* props = xfconf_channel_get_properties(channel, nullptr);
-	if (!props)
-		return true;
-
-	GHashTableIter iter;
-	gpointer key_ptr = nullptr;
-	gpointer value_ptr = nullptr;
-	g_hash_table_iter_init(&iter, props);
-	while (g_hash_table_iter_next(&iter, &key_ptr, &value_ptr))
-	{
-		(void)value_ptr;
-		std::string rel(static_cast<const gchar*>(key_ptr));
-		if (rel.compare(0, property_base.size(), property_base) == 0)
-			rel.erase(0, property_base.size());
-		if (rel.empty()
-				|| rel == COMPOSITION_RESET_GENERATION_KEY
-				|| rel == COMPOSITION_RESET_STATE_KEY)
-			continue;
-		xfconf_channel_reset_property(channel, rel.c_str(), FALSE);
-	}
-	g_hash_table_unref(props);
-	return true;
 }

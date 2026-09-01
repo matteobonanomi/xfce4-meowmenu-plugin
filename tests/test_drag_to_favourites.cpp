@@ -7,6 +7,7 @@
  */
 
 #include "panel-plugin/core/drag-to-favourites.h"
+#include "panel-plugin/launcher/favorite-projection.h"
 #include "panel-plugin/ui/icon-size.h"
 
 #include <cassert>
@@ -41,35 +42,6 @@ struct DropSimulation
 		return append_unique(values, value);
 	}
 };
-
-static std::vector<std::string> prune_existing_desktop_ids(
-		std::vector<std::string>& favorites,
-		const std::vector<std::string>& available)
-{
-	std::vector<std::string> visible;
-	for (auto it = favorites.begin(); it != favorites.end(); )
-	{
-		bool exists = false;
-		for (const auto& desktop_id : available)
-		{
-			if (*it == desktop_id)
-			{
-				exists = true;
-				break;
-			}
-		}
-
-		if (!exists)
-		{
-			it = favorites.erase(it);
-			continue;
-		}
-
-		visible.push_back(*it);
-		++it;
-	}
-	return visible;
-}
 
 // ---------------------------------------------------------------------------
 
@@ -166,9 +138,9 @@ static void test_favourite_drag_uses_small_preview()
 	assert(favourite_drag_preview_size() == IconSize::pixels_for(IconSize::Small));
 }
 
-static void test_missing_application_favourites_are_pruned()
+static void test_missing_application_favourites_are_projected_without_writes()
 {
-	std::vector<std::string> stored = {
+	const std::vector<std::string> stored = {
 		"terminal.desktop",
 		"removed.desktop",
 		"browser.desktop",
@@ -178,11 +150,52 @@ static void test_missing_application_favourites_are_pruned()
 		"browser.desktop",
 	};
 
-	const auto visible = prune_existing_desktop_ids(stored, available);
+	const auto visible = favorite_resolved_projection(stored, available);
 	assert((visible == std::vector<std::string>{
 			"terminal.desktop", "browser.desktop" }));
 	assert((stored == std::vector<std::string>{
-			"terminal.desktop", "browser.desktop" }));
+		"terminal.desktop", "removed.desktop", "browser.desktop" }));
+}
+
+static void test_resolved_edits_preserve_unresolved_slots()
+{
+	const std::vector<std::string> stored = {
+		"terminal.desktop", "missing-a.desktop", "files.desktop",
+		"missing-b.desktop", "browser.desktop",
+	};
+	const std::vector<std::string> available = {
+		"terminal.desktop", "files.desktop", "browser.desktop",
+	};
+	const std::vector<std::string> reordered = {
+		"browser.desktop", "terminal.desktop", "files.desktop",
+	};
+	assert((favorite_merge_resolved_order(stored, reordered, available)
+			== std::vector<std::string>{
+				"browser.desktop", "missing-a.desktop", "terminal.desktop",
+				"missing-b.desktop", "files.desktop" }));
+
+	std::vector<std::string> edited(stored);
+	assert(favorite_remove_exact(edited, "files.desktop"));
+	assert(!favorite_remove_exact(edited, "unknown.desktop"));
+	assert(favorite_append_exact(edited, "editor.desktop"));
+	assert(!favorite_append_exact(edited, "editor.desktop"));
+	assert((edited == std::vector<std::string>{
+		"terminal.desktop", "missing-a.desktop", "missing-b.desktop",
+		"browser.desktop", "editor.desktop" }));
+}
+
+static void test_invalid_resolved_order_is_rejected()
+{
+	const std::vector<std::string> stored = {
+		"terminal.desktop", "missing.desktop", "browser.desktop",
+	};
+	const std::vector<std::string> available = {
+		"terminal.desktop", "browser.desktop",
+	};
+	assert(favorite_merge_resolved_order(stored,
+			{ "terminal.desktop" }, available) == stored);
+	assert(favorite_merge_resolved_order(stored,
+			{ "terminal.desktop", "editor.desktop" }, available) == stored);
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +210,8 @@ int main()
 	test_drops_do_not_activate_sources();
 	test_favourite_drags_keep_menu_open();
 	test_favourite_drag_uses_small_preview();
-	test_missing_application_favourites_are_pruned();
+	test_missing_application_favourites_are_projected_without_writes();
+	test_resolved_edits_preserve_unresolved_slots();
+	test_invalid_resolved_order_is_rejected();
 	return 0;
 }

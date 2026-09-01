@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="plugins" type="empty">
+    <property name="plugin-64" type="empty">
+      <property name="schema-version" type="int" value="13"/>
+      <property name="initialized" type="bool" value="true"/>
+      <property name="migration" type="empty">
+        <property name="composition-reset-generation" type="int" value="1"/>
+        <property name="composition-reset-state" type="string" value="pending"/>
+      </property>
+      <property name="current-preset-id" type="string" value="affected-survivor"/>
+      <property name="layout-mode" type="string" value="centered"/>
+      <property name="sidebar-position" type="string" value="right"/>
+      <property name="favorites" type="array">
+        <value type="string" value="org.example.Surviving.desktop"/>
+        <value type="string" value="org.example.NewlyAdded.desktop"/>
+      </property>
+      <property name="recent" type="array">
+        <value type="string" value="org.example.Surviving.desktop"/>
+      </property>
+      <property name="search" type="empty">
+        <property name="frecency-alpha" type="int" value="81"/>
+        <property name="favorites-boost-level" type="int" value="1"/>
+        <property name="aliases" type="empty">
+          <property name="org.example.Surviving.desktop" type="empty">
+            <property name="terms" type="array">
+              <value type="string" value="survivor"/>
+              <value type="string" value="kept"/>
+            </property>
+          </property>
+        </property>
+      </property>
+      <property name="usage" type="empty">
+        <property name="org.example.Surviving.desktop" type="empty">
+          <property name="launch-count" type="int" value="8"/>
+          <property name="last-launch" type="int" value="1787600000"/>
+        </property>
+      </property>
+      <property name="command-settings" type="string" value="surviving-settings --show"/>
+      <property name="show-command-settings" type="bool" value="false"/>
+      <property name="search-actions" type="int" value="1">
+        <property name="action-0" type="empty">
+          <property name="name" type="string" value="Surviving action"/>
+          <property name="pattern" type="string" value="!s"/>
+          <property name="command" type="string" value="surviving-search %u"/>
+          <property name="regex" type="bool" value="false"/>
+        </property>
+      </property>
+      <property name="presets" type="empty">
+        <property name="affected-survivor" type="empty">
+          <property name="display-name" type="string" value="Affected survivor"/>
+          <property name="name" type="string" value="Affected survivor"/>
+          <property name="layout-mode" type="string" value="centered"/>
+          <property name="corner-radius" type="int" value="13"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>
