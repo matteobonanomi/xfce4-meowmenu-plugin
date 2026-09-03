@@ -14,7 +14,7 @@
 #   prefix exercises the same payload and first-run behavior without root access.
 #
 # USAGE
-#   ./dev/install.sh [--icons] [--reconfigure] [BUILD_DIR]
+#   ./dev/install.sh [--icons] [--reconfigure] [--clean-stale-dev] [BUILD_DIR]
 #
 #   --icons        Re-render icons/hi*-app-meowmenu.png from build-aux/art/meowmenu.svg
 #                  before building.  Requires rsvg-convert (preferred) or inkscape.
@@ -22,6 +22,10 @@
 #   --reconfigure  Force meson setup --reconfigure even if meson.build and NEWS are
 #                  unchanged.  Use after adding a new dependency or option.
 #                  Normally the script detects whether reconfigure is needed automatically.
+#   --clean-stale-dev
+#                  Remove exact MeowMenu modules found in known development
+#                  prefixes before installing. Without this flag, the script
+#                  stops when another module could shadow the selected payload.
 #   BUILD_DIR      Meson build directory (default: ./build).
 #                  Must already exist; run `meson setup build` once first.
 #
@@ -71,12 +75,14 @@ run() {
 
 REGEN_ICONS=false
 FORCE_RECONFIGURE=false
+CLEAN_STALE_DEV=false
 BUILD_DIR=""
 
 for arg in "$@"; do
     case "${arg}" in
         --icons)       REGEN_ICONS=true ;;
         --reconfigure) FORCE_RECONFIGURE=true ;;
+        --clean-stale-dev) CLEAN_STALE_DEV=true ;;
         *)             BUILD_DIR="${arg}" ;;
     esac
 done
@@ -87,6 +93,147 @@ if [[ ! -d "${BUILD_DIR}" ]]; then
     echo "Build directory '${BUILD_DIR}' not found."
     echo "Run first:  meson setup ${BUILD_DIR} --prefix=/usr/local"
     exit 1
+fi
+
+# Resolve the selected install location before compiling so a conflicting
+# source payload is found before the running panel can load it.
+PREFIX="$(meson introspect --buildoptions "${BUILD_DIR}" \
+    | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="prefix"][0])')"
+INSTALLED_MODULE="$(meson introspect --installed "${BUILD_DIR}" \
+    | python3 -c '
+import json
+import sys
+installed = json.load(sys.stdin)
+print(next(destination for source, destination in installed.items()
+           if source.endswith("libmeowmenu.so")))
+')"
+
+same_path() {
+    [[ "$(realpath -m -- "$1")" == "$(realpath -m -- "$2")" ]]
+}
+
+# /usr is reserved for package managers. /usr/local remains a supported
+# development prefix and is intentionally excluded from this protection.
+# is_protected_system_path:
+# @1: path to classify.
+#
+# Returns success when the path belongs to the package-managed /usr tree.
+is_protected_system_path() {
+    local path
+    path="$(realpath -m -- "$1")"
+    case "${path}" in
+        /usr|/usr/*)
+            [[ "${path}" != "/usr/local" && "${path}" != /usr/local/* ]]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+KNOWN_MODULES=()
+KNOWN_ROOTS=()
+
+# add_known_root:
+# @1: candidate development prefix to inspect.
+#
+# Adds an existing, non-package-managed prefix once to the audit set.
+add_known_root() {
+    local root="$1"
+    local existing
+
+    root="$(realpath -m -- "${root}")"
+    [[ -d "${root}" ]] || return 0
+    is_protected_system_path "${root}" && return 0
+    for existing in "${KNOWN_ROOTS[@]}"; do
+        same_path "${root}" "${existing}" && return 0
+    done
+    KNOWN_ROOTS+=("${root}")
+}
+
+# collect_known_modules:
+#
+# Finds exact MeowMenu module paths below the approved development roots while
+# excluding the module selected by the current Meson install manifest.
+collect_known_modules() {
+    local root candidate existing
+
+    for root in "${KNOWN_ROOTS[@]}"; do
+        while IFS= read -r -d '' candidate; do
+            same_path "${candidate}" "${INSTALLED_MODULE}" && continue
+            for existing in "${KNOWN_MODULES[@]}"; do
+                same_path "${candidate}" "${existing}" && continue 2
+            done
+            KNOWN_MODULES+=("${candidate}")
+        done < <(find "${root}" \
+            -path '*/xfce4/panel/plugins/libmeowmenu.so' \
+            \( -type f -o -type l \) -print0 2>/dev/null)
+    done
+}
+
+# describe_module:
+# @1: exact module path to inspect.
+#
+# Reports basic file and dynamic-loader metadata without loading the module.
+describe_module() {
+    local candidate="$1"
+    local sanitizer_deps=""
+
+    echo "  ${candidate}"
+    if command -v file >/dev/null 2>&1; then
+        echo "    $(file -b -- "${candidate}")"
+    fi
+    if command -v readelf >/dev/null 2>&1; then
+        sanitizer_deps="$(readelf -d "${candidate}" 2>/dev/null \
+            | grep -E 'Shared library: \[lib(asan|ubsan)\.so' || true)"
+        if [[ -n "${sanitizer_deps}" ]]; then
+            echo "    sanitizer dependencies: ${sanitizer_deps//$'\n'/, }"
+        else
+            echo "    sanitizer dependencies: none detected"
+        fi
+    fi
+}
+
+# remove_stale_module:
+# @1: exact stale development module path.
+#
+# Removes one approved path and fails if the payload remains afterward.
+remove_stale_module() {
+    local candidate="$1"
+
+    step "Remove stale ${candidate}"
+    if ! rm -f -- "${candidate}" 2>/dev/null; then
+        sudo rm -f -- "${candidate}"
+    fi
+    if [[ -e "${candidate}" || -L "${candidate}" ]]; then
+        echo "FAILED: stale module remains: ${candidate}"
+        exit 1
+    fi
+}
+
+add_known_root "${PREFIX}"
+add_known_root "${HOME}/.local"
+add_known_root "/usr/local"
+collect_known_modules
+
+if (( ${#KNOWN_MODULES[@]} > 0 )); then
+    echo ""
+    echo "Potential conflicting MeowMenu development modules found:"
+    for candidate in "${KNOWN_MODULES[@]}"; do
+        describe_module "${candidate}"
+    done
+    if [[ "${CLEAN_STALE_DEV}" != true ]]; then
+        echo ""
+        echo "Refusing to install while another module may shadow ${INSTALLED_MODULE}."
+        echo "Run ./dev/uninstall.sh <old-build-directory> when known, or rerun with:"
+        echo "  ./dev/install.sh --clean-stale-dev ${BUILD_DIR}"
+        exit 1
+    fi
+    echo ""
+    echo "Removing only the exact known development modules above."
+    for candidate in "${KNOWN_MODULES[@]}"; do
+        remove_stale_module "${candidate}"
+    done
 fi
 
 # A sanitizer-instrumented shared module cannot be loaded safely by the
@@ -171,23 +318,8 @@ fi
 run "Compile" \
     meson compile -C "${BUILD_DIR}" -j"$(nproc)"
 
-# ---------------------------------------------------------------------------
-# Resolve the install prefix
-# ---------------------------------------------------------------------------
-
-PREFIX="$(meson introspect --buildoptions "${BUILD_DIR}" \
-    | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="prefix"][0])')"
-
 # Resolve destinations from Meson's install manifest rather than assuming the
 # Debian multiarch libdir. This also covers Arch lib and Fedora lib64 layouts.
-INSTALLED_MODULE="$(meson introspect --installed "${BUILD_DIR}" \
-    | python3 -c '
-import json
-import sys
-installed = json.load(sys.stdin)
-print(next(destination for source, destination in installed.items()
-           if source.endswith("libmeowmenu.so")))
-')"
 mapfile -t INSTALLED_PRESETS < <(
     meson introspect --installed "${BUILD_DIR}" \
         | python3 -c '
@@ -225,8 +357,9 @@ fi
 # the packaged built-ins afterward instead of deleting the new payload.
 USER_DATA_ROOT="${XDG_DATA_HOME:-${HOME}/.local/share}"
 USER_MEOWMENU_DATA="${USER_DATA_ROOT%/}/meowmenu"
-if [[ "${USER_MEOWMENU_DATA}" == "/meowmenu" ]]; then
-    echo "Refusing unsafe user-data target '${USER_MEOWMENU_DATA}'."
+if [[ "${USER_DATA_ROOT}" != /* || "${USER_DATA_ROOT}" == "/" ]] \
+        || is_protected_system_path "${USER_MEOWMENU_DATA}"; then
+    echo "Refusing unsafe XDG_DATA_HOME '${USER_DATA_ROOT}'."
     exit 1
 fi
 step "Remove prior MeowMenu user data"
@@ -251,24 +384,21 @@ else
     fi
 fi
 
-# A stale user-local module shadows a system-prefix install. Locate it without
-# assuming a distribution libdir, but retain the module installed by this run.
-USER_LIB_ROOT="${HOME}/.local/lib"
-if [[ -d "${USER_LIB_ROOT}" ]]; then
-    while IFS= read -r -d '' candidate; do
-        if [[ "${candidate}" != "${INSTALLED_MODULE}" ]]; then
-            step "Remove stale ${candidate}"
-            rm -f -- "${candidate}"
-        fi
-    done < <(find "${USER_LIB_ROOT}" -path \
-        '*/xfce4/panel/plugins/libmeowmenu.so' -print0 2>/dev/null)
-fi
-
 # A package-equivalent install must leave both the loadable module and every
 # built-in preset from the current manifest present on disk.
 if [[ ! -f "${INSTALLED_MODULE}" ]]; then
     echo "FAILED: installed module is missing: ${INSTALLED_MODULE}"
     exit 1
+fi
+echo "Installed module: ${INSTALLED_MODULE}"
+if command -v readelf >/dev/null 2>&1; then
+    INSTALLED_SANITIZER_DEPS="$(readelf -d "${INSTALLED_MODULE}" 2>/dev/null \
+        | grep -E 'Shared library: \[lib(asan|ubsan)\.so' || true)"
+    if [[ -n "${INSTALLED_SANITIZER_DEPS}" ]]; then
+        echo "FAILED: installed module has sanitizer dependencies:"
+        echo "${INSTALLED_SANITIZER_DEPS}"
+        exit 1
+    fi
 fi
 for preset in "${INSTALLED_PRESETS[@]}"; do
     if [[ ! -f "${preset}" ]]; then
@@ -358,7 +488,12 @@ fi
 # dedicated cache directory so the new plugin instance starts without ranking
 # history as well as without settings.
 USER_CACHE_ROOT="${XDG_CACHE_HOME:-${HOME}/.cache}"
-USER_CACHE_DIR="${USER_CACHE_ROOT}/xfce4/meowmenu"
+USER_CACHE_DIR="${USER_CACHE_ROOT%/}/xfce4/meowmenu"
+if [[ "${USER_CACHE_ROOT}" != /* || "${USER_CACHE_ROOT}" == "/" ]] \
+        || is_protected_system_path "${USER_CACHE_DIR}"; then
+    echo "Refusing unsafe XDG_CACHE_HOME '${USER_CACHE_ROOT}'."
+    exit 1
+fi
 if [[ -e "${USER_CACHE_DIR}" ]]; then
     step "Remove usage cache ${USER_CACHE_DIR}"
     rm -rf -- "${USER_CACHE_DIR}"
