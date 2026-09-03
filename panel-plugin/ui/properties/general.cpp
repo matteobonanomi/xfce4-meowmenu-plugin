@@ -179,10 +179,11 @@ GtkWidget* SettingsDialog::init_general_tab()
 			const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
 			if (!preset)
 				return;
+			const std::string preset_name = preset_name_for_display(*preset);
 			if (xfce_dialog_confirm(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
 				"edit-undo", _("_Reset"),
 				_("All customizations will be discarded and the preset values restored."),
-				_("Reset preset \"%s\"?"), _(preset->display_name.c_str())))
+				_("Reset preset \"%s\"?"), preset_name.c_str()))
 			{
 				apply_preset(*preset, *m_settings);
 				m_plugin->reload_menu();
@@ -541,7 +542,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 				return;
 			// Reveal the selected preset's description via the "?" help control's
 			// hover/focus tooltip (the always-visible inline paragraph is gone).
-			gtk_widget_set_tooltip_text(m_preset_help, _(preset->description.c_str()));
+			const std::string description = preset_description_for_display(*preset);
+			gtk_widget_set_tooltip_text(m_preset_help, description.c_str());
 			// Applying a built-in preset only writes Settings fields and
 			// current_preset_id; it never touches any /presets/<uuid>/ entry, so
 			// custom presets stay immutable and distinct (supported behavior). Re-running

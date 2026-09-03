@@ -56,6 +56,9 @@ GPid g_xfconfd_pid = 0;
 std::string g_scratch_dir;
 int g_unique_counter = 0;
 
+std::string write_meowpreset(const std::string& dir, const std::string& stem,
+	const std::string& content);
+
 const char* k_xfconfd_candidate_paths[] = {
 	"/usr/lib/x86_64-linux-gnu/xfce4/xfconf/xfconfd",
 	"/usr/lib/xfce4/xfconf/xfconfd",
@@ -492,6 +495,7 @@ void test_enumerate_surfaces_saved_uuid()
 	assert(p->name == "My Layout");
 	assert(p->display_name == "My Layout");
 	assert(!p->is_builtin);
+	assert(!p->identity_localizable);
 	assert(p->values.find("corner-radius") != p->values.end());
 	assert(p->values.at("corner-radius").kind == WhiskerMenu::PresetValue::Int);
 	assert(p->values.at("corner-radius").i == 7);
@@ -615,7 +619,34 @@ void test_enumerate_name_falls_back_to_display_name()
 	const WhiskerMenu::LayoutPreset* p = find_in(presets, uuid);
 	assert(p != nullptr);
 	assert(p->name == "Legacy");
+	assert(!p->identity_localizable);
 	g_object_unref(ch);
+}
+
+void test_seeded_file_localization_provenance()
+{
+	gchar* system_template = g_strdup("/tmp/meow-system-presets-XXXXXX");
+	gchar* user_template = g_strdup("/tmp/meow-user-presets-XXXXXX");
+	const gchar* system_dir_raw = g_mkdtemp(system_template);
+	const gchar* user_dir_raw = g_mkdtemp(user_template);
+	assert(system_dir_raw && user_dir_raw);
+	const std::string system_dir(system_dir_raw);
+	const std::string user_dir(user_dir_raw);
+
+	write_meowpreset(system_dir, "packaged",
+		"[Preset]\nName=Classic\n\n[Settings]\ncorner-radius=4\n");
+	write_meowpreset(user_dir, "drop-in",
+		"[Preset]\nName=Classic\n\n[Settings]\ncorner-radius=8\n");
+
+	const auto presets = WhiskerMenu::enumerate_preset_files(system_dir, user_dir);
+	const WhiskerMenu::LayoutPreset* packaged = find_in(presets, "packaged");
+	const WhiskerMenu::LayoutPreset* drop_in = find_in(presets, "drop-in");
+	assert(packaged && packaged->identity_localizable);
+	assert(drop_in && !drop_in->identity_localizable);
+	assert(WhiskerMenu::preset_name_for_display(*drop_in) == "Classic");
+
+	g_free(system_template);
+	g_free(user_template);
 }
 
 /* test_upgrade_baseline_enumeration_is_idempotent:
@@ -982,6 +1013,7 @@ int main()
 	test_affected_upgrade_preserves_survivors_and_inert_markers();
 	test_seeded_file_accepts_newer_schema();
 	test_seeded_file_skips_section_missing();
+	test_seeded_file_localization_provenance();
 	test_incompatible_user_overlay_cannot_shadow_supported_preset();
 
 	fixture_down();

@@ -34,9 +34,12 @@ confirmed defects.
 - **Automated versus live coverage:** builds and unit tests do not prove panel
   placement, compositor behavior, or end-to-end desktop use. The
   [support page](support) keeps automated and live evidence separate.
-- **Translations:** catalog syntax and completeness are measured
-  automatically, but only Italian currently has maintainer linguistic review.
-  See [translation status](translations).
+- **Translations:** catalog syntax, current-inventory coverage, untranslated
+  entries, and absent entries are measured separately. Empty or unavailable
+  translations use the source English fallback. Italian and British English
+  are currently pending maintainer fluent review; no language is treated as
+  linguistically approved by automated checks. See the
+  [translation status](translations).
 - **Calculator:** inline results depend on an available `bc`, `qalc`, or
   `gcalccmd` engine. When no selected engine is available, normal launcher
   search remains available.

@@ -1,3 +1,10 @@
+0.8.2 (2026-09-07)
+=====
+- Locale: Localize built-in preset names and descriptions while preserving custom presets
+- Locale: Generate localized AppStream metadata and translator credits
+- Locale: Refresh and validate all 56 translation catalogs
+- Locale: Add reproducible translation status and audit tooling
+
 0.8.1 (2026-09-01)
 =====
 - Keyboard: introduce unified physical arrow navigation across Search, results, grids, sidebars, Places, and session controls

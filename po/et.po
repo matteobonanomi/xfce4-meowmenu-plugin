@@ -14,7 +14,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xfce4-meowmenu-plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 22:54+0200\n"
+"POT-Creation-Date: 2026-09-03 10:30+0200\n"
 "PO-Revision-Date: 2013-06-20 11:26+0000\n"
 "Last-Translator: Priit Jõerüüt <transifex@joeruut.com>, 2024-2026\n"
 "Language-Team: MeowMenu et <mbonanomi.dev@proton.me>\n"
@@ -24,22 +24,14 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: panel-plugin/launcher/applications-page.cpp:35
+#: panel-plugin/launcher/applications-page.cpp:140
 #: panel-plugin/launcher/category.cpp:52
-#: panel-plugin/ui/properties/sidebar.cpp:289
+#: panel-plugin/ui/properties/sidebar.cpp:243
 msgid "All Applications"
 msgstr "Kõik rakendused"
 
-#: panel-plugin/launcher/applications-page.cpp:93
-msgid "RECENTLY USED"
-msgstr ""
-
-#: panel-plugin/launcher/applications-page.cpp:94
+#: panel-plugin/launcher/applications-page.cpp:151
 msgid "ALL APPLICATIONS"
-msgstr ""
-
-#: panel-plugin/launcher/applications-page.cpp:96
-msgid "FAVORITES"
 msgstr ""
 
 #: panel-plugin/ui/command-edit.cpp:65
@@ -50,20 +42,20 @@ msgstr "Sirvi failisüsteemi ja vali vajalik käsk."
 msgid "Select Command"
 msgstr "Vali käsk"
 
-#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:221
-#: panel-plugin/settings-dialog.cpp:394
-#: panel-plugin/ui/properties/general.cpp:140
-#: panel-plugin/ui/properties/general.cpp:199
-#: panel-plugin/ui/properties/general.cpp:293
-#: panel-plugin/ui/properties/general.cpp:329
-#: panel-plugin/ui/properties/general.cpp:363
-#: panel-plugin/ui/properties/general.cpp:377
+#: panel-plugin/ui/command-edit.cpp:78 panel-plugin/settings-dialog.cpp:210
+#: panel-plugin/settings-dialog.cpp:383
+#: panel-plugin/ui/properties/general.cpp:203
+#: panel-plugin/ui/properties/general.cpp:262
+#: panel-plugin/ui/properties/general.cpp:352
+#: panel-plugin/ui/properties/general.cpp:388
+#: panel-plugin/ui/properties/general.cpp:422
+#: panel-plugin/ui/properties/general.cpp:436
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:149
 msgid "_Cancel"
 msgstr "_Katkesta"
 
-#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:222
-#: panel-plugin/settings-dialog.cpp:395
+#: panel-plugin/ui/command-edit.cpp:79 panel-plugin/settings-dialog.cpp:211
+#: panel-plugin/settings-dialog.cpp:384
 msgid "_OK"
 msgstr "S_obib"
 
@@ -72,73 +64,71 @@ msgstr "S_obib"
 msgid "Failed to execute command \"%s\"."
 msgstr "„%s“ käsu käivitamine ei õnnestunud."
 
-#: panel-plugin/launcher/favorites-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:280
+#: panel-plugin/launcher/favorites-page.cpp:38
+#: panel-plugin/places/favourites-section.cpp:57
+#: panel-plugin/ui/properties/sidebar.cpp:234
 msgid "Favorites"
 msgstr "Lemmikud"
 
-#: panel-plugin/launcher/favorites-page.cpp:152
+#: panel-plugin/launcher/favorites-page.cpp:159
 msgid "Move Up"
 msgstr "Liiguta ülespoole"
 
-#: panel-plugin/launcher/favorites-page.cpp:164
+#: panel-plugin/launcher/favorites-page.cpp:171
 msgid "Move Down"
 msgstr "Liiguta allapoole"
 
-#: panel-plugin/launcher/favorites-page.cpp:180
+#: panel-plugin/launcher/favorites-page.cpp:188
 msgid "Sort Alphabetically A-Z"
 msgstr "Järjesta tähestiku alusel A-Z"
 
-#: panel-plugin/launcher/favorites-page.cpp:188
+#: panel-plugin/launcher/favorites-page.cpp:196
 msgid "Sort Alphabetically Z-A"
 msgstr "Järjesta tähestiku alusel Z-A"
-
-#: panel-plugin/places/favourites-section.cpp:44
-msgid "Favourites"
-msgstr "Lemmikud"
 
 #: panel-plugin/places/history-section.cpp:37
 msgid "History"
 msgstr "Ajalugu"
 
-#: panel-plugin/places/home-section.cpp:60
+#: panel-plugin/places/home-section.cpp:61
 msgid "Home"
 msgstr "Kodukaust"
 
-#: panel-plugin/ui/icon-size.cpp:61
+#: panel-plugin/ui/icon-size.cpp:68 panel-plugin/ui/properties/extras.cpp:91
+#: panel-plugin/calculator/calculator-engine.cpp:24
 msgid "None"
 msgstr "Puudub"
 
-#: panel-plugin/ui/icon-size.cpp:62
+#: panel-plugin/ui/icon-size.cpp:69 panel-plugin/ui/properties/extras.cpp:109
 msgid "Very Small"
 msgstr "Väga väike"
 
-#: panel-plugin/ui/icon-size.cpp:63
+#: panel-plugin/ui/icon-size.cpp:70 panel-plugin/ui/properties/extras.cpp:109
 msgid "Smaller"
 msgstr "Väiksem"
 
-#: panel-plugin/ui/icon-size.cpp:64
+#: panel-plugin/ui/icon-size.cpp:71 panel-plugin/ui/properties/extras.cpp:109
 msgid "Small"
 msgstr "Väike"
 
-#: panel-plugin/ui/icon-size.cpp:65
+#: panel-plugin/ui/icon-size.cpp:72 panel-plugin/ui/properties/extras.cpp:110
 msgid "Normal"
 msgstr "Normaalne"
 
-#: panel-plugin/ui/icon-size.cpp:66
+#: panel-plugin/ui/icon-size.cpp:73 panel-plugin/ui/properties/extras.cpp:110
 msgid "Large"
 msgstr "Suur"
 
-#: panel-plugin/ui/icon-size.cpp:67
+#: panel-plugin/ui/icon-size.cpp:74 panel-plugin/ui/properties/extras.cpp:110
 msgid "Larger"
 msgstr "Suurem"
 
-#: panel-plugin/ui/icon-size.cpp:68
+#: panel-plugin/ui/icon-size.cpp:75 panel-plugin/ui/properties/extras.cpp:110
 msgid "Very Large"
 msgstr "Väga suur"
 
 #. I18N: the first %s will be replaced with desktop file path, the second with Hidden=true
-#: panel-plugin/launcher/launcher.cpp:207
+#: panel-plugin/launcher/launcher.cpp:217
 #, c-format
 msgid ""
 "To unhide it you have to manually remove the file \"%s\" or open the file "
@@ -147,147 +137,143 @@ msgstr ""
 "Peitmiseks kustuta fail „%s“ käsitsi või ava fail tekstitoimetiga ja eemalda "
 "rida „%s“."
 
-#: panel-plugin/launcher/launcher.cpp:211 panel-plugin/launcher/page.cpp:555
+#: panel-plugin/launcher/launcher.cpp:221 panel-plugin/launcher/page.cpp:855
 msgid "Hide Application"
 msgstr "Peida rakendus"
 
-#: panel-plugin/launcher/launcher.cpp:212
+#: panel-plugin/launcher/launcher.cpp:222
 #, c-format
 msgid "Are you sure you want to hide \"%s\"?"
 msgstr "Kas sa oled kindel, et soovid „%s“ peita?"
 
-#: panel-plugin/launcher/page.cpp:484
+#: panel-plugin/launcher/page.cpp:784 panel-plugin/places/places-page.cpp:889
 msgid "Add to Favorites"
 msgstr "Lisa lemmikutesse"
 
-#: panel-plugin/launcher/page.cpp:495
+#: panel-plugin/launcher/page.cpp:795 panel-plugin/places/places-page.cpp:878
 msgid "Remove from Favorites"
 msgstr "Eemalda lemmikutest"
 
-#: panel-plugin/launcher/page.cpp:505
+#: panel-plugin/launcher/page.cpp:805
 msgid "Add to Desktop"
 msgstr "Lisa töölauale"
 
-#: panel-plugin/launcher/page.cpp:513
+#: panel-plugin/launcher/page.cpp:813
 msgid "Add to Panel"
 msgstr "Lisa paneelile"
 
-#: panel-plugin/launcher/page.cpp:523
+#: panel-plugin/launcher/page.cpp:823
 msgid "Add to Autostart"
 msgstr "Lisa automaatselt käivitatavate rakenduste loendisse"
 
-#: panel-plugin/launcher/page.cpp:534
+#: panel-plugin/launcher/page.cpp:834
 msgid "Remove from Autostart"
 msgstr "Eemalda automaatselt käivitatavate rakenduste loendist"
 
-#: panel-plugin/launcher/page.cpp:547
+#: panel-plugin/launcher/page.cpp:847
 msgid "Edit Application..."
 msgstr "Muuda rakendust..."
 
-#: panel-plugin/launcher/page.cpp:618
+#: panel-plugin/launcher/page.cpp:918
 msgid "Unable to add launcher to desktop."
 msgstr "Käivitaja lisamine töölauale ei õnnestunud."
 
-#: panel-plugin/launcher/page.cpp:658 panel-plugin/launcher/page.cpp:671
+#: panel-plugin/launcher/page.cpp:958 panel-plugin/launcher/page.cpp:971
 msgid "Unable to add launcher to panel."
 msgstr "Käivitaja lisamine ribale ei õnnestunud."
 
-#: panel-plugin/launcher/page.cpp:695
+#: panel-plugin/launcher/page.cpp:1002
 msgid "Unable to edit launcher."
 msgstr "Käivitaja muutmine ei õnnestunud."
 
 #. Tooltip names the target and states it is missing; set_tooltip()
 #. escapes the text for markup, so pass it raw.
-#: panel-plugin/places/places-item.cpp:106
+#: panel-plugin/places/places-item.cpp:108
 #, c-format
 msgid "%s (missing)"
 msgstr ""
 
-#: panel-plugin/places/places-item.cpp:360
+#: panel-plugin/places/places-item.cpp:353
 msgid "Unable to add desktop link."
 msgstr "Ei suuda lisada töölaua linki."
 
-#: panel-plugin/places/places-item.cpp:400
-#, fuzzy
+#: panel-plugin/places/places-item.cpp:393
 msgid "the selected item"
-msgstr "Eemalda valitud tegevus"
+msgstr ""
 
-#: panel-plugin/places/places-item.cpp:405
+
+#: panel-plugin/places/places-item.cpp:398
 msgid "the location could not be opened"
 msgstr ""
 
-#: panel-plugin/places/places-item.cpp:407
-#, fuzzy, c-format
+#: panel-plugin/places/places-item.cpp:400
+#, c-format
 msgid "Unable to open \"%s\": %s"
-msgstr "Ei suuda avada faili „%s\"."
+msgstr ""
 
-#: panel-plugin/places/places-page.cpp:64
+
+#: panel-plugin/places/places-page.cpp:95
 msgid "No items to show."
 msgstr "Näitatavaid üksusi pole."
 
-#: panel-plugin/places/places-page.cpp:441
+#: panel-plugin/places/places-page.cpp:856
 msgid "_Open"
 msgstr "_Ava"
-
-#. Left enabled for missing favourites (not gated on exists()) so a
-#. stale favourite can always be removed even though "Open" above is
-#. greyed — this is the greyed-out-favourite behaviour from 005.
-#: panel-plugin/places/places-page.cpp:466
-msgid "Remove from Favourites"
-msgstr "Eemalda lemmikutest"
-
-#: panel-plugin/places/places-page.cpp:477
-msgid "Add to Favourites"
-msgstr "Lisa lemmikute hulka"
 
 #. Offered for both recent and favourite items, and intentionally left
 #. enabled even when the target is missing so a renamed file can be located
 #. from its parent folder. PlacesItem::open_containing() fails silently (no
 #. dialog) when the parent is also gone.
-#: panel-plugin/places/places-page.cpp:492
+#: panel-plugin/places/places-page.cpp:904
 msgid "Open Containing Folder"
 msgstr "Ava sisaldavat kausta"
 
-#: panel-plugin/places/places-page.cpp:503
+#: panel-plugin/places/places-page.cpp:915
 msgid "Copy Path"
 msgstr "Kopeeri tee"
 
-#: panel-plugin/places/places-page.cpp:510
+#: panel-plugin/places/places-page.cpp:922
 msgid "Open in Terminal"
 msgstr "Ava terminalis"
 
-#: panel-plugin/places/places-page.cpp:523
-msgid "Open With…"
-msgstr "Ava rakendusega…"
-
-#: panel-plugin/places/places-page.cpp:528
+#: panel-plugin/places/places-page.cpp:933
+#: panel-plugin/places/places-page.cpp:945
 msgid "Add Desktop Link"
 msgstr "Lisa töölaua link"
 
-#: panel-plugin/core/plugin.cpp:456
+#: panel-plugin/places/places-page.cpp:940
+msgid "Open With…"
+msgstr "Ava rakendusega…"
+
+#: panel-plugin/core/plugin.cpp:447
 msgid ""
 "News file not found.\n"
 "Run 'meson install' to make it available."
 msgstr ""
 
-#: panel-plugin/core/plugin.cpp:462 panel-plugin/core/plugin.cpp:561
+#: panel-plugin/core/plugin.cpp:453 panel-plugin/core/plugin.cpp:562
 msgid "What's New"
 msgstr "Mis on uut"
 
-#: panel-plugin/core/plugin.cpp:465
+#: panel-plugin/core/plugin.cpp:456
 msgid "Close"
 msgstr "Sulge"
 
-#: panel-plugin/core/plugin.cpp:553
+#: panel-plugin/core/plugin.cpp:544
 msgid "Alternate launcher for XFCE4"
 msgstr "Alternatiivne käiviti XFCE4 jaoks"
 
-#: panel-plugin/core/plugin.cpp:559
+#: panel-plugin/core/plugin.cpp:550
 msgid "Based on Whisker Menu"
 msgstr "Põhineb Whisker Menul"
 
+#: panel-plugin/core/plugin.cpp:552
+msgid "translator-credits"
+msgstr "Priit Jõerüüt <transifex@joeruut.com>, 2024-2026"
+
+
 #: panel-plugin/launcher/recent-page.cpp:37
-#: panel-plugin/ui/properties/sidebar.cpp:284
+#: panel-plugin/ui/properties/sidebar.cpp:238
 msgid "Recently Used"
 msgstr "Hiljuti kasutatud"
 
@@ -300,19 +286,29 @@ msgstr "Puhasta hiljuti kasutatud"
 msgid "Run %s"
 msgstr "Käivita %s"
 
-#: panel-plugin/search/search-action.cpp:262
+#: panel-plugin/search/search-action.cpp:277
 msgid "Search Action"
 msgstr "Otsi tegevust"
 
-#: panel-plugin/search/search-page.cpp:85
+#: panel-plugin/search/search-page.cpp:80
 msgid "No applications found"
 msgstr "Rakendusi ei leidu"
 
+#: panel-plugin/search/calculator-result.cpp:211
+#: panel-plugin/search/calculator-result.cpp:212
+#: panel-plugin/search/calculator-result.cpp:215
+msgid "bc package required"
+msgstr ""
+
+#: panel-plugin/search/calculator-result.cpp:214
+msgid "bc: bc package required"
+msgstr ""
+
 #. Create dialog window
 #: panel-plugin/settings-dialog.cpp:69 panel-plugin/meowmenu.desktop.in:4
-#, fuzzy
 msgid "Meow Menu"
-msgstr "Menüü"
+msgstr ""
+
 
 #: panel-plugin/settings-dialog.cpp:72
 msgid "_Help"
@@ -323,536 +319,581 @@ msgid "_Close"
 msgstr "_Sulge"
 
 #: panel-plugin/settings-dialog.cpp:100
-#, fuzzy
 msgid "General"
-msgstr "_Üldist"
+msgstr ""
+
 
 #: panel-plugin/settings-dialog.cpp:101
-msgid "User / Session"
+msgid "Session"
 msgstr ""
 
 #: panel-plugin/settings-dialog.cpp:102
-#, fuzzy
 msgid "Search Bar"
-msgstr "Otsi faile"
+msgstr ""
+
 
 #: panel-plugin/settings-dialog.cpp:103
 msgid "Results View"
 msgstr ""
 
 #: panel-plugin/settings-dialog.cpp:104
-#: panel-plugin/ui/properties/sidebar.cpp:67
+#: panel-plugin/ui/properties/sidebar.cpp:63
 msgid "Sidebar"
 msgstr "Külgriba"
 
-#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:566
-#: panel-plugin/core/window.cpp:2595
+#: panel-plugin/settings-dialog.cpp:105 panel-plugin/core/window.cpp:582
+#: panel-plugin/core/window.cpp:3583
 msgid "Places"
 msgstr "Asukohad"
 
-#: panel-plugin/settings-dialog.cpp:216 panel-plugin/settings-dialog.cpp:218
+#: panel-plugin/settings-dialog.cpp:106
+msgid "Extras"
+msgstr ""
+
+#: panel-plugin/settings-dialog.cpp:205 panel-plugin/settings-dialog.cpp:207
 msgid "Select an Icon"
 msgstr "Vali ikoon"
 
-#: panel-plugin/settings-dialog.cpp:315
-#: panel-plugin/ui/properties/general.cpp:237
-#: panel-plugin/ui/properties/general.cpp:252
+#: panel-plugin/settings-dialog.cpp:304
+#: panel-plugin/ui/properties/general.cpp:300
+#: panel-plugin/ui/properties/general.cpp:315
 msgid "_Delete"
 msgstr "_Kustuta"
 
-#: panel-plugin/settings-dialog.cpp:316
+#: panel-plugin/settings-dialog.cpp:305
 msgid "The action will be deleted permanently."
 msgstr "Tegevus kustutatakse jäädavalt."
 
-#: panel-plugin/settings-dialog.cpp:317
+#: panel-plugin/settings-dialog.cpp:306
 #, c-format
 msgid "Remove action \"%s\"?"
 msgstr "Kas eemaldame tegevuse „%s“?"
 
-#: panel-plugin/settings-dialog.cpp:391
-#, fuzzy
+#: panel-plugin/settings-dialog.cpp:380
 msgid "Edit search action"
-msgstr "Otsi tegevust"
+msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:406
+
+#: panel-plugin/settings-dialog.cpp:395
 msgid "Nam_e:"
 msgstr "Ni_mi:"
 
-#: panel-plugin/settings-dialog.cpp:416
+#: panel-plugin/settings-dialog.cpp:405
 msgid "_Pattern:"
 msgstr "_Muster:"
 
-#: panel-plugin/settings-dialog.cpp:426
+#: panel-plugin/settings-dialog.cpp:415
 msgid "C_ommand:"
 msgstr "_Käsk:"
 
-#: panel-plugin/settings-dialog.cpp:436
-#, fuzzy
+#: panel-plugin/settings-dialog.cpp:425
 msgid "Is _regular expression"
-msgstr "_Regulaaravaldis"
+msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:480
+
+#: panel-plugin/settings-dialog.cpp:476
 #, c-format
 msgid "Unable to open the following url: %s"
 msgstr "Järgneva võrguaadressi avamine ei õnnestunud: %s"
 
-#: panel-plugin/settings-dialog.cpp:566
+#: panel-plugin/settings-dialog.cpp:563
 msgid "Unsaved custom"
 msgstr ""
 
 #. NOTE: fallback if initialize_file_presets() was not called or all files missing.
-#: panel-plugin/settings-dialog.cpp:800
+#: panel-plugin/settings-dialog.cpp:820
+#: panel-plugin/presets/preset-builtins.cpp:62
+#: panel-plugin/presets/preset-builtins.cpp:63
 msgid "Classic"
 msgstr "Klassikaline"
 
-#: panel-plugin/settings-dialog.cpp:801
+#: panel-plugin/settings-dialog.cpp:821
+#: panel-plugin/presets/preset-builtins.cpp:95
+#: panel-plugin/presets/preset-builtins.cpp:96
 msgid "Modern"
 msgstr "Kaasaegne"
 
-#: panel-plugin/settings-dialog.cpp:802
-#, fuzzy
+#: panel-plugin/settings-dialog.cpp:822
+#: panel-plugin/presets/preset-builtins.cpp:133
+#: panel-plugin/presets/preset-builtins.cpp:134
 msgid "Full Screen"
-msgstr "_Lukusta ekraan"
-
-#: panel-plugin/settings-dialog.cpp:897
-msgid "Render profile, search and session on a single horizontal row."
 msgstr ""
 
-#: panel-plugin/settings-dialog.cpp:899
-msgid "This option requires the FullScreen layout."
-msgstr "See valik nõuab täisekraani paigutust."
 
-#: panel-plugin/settings-dialog.cpp:901
+#: panel-plugin/settings-dialog.cpp:823
+#: panel-plugin/presets/preset-builtins.cpp:169
+#: panel-plugin/presets/preset-builtins.cpp:170
+msgid "Minimal"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:56
 msgid ""
-"This option requires profile, search and session to be on the same end (all "
-"top or all bottom)."
+"Opacity requires a running compositor; without one the menu is always solid."
 msgstr ""
-
-#: panel-plugin/ui/properties/general.cpp:69
-msgid "Preset"
-msgstr "Eelseadistus"
-
-#: panel-plugin/ui/properties/general.cpp:72
-msgid "_Preset:"
-msgstr "_Eelseadistus:"
 
 #: panel-plugin/ui/properties/general.cpp:109
-#, fuzzy
-msgid "_Reset preset"
-msgstr "_Taaskäivita"
-
-#: panel-plugin/ui/properties/general.cpp:120
-#: panel-plugin/ui/properties/general.cpp:447
-#, fuzzy
-msgid "_Reset"
-msgstr "_Taaskäivita"
-
-#: panel-plugin/ui/properties/general.cpp:121
-msgid "All customizations will be discarded and the preset values restored."
-msgstr ""
-
-#: panel-plugin/ui/properties/general.cpp:122
-#, c-format
-msgid "Reset preset \"%s\"?"
-msgstr "Lähtestada eelseadistus „%s\"?"
-
-#: panel-plugin/ui/properties/general.cpp:131
-msgid "_Save as new…"
-msgstr "_Salvesta uuena…"
-
-#: panel-plugin/ui/properties/general.cpp:137
-msgid "Save as new preset"
-msgstr "Salvesta uue eelseadistusena"
-
-#: panel-plugin/ui/properties/general.cpp:141
-msgid "_Save"
-msgstr "_Salvesta"
-
-#: panel-plugin/ui/properties/general.cpp:150
-#: panel-plugin/ui/properties/general.cpp:209
-#: panel-plugin/ui/properties/general.cpp:385
-#, fuzzy
-msgid "_Name:"
-msgstr "Nimi"
-
-#: panel-plugin/ui/properties/general.cpp:166
-#: panel-plugin/ui/properties/general.cpp:226
-msgid "A preset with that name already exists or the name is empty."
-msgstr ""
-
-#: panel-plugin/ui/properties/general.cpp:167
-msgid "Could not save preset"
-msgstr "Eelseadistust ei saanud salvestada"
-
-#: panel-plugin/ui/properties/general.cpp:182
-msgid "Re_name…"
-msgstr "_Nimeta ümber…"
-
-#: panel-plugin/ui/properties/general.cpp:196
-msgid "Rename preset"
-msgstr "Nimeta eelseadistus ümber"
-
-#: panel-plugin/ui/properties/general.cpp:200
-msgid "_Rename"
-msgstr "_Nimeta ümber"
-
-#: panel-plugin/ui/properties/general.cpp:227
-msgid "Could not rename preset"
-msgstr "Eelseadistust ei saanud ümber nimetada"
-
-#: panel-plugin/ui/properties/general.cpp:253
-#, fuzzy
-msgid "This preset will be permanently removed."
-msgstr "Tegevus kustutatakse jäädavalt."
-
-#: panel-plugin/ui/properties/general.cpp:254
-#, c-format
-msgid "Delete preset \"%s\"?"
-msgstr ""
-
-#: panel-plugin/ui/properties/general.cpp:275
-msgid "E_xport…"
-msgstr "_Ekspordi…"
-
-#: panel-plugin/ui/properties/general.cpp:290
-msgid "Export preset"
-msgstr "Ekspordi eelseadistus"
-
-#: panel-plugin/ui/properties/general.cpp:293
-msgid "_Export"
-msgstr "_Ekspordi"
-
-#: panel-plugin/ui/properties/general.cpp:299
-#: panel-plugin/ui/properties/general.cpp:332
-msgid "MeowMenu preset (*.meowpreset)"
-msgstr "MeowMenu eelseadistus (*.meowpreset)"
-
-#: panel-plugin/ui/properties/general.cpp:311
-msgid "Could not export preset."
-msgstr "Eelseadistust ei saanud eksportida."
-
-#: panel-plugin/ui/properties/general.cpp:319
-msgid "_Import…"
-msgstr "_Impordi…"
-
-#: panel-plugin/ui/properties/general.cpp:326
-msgid "Import preset"
-msgstr "Impordi eelseadistus"
-
-#: panel-plugin/ui/properties/general.cpp:329
-#: panel-plugin/ui/properties/general.cpp:378
-msgid "_Import"
-msgstr "_Impordi"
-
-#: panel-plugin/ui/properties/general.cpp:358
-#, c-format
-msgid "A preset named \"%s\" already exists. What would you like to do?"
-msgstr "Eelseadistus nimega „%s\" on juba olemas. Mida soovite teha?"
-
-#: panel-plugin/ui/properties/general.cpp:361
-msgid "_Overwrite"
-msgstr "_Kirjuta üle"
-
-#: panel-plugin/ui/properties/general.cpp:362
-msgid "Re_name"
-msgstr "_Nimeta ümber"
-
-#: panel-plugin/ui/properties/general.cpp:374
-msgid "Rename imported preset"
-msgstr "Nimeta imporditud eelseadistus ümber"
-
-#: panel-plugin/ui/properties/general.cpp:431
-msgid "Could not import preset"
-msgstr "Eelseadistust ei saanud importida"
-
-#. Reset to defaults — full channel reset, kept here as the most logical
-#. action button for the Preset hub.
-#: panel-plugin/ui/properties/general.cpp:438
-msgid "Reset to _defaults"
-msgstr "Lähtesta _vaikeväärtustele"
-
-#: panel-plugin/ui/properties/general.cpp:448
-msgid ""
-"All settings will be reset to defaults and the Modern preset will be applied."
-msgstr ""
-
-#: panel-plugin/ui/properties/general.cpp:449
-msgid "Reset all settings to defaults?"
-msgstr "Lähtestada kõik seaded vaikeväärtustele?"
-
-#: panel-plugin/ui/properties/general.cpp:511
 msgid ""
 "FullScreen mode requires gtk-layer-shell on Wayland. The menu will open as a "
 "regular window instead."
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:533
-#, fuzzy
-msgid "Panel plugin"
-msgstr "Käivitusnupp ribal"
+#: panel-plugin/ui/properties/general.cpp:124
+msgid "Preset"
+msgstr "Eelseadistus"
 
-#. Show panel button title
-#: panel-plugin/ui/properties/general.cpp:539
+#. --- Selector row (row 0): combo in C1; "?" help control in C2. ---
+#: panel-plugin/ui/properties/general.cpp:128
+msgid "_Preset:"
+msgstr "_Eelseadistus:"
+
+#. "?" help control: reveals the active preset's description on hover/focus,
+#. replacing the former always-visible inline description paragraph. Its
+#. tooltip is refreshed by the preset-sync path (refresh_customized_indicator
+#. / sync_preset_widgets) and by the combo "changed" handler below.
+#: panel-plugin/ui/properties/general.cpp:155
+msgid "Show the selected preset's description"
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:172
+msgid "_Reset preset"
+msgstr ""
+
+
+#: panel-plugin/ui/properties/general.cpp:183
+#: panel-plugin/ui/properties/general.cpp:504
+msgid "_Reset"
+msgstr ""
+
+
+#: panel-plugin/ui/properties/general.cpp:184
+msgid "All customizations will be discarded and the preset values restored."
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:185
+#, c-format
+msgid "Reset preset \"%s\"?"
+msgstr "Lähtestada eelseadistus „%s\"?"
+
+#: panel-plugin/ui/properties/general.cpp:194
+msgid "_Save as new…"
+msgstr "_Salvesta uuena…"
+
+#: panel-plugin/ui/properties/general.cpp:200
+msgid "Save as new preset"
+msgstr "Salvesta uue eelseadistusena"
+
+#: panel-plugin/ui/properties/general.cpp:204
+msgid "_Save"
+msgstr "_Salvesta"
+
+#: panel-plugin/ui/properties/general.cpp:213
+#: panel-plugin/ui/properties/general.cpp:272
+#: panel-plugin/ui/properties/general.cpp:444
+msgid "_Name:"
+msgstr ""
+
+
+#: panel-plugin/ui/properties/general.cpp:229
+#: panel-plugin/ui/properties/general.cpp:289
+msgid "A preset with that name already exists or the name is empty."
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:230
+msgid "Could not save preset"
+msgstr "Eelseadistust ei saanud salvestada"
+
+#: panel-plugin/ui/properties/general.cpp:245
+msgid "Re_name…"
+msgstr "_Nimeta ümber…"
+
+#: panel-plugin/ui/properties/general.cpp:259
+msgid "Rename preset"
+msgstr "Nimeta eelseadistus ümber"
+
+#: panel-plugin/ui/properties/general.cpp:263
+msgid "_Rename"
+msgstr "_Nimeta ümber"
+
+#: panel-plugin/ui/properties/general.cpp:290
+msgid "Could not rename preset"
+msgstr "Eelseadistust ei saanud ümber nimetada"
+
+#: panel-plugin/ui/properties/general.cpp:316
+msgid "This preset will be permanently removed."
+msgstr ""
+
+
+#: panel-plugin/ui/properties/general.cpp:317
+#, c-format
+msgid "Delete preset \"%s\"?"
+msgstr ""
+
+#. Export / Import actions populate io_box (C2 row 2, declared above).
+#: panel-plugin/ui/properties/general.cpp:334
+msgid "E_xport…"
+msgstr "_Ekspordi…"
+
+#: panel-plugin/ui/properties/general.cpp:349
+msgid "Export preset"
+msgstr "Ekspordi eelseadistus"
+
+#: panel-plugin/ui/properties/general.cpp:352
+msgid "_Export"
+msgstr "_Ekspordi"
+
+#: panel-plugin/ui/properties/general.cpp:358
+#: panel-plugin/ui/properties/general.cpp:391
+msgid "MeowMenu preset (*.meowpreset)"
+msgstr "MeowMenu eelseadistus (*.meowpreset)"
+
+#: panel-plugin/ui/properties/general.cpp:370
+msgid "Could not export preset."
+msgstr "Eelseadistust ei saanud eksportida."
+
+#: panel-plugin/ui/properties/general.cpp:378
+msgid "_Import…"
+msgstr "_Impordi…"
+
+#: panel-plugin/ui/properties/general.cpp:385
+msgid "Import preset"
+msgstr "Impordi eelseadistus"
+
+#: panel-plugin/ui/properties/general.cpp:388
+#: panel-plugin/ui/properties/general.cpp:437
+msgid "_Import"
+msgstr "_Impordi"
+
+#: panel-plugin/ui/properties/general.cpp:417
+#, c-format
+msgid "A preset named \"%s\" already exists. What would you like to do?"
+msgstr "Eelseadistus nimega „%s\" on juba olemas. Mida soovite teha?"
+
+#: panel-plugin/ui/properties/general.cpp:420
+msgid "_Overwrite"
+msgstr "_Kirjuta üle"
+
+#: panel-plugin/ui/properties/general.cpp:421
+msgid "Re_name"
+msgstr "_Nimeta ümber"
+
+#: panel-plugin/ui/properties/general.cpp:433
+msgid "Rename imported preset"
+msgstr "Nimeta imporditud eelseadistus ümber"
+
+#: panel-plugin/ui/properties/general.cpp:490
+msgid "Could not import preset"
+msgstr "Eelseadistust ei saanud importida"
+
+#. Reset to defaults — full channel reset, kept here as the most logical
+#. action button for the Preset hub. Sits beside Reset preset in C1.
+#: panel-plugin/ui/properties/general.cpp:497
+msgid "Reset to _defaults"
+msgstr "Lähtesta _vaikeväärtustele"
+
+#: panel-plugin/ui/properties/general.cpp:505
+msgid ""
+"All settings will be reset to defaults and the Modern preset will be applied."
+msgstr ""
+
+#: panel-plugin/ui/properties/general.cpp:506
+msgid "Reset all settings to defaults?"
+msgstr "Lähtestada kõik seaded vaikeväärtustele?"
+
+#: panel-plugin/ui/properties/general.cpp:570
+msgid "Panel plugin"
+msgstr ""
+
+
+#. Row 0: visibility toggles — title in C1, icon in C2.
+#: panel-plugin/ui/properties/general.cpp:574
 msgid "Show panel button _title"
 msgstr ""
 
-#. Title entry
-#: panel-plugin/ui/properties/general.cpp:546
-#, fuzzy
+#. Row 1 C1: Title entry (wide-fill).
+#: panel-plugin/ui/properties/general.cpp:580
 msgid "T_itle:"
-msgstr "_Pealkiri:"
+msgstr ""
 
-#. Show panel button icon
-#: panel-plugin/ui/properties/general.cpp:583
-#, fuzzy
+
+#. Row 0 C2: Show panel button icon toggle.
+#: panel-plugin/ui/properties/general.cpp:610
 msgid "Show panel button _icon"
-msgstr "Näita _ikoonidena"
+msgstr ""
 
-#. Icon picker
-#: panel-plugin/ui/properties/general.cpp:590
+
+#. Row 1 C2: Icon picker (narrow).
+#: panel-plugin/ui/properties/general.cpp:616
 msgid "Ic_on:"
 msgstr ""
 
-#. Single-row panel layout
-#: panel-plugin/ui/properties/general.cpp:627
-#, fuzzy
+#. Row 2 C1: single-row panel layout (C2 stays empty; C1 holds half width).
+#: panel-plugin/ui/properties/general.cpp:647
 msgid "Use a single panel _row"
-msgstr "Kasuta ühte _riba rida"
+msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:651
+
+#: panel-plugin/ui/properties/general.cpp:672
 msgid "General menu settings"
 msgstr ""
 
-#. Layout mode
-#: panel-plugin/ui/properties/general.cpp:657
+#. Row 0 C1: Layout mode (narrow); C2 left empty.
+#: panel-plugin/ui/properties/general.cpp:676
 msgid "_Layout mode:"
 msgstr "_Paigutusrežiim:"
 
-#: panel-plugin/ui/properties/general.cpp:662
+#: panel-plugin/ui/properties/general.cpp:679
 msgid "Docked"
 msgstr "Dokitud"
 
-#: panel-plugin/ui/properties/general.cpp:663
+#: panel-plugin/ui/properties/general.cpp:680
 msgid "Centered"
 msgstr ""
 
-#: panel-plugin/ui/properties/general.cpp:664
+#: panel-plugin/ui/properties/general.cpp:681
 msgid "FullScreen"
 msgstr "Täisekraan"
 
-#. Panel gap
-#: panel-plugin/ui/properties/general.cpp:701
+#. Row 2 C1: Panel gap (narrow).
+#: panel-plugin/ui/properties/general.cpp:714
 msgid "_Panel gap:"
 msgstr "Paneeli _vahe:"
 
-#. Menu width (enable-when-docked)
-#: panel-plugin/ui/properties/general.cpp:725
+#. Row 1 C1: Menu width (narrow, enable-when-docked).
+#: panel-plugin/ui/properties/general.cpp:731
 msgid "Menu _width:"
 msgstr "Menüü _laius:"
 
-#. Menu height (enable-when-docked)
+#. Row 1 C2: Menu height (narrow, enable-when-docked).
 #: panel-plugin/ui/properties/general.cpp:747
 msgid "Menu _height:"
 msgstr "Menüü _kõrgus:"
 
-#. Corner radius
-#: panel-plugin/ui/properties/general.cpp:769
+#. Row 2 C2: Corner radius (narrow).
+#: panel-plugin/ui/properties/general.cpp:763
 msgid "_Corner radius:"
 msgstr "_Nurga raadius:"
 
-#. Full-screen opacity (enable-when-fullscreen) — schema v2 key.
-#: panel-plugin/ui/properties/general.cpp:793
-msgid "F_ull-screen opacity:"
-msgstr "Täisekraani _läbipaistvus:"
+#. Row 3 C1: Menu opacity (wide-fill). One control fades the whole menu
+#. background uniformly in every layout mode, so it is sensitive in all modes
+#. (no LayoutControl registration); compositing availability gates it instead.
+#: panel-plugin/ui/properties/general.cpp:782
+msgid "_Menu opacity:"
+msgstr ""
 
-#. Stay visible when focus is lost (the documented behavior: lives only in General).
-#: panel-plugin/ui/properties/general.cpp:817
+#. Row 3 C2: Stay visible when focus is lost (control-only).
+#: panel-plugin/ui/properties/general.cpp:814
 msgid "Stay _visible when focus is lost"
 msgstr "Kui fookus kaob, siis jää nähta_vaks"
 
-#: panel-plugin/ui/properties/places.cpp:53
+#: panel-plugin/ui/properties/extras.cpp:54
+msgid "(not installed)"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:78
+msgid "Calculator"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:80
+msgid "_Engine:"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:107
+msgid "Result font _size:"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:109
+msgid "Auto"
+msgstr ""
+
+#: panel-plugin/ui/properties/extras.cpp:119
+msgid "Maximum decimal _places:"
+msgstr ""
+
+#: panel-plugin/ui/properties/places.cpp:52
 msgid "Places mode"
 msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:57
+#: panel-plugin/ui/properties/places.cpp:56
 msgid "Enable _Places"
 msgstr "Luba _asukohad"
 
-#: panel-plugin/ui/properties/places.cpp:70
-#, fuzzy
+#: panel-plugin/ui/properties/places.cpp:66
 msgid "Show _icons"
-msgstr "Näita _ikoonidena"
+msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:83
+
+#: panel-plugin/ui/properties/places.cpp:75
 msgid "Sections"
 msgstr "Jaotised"
 
-#: panel-plugin/ui/properties/places.cpp:89
+#: panel-plugin/ui/properties/places.cpp:80
 msgid "Enable _History section"
 msgstr "Luba _Ajaloo jaotis"
 
-#: panel-plugin/ui/properties/places.cpp:99
-msgid "Enable _Favourites section"
-msgstr "Luba _Lemmikute jaotis"
+#: panel-plugin/ui/properties/places.cpp:86
+msgid "Enable _Favorites section"
+msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:108
-msgid "Favourite _sync:"
-msgstr "Lemmikute _sünkroonimine:"
+#: panel-plugin/ui/properties/places.cpp:91
+msgid "Favorite _sync:"
+msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:111
+#: panel-plugin/ui/properties/places.cpp:93
 msgid "MeowMenu only"
 msgstr "Ainult MeowMenu"
 
-#: panel-plugin/ui/properties/places.cpp:112
+#: panel-plugin/ui/properties/places.cpp:94
 msgid "Thunar bookmarks (read-only)"
 msgstr "Thunar järjehoidjad (ainult lugemiseks)"
 
-#: panel-plugin/ui/properties/places.cpp:120
+#: panel-plugin/ui/properties/places.cpp:100
 msgid "Maximum places _items:"
 msgstr "Asukohtade maksimaalsed _üksused:"
 
-#: panel-plugin/ui/properties/places.cpp:133
-#: panel-plugin/ui/properties/sidebar.cpp:247
-#, fuzzy
-msgid "Behaviour"
-msgstr "_Käitumine"
+#: panel-plugin/ui/properties/places.cpp:108
+#: panel-plugin/ui/properties/sidebar.cpp:201
+msgid "Behavior"
+msgstr ""
 
-#: panel-plugin/ui/properties/places.cpp:137
+#: panel-plugin/ui/properties/places.cpp:112
 msgid "_Remember last selected mode"
 msgstr "_Mäleta viimati valitud režiimi"
 
-#: panel-plugin/ui/properties/results-view.cpp:62
+#: panel-plugin/ui/properties/results-view.cpp:59
 msgid "View"
 msgstr ""
 
-#: panel-plugin/ui/properties/results-view.cpp:71
+#: panel-plugin/ui/properties/results-view.cpp:68
 msgid "Show as _icons"
 msgstr "Näita _ikoonidena"
 
-#: panel-plugin/ui/properties/results-view.cpp:84
+#: panel-plugin/ui/properties/results-view.cpp:81
 msgid "Show as lis_t"
 msgstr "Näita _loendina"
 
-#: panel-plugin/ui/properties/results-view.cpp:97
+#: panel-plugin/ui/properties/results-view.cpp:94
 msgid "Show as t_ree"
 msgstr "Näita _puuna"
 
-#: panel-plugin/ui/properties/results-view.cpp:123
+#: panel-plugin/ui/properties/results-view.cpp:119
 msgid "Layout"
 msgstr "Paigutus"
 
 #. Grid density (icons-only sub-enable)
-#: panel-plugin/ui/properties/results-view.cpp:129
+#: panel-plugin/ui/properties/results-view.cpp:123
 msgid "Grid _density:"
 msgstr "Võrgu _tihedus:"
 
-#: panel-plugin/ui/properties/results-view.cpp:134
-#: panel-plugin/ui/properties/search-bar.cpp:183
+#: panel-plugin/ui/properties/results-view.cpp:125
+#: panel-plugin/ui/properties/search-bar.cpp:207
 msgid "Low"
 msgstr "Madal"
 
-#: panel-plugin/ui/properties/results-view.cpp:135
-#: panel-plugin/ui/properties/search-bar.cpp:184
+#: panel-plugin/ui/properties/results-view.cpp:126
+#: panel-plugin/ui/properties/search-bar.cpp:208
 msgid "Medium"
 msgstr "Keskmine"
 
-#: panel-plugin/ui/properties/results-view.cpp:136
-#: panel-plugin/ui/properties/search-bar.cpp:185
+#: panel-plugin/ui/properties/results-view.cpp:127
+#: panel-plugin/ui/properties/search-bar.cpp:209
 msgid "High"
 msgstr "Kõrge"
 
 #. Application icon size (icons-only sub-enable)
-#: panel-plugin/ui/properties/results-view.cpp:158
+#: panel-plugin/ui/properties/results-view.cpp:145
 msgid "Application icon si_ze:"
 msgstr "Rakenduse ikooni _suurus:"
 
 #. NOTE: launcher_show_name stores "show the real (non-generic) name"; the
 #. checkbox is therefore inverted — checked means "Show generic" (false).
-#: panel-plugin/ui/properties/results-view.cpp:184
+#: panel-plugin/ui/properties/results-view.cpp:165
 msgid "Show generic application _names"
 msgstr "Näita rakenduste üldisi _nimesid"
 
-#: panel-plugin/ui/properties/results-view.cpp:196
+#: panel-plugin/ui/properties/results-view.cpp:176
 msgid "Show application too_ltips"
 msgstr "Näita rakenduste teabemu_lle"
 
-#. Show descriptions — list-only sub-enable.
-#: panel-plugin/ui/properties/results-view.cpp:208
+#. Show descriptions — list-only sub-enable. C1 with C2 left empty (the documented behavior).
+#: panel-plugin/ui/properties/results-view.cpp:188
 msgid "Show application _descriptions"
 msgstr "Näita application _descriptions"
 
-#: panel-plugin/ui/properties/results-view.cpp:279
-msgid "Opacity"
-msgstr "Läbipaistvus"
-
-#: panel-plugin/ui/properties/results-view.cpp:282
-msgid "App _box opacity:"
-msgstr "Rakenduste kasti _läbipaistvus:"
-
-#: panel-plugin/ui/properties/search-bar.cpp:58
-#: panel-plugin/ui/properties/sidebar.cpp:177
-msgid "Position"
+#: panel-plugin/ui/properties/results-view.cpp:199
+msgid "Transparent grid"
 msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:61
-#, fuzzy
-msgid "_Search bar position:"
-msgstr "Otsi tegevust"
+#: panel-plugin/ui/properties/search-bar.cpp:52
+msgid "Primary row"
+msgstr ""
 
-#. NOTE: no "bottom-right" entry — for the profile it renders identically to
-#. "bottom" (there is no horizontal end distinction), so it would be a
-#. duplicate option. A stored "bottom-right" is normalised to "bottom" on
-#. upgrade; "bottom-right" remains a distinct Commands Position value.
-#: panel-plugin/ui/properties/search-bar.cpp:66
-#: panel-plugin/ui/properties/sidebar.cpp:188
-#: panel-plugin/ui/properties/user-session.cpp:73
+#: panel-plugin/ui/properties/search-bar.cpp:55
+msgid "_Search bar position:"
+msgstr ""
+
+
+#: panel-plugin/ui/properties/search-bar.cpp:57
 msgid "Top"
 msgstr "Ülaserv"
 
-#: panel-plugin/ui/properties/search-bar.cpp:67
-#: panel-plugin/ui/properties/sidebar.cpp:189
-#: panel-plugin/ui/properties/user-session.cpp:74
+#: panel-plugin/ui/properties/search-bar.cpp:58
 msgid "Bottom"
 msgstr "Alaserv"
 
-#: panel-plugin/ui/properties/search-bar.cpp:95
+#: panel-plugin/ui/properties/search-bar.cpp:80
+msgid "Show _profile:"
+msgstr ""
+
+#: panel-plugin/ui/properties/search-bar.cpp:89
+msgid "Avatar _shape:"
+msgstr "Avatari _kuju:"
+
+#: panel-plugin/ui/properties/search-bar.cpp:92
+msgid "Round Picture"
+msgstr "Ümmargune pilt"
+
+#: panel-plugin/ui/properties/search-bar.cpp:94
+msgid "Square Picture"
+msgstr "Ruudukujuline pilt"
+
+#: panel-plugin/ui/properties/search-bar.cpp:141
 msgid "_Fuzzy matching:"
 msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:118
+#: panel-plugin/ui/properties/search-bar.cpp:156
 msgid "Max _errors (0=auto):"
 msgstr "Maks. _vigu (0=automaatne):"
 
-#: panel-plugin/ui/properties/search-bar.cpp:139
+#: panel-plugin/ui/properties/search-bar.cpp:172
 msgid "Fuzzy Search"
 msgstr "Umbkaudne otsing"
 
-#: panel-plugin/ui/properties/search-bar.cpp:140
+#: panel-plugin/ui/properties/search-bar.cpp:173
 msgid ""
 "Finds apps even when you mistype a word.\n"
 "Example: \"firfox\" still finds Firefox.\n"
 "Max errors 0 = automatic (1 for short queries, 2 for longer ones)."
 msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:153
-#, fuzzy
+#: panel-plugin/ui/properties/search-bar.cpp:190
 msgid "_Boost favorites:"
-msgstr "Lemmikud"
+msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:176
+
+#: panel-plugin/ui/properties/search-bar.cpp:205
 msgid "Boost _level:"
 msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:201
-#, fuzzy
+#: panel-plugin/ui/properties/search-bar.cpp:226
 msgid "Recency _weight (%):"
-msgstr "Menüü _kõrgus:"
+msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:221
+
+#: panel-plugin/ui/properties/search-bar.cpp:246
 msgid "Usage Boost"
 msgstr ""
 
-#: panel-plugin/ui/properties/search-bar.cpp:222
+#: panel-plugin/ui/properties/search-bar.cpp:247
 msgid ""
 "Promotes apps you use frequently or marked as favorites.\n"
 "Recency weight controls the balance between how recently vs.\n"
@@ -861,9 +902,9 @@ msgstr ""
 
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:92
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:166
-#, fuzzy
 msgid "Application"
-msgstr "Rakendused"
+msgstr ""
+
 
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:99
 msgid "Aliases (comma-separated)"
@@ -879,9 +920,9 @@ msgid "_Remove"
 msgstr "_Eemalda"
 
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:146
-#, fuzzy
 msgid "Choose Application"
-msgstr "Peida rakendus"
+msgstr ""
+
 
 #: panel-plugin/ui/properties/search-bar-aliases.cpp:237
 msgid "Aliases"
@@ -904,290 +945,251 @@ msgid "Remove selected action"
 msgstr "Eemalda valitud tegevus"
 
 #: panel-plugin/ui/properties/search-bar-actions.cpp:127
-#, fuzzy
 msgid "Edit selected action…"
-msgstr "Eemalda valitud tegevus"
+msgstr ""
+
 
 #: panel-plugin/ui/properties/search-bar-actions.cpp:184
-#, fuzzy
 msgid "Search actions"
-msgstr "Otsi_ngud"
+msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:71
+
+#: panel-plugin/ui/properties/sidebar.cpp:67
 msgid "_Enable sidebar"
 msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:93
+#: panel-plugin/ui/properties/sidebar.cpp:89
 msgid "Visuals"
 msgstr "Visuaalne"
 
-#: panel-plugin/ui/properties/sidebar.cpp:99
+#: panel-plugin/ui/properties/sidebar.cpp:93
 msgid "Show cate_gory names"
 msgstr "Näita kate_gooriate nimesid"
 
 #. Category icon size
-#: panel-plugin/ui/properties/sidebar.cpp:116
+#: panel-plugin/ui/properties/sidebar.cpp:109
 msgid "Categ_ory icon size:"
 msgstr "Kateg_ooria ikooni suurus:"
 
-#. Sidebar opacity (renamed from "Category opacity"; enable-when-docked).
-#: panel-plugin/ui/properties/sidebar.cpp:144
-msgid "_Sidebar opacity:"
-msgstr "Külgriba _läbipaistvus:"
+#: panel-plugin/ui/properties/sidebar.cpp:133
+msgid "Position"
+msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:181
+#: panel-plugin/ui/properties/sidebar.cpp:137
 msgid "Sidebar _position:"
 msgstr "Külgriba _asukoht:"
 
-#: panel-plugin/ui/properties/sidebar.cpp:186
+#: panel-plugin/ui/properties/sidebar.cpp:139
 msgid "Left"
 msgstr "Vasak"
 
-#: panel-plugin/ui/properties/sidebar.cpp:187
+#: panel-plugin/ui/properties/sidebar.cpp:140
 msgid "Right"
 msgstr "Parem"
 
-#: panel-plugin/ui/properties/sidebar.cpp:251
+#: panel-plugin/ui/properties/sidebar.cpp:142
+msgid "Horizontal"
+msgstr ""
+
+#: panel-plugin/ui/properties/sidebar.cpp:205
 msgid "Switch categories by _hovering"
 msgstr "Riplemisel va_heta kategooriaid"
 
-#: panel-plugin/ui/properties/sidebar.cpp:264
+#: panel-plugin/ui/properties/sidebar.cpp:218
 msgid "Sort ca_tegories"
 msgstr "Järjesta ka_tegooriaid"
 
-#: panel-plugin/ui/properties/sidebar.cpp:277
-#, fuzzy
+#: panel-plugin/ui/properties/sidebar.cpp:231
 msgid "Default category"
-msgstr "Vaikimisi kategooria"
+msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:339
-#, fuzzy
+
+#: panel-plugin/ui/properties/sidebar.cpp:299
 msgid "Recently used"
-msgstr "Hiljuti kasutatud"
+msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:343
-#, fuzzy
+
+#: panel-plugin/ui/properties/sidebar.cpp:303
 msgid "Maximum _items:"
-msgstr "K_irjete arv:"
+msgstr ""
 
-#: panel-plugin/ui/properties/sidebar.cpp:364
-#, fuzzy
+
+#: panel-plugin/ui/properties/sidebar.cpp:320
 msgid "Include _favorites in \"Recent\""
-msgstr "Kaasa _lemmikud"
+msgstr ""
 
-#: panel-plugin/ui/properties/user-session.cpp:60
-#, fuzzy
-msgid "Profile"
-msgstr "P_rofiil:"
 
-#. Profile position
-#: panel-plugin/ui/properties/user-session.cpp:64
-msgid "_Position:"
+#: panel-plugin/ui/properties/user-session.cpp:51
+msgid "Session controls"
+msgstr ""
+
+#: panel-plugin/ui/properties/user-session.cpp:55
+msgid "Show _session controls:"
 msgstr ""
 
 #: panel-plugin/ui/properties/user-session.cpp:75
-#: panel-plugin/ui/properties/user-session.cpp:147
-msgid "Hidden"
-msgstr "Peidetud"
-
-#. Avatar shape (sub-enabled when profile-position != hidden).
-#: panel-plugin/ui/properties/user-session.cpp:85
-msgid "Avatar _shape:"
-msgstr "Avatari _kuju:"
-
-#: panel-plugin/ui/properties/user-session.cpp:90
-msgid "Round Picture"
-msgstr "Ümmargune pilt"
-
-#: panel-plugin/ui/properties/user-session.cpp:91
-msgid "Square Picture"
-msgstr "Ruudukujuline pilt"
-
-#: panel-plugin/ui/properties/user-session.cpp:137
-#, fuzzy
-msgid "Commands"
-msgstr "_Käsud"
-
-#: panel-plugin/ui/properties/user-session.cpp:140
-#, fuzzy
-msgid "_Commands position:"
-msgstr "_Käsud"
-
-#: panel-plugin/ui/properties/user-session.cpp:145
-msgid "Top Right"
-msgstr ""
-
-#: panel-plugin/ui/properties/user-session.cpp:146
-msgid "Bottom Right"
-msgstr "Paremas allnurgas"
-
-#: panel-plugin/ui/properties/user-session.cpp:211
-msgid "Place profile, search and session on a single _line"
-msgstr "Aseta profiil, otsing ja seanss ühele _reale"
-
-#: panel-plugin/ui/properties/user-session.cpp:242
 msgid "Show c_onfirmation dialog"
 msgstr "Näita ki_nnituse vaadet"
 
-#: panel-plugin/ui/properties/user-session.cpp:257
-#, fuzzy
+#: panel-plugin/ui/properties/user-session.cpp:90
 msgid "Session commands"
-msgstr "Sessioonikäsud"
+msgstr ""
 
-#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:2593
+
+#: panel-plugin/settings.cpp:40 panel-plugin/core/window.cpp:3581
 msgid "Applications"
 msgstr "Rakendused"
 
-#: panel-plugin/settings.cpp:90 panel-plugin/settings.cpp:97
+#: panel-plugin/settings.cpp:84
 msgid "Man Pages"
 msgstr "Juhendid"
 
-#: panel-plugin/settings.cpp:91 panel-plugin/settings.cpp:98
+#: panel-plugin/settings.cpp:88
 msgid "Search the Web"
 msgstr "Otsi veebist"
 
-#: panel-plugin/settings.cpp:92 panel-plugin/settings.cpp:99
+#: panel-plugin/settings.cpp:92
 msgid "Search for Files"
 msgstr "Otsi faile"
 
-#: panel-plugin/settings.cpp:93 panel-plugin/settings.cpp:100
+#: panel-plugin/settings.cpp:93
 msgid "Wikipedia"
 msgstr "Vikipeedia"
 
-#: panel-plugin/settings.cpp:94 panel-plugin/settings.cpp:101
+#: panel-plugin/settings.cpp:97
 msgid "Run in Terminal"
 msgstr "Käivita terminalis"
 
-#: panel-plugin/settings.cpp:95 panel-plugin/settings.cpp:102
+#: panel-plugin/settings.cpp:101
 msgid "Open URI"
 msgstr "Ava võrguaadress"
 
-#: panel-plugin/settings.cpp:151
+#: panel-plugin/settings.cpp:152
 msgid "_Settings Manager"
 msgstr "_Seadistuste haldur"
 
-#: panel-plugin/settings.cpp:153
+#: panel-plugin/settings.cpp:154
 msgid "Failed to open settings manager."
 msgstr "Seadistuste halduri avamine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:156
+#: panel-plugin/settings.cpp:157
 msgid "_Lock Screen"
 msgstr "_Lukusta ekraan"
 
-#: panel-plugin/settings.cpp:158
+#: panel-plugin/settings.cpp:159
 msgid "Failed to lock screen."
 msgstr "Ekraani lukustamine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:161
+#: panel-plugin/settings.cpp:162
 msgid "Switch _User"
 msgstr "Vaheta kas_utajat"
 
-#: panel-plugin/settings.cpp:163
+#: panel-plugin/settings.cpp:164
 msgid "Failed to switch user."
 msgstr "Kasutaja vahetamine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:166
+#: panel-plugin/settings.cpp:167
 msgid "Log _Out"
 msgstr "Logi _välja"
 
-#: panel-plugin/settings.cpp:168 panel-plugin/settings.cpp:203
+#: panel-plugin/settings.cpp:169 panel-plugin/settings.cpp:204
 msgid "Failed to log out."
 msgstr "Välja logimine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:169
+#: panel-plugin/settings.cpp:170
 msgid "Are you sure you want to log out?"
 msgstr "Kas sa oled kindel, et soovid välja logida?"
 
-#: panel-plugin/settings.cpp:170
+#: panel-plugin/settings.cpp:171
 #, c-format
 msgid "Logging out in %d seconds."
 msgstr "Logime välja %d sekundi pärast."
 
-#: panel-plugin/settings.cpp:173
+#: panel-plugin/settings.cpp:174
 msgid "_Restart"
 msgstr "_Taaskäivita"
 
-#: panel-plugin/settings.cpp:175
+#: panel-plugin/settings.cpp:176
 msgid "Failed to restart."
 msgstr "Taaskäivitamine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:176
+#: panel-plugin/settings.cpp:177
 msgid "Are you sure you want to restart?"
 msgstr "Kas sa oled kindel, et soovid arvuti taaskäivitada?"
 
-#: panel-plugin/settings.cpp:177
+#: panel-plugin/settings.cpp:178
 #, c-format
 msgid "Restarting computer in %d seconds."
 msgstr "Taaskäivitame arvuti %d sekundi pärast."
 
-#: panel-plugin/settings.cpp:180
+#: panel-plugin/settings.cpp:181
 msgid "Shut _Down"
 msgstr "Lülita _välja"
 
-#: panel-plugin/settings.cpp:182
+#: panel-plugin/settings.cpp:183
 msgid "Failed to shut down."
 msgstr "Välja lülitamine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:183
+#: panel-plugin/settings.cpp:184
 msgid "Are you sure you want to shut down?"
 msgstr "Kas sa oled kindel, et soovid arvuti välja lülitada?"
 
-#: panel-plugin/settings.cpp:184
+#: panel-plugin/settings.cpp:185
 #, c-format
 msgid "Turning off computer in %d seconds."
 msgstr "Arvuti lülitub välja %d sekundi pärast."
 
-#: panel-plugin/settings.cpp:187
+#: panel-plugin/settings.cpp:188
 msgid "Suspe_nd"
 msgstr "Tee ui_nak"
 
-#: panel-plugin/settings.cpp:189
+#: panel-plugin/settings.cpp:190
 msgid "Failed to suspend."
 msgstr "Arvuti jätmine uinakusse ei õnnestunud."
 
-#: panel-plugin/settings.cpp:190
+#: panel-plugin/settings.cpp:191
 msgid "Do you want to suspend to RAM?"
 msgstr "Kas sa soovid jätta arvuti uinakusse (talletada mällu)?"
 
-#: panel-plugin/settings.cpp:191
+#: panel-plugin/settings.cpp:192
 #, c-format
 msgid "Suspending computer in %d seconds."
 msgstr "Arvuti jääb uinakusse %d sekundi pärast."
 
-#: panel-plugin/settings.cpp:194
+#: panel-plugin/settings.cpp:195
 msgid "_Hibernate"
 msgstr "_Jää talveunne"
 
-#: panel-plugin/settings.cpp:196
+#: panel-plugin/settings.cpp:197
 msgid "Failed to hibernate."
 msgstr "Talveunne jäämine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:197
+#: panel-plugin/settings.cpp:198
 msgid "Do you want to suspend to disk?"
 msgstr "Kas sa soovid jätta arvuti uinakusse (talletada kõvakettale)?"
 
-#: panel-plugin/settings.cpp:198
+#: panel-plugin/settings.cpp:199
 #, c-format
 msgid "Hibernating computer in %d seconds."
 msgstr "Arvuti jääb talveunne %d sekundi pärast."
 
-#: panel-plugin/settings.cpp:201
+#: panel-plugin/settings.cpp:202
 msgid "Log Ou_t..."
 msgstr "Logi _välja..."
 
-#: panel-plugin/settings.cpp:206
+#: panel-plugin/settings.cpp:207
 msgid "_Edit Applications"
 msgstr "_Muuda rakendusi"
 
-#: panel-plugin/settings.cpp:208
+#: panel-plugin/settings.cpp:209
 msgid "Failed to launch menu editor."
 msgstr "Menüühalduri käivitamine ei õnnestunud."
 
-#: panel-plugin/settings.cpp:211
+#: panel-plugin/settings.cpp:212
 msgid "Edit _Profile"
 msgstr "Muuda _profiili"
 
-#: panel-plugin/settings.cpp:213
+#: panel-plugin/settings.cpp:214
 msgid "Failed to edit profile."
 msgstr "Profiili muutmine ei õnnestunud."
 
@@ -1195,20 +1197,36 @@ msgstr "Profiili muutmine ei õnnestunud."
 #. /presets/<uuid>/ (not the live keys) and sets
 #. current_preset_id to the new uuid, giving a truthful label
 #. the user can later rename or save over.
-#: panel-plugin/settings.cpp:412 panel-plugin/settings-defaults.cpp:297
-#, fuzzy
+#: panel-plugin/settings.cpp:406 panel-plugin/settings-defaults.cpp:322
 msgid "Custom"
-msgstr "● Kohandatud"
+msgstr ""
 
-#: panel-plugin/core/window.cpp:565 panel-plugin/core/window.cpp:2593
+
+#: panel-plugin/calculator/calculator-engine.cpp:28
+msgid "Qalculate"
+msgstr ""
+
+#: panel-plugin/calculator/calculator-engine.cpp:30
+msgid "GNOME Calculator"
+msgstr ""
+
+#: panel-plugin/core/window.cpp:581 panel-plugin/core/window.cpp:3581
 msgid "Apps"
 msgstr "Rakendused"
 
-#: panel-plugin/core/window-pages.cpp:279
+#: panel-plugin/core/window.cpp:708
+msgid "FAVORITES"
+msgstr ""
+
+#: panel-plugin/core/window.cpp:710
+msgid "RECENTLY USED"
+msgstr ""
+
+#: panel-plugin/core/window-pages.cpp:404
 msgid "Search places…"
 msgstr "Otsi asukohti…"
 
-#: panel-plugin/core/window-pages.cpp:280
+#: panel-plugin/core/window-pages.cpp:405
 msgid "Search applications…"
 msgstr "Otsi rakendusi…"
 
@@ -1232,63 +1250,52 @@ msgstr "Vali missuguse menüüvariandi soovid käivitada ID alusel"
 msgid "Print version information and exit"
 msgstr "Väljasta versiooniteave ja lõpeta töö"
 
+#: panel-plugin/presets/preset-builtins.cpp:64
+msgid ""
+"Traditional compact layout with the sidebar on the right and applications in "
+"a list."
+msgstr ""
+
+#: panel-plugin/presets/preset-builtins.cpp:97
+msgid ""
+"Contemporary layout with rounded corners, categories on the left, and hover-"
+"to-switch enabled."
+msgstr ""
+
+#: panel-plugin/presets/preset-builtins.cpp:135
+msgid ""
+"Launcher fills the whole screen with a centered grid and categories on the "
+"left."
+msgstr ""
+
+#: panel-plugin/presets/preset-builtins.cpp:171
+msgid ""
+"Compact, distraction-free launcher with no sidebar, profile, or session "
+"buttons."
+msgstr ""
+
+#: panel-plugin/presets/preset-io.cpp:231
+msgid ""
+"This preset uses layout settings from an older MeowMenu version and cannot "
+"be imported."
+msgstr ""
+
 #: panel-plugin/meowmenu.desktop.in:5
 msgid "Show a menu to easily access installed applications"
 msgstr "Menüü, mis võimaldab mugavat ligipääsu paigaldatud raendustele"
 
-#~ msgid "● Customized"
-#~ msgstr "● Kohandatud"
+#: data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml:5
+msgid "MeowMenu"
+msgstr ""
 
-#~ msgid "Show item _metadata"
-#~ msgstr "Kuva üksuse _metaandmed"
+#: data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml:6
+msgid "Modern menu launcher plugin for the Xfce panel"
+msgstr ""
 
-#~ msgid "Alternate application launcher for Xfce"
-#~ msgstr "Alternatiivne rakenduste käivitaja Xfce jaoks"
-
-#~ msgid "translator-credits"
-#~ msgstr "Priit Jõerüüt 2024-2025"
-
-#~ msgid "Whisker Menu"
-#~ msgstr "Whisker Menüü"
-
-#~ msgid "_Appearance"
-#~ msgstr "_Välimus"
-
-#~ msgid "Background opacit_y:"
-#~ msgstr "Tausta läbipa_istvus:"
-
-#~ msgid "Position categories _horizontally"
-#~ msgstr "Paiguta kategooriad rõ_htloodis"
-
-#~ msgid "Position cate_gories on bottom"
-#~ msgstr "Paiguta kate_gooriad menüü alumisse äärde"
-
-#~ msgid "Position cate_gories on left"
-#~ msgstr "Paiguta kate_gooriad menüü vasakusse äärde"
-
-#~ msgid "Position pro_file on bottom"
-#~ msgstr "Paiguta pro_fiiliriba menüü alumisse äärde"
-
-#~ msgid "Position _search entry on bottom"
-#~ msgstr "Paiguta ot_singukast menüü alumisse äärde"
-
-#~ msgid "Position commands next to search _entry"
-#~ msgstr "Paiguta käsud otsingukasti kõrval_e"
-
-#~ msgid "Di_splay:"
-#~ msgstr "Vaa_de:"
-
-#~ msgid "Icon"
-#~ msgstr "Ikoon"
-
-#~ msgid "Title"
-#~ msgstr "Ainult pealkiri"
-
-#~ msgid "Icon and title"
-#~ msgstr "Ikoon ja pealkiri"
-
-#~ msgid "_Icon:"
-#~ msgstr "_Ikoon:"
-
-#~ msgid "Details"
-#~ msgstr "Üksikasjad"
+#: data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml:12
+msgid ""
+"MeowMenu is a panel-plugin launcher for the Xfce desktop. It is a standalone "
+"project that originated as a fork of Xfce's Whisker Menu and keeps the "
+"familiar panel-launcher feel while bringing a cleaner modern look and a more "
+"capable search bar."
+msgstr ""

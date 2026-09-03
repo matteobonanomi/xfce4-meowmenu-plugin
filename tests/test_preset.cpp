@@ -1166,6 +1166,26 @@ static void test_governed_keys_completeness_files()
 	}
 }
 
+static void test_builtin_identity_display_helpers()
+{
+	for (int i = 0; i < WhiskerMenu::PRESET_BUILTIN_COUNT; ++i)
+	{
+		const WhiskerMenu::LayoutPreset& preset = WhiskerMenu::BUILTIN_PRESETS[i];
+		assert(preset.identity_localizable);
+		assert(!WhiskerMenu::preset_name_for_display(preset).empty());
+		assert(!WhiskerMenu::preset_description_for_display(preset).empty());
+	}
+
+	WhiskerMenu::LayoutPreset custom = {};
+	custom.name = "Classic";
+	custom.display_name = "Classic";
+	custom.description = "User-authored description";
+	custom.identity_localizable = false;
+	assert(WhiskerMenu::preset_name_for_display(custom) == "Classic");
+	assert(WhiskerMenu::preset_description_for_display(custom)
+		== "User-authored description");
+}
+
 static void test_file_table_agreement()
 {
 	struct { const char* id; const char* file; } pairs[] = {
@@ -1180,6 +1200,12 @@ static void test_file_table_agreement()
 		const WhiskerMenu::LayoutPreset* p = find_builtin(pr.id);
 		assert(p);
 		GKeyFile* kf = load_meowpreset(pr.file);
+		gchar* file_name = g_key_file_get_string(kf, "Preset", "Name", nullptr);
+		gchar* file_description = g_key_file_get_string(kf, "Preset", "Description", nullptr);
+		assert(file_name && p->name == file_name);
+		assert(file_description && p->description == file_description);
+		g_free(file_name);
+		g_free(file_description);
 		for (const auto& k : keys)
 		{
 			auto it = p->values.find(k);
@@ -1253,6 +1279,7 @@ int main()
 	test_builtin_category_icon_sizes();
 	test_governed_keys_completeness_table();
 	test_governed_keys_completeness_files();
+	test_builtin_identity_display_helpers();
 	test_file_table_agreement();
 	return 0;
 }

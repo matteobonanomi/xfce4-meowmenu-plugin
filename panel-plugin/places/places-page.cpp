@@ -839,8 +839,8 @@ void PlacesPage::clear_drag_state(bool defer_folder_cleanup)
 /* show_context_menu:
  *
  * Builds the per-item context menu fresh on every right-click (the documented behavior). Action
- * visibility depends on item type and active favourite-sync mode. Add/Remove
- * Favourites are omitted in ThunarBookmarks mode (read-only).
+ * visibility depends on item type and active favorite-sync mode. Add/Remove
+ * Favorites are omitted in ThunarBookmarks mode (read-only).
  */
 void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 {
@@ -875,7 +875,7 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 	{
 		if (item->is_favourite())
 		{
-			mi = whiskermenu_image_menu_item_new("list-remove", _("Remove from Favourites"));
+			mi = whiskermenu_image_menu_item_new("list-remove", _("Remove from Favorites"));
 			connect(mi, "activate",
 				[this, item](GtkMenuItem*)
 				{
@@ -886,7 +886,7 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		}
 		else
 		{
-			mi = whiskermenu_image_menu_item_new("bookmark-new", _("Add to Favourites"));
+			mi = whiskermenu_image_menu_item_new("bookmark-new", _("Add to Favorites"));
 			connect(mi, "activate",
 				[this, item](GtkMenuItem*)
 				{

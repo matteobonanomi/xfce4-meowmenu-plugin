@@ -466,6 +466,7 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		p.name         = pair.second.name.empty() ? display_name : pair.second.name;
 		p.description  = "";
 		p.is_builtin   = false;
+		p.identity_localizable = false;
 		p.values       = std::move(pair.second.values);
 		g_user_presets.push_back(std::move(p));
 	}

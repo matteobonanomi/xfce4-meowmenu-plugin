@@ -200,9 +200,13 @@ install_data(
   install_dir: pkgdatadir,
 )
 
-# Install AppStream metadata under the standard data directory.
-install_data(
-  'data' / 'metainfo' / 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
+# Generate and install localized AppStream metadata from the main catalog.
+i18n.merge_file(
+  input: 'data' / 'metainfo' / 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
+  output: 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
+  po_dir: 'po',
+  type: 'xml',
+  install: true,
   install_dir: get_option('prefix') / get_option('datadir') / 'metainfo',
 )
 

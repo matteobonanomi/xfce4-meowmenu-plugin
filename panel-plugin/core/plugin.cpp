@@ -31,6 +31,7 @@
 #include "window-size-clamp.h"
 
 #include <libxfce4ui/libxfce4ui.h>
+#include <glib/gi18n-lib.h>
 
 using namespace WhiskerMenu;
 
@@ -547,6 +548,16 @@ void Plugin::show_about()
 	gtk_about_dialog_set_authors(about, authors);
 	gtk_about_dialog_set_logo_icon_name(about, "org.xfce.panel.meowmenu");
 	gtk_about_dialog_add_credit_section(about, _("Based on Whisker Menu"), whisker_credits);
+
+	const gchar* translated_credits = _("translator-credits");
+	if (translated_credits)
+	{
+		gchar* credits = g_strdup(translated_credits);
+		g_strstrip(credits);
+		if (*credits != '\0' && g_strcmp0(credits, "translator-credits") != 0)
+			gtk_about_dialog_set_translator_credits(about, credits);
+		g_free(credits);
+	}
 
 	gtk_dialog_add_button(GTK_DIALOG(dialog), _("What's New"), RESPONSE_NEWS);
 

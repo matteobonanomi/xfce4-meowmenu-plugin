@@ -49,11 +49,13 @@ struct LayoutPreset
 	std::string   id;
 	std::string   display_name;
 	// Stored identity name surfaced as the active-preset label. For built-ins
-	// it equals the localized display name (from the .meowpreset Name= key or
-	// the C++ table); for custom presets it is the user's chosen name.
+	// it equals the canonical display name from the .meowpreset Name= key or
+	// the C++ table; for custom presets it is the user's chosen name.
 	std::string   name;
 	std::string   description;
 	bool          is_builtin;
+	// True only for MeowMenu-owned compiled or packaged preset metadata.
+	bool          identity_localizable;
 	PresetValueMap values;
 };
 
@@ -80,6 +82,27 @@ const std::vector<std::string>& governed_keys();
 // so a unit test can assert it equals governed_keys() — i.e. no governed key is
 // left unsynced — without instantiating a GTK display.
 const std::vector<std::string>& synced_keys();
+
+/* preset_name_for_display:
+ * @preset: preset whose canonical name should be presented.
+ *
+ * Translates only MeowMenu-owned preset identity text. User-authored names
+ * remain byte-for-byte unchanged so a custom name cannot collide with a
+ * catalog entry at presentation time.
+ *
+ * Returns: a display string owned by the caller.
+ */
+std::string preset_name_for_display(const LayoutPreset& preset);
+
+/* preset_description_for_display:
+ * @preset: preset whose canonical description should be presented.
+ *
+ * Applies the same provenance rule as the name helper while preserving empty
+ * descriptions and user-authored text.
+ *
+ * Returns: a display string owned by the caller.
+ */
+std::string preset_description_for_display(const LayoutPreset& preset);
 
 // Apply all values from preset to settings; set current_preset_id at the end.
 void apply_preset(const LayoutPreset& preset, Settings& settings);

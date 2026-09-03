@@ -598,7 +598,7 @@ std::vector<LayoutPreset> WhiskerMenu::enumerate_preset_files(const std::string&
 	// keyed by id; second pass (user dir) overwrites first pass (system dir).
 	std::map<std::string, LayoutPreset> by_id;
 
-	auto scan_dir = [&](const std::string& dir_path)
+	auto scan_dir = [&](const std::string& dir_path, bool identity_localizable)
 	{
 		GError* err = nullptr;
 		GDir* d = g_dir_open(dir_path.c_str(), 0, &err);
@@ -622,13 +622,16 @@ std::vector<LayoutPreset> WhiskerMenu::enumerate_preset_files(const std::string&
 			std::string full = dir_path + G_DIR_SEPARATOR_S + fname;
 			LayoutPreset p;
 			if (parse_preset_file_internal(full, p))
+			{
+				p.identity_localizable = identity_localizable;
 				by_id[p.id] = std::move(p);
+			}
 		}
 		g_dir_close(d);
 	};
 
-	scan_dir(system_dir);
-	scan_dir(user_dir); // user wins on id collision
+	scan_dir(system_dir, true);
+	scan_dir(user_dir, false); // user wins on id collision
 
 	std::vector<LayoutPreset> result;
 	result.reserve(by_id.size());

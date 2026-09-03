@@ -54,7 +54,7 @@ FavouritesSection::~FavouritesSection()
 
 const gchar* FavouritesSection::get_display_name() const
 {
-	return _("Favourites");
+	return _("Favorites");
 }
 
 //-----------------------------------------------------------------------------

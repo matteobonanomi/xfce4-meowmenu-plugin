@@ -47,6 +47,9 @@ contains the missing favourites, or add the applications again manually.
 
 ### Can I contribute a translation?
 
-Yes — edit the relevant `po/<lang>.po` file, run `msgfmt --check`, and open a
-pull request. Italian has maintainer review; reviews for every other language
-are especially welcome. See [translation status](translations).
+Yes — edit the relevant `po/<lang>.po` file, run
+`msgfmt --check --check-format -o /dev/null po/<lang>.po`, and open a pull request.
+The status page
+separates technical validity, translated text, intentional English fallback,
+and fluent review; no language is marked fluent-reviewed before maintainer
+review. See [translation status](translations).

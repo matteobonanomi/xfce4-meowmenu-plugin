@@ -96,9 +96,10 @@ Xfconf and can be changed through the graphical preferences. See the
 - [Security policy](.github/SECURITY.md)
 - [Translation review](docs/translations.md)
 
-MeowMenu includes 56 gettext catalogs. Technical validity, completeness,
-provenance, and fluent review are reported separately; reviews by fluent
-speakers are welcome.
+MeowMenu includes 56 gettext catalogs. Technical validity, translation
+coverage, fallback behavior, and fluent review are reported separately. Italian
+and British English are currently pending maintainer fluent review; review by
+fluent speakers is welcome for every language.
 
 ## License and credits
 

@@ -83,12 +83,12 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(history_label), history_switch);
 
 	GtkWidget* fav_switch = make_form_switch();
-	GtkWidget* fav_label = gtk_label_new_with_mnemonic(_("Enable _Favourites section"));
+	GtkWidget* fav_label = gtk_label_new_with_mnemonic(_("Enable _Favorites section"));
 	gtk_switch_set_active(GTK_SWITCH(fav_switch), m_settings->places_favourites_enabled);
 	add_form_row(sections_grid, COLUMN_C2, 0, fav_label, fav_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(fav_label), fav_switch);
 
-	GtkWidget* sync_label = gtk_label_new_with_mnemonic(_("Favourite _sync:"));
+	GtkWidget* sync_label = gtk_label_new_with_mnemonic(_("Favorite _sync:"));
 	GtkWidget* sync_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sync_combo), "meowmenu", _("MeowMenu only"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sync_combo), "thunar",   _("Thunar bookmarks (read-only)"));
@@ -103,16 +103,16 @@ GtkWidget* SettingsDialog::init_places_tab()
 	add_form_row(sections_grid, COLUMN_C2, 1, max_label, max_spin, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), max_spin);
 
-	// Behaviour section: mode memory remains the only selector behavior choice.
-	GtkWidget* behaviour_grid = make_two_column_section();
-	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), behaviour_grid);
-	gtk_box_pack_start(page, behaviour_frame, false, false, 0);
-	places_dependents.push_back(behaviour_frame);
+	// Behavior section: mode memory remains the only selector behavior choice.
+	GtkWidget* behavior_grid = make_two_column_section();
+	GtkWidget* behavior_frame = make_aligned_frame(_("Behavior"), behavior_grid);
+	gtk_box_pack_start(page, behavior_frame, false, false, 0);
+	places_dependents.push_back(behavior_frame);
 
 	GtkWidget* remember_check = gtk_check_button_new_with_mnemonic(_("_Remember last selected mode"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remember_check),
 			m_settings->places_remember_last_mode);
-	add_form_row(behaviour_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
+	add_form_row(behavior_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
 
 	// Sensitivity helpers (supported behavior, supported behavior).
 	auto refresh_sensitivity = [=]()

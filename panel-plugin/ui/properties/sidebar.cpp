@@ -38,7 +38,7 @@ using namespace WhiskerMenu;
  * Sections (top-to-bottom, supported behavior):
  *   1. Visuals      — show category names, icon size, sidebar opacity.
  *   2. Position     — sidebar position (Left/Right/Horizontal).
- *   3. Behaviour    — hover-switch, sort categories, default category.
+ *   3. Behavior     — hover-switch, sort categories, default category.
  *   4. Recently used — max items, include favorites.
  *
  * Sub-enable rule for category-show-name: greyed when sidebar-position
@@ -195,10 +195,10 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		});
 
 	// =========================================================================
-	// 3. Behaviour section (supported behavior) — hover C1 / sort C2.
+	// 3. Behavior section (supported behavior) — hover C1 / sort C2.
 	// =========================================================================
 	GtkWidget* behavior_grid = make_two_column_section();
-	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), behavior_grid);
+	GtkWidget* behavior_frame = make_aligned_frame(_("Behavior"), behavior_grid);
 	gtk_box_pack_start(page, behavior_frame, false, false, 0);
 	sidebar_section_frames->push_back(behavior_frame);
 

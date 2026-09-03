@@ -573,7 +573,10 @@ void SettingsDialog::refresh_customized_indicator()
 	{
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), applied->id.c_str());
 		if (m_preset_help)
-			gtk_widget_set_tooltip_text(m_preset_help, _(applied->description.c_str()));
+		{
+			const std::string description = preset_description_for_display(*applied);
+			gtk_widget_set_tooltip_text(m_preset_help, description.c_str());
+		}
 	}
 
 	// Rename/Delete/Export apply only to a real, saved user preset — never a
@@ -808,26 +811,26 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 	{
 		for (const auto& p : file_presets)
 		{
-			// Label from the stored identity name — one code path for built-in
-			// and custom presets. For built-ins name == display name.
-			const std::string& label = p.name.empty() ? p.display_name : p.name;
+			const std::string label = preset_name_for_display(p);
 			append_preset_row(m_preset_model, p.id, label, true);
 		}
 	}
 	else
 	{
 		// NOTE: fallback if initialize_file_presets() was not called or all files missing.
-		append_preset_row(m_preset_model, "classic",    _("Classic"),     true);
-		append_preset_row(m_preset_model, "modern",     _("Modern"),      true);
-		append_preset_row(m_preset_model, "fullscreen", _("Full Screen"), true);
-		append_preset_row(m_preset_model, "minimal",    _("Minimal"),     true);
+		for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
+		{
+			const LayoutPreset& preset = BUILTIN_PRESETS[i];
+			append_preset_row(m_preset_model, preset.id,
+				preset_name_for_display(preset), true);
+		}
 	}
 
 	// Then saved customs (uuid order), standard weight.
 	const auto& user = enumerate_user_presets(m_settings->channel);
 	for (const auto& p : user)
 	{
-		const std::string& label = p.name.empty() ? p.display_name : p.name;
+		const std::string label = preset_name_for_display(p);
 		append_preset_row(m_preset_model, p.id, label, false);
 	}
 

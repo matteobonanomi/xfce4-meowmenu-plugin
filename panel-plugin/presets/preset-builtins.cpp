@@ -41,6 +41,43 @@ static PresetValueMap make_values(std::initializer_list<std::pair<const char*, P
 	return m;
 }
 
+/* preset_name_for_display:
+ * @preset: preset whose canonical name should be presented.
+ *
+ * Applies gettext only to packaged MeowMenu-owned identity text. The raw
+ * value remains untouched so storage and conflict checks keep using English
+ * canonical data.
+ *
+ * Returns: translated text when available, otherwise the canonical name.
+ */
+std::string WhiskerMenu::preset_name_for_display(const LayoutPreset& preset)
+{
+	const std::string& raw = preset.name.empty() ? preset.display_name : preset.name;
+	if (!preset.identity_localizable || raw.empty())
+		return raw;
+
+	const gchar* translated = g_dgettext(GETTEXT_PACKAGE, raw.c_str());
+	return translated ? translated : raw;
+}
+
+/* preset_description_for_display:
+ * @preset: preset whose canonical description should be presented.
+ *
+ * Translates only packaged identity descriptions and keeps user-authored
+ * descriptions verbatim. Empty descriptions are kept empty for callers that
+ * use them to clear a tooltip.
+ *
+ * Returns: translated text when available, otherwise the canonical description.
+ */
+std::string WhiskerMenu::preset_description_for_display(const LayoutPreset& preset)
+{
+	if (preset.description.empty() || !preset.identity_localizable)
+		return preset.description;
+
+	const gchar* translated = g_dgettext(GETTEXT_PACKAGE, preset.description.c_str());
+	return translated ? translated : preset.description;
+}
+
 // ---------------------------------------------------------------------------
 // Built-in preset definitions.
 //
@@ -62,6 +99,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Classic"),
 		N_("Classic"),
 		N_("Traditional compact layout with the sidebar on the right and applications in a list."),
+		true,
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
@@ -95,6 +133,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Modern"),
 		N_("Modern"),
 		N_("Contemporary layout with rounded corners, categories on the left, and hover-to-switch enabled."),
+		true,
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)            },
@@ -134,6 +173,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Full Screen"),
 		N_("Launcher fills the whole screen with a centered grid and categories on the left."),
 		true,
+		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
 			{ "panel-gap",            PresetValue::from_int(0)              },
@@ -169,6 +209,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Minimal"),
 		N_("Minimal"),
 		N_("Compact, distraction-free launcher with no sidebar, profile, or session buttons."),
+		true,
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)             },

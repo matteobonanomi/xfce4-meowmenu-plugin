@@ -401,7 +401,7 @@ std::string Settings::current_preset_name() const
 	{
 		const LayoutPreset* p = find_preset_by_id(sid);
 		if (p)
-			return p->name.empty() ? p->display_name : p->name;
+			return preset_name_for_display(*p);
 	}
 	return _("Custom");
 }
