@@ -6,13 +6,13 @@
 %global plugin_name xfce4-meowmenu-plugin
 
 Name:           %{plugin_name}
-Version:        0.8.1
+Version:        0.8.2
 Release:        1%{?dist}
 Summary:        Modern menu launcher plugin for the Xfce panel
 
 License:        GPLv2+
 URL:            https://github.com/matteobonanomi/xfce4-meowmenu-plugin
-%global upstream_version 0.8.1
+%global upstream_version 0.8.2
 Source0:        %{name}-%{upstream_version}.tar.gz
 
 Packager:       Matteo Bonanomi <mbonanomi.dev@proton.me>
@@ -79,5 +79,5 @@ modern look and a more capable search bar.
 %{_mandir}/man1/xfce4-popup-meowmenu.1*
 
 %changelog
-* Mon Aug 17 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.8.1-1
-- Experimental feature release before 1.0.0.
+* Mon Sep 07 2026 Matteo Bonanomi <mbonanomi.dev@proton.me> - 0.8.2-1
+- Localization and packaging maintenance release.

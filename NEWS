@@ -4,6 +4,9 @@
 - Locale: Generate localized AppStream metadata and translator credits
 - Locale: Refresh and validate all 56 translation catalogs
 - Locale: Add reproducible translation status and audit tooling
+- Bugfix: prevent stale development modules from shadowing package-installed plugins
+- UI: simplify Docked, Centered, and Full Screen composition and Properties controls with adaptive, preset-aware layouts that remain visibly distinct
+- Presets: substantially refresh Modern, align all built-in presets with the supported layout model, and use Modern by default
 
 0.8.1 (2026-09-01)
 =====
