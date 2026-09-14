@@ -94,7 +94,7 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 				return GDK_EVENT_PROPAGATE;
 			}
 
-			GtkToggleButton* button GTK_TOGGLE_BUTTON(widget);
+			GtkToggleButton* button = GTK_TOGGLE_BUTTON(widget);
 			if (!gtk_toggle_button_get_active(button))
 			{
 				show_menu(Window::PositionAtButton);
