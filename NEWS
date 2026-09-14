@@ -12,6 +12,7 @@
 - Bugfix: disconnect live settings updates safely when the plugin is removed
 - Bugfix: close and save an open Properties dialog when the plugin is removed
 - Bugfix: keep keyboard and hover category activation independent across multiple menu instances
+- Bugfix: keep switching to Favorites after sorting or reordering the list
 - UI: simplify Docked, Centered, and Full Screen composition and Properties controls with adaptive, preset-aware layouts that remain visibly distinct
 - Presets: substantially refresh Modern, align all built-in presets with the supported layout model, and use Modern by default
 

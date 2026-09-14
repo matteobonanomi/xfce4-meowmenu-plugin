@@ -20,6 +20,7 @@
 
 #include "page.h"
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,18 @@ public:
 	void move_up(Launcher* launcher);
 	void move_down(Launcher* launcher);
 
+	/* set_item_inserted_callback:
+	 * @callback: observer owned by the Window that owns this page.
+	 *
+	 * Stores the page-lifetime insertion observer so replacing the backing model
+	 * cannot detach Window behavior. The callback runs synchronously after a row
+	 * is inserted and must not outlive the page owner.
+	 */
+	void set_item_inserted_callback(const std::function<void()>& callback)
+	{
+		m_item_inserted_callback = callback;
+	}
+
 private:
 	void extend_context_menu(GtkWidget* menu) override;
 	bool remember_launcher(Launcher* launcher) override;
@@ -53,6 +66,8 @@ private:
 	void sort_ascending();
 	void sort_descending();
 	void view_created() override;
+
+	std::function<void()> m_item_inserted_callback;
 };
 
 }

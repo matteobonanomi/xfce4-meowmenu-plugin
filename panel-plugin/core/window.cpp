@@ -456,6 +456,11 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create favorites
 	m_favorites = new FavoritesPage(m_settings, this);
+	m_favorites->set_item_inserted_callback(
+		[this]()
+		{
+			show_favorites();
+		});
 
 	CategoryButton* favorites_button = m_favorites->get_button();
 	connect(favorites_button->get_widget(), "toggled",
@@ -1954,13 +1959,6 @@ void WhiskerMenu::Window::set_items()
 	m_search_results->set_menu_items();
 	m_favorites->set_menu_items();
 	m_recent->set_menu_items();
-
-	// Handle switching to favorites are added
-	connect(m_favorites->get_view()->get_model(), "row-inserted",
-		[this](GtkTreeModel*, GtkTreePath*, GtkTreeIter*)
-		{
-			show_favorites();
-		});
 }
 
 //-----------------------------------------------------------------------------

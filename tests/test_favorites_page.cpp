@@ -12,6 +12,7 @@
 #include "core/plugin.h"
 #include "core/window.h"
 #include "launcher/applications-page.h"
+#include "launcher/category-button.h"
 #include "launcher/favorites-page.h"
 #include "launcher/launcher.h"
 #include "settings.h"
@@ -62,6 +63,34 @@ bool wait_for_launcher(ApplicationsPage* applications, const char* desktop_id)
 	return applications->find(desktop_id) != nullptr;
 }
 
+/* activate_sort:
+ * @page: populated Favorites page whose first row can open a context menu.
+ * @descending: selects the descending action when true, ascending otherwise.
+ *
+ * Drives the production context-menu action so the test covers both sorting
+ * paths without exposing private implementation methods.
+ */
+void activate_sort(FavoritesPage* page, bool descending)
+{
+	LauncherView* view = page->get_view();
+	page->select_first();
+	gboolean handled = FALSE;
+	g_signal_emit_by_name(view->get_widget(), "popup-menu", &handled);
+	assert(handled);
+
+	GList* menus = gtk_menu_get_for_attach_widget(view->get_widget());
+	assert(menus);
+	GtkWidget* menu = GTK_WIDGET(menus->data);
+	GList* children = gtk_container_get_children(GTK_CONTAINER(menu));
+	GList* target = g_list_last(children);
+	assert(target && (!descending ? target->prev : target));
+	if (!descending)
+		target = target->prev;
+	gtk_menu_item_activate(GTK_MENU_ITEM(target->data));
+	g_signal_emit_by_name(menu, "selection-done");
+	g_list_free(children);
+}
+
 }
 
 static int run_test(int argc, char** argv)
@@ -106,6 +135,7 @@ static int run_test(int argc, char** argv)
 	Window* window = plugin->get_window();
 	ApplicationsPage* applications = window->get_applications();
 	assert(wait_for_launcher(applications, "gamma.desktop"));
+	const int configured_default = settings->default_category;
 
 	Launcher* beta = applications->find("beta.desktop");
 	Launcher* alpha = applications->find("alpha.desktop");
@@ -120,7 +150,10 @@ static int run_test(int argc, char** argv)
 	assert((model_ids(model) == std::vector<std::string>{
 			"beta.desktop", "alpha.desktop" }));
 
+	applications->get_button()->set_active(true);
+	assert(window->get_active_page() == applications);
 	page->add(gamma);
+	assert(window->get_active_page() == page);
 	page->add(gamma);
 	assert(page->contains(gamma));
 	assert(settings->favorites.size() == 3);
@@ -143,11 +176,48 @@ static int run_test(int argc, char** argv)
 	assert((model_ids(model) == std::vector<std::string>{
 			"alpha.desktop", "gamma.desktop", "beta.desktop" }));
 	assert(settings->favorites[1] == "gamma.desktop");
+	page->remove(beta);
+	applications->get_button()->set_active(true);
+	assert(window->get_active_page() == applications);
+	page->add(beta);
+	assert(window->get_active_page() == page);
+	assert((model_ids(model) == std::vector<std::string>{
+			"alpha.desktop", "gamma.desktop", "beta.desktop" }));
+
 	page->move_down(gamma);
 	model = page->get_view()->get_model();
 	assert((model_ids(model) == std::vector<std::string>{
 			"alpha.desktop", "beta.desktop", "gamma.desktop" }));
 	assert(settings->favorites[2] == "gamma.desktop");
+	page->remove(gamma);
+	applications->get_button()->set_active(true);
+	assert(window->get_active_page() == applications);
+	page->add(gamma);
+	assert(window->get_active_page() == page);
+	assert((model_ids(model) == std::vector<std::string>{
+			"alpha.desktop", "beta.desktop", "gamma.desktop" }));
+	assert(settings->default_category == configured_default);
+
+	activate_sort(page, false);
+	model = page->get_view()->get_model();
+	assert((model_ids(model) == std::vector<std::string>{
+			"alpha.desktop", "beta.desktop", "gamma.desktop" }));
+	page->remove(gamma);
+	applications->get_button()->set_active(true);
+	page->add(gamma);
+	assert(window->get_active_page() == page);
+
+	activate_sort(page, true);
+	model = page->get_view()->get_model();
+	assert((model_ids(model) == std::vector<std::string>{
+			"gamma.desktop", "beta.desktop", "alpha.desktop" }));
+	page->remove(gamma);
+	applications->get_button()->set_active(true);
+	page->add(gamma);
+	assert(window->get_active_page() == page);
+	assert((model_ids(page->get_view()->get_model()) == std::vector<std::string>{
+			"beta.desktop", "alpha.desktop", "gamma.desktop" }));
+	assert(settings->default_category == configured_default);
 
 	// Complete graph destruction is covered by the dedicated lifecycle test.
 	// Keeping this bounded fixture alive avoids mixing teardown defects into

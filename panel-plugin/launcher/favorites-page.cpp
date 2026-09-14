@@ -128,6 +128,12 @@ void FavoritesPage::set_menu_items()
 		{
 			on_rows_reordered(tree_model);
 		});
+	connect(model, "row-inserted",
+		[this](GtkTreeModel*, GtkTreePath*, GtkTreeIter*)
+		{
+			if (m_item_inserted_callback)
+				m_item_inserted_callback();
+		});
 
 	g_object_unref(model);
 }
