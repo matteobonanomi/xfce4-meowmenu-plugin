@@ -96,7 +96,7 @@ void Element::spawn(GdkScreen* screen, const gchar* command, const gchar* workin
 	if (!result)
 	{
 		xfce_dialog_show_error(nullptr, error, _("Failed to execute command \"%s\"."), command);
-		g_error_free(error);
+		g_clear_error(&error);
 	}
 }
 

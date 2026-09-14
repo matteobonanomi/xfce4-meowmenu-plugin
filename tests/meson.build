@@ -875,12 +875,13 @@ test_usage_stats = executable(
 test('usage_stats', test_usage_stats)
 
 # Both production callers retain their own current interpretation until the
-# shared command-policy review. Pruning discards their unrelated Settings,
-# Element, and dialog paths while the two real PATH checks remain linked.
+# shared command-policy review. Element is linked for spawn-failure ownership;
+# pruning discards unrelated Settings and Run Action dialog paths.
 test_command_interpretation = executable(
   'test_command_interpretation',
   [
     'test_command_interpretation.cpp',
+    '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
     '..' / 'panel-plugin' / 'launcher' / 'command.cpp',
     '..' / 'panel-plugin' / 'search' / 'run-action.cpp',
   ],
