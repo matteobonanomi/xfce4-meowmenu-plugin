@@ -488,8 +488,10 @@ void SettingsDialog::response(int response_id)
 	{
 		std::string command = build_help_command(
 				current_xfce_dependency_regime(), PLUGIN_WEBSITE);
+		CommandInterpretation interpretation =
+				CommandInterpretation::parse(command.c_str());
 		GError* error = nullptr;
-		bool result = g_spawn_command_line_async(command.c_str(), &error);
+		bool result = spawn_session_command_async(interpretation, &error);
 
 		if (G_UNLIKELY(!result))
 		{

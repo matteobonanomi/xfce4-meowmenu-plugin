@@ -10,6 +10,7 @@
 #include "launcher/favorites-page.h"
 #include "places/places-page.h"
 #include "private-xfconf-fixture.h"
+#include "settings.h"
 #include "ui/launcher-view.h"
 
 using namespace WhiskerMenu;
@@ -52,6 +53,44 @@ void exercise_result_surface(Surface* surface)
 	g_object_unref(store);
 }
 
+/* exercise_view_replacement:
+ * @settings: live configuration used by both production pages.
+ * @favorites: Applications result page whose view is replaced by update_view.
+ * @places: Places result page whose view is replaced by reload_view.
+ *
+ * Starts presentation from hidden icon views and immediately replaces each
+ * concrete view. The old widgets must be released without a later frame using
+ * their page-owned preparation context.
+ */
+void exercise_view_replacement(Settings* settings, FavoritesPage* favorites,
+		PlacesPage* places)
+{
+	settings->view_mode = Settings::ViewAsIcons;
+	favorites->update_view();
+	places->reload_view();
+
+	GtkWidget* old_favorites = favorites->get_view()->get_widget();
+	g_object_add_weak_pointer(G_OBJECT(old_favorites),
+			reinterpret_cast<gpointer*>(&old_favorites));
+	gtk_widget_hide(old_favorites);
+	favorites->present();
+	settings->view_mode = Settings::ViewAsList;
+	favorites->update_view();
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	assert(old_favorites == nullptr);
+
+	GtkWidget* old_places = places->get_view()->get_widget();
+	g_object_add_weak_pointer(G_OBJECT(old_places),
+			reinterpret_cast<gpointer*>(&old_places));
+	gtk_widget_hide(old_places);
+	places->present();
+	places->reload_view();
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	assert(old_places == nullptr);
+}
+
 }
 
 static int run_test(int argc, char** argv)
@@ -74,6 +113,8 @@ static int run_test(int argc, char** argv)
 	Window* window = plugin->get_window();
 	exercise_result_surface(window->get_favorites());
 	exercise_result_surface(window->get_places());
+	exercise_view_replacement(plugin->get_settings(),
+			window->get_favorites(), window->get_places());
 
 	std::printf("test_result_surfaces: ok\n");
 	return 0;

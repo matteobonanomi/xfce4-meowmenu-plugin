@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_COMMAND_H
 #define WHISKERMENU_COMMAND_H
 
+#include "command-interpreter.h"
 #include "settings.h"
 
 #include <gtk/gtk.h>
@@ -117,6 +118,7 @@ private:
 		Valid
 	}
 	m_status;
+	CommandInterpretation m_interpretation;
 
 	struct TimeoutDetails
 	{

@@ -18,6 +18,8 @@
 #ifndef WHISKERMENU_ELEMENT_H
 #define WHISKERMENU_ELEMENT_H
 
+#include "command-interpreter.h"
+
 #include <libxfce4ui/libxfce4ui.h>
 #include <gdk/gdk.h>
 
@@ -122,6 +124,9 @@ protected:
 	}
 
 	void spawn(GdkScreen* screen, const gchar* command, const gchar* working_directory, gboolean startup_notify, const gchar* icon_name) const;
+	void spawn(GdkScreen* screen, const CommandInterpretation& interpretation,
+			const gchar* working_directory, gboolean startup_notify,
+			const gchar* icon_name) const;
 
 private:
 	GIcon* m_icon = nullptr;

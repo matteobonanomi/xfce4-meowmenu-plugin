@@ -89,8 +89,7 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	m_launcher_dragged(false),
 	m_favourite_drag_payload_delivered(false),
 	m_reorderable(false),
-	m_viewport_width(0),
-	m_present_tick_id(0)
+	m_viewport_width(0)
 {
 	// Create button
 	if (icon && text)
@@ -131,8 +130,7 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 
 Page::~Page()
 {
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	delete m_button;
 	delete m_view;
 	gtk_widget_destroy(m_widget);
@@ -235,8 +233,7 @@ void Page::update_view()
 
 	g_assert(m_view);
 	LauncherView* view = m_view;
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	create_view();
 	m_view->set_model(view->get_model());
 	delete view;
@@ -290,9 +287,7 @@ void Page::present()
 			toplevel, m_view->get_widget());
 	if (!ready)
 	{
-		meow::meowmenu_schedule_mapped_result_frame(toplevel,
-				toplevel, m_view->get_widget(),
-				&m_present_tick_id,
+		m_present_frame.schedule(toplevel, toplevel, m_view->get_widget(),
 				+[](void* data) -> bool
 				{
 					return static_cast<LauncherView*>(data)

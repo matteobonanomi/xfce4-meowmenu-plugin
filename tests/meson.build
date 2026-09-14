@@ -177,6 +177,25 @@ test_xfce_helpers = executable(
 )
 test('xfce_helpers', test_xfce_helpers)
 
+# Compile the helper selector in both supported modes, independent of which
+# optional helper library is present on the build host.
+foreach helper_variant : [
+  ['legacy', '-DMEOWMENU_XFCE_SUCCESSOR=0'],
+  ['successor', '-DMEOWMENU_XFCE_SUCCESSOR=1'],
+]
+  test_xfce_helpers_variant = executable(
+    'test_xfce_helpers_' + helper_variant[0],
+    [
+      'test_xfce_helpers.cpp',
+      '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
+    ],
+    cpp_args: [helper_variant[1]],
+    include_directories: include_directories('..' / 'panel-plugin'),
+    dependencies: [glib],
+  )
+  test('xfce_helpers_' + helper_variant[0], test_xfce_helpers_variant)
+endforeach
+
 # GLib refuses to run g_test assertions when Meson's release build enables
 # G_DISABLE_ASSERT. Keep Calculator tests assert-enabled in every build type.
 calculator_test_cpp_args = ['-UG_DISABLE_ASSERT']
@@ -362,6 +381,7 @@ test_search_action_edit = executable(
   'test_search_action_edit',
   test_search_action_edit_sources + [
     '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
+    '..' / 'panel-plugin' / 'launcher' / 'command-interpreter.cpp',
     '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
     '..' / 'panel-plugin' / 'search' / 'search-action.cpp',
     '..' / 'panel-plugin' / 'settings-bindings.cpp',
@@ -376,6 +396,7 @@ test_places_sources = [
   'test_places.cpp',
   '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'command-interpreter.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
 ]
 
@@ -447,6 +468,7 @@ test_places_open_sources = [
   'test_places_open.cpp',
   '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'command-interpreter.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
 ]
 
@@ -507,6 +529,7 @@ test_home_search_lifecycle_sources = [
   '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'places' / 'home-search-worker.cpp',
   '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'command-interpreter.cpp',
   '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
 ]
 
@@ -656,11 +679,10 @@ test_layout_sensitivity = executable(
 
 test('layout_sensitivity', test_layout_sensitivity)
 
-# test_window_frame: headless coverage of the window-frame decisions in
-# panel-plugin/core/window-frame.cpp (radius clamp [0,24], composited rounded
-# border predicate, and frameless CSS). The module also owns the GTK frame queue;
-# its visible behavior and native scroller clipping are covered by
-# window_mode_integration.
+# test_window_frame: pure window-frame decisions plus display-backed ownership,
+# coalescing, bounded readiness, and dependency teardown for mapped result
+# frames. Visible damage ordering and native scroller clipping remain covered
+# by window_mode_integration.
 test_window_frame_sources = [
   'test_window_frame.cpp',
   '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
@@ -867,17 +889,22 @@ test_usage_stats = executable(
 
 test('usage_stats', test_usage_stats)
 
-# Both production callers retain their own current interpretation until the
-# shared command-policy review. Element is linked for spawn-failure ownership;
-# pruning discards unrelated Settings and Run Action dialog paths.
+# Production command parsing and PATH availability share the same owned argv
+# boundary used by session and Element launch paths. Dead-section pruning keeps
+# unrelated Settings and Run Action dialog dependencies outside this target.
+test_command_interpretation_sources = [
+  'test_command_interpretation.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'command-interpreter.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'launcher-safety.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'command.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
+  '..' / 'panel-plugin' / 'search' / 'run-action.cpp',
+]
+
 test_command_interpretation = executable(
   'test_command_interpretation',
-  [
-    'test_command_interpretation.cpp',
-    '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
-    '..' / 'panel-plugin' / 'launcher' / 'command.cpp',
-    '..' / 'panel-plugin' / 'search' / 'run-action.cpp',
-  ],
+  test_command_interpretation_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
@@ -885,6 +912,28 @@ test_command_interpretation = executable(
 )
 
 test('command_interpretation', test_command_interpretation)
+
+foreach helper_variant : [
+  ['legacy', '-DMEOWMENU_XFCE_SUCCESSOR=0'],
+  ['successor', '-DMEOWMENU_XFCE_SUCCESSOR=1'],
+]
+  test_command_interpretation_variant = executable(
+    'test_command_interpretation_' + helper_variant[0],
+    test_command_interpretation_sources,
+    include_directories: include_directories('..' / 'panel-plugin'),
+    cpp_args: [
+      '-ffunction-sections',
+      '-fdata-sections',
+      helper_variant[1],
+    ],
+    link_args: ['-Wl,--gc-sections'],
+    dependencies: [glib, gtk, libxfce4ui, libxfce4util, xfconf],
+  )
+  test(
+    'command_interpretation_' + helper_variant[0],
+    test_command_interpretation_variant,
+  )
+endforeach
 
 test_favorites_page = executable(
   'test_favorites_page',

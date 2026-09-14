@@ -54,7 +54,6 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_empty_message(nullptr),
 	m_model(nullptr),
 	m_viewport_width(0),
-	m_present_tick_id(0),
 	m_item_dragged(false),
 	m_pressed_drag_item(nullptr),
 	m_pressed_drag_info(0),
@@ -102,8 +101,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 
 PlacesPage::~PlacesPage()
 {
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	clear_drag_state();
 	cancel_home_search();
 	clear_home_search_items();
@@ -227,8 +225,7 @@ void PlacesPage::reload_view()
 		return;
 	}
 
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	gtk_container_remove(GTK_CONTAINER(m_widget), m_view->get_widget());
 	delete m_view;
 	m_view = nullptr;
@@ -279,9 +276,7 @@ void PlacesPage::present()
 			toplevel, m_view->get_widget());
 	if (!ready)
 	{
-		meow::meowmenu_schedule_mapped_result_frame(toplevel,
-				toplevel, m_view->get_widget(),
-				&m_present_tick_id,
+		m_present_frame.schedule(toplevel, toplevel, m_view->get_widget(),
 				+[](void* data) -> bool
 				{
 					return static_cast<LauncherView*>(data)

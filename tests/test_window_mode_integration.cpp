@@ -493,17 +493,16 @@ void check_mapped_result_frame_orders_preparation_and_damage()
 				++*static_cast<int*>(data);
 				return GDK_EVENT_PROPAGATE;
 			}), &applications_draws);
-	guint favorites_frame_id = 0;
+	meow::MappedResultFrame favorites_frame;
 	int favorites_preparations = 0;
 	CHECK(meow::meowmenu_queue_complete_result_frame(window, result));
-	CHECK(meow::meowmenu_schedule_mapped_result_frame(window, window,
-			result, &favorites_frame_id,
+	CHECK(favorites_frame.schedule(window, window, result,
 			+[](void* data) -> bool
 			{
 				++*static_cast<int*>(data);
 				return true;
 			}, &favorites_preparations));
-	CHECK(favorites_frame_id != 0);
+	CHECK(favorites_frame.pending());
 	CHECK(!meow::meowmenu_queue_complete_result_frame(nullptr, nullptr));
 	gtk_widget_set_visible(favorites_heading, TRUE);
 	gtk_stack_set_visible_child_name(GTK_STACK(contents), "favorites");
@@ -513,7 +512,7 @@ void check_mapped_result_frame_orders_preparation_and_damage()
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
 	CHECK(gtk_widget_get_mapped(result));
-	CHECK(favorites_frame_id == 0);
+	CHECK(!favorites_frame.pending());
 	CHECK(favorites_preparations == 1);
 	CHECK(gtk_widget_get_visible(favorites_heading));
 	CHECK(std::string(gtk_label_get_text(GTK_LABEL(favorites_heading)))
@@ -521,21 +520,20 @@ void check_mapped_result_frame_orders_preparation_and_damage()
 	CHECK(toplevel_draws > 0);
 	CHECK(result_draws > 0);
 	CHECK(gtk_tree_model_iter_n_children(GTK_TREE_MODEL(model), nullptr) == 3);
-	guint cancelled_frame_id = 0;
+	meow::MappedResultFrame cancelled_frame;
 	int cancelled_preparations = 0;
-	CHECK(meow::meowmenu_schedule_mapped_result_frame(window,
-			window, applications_result, &cancelled_frame_id,
+	CHECK(cancelled_frame.schedule(window,
+			window, applications_result,
 			+[](void* data) -> bool
 			{
 				++*static_cast<int*>(data);
 				return true;
 			}, &cancelled_preparations));
-	CHECK(cancelled_frame_id != 0);
-	meow::meowmenu_cancel_mapped_result_frame(window,
-			&cancelled_frame_id);
-	CHECK(cancelled_frame_id == 0);
+	CHECK(cancelled_frame.pending());
+	cancelled_frame.cancel();
+	CHECK(!cancelled_frame.pending());
 	CHECK(cancelled_preparations == 0);
-	guint applications_frame_id = 0;
+	meow::MappedResultFrame applications_frame;
 	struct HiddenPreparation
 	{
 		GtkWidget* result;
@@ -545,8 +543,8 @@ void check_mapped_result_frame_orders_preparation_and_damage()
 			applications_result, 0 };
 	CHECK(meow::meowmenu_queue_complete_result_frame(window,
 			applications_result));
-	CHECK(meow::meowmenu_schedule_mapped_result_frame(window,
-			window, applications_result, &applications_frame_id,
+	CHECK(applications_frame.schedule(window,
+			window, applications_result,
 			+[](void* data) -> bool
 			{
 				auto* preparation = static_cast<HiddenPreparation*>(data);
@@ -557,20 +555,20 @@ void check_mapped_result_frame_orders_preparation_and_damage()
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
 	CHECK(applications_preparation.calls > 0);
-	CHECK(applications_frame_id != 0);
+	CHECK(applications_frame.pending());
 	gtk_stack_set_visible_child_name(GTK_STACK(contents), "applications");
 	gtk_test_widget_wait_for_draw(window);
 	gtk_test_widget_wait_for_draw(applications_result);
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
-	for (int frame = 0; applications_frame_id != 0 && frame < 8; ++frame)
+	for (int frame = 0; applications_frame.pending() && frame < 8; ++frame)
 	{
 		gtk_test_widget_wait_for_draw(window);
 		while (g_main_context_pending(nullptr))
 			g_main_context_iteration(nullptr, FALSE);
 	}
 	CHECK(gtk_widget_get_mapped(applications_result));
-	CHECK(applications_frame_id == 0);
+	CHECK(!applications_frame.pending());
 	CHECK(applications_preparation.calls > 1);
 	CHECK(applications_draws > 0);
 	CHECK(gtk_tree_model_iter_n_children(

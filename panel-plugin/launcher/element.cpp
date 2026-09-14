@@ -74,15 +74,35 @@ void Element::set_icon(const gchar* icon)
 
 void Element::spawn(GdkScreen* screen, const gchar* command, const gchar* working_directory, gboolean startup_notify, const gchar* icon_name) const
 {
+	CommandInterpretation interpretation = CommandInterpretation::parse(command);
+	spawn(screen, interpretation, working_directory, startup_notify, icon_name);
+}
+
+//-----------------------------------------------------------------------------
+
+/* Element::spawn:
+ * @screen: display on which a launched graphical application should open.
+ * @interpretation: parsed command and exact argv boundary.
+ * @working_directory: optional inherited working directory override.
+ * @startup_notify: whether Xfce startup notification is requested.
+ * @icon_name: optional startup-notification icon.
+ *
+ * Executes an already interpreted launcher command through Xfce while retaining
+ * the existing environment, PATH lookup, timestamp, and single error dialog.
+ */
+void Element::spawn(GdkScreen* screen,
+		const CommandInterpretation& interpretation,
+		const gchar* working_directory, gboolean startup_notify,
+		const gchar* icon_name) const
+{
 	GError* error = nullptr;
 	bool result = false;
 
-	gchar** argv;
-	if (g_shell_parse_argv(command, nullptr, &argv, &error))
+	if (interpretation.valid())
 	{
 		result = xfce_spawn(screen,
 				working_directory,
-				argv,
+				interpretation.argv(),
 				nullptr,
 				G_SPAWN_SEARCH_PATH,
 				startup_notify,
@@ -90,12 +110,17 @@ void Element::spawn(GdkScreen* screen, const gchar* command, const gchar* workin
 				icon_name,
 				true,
 				&error);
-		g_strfreev(argv);
+	}
+	else
+	{
+		error = interpretation.copy_error();
 	}
 
 	if (!result)
 	{
-		xfce_dialog_show_error(nullptr, error, _("Failed to execute command \"%s\"."), command);
+		xfce_dialog_show_error(nullptr, error,
+				_("Failed to execute command \"%s\"."),
+				interpretation.command_line().c_str());
 		g_clear_error(&error);
 	}
 }

@@ -16,6 +16,8 @@
 
 #include <gtk/gtk.h>
 
+#include "core/window-frame.h"
+
 namespace WhiskerMenu
 {
 
@@ -205,7 +207,7 @@ private:
 	GtkWidget* m_empty_message; // GtkLabel shown when model has zero rows
 	GtkListStore* m_model;
 	int m_viewport_width;
-	guint m_present_tick_id;
+	meow::MappedResultFrame m_present_frame;
 	bool m_item_dragged;
 	PlacesItem* m_pressed_drag_item;
 	guint m_pressed_drag_info;

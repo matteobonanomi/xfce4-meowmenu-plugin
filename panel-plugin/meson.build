@@ -9,6 +9,7 @@ plugin_sources = [
   'launcher/category.cpp',
   'launcher/category-activation.cpp',
   'launcher/category-button.cpp',
+  'launcher/command-interpreter.cpp',
   'launcher/command.cpp',
   'ui/command-edit.cpp',
   'launcher/element.cpp',

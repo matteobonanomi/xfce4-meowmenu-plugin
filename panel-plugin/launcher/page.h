@@ -20,6 +20,7 @@
 
 #include <gtk/gtk.h>
 
+#include "core/window-frame.h"
 #include "core/window-keyboard.h"
 
 namespace WhiskerMenu
@@ -144,7 +145,7 @@ private:
 	bool m_favourite_drag_payload_delivered;
 	bool m_reorderable;
 	int m_viewport_width;
-	guint m_present_tick_id;
+	meow::MappedResultFrame m_present_frame;
 };
 
 }

@@ -127,9 +127,8 @@ void check_hidden_populated_layout()
 			view, 1, &layout_state));
 	CHECK(layout_state.prepared_generation == 0);
 	CHECK(layout_state.layout_requests == 1);
-	guint mapped_frame_id = 0;
-	CHECK(meow::meowmenu_schedule_mapped_result_frame(window, window,
-			view_widget, &mapped_frame_id,
+	meow::MappedResultFrame mapped_frame;
+	CHECK(mapped_frame.schedule(window, window, view_widget,
 			+[](void* data) -> bool
 			{
 				auto* state = static_cast<PresentationState*>(data);
@@ -140,13 +139,13 @@ void check_hidden_populated_layout()
 	gtk_test_widget_wait_for_draw(window);
 	gtk_test_widget_wait_for_draw(view_widget);
 	drain_events();
-	for (int frame = 0; mapped_frame_id != 0 && frame < 8; ++frame)
+	for (int frame = 0; mapped_frame.pending() && frame < 8; ++frame)
 	{
 		gtk_test_widget_wait_for_draw(window);
 		drain_events();
 	}
 	CHECK(gtk_widget_get_mapped(view_widget));
-	CHECK(mapped_frame_id == 0);
+	CHECK(!mapped_frame.pending());
 	CHECK(layout_state.prepared_generation == 1);
 	CHECK(layout_state.layout_requests == 2);
 	CHECK(layout_state.mapped_layout_requests == 1);

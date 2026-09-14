@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_RUN_ACTION_H
 #define WHISKERMENU_RUN_ACTION_H
 
+#include "launcher/command-interpreter.h"
 #include "launcher/element.h"
 
 #include <string>
@@ -45,6 +46,7 @@ public:
 private:
 	Settings* const m_settings;
 	std::string m_command_line;
+	CommandInterpretation m_interpretation;
 };
 
 }
