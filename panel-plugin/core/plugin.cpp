@@ -114,7 +114,6 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 
 	m_button_icon = GTK_IMAGE(gtk_image_new());
 	icon_changed(m_settings->button_icon_name);
-	gtk_widget_set_tooltip_markup(m_button, m_settings->button_title);
 	gtk_box_pack_start(m_button_box, GTK_WIDGET(m_button_icon), true, false, 0);
 	if (m_settings->button_icon_visible)
 	{
@@ -127,13 +126,13 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 	gtk_widget_set_sensitive(GTK_WIDGET(m_button_icon), false);
 
 	m_button_label = GTK_LABEL(gtk_label_new(nullptr));
-	gtk_label_set_markup(m_button_label, m_settings->button_title);
 	gtk_box_pack_start(m_button_box, GTK_WIDGET(m_button_label), true, true, 0);
 	if (m_settings->button_title_visible)
 	{
 		gtk_widget_show(GTK_WIDGET(m_button_label));
 	}
 	gtk_widget_set_sensitive(GTK_WIDGET(m_button_label), false);
+	apply_button_title();
 
 	// Add plugin to panel
 	gtk_container_add(GTK_CONTAINER(plugin), m_button);
@@ -328,10 +327,32 @@ void Plugin::set_button_style(ButtonStyle style)
 void Plugin::set_button_title(const std::string& title)
 {
 	m_settings->button_title = title;
-	gtk_label_set_markup(m_button_label, m_settings->button_title);
-	gtk_widget_set_tooltip_markup(m_button, m_settings->button_title);
-	gtk_widget_set_has_tooltip(m_button, !m_settings->button_title_visible);
+	apply_button_title();
 	update_size();
+}
+
+//-----------------------------------------------------------------------------
+
+/* Plugin::apply_button_title:
+ *
+ * Updates both title sinks from the stored value. Valid Pango markup remains
+ * intact; malformed markup uses literal text so an invalid edit cannot leave
+ * the label blank or stale, or make the tooltip impossible to render.
+ */
+void Plugin::apply_button_title()
+{
+	const char* title = m_settings->button_title;
+	if (pango_parse_markup(title, -1, 0, nullptr, nullptr, nullptr, nullptr))
+	{
+		gtk_label_set_markup(m_button_label, title);
+		gtk_widget_set_tooltip_markup(m_button, title);
+	}
+	else
+	{
+		gtk_label_set_text(m_button_label, title);
+		gtk_widget_set_tooltip_text(m_button, title);
+	}
+	gtk_widget_set_has_tooltip(m_button, !m_settings->button_title_visible);
 }
 
 //-----------------------------------------------------------------------------

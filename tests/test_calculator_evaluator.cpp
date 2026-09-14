@@ -73,6 +73,36 @@ void test_success_and_bc_transport()
 	g_assert_cmpuint(result.generation, ==, 7);
 }
 
+/* test_empty_stdin_payload_completes:
+ *
+ * Sends a prepared empty stdin request below query classification. The child
+ * must receive EOF promptly so failure, cancellation, and reaping can finish.
+ */
+void test_empty_stdin_payload_completes()
+{
+	set_mode("failure");
+	CalculatorEvaluator evaluator;
+	bool done = false;
+	CalculatorEvaluation result = { CalculatorEvaluationState::TimedOut,
+			CalculatorEngine::None, std::string(), std::string(), 0, 0 };
+	const CalculatorEvaluationRequest request = { CalculatorEngine::Bc,
+			std::string(), g_stub_dir + G_DIR_SEPARATOR_S + "bc", std::string(),
+			4, 11 };
+	const gint64 start = g_get_monotonic_time();
+	evaluator.evaluate_request(request,
+			[&](const CalculatorEvaluation& evaluation)
+			{
+				result = evaluation;
+				done = true;
+			});
+	g_assert_true(wait_until([&]() { return done; }, 5000));
+	const gint64 elapsed_ms = (g_get_monotonic_time() - start) / 1000;
+	g_assert_cmpint(static_cast<int>(result.state), ==,
+			static_cast<int>(CalculatorEvaluationState::Failed));
+	g_assert_cmpuint(result.generation, ==, 11);
+	g_assert_cmpint(elapsed_ms, <, 1000);
+}
+
 void test_direct_no_shell_transport()
 {
 	const std::string sentinel = g_stub_dir + G_DIR_SEPARATOR_S + "shell-ran";
@@ -212,6 +242,7 @@ int main(int argc, char** argv)
 	g_test_init(&argc, &argv, nullptr);
 	setup_stub_path();
 	g_test_add_func("/calculator/evaluator/success-bc-transport", test_success_and_bc_transport);
+	g_test_add_func("/calculator/evaluator/empty-stdin-payload", test_empty_stdin_payload_completes);
 	g_test_add_func("/calculator/evaluator/direct-no-shell", test_direct_no_shell_transport);
 	g_test_add_func("/calculator/evaluator/failures", test_failures);
 	g_test_add_func("/calculator/evaluator/overflow", test_output_overflow);

@@ -6,6 +6,7 @@
 - Locale: Add reproducible translation status and audit tooling
 - Bugfix: prevent stale development modules from shadowing package-installed plugins
 - Bugfix: render Places names containing markup characters literally
+- Bugfix: show malformed panel button titles literally instead of leaving them blank or stale
 - UI: simplify Docked, Centered, and Full Screen composition and Properties controls with adaptive, preset-aware layouts that remain visibly distinct
 - Presets: substantially refresh Modern, align all built-in presets with the supported layout model, and use Modern by default
 

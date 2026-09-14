@@ -60,10 +60,15 @@ Panel-button controls are available independently of the layout mode:
 | Option | Description |
 |--------|-------------|
 | Show panel button title | Display a text label next to the panel button icon. |
-| Panel button title | The label text shown on the panel button. |
+| Panel button title | The label text shown on the panel button. Valid Pango markup is rendered; malformed markup is shown as the original literal text. |
 | Show panel button icon | Show the icon on the panel button. |
 | Panel button icon | The icon used for the panel button. |
 | Use a single panel row | Force the panel button into a single row regardless of panel size. |
+
+The panel button title and its icon-only tooltip use the same presentation
+rule. Valid Pango markup is preserved in both. If the markup is malformed,
+MeowMenu displays the original title literally instead of leaving either
+presentation blank or stale.
 
 ### Docked and Centered composition
 

@@ -92,6 +92,7 @@ public:
 	void set_loaded(bool loaded);
 
 private:
+	void apply_button_title();
 	void configure();
 	void icon_changed(const gchar* icon);
 	void mode_changed(XfcePanelPluginMode mode);
