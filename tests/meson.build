@@ -372,12 +372,19 @@ test_search_action_edit = executable(
 
 test('search_action_edit', test_search_action_edit)
 
-test_places_sources = ['test_places.cpp']
+test_places_sources = [
+  'test_places.cpp',
+  '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
+  '..' / 'panel-plugin' / 'places' / 'places-item.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'element.cpp',
+]
 
 test_places = executable(
   'test_places',
   test_places_sources,
-  dependencies: [glib, gio],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: xfce_helper_cpp_args,
+  dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 
 test('places', test_places)
