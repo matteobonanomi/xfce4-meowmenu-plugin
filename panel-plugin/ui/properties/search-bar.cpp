@@ -78,7 +78,8 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 
 	GtkWidget* show_profile_label =
 			gtk_label_new_with_mnemonic(_("Show _profile:"));
-	m_show_profile = make_form_switch();
+	m_show_profile = create_form_switch(
+			SettingsFormSwitch::ProfileVisibility);
 	gtk_switch_set_active(GTK_SWITCH(m_show_profile),
 			static_cast<bool>(m_settings->show_profile));
 	add_form_row(pos_grid, COLUMN_C2, 0, show_profile_label,

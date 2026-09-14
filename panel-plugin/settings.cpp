@@ -126,8 +126,8 @@ Settings::Settings(Plugin* plugin) :
 	sidebar_position(this, "/sidebar-position", "left"),
 	sidebar_enabled(this, "/sidebar-enabled", true),
 	search_bar_position(this, "/search-bar-position", "top"),
-	show_profile(this, "/show-profile", true),
-	show_session(this, "/show-session", true),
+	show_profile(this, "/show-profile", SETTINGS_SHOW_PROFILE_DEFAULT),
+	show_session(this, "/show-session", SETTINGS_SHOW_SESSION_DEFAULT),
 
 	grid_density(this, "/grid-density", "medium"),
 

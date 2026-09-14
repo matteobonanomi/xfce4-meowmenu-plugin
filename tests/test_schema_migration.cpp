@@ -7,7 +7,7 @@
  *
  * What IS tested here:
  *   - is_fresh_install determination from property count (pure logic)
- *   - schema_version guard (pure logic, extracted helper below)
+ *   - declared schema bounds and retired-key policy
  *   - menu-opacity → categories-opacity mapping logic (pure)
  *
  * Compile: part of the 'tests' Meson subdir.
@@ -26,14 +26,9 @@
 // Minimal stand-in for the pure logic extracted from migrate_schema()
 // ---------------------------------------------------------------------------
 
-static int target_schema_version()
-{
-	return 13;
-}
-
 static bool needs_migration(int current_schema_version)
 {
-	return current_schema_version < target_schema_version();
+	return WhiskerMenu::settings_schema_needs_upgrade(current_schema_version);
 }
 
 static bool needs_v1_block(int current_schema_version)
@@ -343,7 +338,7 @@ static int map_legacy_opacity(int has_categories_opacity, int legacy_menu_opacit
 
 static void test_schema_version_guard()
 {
-	assert(target_schema_version() == 13);
+	assert(WhiskerMenu::SETTINGS_SCHEMA_VERSION == 13);
 	assert(needs_migration(0) == true);
 	assert(needs_migration(1) == true);
 	assert(needs_migration(2) == true);
@@ -411,33 +406,14 @@ static void test_visibility_intent_v12()
 	assert(visibility_intent_default(true, true));
 	assert(!visibility_intent_default(true, false));
 
-	std::ifstream settings(MEOWMENU_SETTINGS_SOURCE);
-	assert(settings.good());
-	const std::string source((std::istreambuf_iterator<char>(settings)),
-		std::istreambuf_iterator<char>());
-	for (const char* token : {
-		"show_profile(this, \"/show-profile\", true)",
-		"show_session(this, \"/show-session\", true)",
-		"show_profile.load(property, value)",
-		"show_session.load(property, value)",
-	})
-		assert(source.find(token) != std::string::npos);
+	assert(WhiskerMenu::SETTINGS_SHOW_PROFILE_DEFAULT);
+	assert(WhiskerMenu::SETTINGS_SHOW_SESSION_DEFAULT);
 }
 
 static void test_retired_selector_shape_stays_dormant()
 {
-	std::ifstream settings(MEOWMENU_SETTINGS_SOURCE);
-	std::ifstream defaults(MEOWMENU_SETTINGS_DEFAULTS_SOURCE);
-	assert(settings.good());
-	assert(defaults.good());
-	const std::string settings_source((std::istreambuf_iterator<char>(settings)),
-			std::istreambuf_iterator<char>());
-	const std::string defaults_source((std::istreambuf_iterator<char>(defaults)),
-			std::istreambuf_iterator<char>());
-	assert(settings_source.find("/places/switch-button-shape")
-			== std::string::npos);
-	assert(defaults_source.find("/places/switch-button-shape")
-			== std::string::npos);
+	assert(WhiskerMenu::is_retired_settings_key(
+			"/places/switch-button-shape"));
 	assert(needs_v10_block(9));
 	assert(!needs_v10_block(10));
 }
@@ -447,10 +423,6 @@ static void test_supported_layout_v13()
 	assert(needs_v13_block(12));
 	assert(!needs_v13_block(13));
 
-	std::ifstream defaults(MEOWMENU_SETTINGS_DEFAULTS_SOURCE);
-	assert(defaults.good());
-	const std::string source((std::istreambuf_iterator<char>(defaults)),
-		std::istreambuf_iterator<char>());
 	for (const char* key : {
 		"/position-profile-alternate",
 		"/position-search-alternate",
@@ -461,33 +433,16 @@ static void test_supported_layout_v13()
 		"/commands-position",
 		"/unified-bar",
 	})
-		assert(source.find(key) != std::string::npos);
-	assert(source.find("\"horizontal\"") != std::string::npos);
+		assert(WhiskerMenu::is_retired_settings_key(key));
+	assert(!WhiskerMenu::is_retired_settings_key("/layout-mode"));
+	assert(!WhiskerMenu::is_retired_settings_key(nullptr));
 }
 
 static void test_startup_uses_only_bounded_schema_migration()
 {
-	std::ifstream settings(MEOWMENU_SETTINGS_SOURCE);
-	std::ifstream defaults(MEOWMENU_SETTINGS_DEFAULTS_SOURCE);
-	assert(settings.good());
-	assert(defaults.good());
-	const std::string settings_source((std::istreambuf_iterator<char>(settings)),
-		std::istreambuf_iterator<char>());
-	const std::string defaults_source((std::istreambuf_iterator<char>(defaults)),
-		std::istreambuf_iterator<char>());
-
-	assert(settings_source.find("reset_instance_for_composition_upgrade")
-		== std::string::npos);
-	assert(settings_source.find("inspect_pre_stable_reset") == std::string::npos);
-	assert(settings_source.find("complete_pre_stable_reset") == std::string::npos);
-	assert(defaults_source.find("composition-reset-generation")
-		== std::string::npos);
-	assert(defaults_source.find("composition-reset-state") == std::string::npos);
-	assert(defaults_source.find("migrate_layout_schema_v13(channel)")
-		!= std::string::npos);
-	assert(settings_source.find(
-		"migrate_schema(static_cast<bool>(initialized), loaded_property_count == 0)")
-		!= std::string::npos);
+	assert(WhiskerMenu::settings_schema_needs_upgrade(12));
+	assert(!WhiskerMenu::settings_schema_needs_upgrade(13));
+	assert(!WhiskerMenu::settings_schema_needs_upgrade(14));
 }
 
 static void test_fresh_install_lands_on_modern()
@@ -645,7 +600,7 @@ static void test_idempotent_guard()
 {
 	// Running migration twice: second call must be no-op because
 	// after first run schema_version == target, so needs_migration returns false.
-	assert(needs_migration(target_schema_version()) == false);
+	assert(needs_migration(WhiskerMenu::SETTINGS_SCHEMA_VERSION) == false);
 }
 
 // ---------------------------------------------------------------------------

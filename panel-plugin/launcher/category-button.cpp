@@ -45,6 +45,21 @@ void WhiskerMenu::CategoryButton::suppress_hover_until_motion()
 	s_hover_suppressed_until_motion = true;
 }
 
+bool WhiskerMenu::category_hover_should_schedule(bool hover_enabled, bool active)
+{
+	return hover_enabled && !active;
+}
+
+void WhiskerMenu::category_hover_note_motion()
+{
+	s_hover_suppressed_until_motion = false;
+}
+
+bool WhiskerMenu::category_hover_is_suppressed()
+{
+	return s_hover_suppressed_until_motion;
+}
+
 //-----------------------------------------------------------------------------
 
 static gboolean hover_timeout(gpointer user_data)
@@ -62,6 +77,11 @@ static gboolean hover_timeout(gpointer user_data)
 		gtk_toggle_button_set_active(button, true);
 	}
 	return GDK_EVENT_PROPAGATE;
+}
+
+guint WhiskerMenu::schedule_category_hover(GtkToggleButton* button)
+{
+	return g_timeout_add(150, &hover_timeout, button);
 }
 
 //-----------------------------------------------------------------------------
@@ -84,9 +104,11 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 		[this](GtkWidget* widget, GdkEvent*) -> gboolean
 		{
 			GtkToggleButton* button = GTK_TOGGLE_BUTTON(widget);
-			if (m_settings->category_hover_activate && !gtk_toggle_button_get_active(button))
+			if (category_hover_should_schedule(
+					m_settings->category_hover_activate,
+					gtk_toggle_button_get_active(button)))
 			{
-				g_timeout_add(150, &hover_timeout, button);
+				schedule_category_hover(button);
 			}
 			return GDK_EVENT_PROPAGATE;
 		});
@@ -98,7 +120,7 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	connect(m_button, "motion-notify-event",
 		[](GtkWidget*, GdkEvent*) -> gboolean
 		{
-			s_hover_suppressed_until_motion = false;
+			category_hover_note_motion();
 			return GDK_EVENT_PROPAGATE;
 		});
 

@@ -22,6 +22,13 @@ LayoutMode WhiskerMenu::layout_mode_from_key(const char* value)
 	return LayoutMode::Docked;
 }
 
+bool WhiskerMenu::layout_mode_key_is_supported(const char* value)
+{
+	return value && (std::strcmp(value, "docked") == 0
+			|| std::strcmp(value, "centered") == 0
+			|| std::strcmp(value, "fullscreen") == 0);
+}
+
 bool WhiskerMenu::control_enabled(LayoutControl control, LayoutMode mode)
 {
 	switch (control)

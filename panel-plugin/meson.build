@@ -118,6 +118,36 @@ plugin_lib = shared_module(
   install_dir: get_option('prefix') / get_option('libdir') / plugin_install_subdir,
 )
 
+if get_option('enable_tests')
+  # Direct-construction tests reuse the real runtime sources through one static
+  # archive. Normal static extraction keeps each executable limited to the
+  # production objects reached by its public entry points.
+  meowmenu_test_runtime = static_library(
+    'meowmenu-test-runtime',
+    plugin_sources,
+    cpp_args: xfce_helper_cpp_args + [
+      '-DSETTINGS_MENUFILE="' + get_option('sysconfdir') / 'xdg' / 'menus' / 'xfce-settings-manager.menu' + '"',
+    ],
+    include_directories: [
+      include_directories('..'),
+      include_directories('.'),
+    ],
+    dependencies: [
+      accountsservice,
+      exo,
+      garcon,
+      gio,
+      glib,
+      gtk,
+      gtk_layer_shell,
+      libxfce4panel,
+      libxfce4ui,
+      libxfce4util,
+      xfconf,
+    ],
+  )
+endif
+
 popup_meowmenu_sources = [
   'core/xfce4-popup-meowmenu.cpp',
   xfce_revision_h,

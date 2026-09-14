@@ -9,13 +9,13 @@
  * headlessly and stays a manual cross-distro step.
  */
 
-#include "ui/properties/common.h"
+#include "settings-dialog.h"
 
 #include <glib.h>
 #include <gtk/gtk.h>
 
 #include <cstdio>
-#include <cstring>
+#include <initializer_list>
 
 using namespace WhiskerMenu;
 
@@ -33,26 +33,6 @@ int g_failures = 0;
 
 } // namespace
 
-/* source_contains:
- * @path: source file to inspect.
- * @needle: exact token expected or forbidden in that file.
- *
- * Provides a small ownership check for the split Properties builders. The
- * sources remain the authority for which panel creates each Xfconf control.
- *
- * Returns: true when @needle occurs in @path.
- */
-static bool source_contains(const char* path, const char* needle)
-{
-	gchar* contents = nullptr;
-	gsize length = 0;
-	if (!g_file_get_contents(path, &contents, &length, nullptr))
-		return false;
-	const bool found = std::strstr(contents, needle) != nullptr;
-	g_free(contents);
-	return found;
-}
-
 int main()
 {
 	// Building a GtkSwitch creates its style context, which GTK 3 cannot do
@@ -65,37 +45,21 @@ int main()
 		return 77; // meson exitcode protocol: 77 marks the test skipped
 	}
 
-	GtkWidget* w = make_form_switch();
-
-	CHECK(GTK_IS_SWITCH(w));
-	CHECK(gtk_widget_get_halign(w) == GTK_ALIGN_START);
-	CHECK(gtk_widget_get_valign(w) == GTK_ALIGN_CENTER);
-	CHECK(gtk_switch_get_active(GTK_SWITCH(w)) == FALSE);
-
-	// The factory returns a floating ref the caller owns; sink and drop it.
-	g_object_ref_sink(w);
-	g_object_unref(w);
-
-	CHECK(source_contains(MEOWMENU_SEARCH_BAR_SOURCE, "show_profile"));
-	CHECK(source_contains(MEOWMENU_SEARCH_BAR_SOURCE, "profile_shape"));
-	CHECK(!source_contains(MEOWMENU_SEARCH_BAR_SOURCE, "profile_position"));
-	CHECK(source_contains(MEOWMENU_USER_SESSION_SOURCE, "show_session"));
-	CHECK(source_contains(MEOWMENU_USER_SESSION_SOURCE,
-			"confirm_session_command"));
-	CHECK(!source_contains(MEOWMENU_USER_SESSION_SOURCE, "commands_position"));
-	CHECK(!source_contains(MEOWMENU_USER_SESSION_SOURCE, "unified_bar"));
-	CHECK(source_contains(MEOWMENU_SIDEBAR_SOURCE,
-			"\"horizontal\", _(\"Horizontal\")"));
-	CHECK(!source_contains(MEOWMENU_SIDEBAR_SOURCE,
-			"\"top\", _(\"Top\")"));
-	CHECK(!source_contains(MEOWMENU_SIDEBAR_SOURCE,
-			"\"bottom\", _(\"Bottom\")"));
-	CHECK(source_contains(MEOWMENU_PLACES_SOURCE,
-			"g_strcmp0(sp, \"horizontal\")"));
-	CHECK(!source_contains(MEOWMENU_PLACES_SOURCE,
-			"switch-button-shape"));
-	CHECK(!source_contains(MEOWMENU_PLACES_SOURCE,
-			"Switch button _shape"));
+	for (SettingsFormSwitch role : {
+			SettingsFormSwitch::ProfileVisibility,
+			SettingsFormSwitch::SessionVisibility,
+			SettingsFormSwitch::SidebarEnabled,
+			SettingsFormSwitch::PlacesEnabled,
+	})
+	{
+		GtkWidget* w = SettingsDialog::create_form_switch(role);
+		CHECK(GTK_IS_SWITCH(w));
+		CHECK(gtk_widget_get_halign(w) == GTK_ALIGN_START);
+		CHECK(gtk_widget_get_valign(w) == GTK_ALIGN_CENTER);
+		CHECK(gtk_switch_get_active(GTK_SWITCH(w)) == FALSE);
+		g_object_ref_sink(w);
+		g_object_unref(w);
+	}
 
 	if (g_failures != 0)
 	{

@@ -27,6 +27,13 @@ namespace WhiskerMenu
 
 class Settings;
 
+/* run_action_command_is_available:
+ * @command_line: search text interpreted with GLib shell syntax.
+ *
+ * Returns: true when parsing succeeds and the first argv element is on PATH.
+ */
+bool run_action_command_is_available(const char* command_line);
+
 class RunAction : public Element
 {
 public:

@@ -15,12 +15,44 @@
 #ifndef WHISKERMENU_SETTINGS_DEFAULTS_H
 #define WHISKERMENU_SETTINGS_DEFAULTS_H
 
+#include <cstddef>
 #include <cstring>
 
 typedef struct _XfconfChannel XfconfChannel;
 
 namespace WhiskerMenu
 {
+
+constexpr int SETTINGS_SCHEMA_VERSION = 13;
+constexpr bool SETTINGS_SHOW_PROFILE_DEFAULT = true;
+constexpr bool SETTINGS_SHOW_SESSION_DEFAULT = true;
+
+static const char* const RETIRED_SETTINGS_KEYS[] = {
+	"/position-profile-alternate",
+	"/position-search-alternate",
+	"/position-commands-alternate",
+	"/position-categories-alternate",
+	"/position-categories-horizontal",
+	"/profile-position",
+	"/commands-position",
+	"/unified-bar",
+	"/places/switch-button-shape",
+};
+
+inline bool settings_schema_needs_upgrade(int stored_version)
+{
+	return stored_version < SETTINGS_SCHEMA_VERSION;
+}
+
+inline bool is_retired_settings_key(const char* key)
+{
+	if (!key)
+		return false;
+	for (const char* retired : RETIRED_SETTINGS_KEYS)
+		if (std::strcmp(key, retired) == 0)
+			return true;
+	return false;
+}
 
 /* should_apply_fresh_preset:
  * @marker: true when the profile has previously completed initialization.

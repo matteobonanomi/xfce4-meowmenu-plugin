@@ -62,7 +62,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	GtkWidget* enable_grid = make_two_column_section();
 	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), enable_grid), false, false, 0);
 
-	m_enable_sidebar_switch = make_form_switch();
+	m_enable_sidebar_switch = create_form_switch(
+			SettingsFormSwitch::SidebarEnabled);
 	GtkWidget* enable_sidebar_switch = m_enable_sidebar_switch;
 	GtkWidget* enable_sidebar_label = gtk_label_new_with_mnemonic(_("_Enable sidebar"));
 	gtk_switch_set_active(GTK_SWITCH(enable_sidebar_switch), m_settings->sidebar_enabled);

@@ -24,6 +24,22 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+bool WhiskerMenu::run_action_command_is_available(const char* command_line)
+{
+	if (!command_line)
+		return false;
+	gchar** argv = nullptr;
+	if (!g_shell_parse_argv(command_line, nullptr, &argv, nullptr))
+		return false;
+	gchar* path = g_find_program_in_path(argv[0]);
+	const bool available = path != nullptr;
+	g_free(path);
+	g_strfreev(argv);
+	return available;
+}
+
+//-----------------------------------------------------------------------------
+
 RunAction::RunAction(Settings* settings) :
 	m_settings(settings)
 {
@@ -42,18 +58,7 @@ void RunAction::run(GdkScreen* screen) const
 unsigned int RunAction::search(const Query& query)
 {
 	// Check if in PATH
-	bool valid = false;
-
-	gchar** argv;
-	if (g_shell_parse_argv(query.raw_query().c_str(), nullptr, &argv, nullptr))
-	{
-		gchar* path = g_find_program_in_path(argv[0]);
-		valid = path;
-		g_free(path);
-		g_strfreev(argv);
-	}
-
-	if (!valid)
+	if (!run_action_command_is_available(query.raw_query().c_str()))
 	{
 		return UINT_MAX;
 	}

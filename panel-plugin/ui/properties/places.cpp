@@ -51,7 +51,8 @@ GtkWidget* SettingsDialog::init_places_tab()
 	GtkWidget* enable_grid = make_two_column_section();
 	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), enable_grid), false, false, 0);
 
-	GtkWidget* enable_switch = make_form_switch();
+	GtkWidget* enable_switch = create_form_switch(
+			SettingsFormSwitch::PlacesEnabled);
 	m_places_enabled_switch = enable_switch;
 	GtkWidget* enable_label = gtk_label_new_with_mnemonic(_("Enable _Places"));
 	gtk_switch_set_active(GTK_SWITCH(enable_switch), m_settings->places_enabled);

@@ -55,7 +55,8 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			gtk_label_new_with_mnemonic(_("Show _session controls:"));
 	gtk_widget_set_halign(show_session_label, GTK_ALIGN_START);
 	gtk_grid_attach(commands_table, show_session_label, 0, 0, 1, 1);
-	m_show_session = make_form_switch();
+	m_show_session = create_form_switch(
+			SettingsFormSwitch::SessionVisibility);
 	gtk_switch_set_active(GTK_SWITCH(m_show_session),
 			static_cast<bool>(m_settings->show_session));
 	gtk_grid_attach(commands_table, m_show_session, 1, 0, 1, 1);

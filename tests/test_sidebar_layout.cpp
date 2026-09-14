@@ -111,6 +111,13 @@ void parse_positions()
 	CHECK(meow_parse_sidebar_position("hidden") == SidebarPosition::Left);
 	CHECK(meow_parse_sidebar_position(nullptr) == SidebarPosition::Left);
 	CHECK(meow_parse_sidebar_position("nonsense") == SidebarPosition::Left);
+	CHECK(meow_sidebar_position_key_is_supported("left"));
+	CHECK(meow_sidebar_position_key_is_supported("right"));
+	CHECK(meow_sidebar_position_key_is_supported("horizontal"));
+	CHECK(!meow_sidebar_position_key_is_supported("top"));
+	CHECK(!meow_sidebar_position_key_is_supported("bottom"));
+	CHECK(!meow_sidebar_position_key_is_supported("hidden"));
+	CHECK(!meow_sidebar_position_key_is_supported(nullptr));
 }
 
 void horizontal_edge_derivation()

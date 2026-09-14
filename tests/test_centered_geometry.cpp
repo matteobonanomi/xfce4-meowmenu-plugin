@@ -19,6 +19,7 @@
 
 using WhiskerMenu::LayoutMode;
 using WhiskerMenu::layout_mode_from_key;
+using WhiskerMenu::layout_mode_key_is_supported;
 using meow::centered_origin;
 
 namespace
@@ -68,6 +69,12 @@ void classifier_unknown_is_docked()
 	CHECK(layout_mode_from_key("floating")    == LayoutMode::Docked);
 	CHECK(layout_mode_from_key("")            == LayoutMode::Docked);
 	CHECK(layout_mode_from_key(nullptr)       == LayoutMode::Docked);
+	CHECK(layout_mode_key_is_supported("docked"));
+	CHECK(layout_mode_key_is_supported("centered"));
+	CHECK(layout_mode_key_is_supported("fullscreen"));
+	CHECK(!layout_mode_key_is_supported("floating"));
+	CHECK(!layout_mode_key_is_supported(""));
+	CHECK(!layout_mode_key_is_supported(nullptr));
 }
 
 // supported behavior: on a monitor whose origin is NOT (0,0), the window centre coincides

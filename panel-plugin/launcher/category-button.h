@@ -25,6 +25,38 @@ namespace WhiskerMenu
 
 class Settings;
 
+/* category_hover_should_schedule:
+ * @hover_enabled: current category-hover preference.
+ * @active: whether the pointed category is already selected.
+ *
+ * Returns: true when entering the button should arm delayed activation.
+ */
+bool category_hover_should_schedule(bool hover_enabled, bool active);
+
+/* schedule_category_hover:
+ * @button: borrowed toggle button that must outlive the pending source.
+ *
+ * Arms the normal 150 ms hover delivery used by CategoryButton. Suppression is
+ * checked when the source fires so keyboard navigation can still win after the
+ * pointer entered.
+ *
+ * Returns: the GLib source identifier.
+ */
+guint schedule_category_hover(GtkToggleButton* button);
+
+/* category_hover_note_motion:
+ *
+ * Re-enables hover delivery after keyboard navigation when genuine pointer
+ * motion is observed.
+ */
+void category_hover_note_motion();
+
+/* category_hover_is_suppressed:
+ *
+ * Returns: the current process-wide arbitration state.
+ */
+bool category_hover_is_suppressed();
+
 class CategoryButton
 {
 public:

@@ -19,6 +19,7 @@
 #define WHISKERMENU_SETTINGS_DIALOG_H
 
 #include "core/layout-mode.h"
+#include "ui/properties/common.h"
 
 #include <functional>
 #include <string>
@@ -49,6 +50,19 @@ public:
 	GtkWidget* get_widget() const
 	{
 		return m_window;
+	}
+
+	/* create_form_switch:
+	 * @role: Settings control that will own the returned widget.
+	 *
+	 * Exposes the builder's narrow construction boundary without constructing
+	 * the complete dialog or its Plugin graph.
+	 *
+	 * Returns: a floating switch with the shared form-switch contract.
+	 */
+	static GtkWidget* create_form_switch(SettingsFormSwitch role)
+	{
+		return make_settings_form_switch(role);
 	}
 
 private:

@@ -27,6 +27,22 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+bool WhiskerMenu::command_line_is_available(const char* command_line)
+{
+	if (!command_line)
+		return false;
+	gchar** argv = nullptr;
+	if (!g_shell_parse_argv(command_line, nullptr, &argv, nullptr))
+		return false;
+	gchar* path = g_find_program_in_path(argv[0]);
+	const bool available = path != nullptr;
+	g_free(path);
+	g_strfreev(argv);
+	return available;
+}
+
+//-----------------------------------------------------------------------------
+
 Command::Command(Settings* settings, const gchar* property, const gchar* show_property,
 		const gchar* icon, const gchar* fallback_icon,
 		const gchar* text,
@@ -190,18 +206,8 @@ bool Command::check()
 {
 	if (m_status == CommandStatus::Unchecked)
 	{
-		gchar** argv;
-		if (g_shell_parse_argv(m_command, nullptr, &argv, nullptr))
-		{
-			gchar* path = g_find_program_in_path(argv[0]);
-			m_status = path ? CommandStatus::Valid : CommandStatus::Invalid;
-			g_free(path);
-			g_strfreev(argv);
-		}
-		else
-		{
-			m_status = CommandStatus::Invalid;
-		}
+		m_status = command_line_is_available(m_command)
+				? CommandStatus::Valid : CommandStatus::Invalid;
 	}
 
 	if (m_button)

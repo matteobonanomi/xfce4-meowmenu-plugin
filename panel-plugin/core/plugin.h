@@ -53,6 +53,11 @@ public:
 		return m_window;
 	}
 
+	Settings* get_settings() const
+	{
+		return m_settings;
+	}
+
 	enum ButtonStyle
 	{
 		ShowIcon = 0x1,

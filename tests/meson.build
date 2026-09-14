@@ -67,6 +67,9 @@ test_launcher_icon_view = executable(
 	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
+  # Retained: launcher-icon-view.cpp also defines the complete view class.
+  # Without pruning it fails to link at IconSize::get_size(), outside this
+  # presentation-helper test's source set.
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
   dependencies: [exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
@@ -82,6 +85,8 @@ test_launcher_tree_view = executable(
     '..' / 'panel-plugin' / 'ui' / 'icon-renderer.cpp',
     '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
   ],
+  # Retained: the complete view class reaches launcher_model_get_iter(),
+  # Category RTTI, IconSize, and grid-cell metrics outside this focused test.
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
@@ -261,8 +266,6 @@ test_schema_migration = executable(
   test_schema_migration_sources,
   cpp_args: [
     '-DMEOWMENU_080_XFCONF_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-0.8.0.xml' + '"',
-    '-DMEOWMENU_SETTINGS_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'settings.cpp' + '"',
-    '-DMEOWMENU_SETTINGS_DEFAULTS_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'settings-defaults.cpp' + '"',
   ],
   dependencies: [],
 )
@@ -308,6 +311,8 @@ test('preset_io', test_preset_io)
 # apply_preset) reach the full Plugin graph, so they are pruned at link time with
 # --gc-sections — only enumerate_user_presets(), find_preset_by_id() and
 # enumerate_preset_files() and their Settings-free dependencies survive. The test
+# otherwise fails at Boolean::set(), Integer::set(), String::set(), and
+# IconSize::set() from the uncalled Settings mutation paths.
 # skips cleanly (TAP SKIP, exit 0) when xfconfd / dbus-daemon are unavailable.
 test_preset_xfconf_sources = [
   'test_preset_xfconf.cpp',
@@ -362,8 +367,6 @@ test_search_action_edit = executable(
     '..' / 'panel-plugin' / 'settings-bindings.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
-  cpp_args: ['-ffunction-sections', '-fdata-sections'],
-  link_args: ['-Wl,--gc-sections'],
   dependencies: [glib, gtk, libxfce4ui, libxfce4util, xfconf],
 )
 
@@ -785,12 +788,6 @@ test_properties_switch = executable(
   'test_properties_switch',
   test_properties_switch_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  cpp_args: [
-    '-DMEOWMENU_SEARCH_BAR_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'search-bar.cpp' + '"',
-    '-DMEOWMENU_USER_SESSION_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'user-session.cpp' + '"',
-    '-DMEOWMENU_SIDEBAR_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'sidebar.cpp' + '"',
-    '-DMEOWMENU_PLACES_SOURCE="' + meson.current_source_dir() / '..' / 'panel-plugin' / 'ui' / 'properties' / 'places.cpp' + '"',
-  ],
   dependencies: [glib, gtk, libxfce4util, xfconf],
 )
 
@@ -840,6 +837,113 @@ test_category_lifetime = executable(
 )
 
 test('category_lifetime', test_category_lifetime, timeout: 30)
+
+# The focused helpers live in category-button.cpp beside the widget callbacks.
+# Dead-section pruning excludes the full Settings-dependent CategoryButton
+# constructor while retaining the production hover timeout and arbitration.
+test_category_activation = executable(
+  'test_category_activation',
+  [
+    'test_category_activation.cpp',
+    '..' / 'panel-plugin' / 'launcher' / 'category-button.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  dependencies: [glib, gtk, libxfce4panel, libxfce4util, xfconf],
+)
+
+test('category_activation', test_category_activation, timeout: 30)
+
+test_usage_stats = executable(
+  'test_usage_stats',
+  [
+    'test_usage_stats.cpp',
+    '..' / 'panel-plugin' / 'config' / 'usage-stats.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib],
+)
+
+test('usage_stats', test_usage_stats)
+
+# Both production callers retain their own current interpretation until the
+# shared command-policy review. Pruning discards their unrelated Settings,
+# Element, and dialog paths while the two real PATH checks remain linked.
+test_command_interpretation = executable(
+  'test_command_interpretation',
+  [
+    'test_command_interpretation.cpp',
+    '..' / 'panel-plugin' / 'launcher' / 'command.cpp',
+    '..' / 'panel-plugin' / 'search' / 'run-action.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  dependencies: [glib, gtk, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('command_interpretation', test_command_interpretation)
+
+test_favorites_page = executable(
+  'test_favorites_page',
+  ['test_favorites_page.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('favorites_page', test_favorites_page, timeout: 30)
+
+test_result_surfaces = executable(
+  'test_result_surfaces',
+  ['test_result_surfaces.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('result_surfaces', test_result_surfaces, timeout: 30)
+
+test_result_drag_contract = executable(
+  'test_result_drag_contract',
+  ['test_result_drag_contract.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('result_drag_contract', test_result_drag_contract, timeout: 30)
+
+test_window_transactions = executable(
+  'test_window_transactions',
+  ['test_window_transactions.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('window_transactions', test_window_transactions, timeout: 30)
+
+test_plugin_lifecycle = executable(
+  'test_plugin_lifecycle',
+  ['test_plugin_lifecycle.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('plugin_lifecycle', test_plugin_lifecycle, timeout: 30)
+
+test_settings_dialog_lifecycle = executable(
+  'test_settings_dialog_lifecycle',
+  ['test_settings_dialog_lifecycle.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('settings_dialog_lifecycle', test_settings_dialog_lifecycle, timeout: 30)
 
 test_application_load_generation_sources = [
   'test_application_load_generation.cpp',

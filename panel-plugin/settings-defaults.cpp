@@ -18,6 +18,7 @@
 
 #include "settings-defaults.h"
 
+#include "core/sidebar-layout.h"
 #include "presets/preset.h"
 #include "settings.h"
 
@@ -34,17 +35,7 @@ const char* WhiskerMenu::migrate_layout_schema_v13(XfconfChannel* channel)
 	if (!channel)
 		return nullptr;
 
-	const char* retired_keys[] = {
-		"/position-profile-alternate",
-		"/position-search-alternate",
-		"/position-commands-alternate",
-		"/position-categories-alternate",
-		"/position-categories-horizontal",
-		"/profile-position",
-		"/commands-position",
-		"/unified-bar",
-	};
-	for (const char* key : retired_keys)
+	for (const char* key : RETIRED_SETTINGS_KEYS)
 		xfconf_channel_reset_property(channel, key, FALSE);
 
 	const char* canonical = nullptr;
@@ -53,9 +44,7 @@ const char* WhiskerMenu::migrate_layout_schema_v13(XfconfChannel* channel)
 	if (g_strcmp0(sidebar, "top") == 0
 			|| g_strcmp0(sidebar, "bottom") == 0)
 		canonical = "horizontal";
-	else if (g_strcmp0(sidebar, "left") != 0
-			&& g_strcmp0(sidebar, "right") != 0
-			&& g_strcmp0(sidebar, "horizontal") != 0)
+	else if (!meow_sidebar_position_key_is_supported(sidebar))
 		canonical = "left";
 
 	if (canonical)
@@ -448,12 +437,12 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		schema_version = 12;
 	}
 
-	if (schema_version < 13)
+	if (settings_schema_needs_upgrade(schema_version))
 	{
 		const char* canonical = migrate_layout_schema_v13(channel);
 		if (canonical)
 			sidebar_position = canonical;
-		schema_version = 13;
+		schema_version = SETTINGS_SCHEMA_VERSION;
 	}
 
 	// Back-fill the marker on every path (fresh, upgrade, or already-current
