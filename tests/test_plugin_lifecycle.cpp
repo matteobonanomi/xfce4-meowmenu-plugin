@@ -11,6 +11,7 @@
 
 #include "core/plugin.h"
 #include "private-xfconf-fixture.h"
+#include "settings.h"
 
 using namespace WhiskerMenu;
 
@@ -166,6 +167,30 @@ static int run_test(int argc, char** argv)
 	assert(visible_properties_count() == before + 1);
 	g_signal_emit_by_name(host, "configure-plugin");
 	assert(visible_properties_count() == before + 1);
+
+	Settings* settings = plugin->get_settings();
+	const int action_count = settings->search_actions.size();
+	settings->search_actions.set_modified();
+	XfconfChannel* retained_channel = XFCONF_CHANNEL(
+			g_object_ref(settings->channel));
+	int search_action_writes = 0;
+	g_signal_connect(retained_channel, "property-changed",
+			G_CALLBACK(+[](XfconfChannel*, const gchar* property,
+					const GValue*, gpointer data)
+			{
+				if (g_strcmp0(property, "/search-actions") == 0)
+					++*static_cast<int*>(data);
+			}), &search_action_writes);
+
+	g_signal_emit_by_name(host, "free-data");
+	while (g_main_context_iteration(nullptr, false))
+	{
+	}
+	assert(visible_properties_count() == before);
+	assert(xfconf_channel_get_int(retained_channel,
+			"/search-actions", -1) == action_count);
+	assert(search_action_writes == 1);
+	g_object_unref(retained_channel);
 
 	std::printf("test_plugin_lifecycle: ok\n");
 	return 0;

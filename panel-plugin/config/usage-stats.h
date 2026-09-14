@@ -36,6 +36,7 @@ class UsageStats
 {
 public:
 	UsageStats();
+	~UsageStats();
 
 	// O(1) frecency score in [0,1]. alpha = weight for recency vs frequency.
 	double get_frecency(const char* desktop_id,
@@ -53,7 +54,7 @@ private:
 
 	std::unordered_map<std::string, AppStats> m_stats;
 	std::string m_cache_path;
-	bool m_write_scheduled = false;
+	guint m_write_idle_id;
 };
 
 } // namespace WhiskerMenu

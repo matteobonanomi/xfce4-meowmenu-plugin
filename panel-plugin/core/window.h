@@ -383,6 +383,7 @@ private:
 	ThemeLayoutMetrics m_layout_metrics;
 	guint m_style_refresh_source;
 	bool m_style_refresh_running;
+	guint m_focus_out_idle;
 	int m_profile_shape;
 	bool m_supports_alpha;
 	// Theme-derived separator colour (luminance-nudged from the menu background),

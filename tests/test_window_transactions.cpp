@@ -110,7 +110,13 @@ static int run_test(int argc, char** argv)
 			&focus_in, &handled);
 	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
 			&focus_out, &handled);
+	assert(gtk_widget_get_visible(window->get_widget()));
 	drain_ready_sources();
+	assert(!gtk_widget_get_visible(window->get_widget()));
+	gboolean remote_handled = FALSE;
+	g_signal_emit_by_name(host, "remote-event", "popup", nullptr,
+			&remote_handled);
+	assert(remote_handled);
 	assert(!gtk_widget_get_visible(window->get_widget()));
 
 	settings->default_category = Settings::CategoryFavorites;
@@ -118,6 +124,29 @@ static int run_test(int argc, char** argv)
 	window->hide();
 	assert(!gtk_widget_get_visible(window->get_widget()));
 	assert(window->get_active_page() == window->get_favorites());
+
+	window->show(Window::PositionAtCenter);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(plugin->get_button()), true);
+	GdkEventButton button_press = {};
+	button_press.type = GDK_BUTTON_PRESS;
+	button_press.button = 1;
+	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
+			&focus_out, &handled);
+	assert(gtk_widget_get_visible(window->get_widget()));
+	gboolean button_handled = FALSE;
+	g_signal_emit_by_name(plugin->get_button(), "button-press-event",
+			&button_press, &button_handled);
+	assert(button_handled);
+	assert(!gtk_widget_get_visible(window->get_widget()));
+	drain_ready_sources();
+	assert(!gtk_widget_get_visible(window->get_widget()));
+
+	window->show(Window::PositionAtCenter);
+	assert(gtk_widget_get_visible(window->get_widget()));
+	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
+			&focus_out, &handled);
+	g_signal_emit_by_name(host, "free-data");
+	drain_ready_sources();
 
 	std::printf("test_window_transactions: ok\n");
 	return 0;

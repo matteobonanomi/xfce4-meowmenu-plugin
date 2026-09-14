@@ -420,7 +420,7 @@ void PlacesPage::set_filter(const gchar* filter)
 		// Cancel any pending debounce or in-flight worker; we'll
 		// schedule a fresh run after the debounce window.
 		cancel_home_search();
-		const std::uint64_t generation = m_focus_lease.begin(
+		m_focus_lease.begin(
 				m_filter, m_active_section,
 				m_window && m_window->is_places_active());
 		// Clear visible model immediately so stale results don't linger
@@ -432,7 +432,6 @@ void PlacesPage::set_filter(const gchar* filter)
 		m_home_search_active = true;
 		m_debounce_id = g_timeout_add(150,
 				&PlacesPage::on_debounce_fired, this);
-		(void)generation;
 		return;
 	}
 

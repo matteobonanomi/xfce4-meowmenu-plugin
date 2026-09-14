@@ -19,6 +19,7 @@
 #define WHISKERMENU_APPLICATIONS_PAGE_H
 
 #include "page.h"
+#include "category-activation.h"
 
 #include <string>
 #include <unordered_map>
@@ -63,6 +64,7 @@ public:
 	bool load();
 	bool has_publication() const { return m_has_publication; }
 	void reload_category_icon_size();
+	CategoryActivation* get_category_activation() { return &m_category_activation; }
 
 private:
 	struct ApplicationCandidate;
@@ -83,6 +85,7 @@ private:
 	// unless the sidebar is disabled.
 	GtkWidget* m_outer;
 	GtkWidget* m_default_heading;
+	CategoryActivation m_category_activation;
 
 	GarconMenu* m_garcon_menu;
 	GarconMenu* m_garcon_settings_menu;

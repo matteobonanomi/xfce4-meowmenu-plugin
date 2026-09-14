@@ -223,6 +223,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_layout_metrics{6, ThemeMetricsSource::SafeFallback},
 	m_style_refresh_source(0),
 	m_style_refresh_running(false),
+	m_focus_out_idle(0),
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
@@ -298,10 +299,15 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 			// Needed to make focus out event happen after button press event,
 			// otherwise it is impossible to toggle panel button.
-			g_idle_add(
+			if (m_focus_out_idle == 0)
+				m_focus_out_idle = g_idle_add(
 				+[](gpointer user_data) -> gboolean
 				{
-					static_cast<Window*>(user_data)->hide(true);
+					Window* self = static_cast<Window*>(user_data);
+					// Clear ownership before dismissal because hiding can synchronously
+					// trigger panel callbacks that inspect the Window lifecycle.
+					self->m_focus_out_idle = 0;
+					self->hide(true);
 					return G_SOURCE_REMOVE;
 				},
 			this);
@@ -487,6 +493,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create applications
 	m_applications = new ApplicationsPage(m_settings, this);
+	CategoryActivation* category_activation =
+			m_applications->get_category_activation();
+	favorites_button->set_activation_policy(category_activation);
+	recent_button->set_activation_policy(category_activation);
 
 	CategoryButton* applications_button = m_applications->get_button();
 	applications_button->join_group(recent_button);
@@ -502,18 +512,21 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	{
 		GIcon* home_icon = g_themed_icon_new(m_places->get_home_section()->get_icon_name());
-		m_places_home_btn = new CategoryButton(m_settings, home_icon,
+		m_places_home_btn = new CategoryButton(m_settings, category_activation,
+				home_icon,
 				m_places->get_home_section()->get_display_name());
 		g_object_unref(home_icon);
 
 		GIcon* hist_icon = g_themed_icon_new(m_places->get_history_section()->get_icon_name());
-		m_places_history_btn = new CategoryButton(m_settings, hist_icon,
+		m_places_history_btn = new CategoryButton(m_settings, category_activation,
+				hist_icon,
 				m_places->get_history_section()->get_display_name());
 		g_object_unref(hist_icon);
 		m_places_history_btn->join_group(m_places_home_btn);
 
 		GIcon* fav_icon = g_themed_icon_new(m_places->get_favourites_section()->get_icon_name());
-		m_places_fav_btn = new CategoryButton(m_settings, fav_icon,
+		m_places_fav_btn = new CategoryButton(m_settings, category_activation,
+				fav_icon,
 				m_places->get_favourites_section()->get_display_name());
 		g_object_unref(fav_icon);
 		m_places_fav_btn->join_group(m_places_history_btn);
@@ -1135,6 +1148,11 @@ void WhiskerMenu::Window::on_places_favourites_drag_data_received(
 
 WhiskerMenu::Window::~Window()
 {
+	if (m_focus_out_idle != 0)
+	{
+		g_source_remove(m_focus_out_idle);
+		m_focus_out_idle = 0;
+	}
 	if (m_resizing)
 		interactive_resize_cancel();
 	if (m_style_refresh_source != 0)
@@ -1999,7 +2017,8 @@ void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
 	// and suppress pointer-hover auto-activation until the next real motion so a
 	// stationary pointer resting over the sidebar cannot steal focus back.
 	m_keyboard_category_nav = true;
-	CategoryButton::suppress_hover_until_motion();
+	CategoryActivation* activation = m_applications->get_category_activation();
+	activation->note_keyboard_navigation();
 
 	gtk_widget_grab_focus(target);
 
@@ -2007,7 +2026,8 @@ void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
 	// (no new preference): hover ON → activate now so results follow the
 	// highlight live; hover OFF → move highlight only and leave the committed
 	// category untouched until the user presses Enter/Space.
-	if (m_settings->category_hover_activate)
+	if (activation->keyboard_should_activate(
+			m_settings->category_hover_activate))
 	{
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(target), true);
 	}

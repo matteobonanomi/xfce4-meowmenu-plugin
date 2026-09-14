@@ -198,8 +198,16 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 
 //-----------------------------------------------------------------------------
 
+/* ~Plugin:
+ *
+ * Settles an open Properties dialog while Settings is still alive, then tears
+ * down the menu, panel button, and configuration in dependency order.
+ */
 Plugin::~Plugin()
 {
+	if (m_settings_dialog)
+		m_settings_dialog->close();
+
 	delete m_window;
 	m_window = nullptr;
 

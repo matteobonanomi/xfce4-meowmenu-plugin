@@ -798,19 +798,19 @@ GtkWidget* SettingsDialog::init_general_tab()
 			refresh_customized_indicator();
 		});
 
-	// HACK: opacity is a compositor feature. Without a compositor the menu always
-	// renders solid (the window guards force it), so the control would otherwise
-	// look functional while doing nothing. Gate it on compositing — disabled with
-	// an explanatory tooltip when absent — and track the screen's
-	// composited-changed so it re-enables live if a compositor starts. Best-effort:
-	// X11 is the verified path; the renderer fallback is independent of this.
+	// HACK: without a compositor the window guards render the menu solid. Keep
+	// the control disabled in that fallback, but follow compositor changes live.
+	// X11 is the verified path; rendering remains safe on other backends.
 	set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
 	if (GdkScreen* mo_screen = gtk_widget_get_screen(m_menu_opacity))
-		connect(mo_screen, "composited-changed",
+	{
+		m_composited_screen = mo_screen;
+		m_composited_changed_slot = connect(mo_screen, "composited-changed",
 			[this, mo_label](GdkScreen*)
 			{
 				set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
 			});
+	}
 
 	// Row 3 C2: Stay visible when focus is lost (control-only).
 	m_stay_on_focus_out = gtk_check_button_new_with_mnemonic(_("Stay _visible when focus is lost"));

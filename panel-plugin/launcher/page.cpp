@@ -96,7 +96,7 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	if (icon && text)
 	{
 		GIcon* gicon = g_themed_icon_new(icon);
-		m_button = new CategoryButton(m_settings, gicon, text);
+		m_button = new CategoryButton(m_settings, nullptr, gicon, text);
 		g_object_unref(gicon);
 	}
 

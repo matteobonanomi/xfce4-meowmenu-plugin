@@ -52,6 +52,8 @@ public:
 		return m_window;
 	}
 
+	void close();
+
 	/* create_form_switch:
 	 * @role: Settings control that will own the returned widget.
 	 *
@@ -187,6 +189,11 @@ private:
 	// Tracks Xfconf "property-changed" subscription that mirrors live
 	// menu_width/menu_height updates (e.g. drag-resize) into the spin buttons.
 	gulong m_size_change_slot = 0;
+
+	// The screen outlives the dialog, so its callback is explicitly disconnected
+	// before any widget state captured by the callback can be released.
+	GdkScreen* m_composited_screen = nullptr;
+	gulong m_composited_changed_slot = 0;
 
 	// Appearance customization (runtime implementation)
 	GtkWidget* m_corner_radius = nullptr;

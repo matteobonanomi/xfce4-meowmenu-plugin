@@ -24,43 +24,13 @@ namespace WhiskerMenu
 {
 
 class Settings;
-
-/* category_hover_should_schedule:
- * @hover_enabled: current category-hover preference.
- * @active: whether the pointed category is already selected.
- *
- * Returns: true when entering the button should arm delayed activation.
- */
-bool category_hover_should_schedule(bool hover_enabled, bool active);
-
-/* schedule_category_hover:
- * @button: borrowed toggle button that must outlive the pending source.
- *
- * Arms the normal 150 ms hover delivery used by CategoryButton. Suppression is
- * checked when the source fires so keyboard navigation can still win after the
- * pointer entered.
- *
- * Returns: the GLib source identifier.
- */
-guint schedule_category_hover(GtkToggleButton* button);
-
-/* category_hover_note_motion:
- *
- * Re-enables hover delivery after keyboard navigation when genuine pointer
- * motion is observed.
- */
-void category_hover_note_motion();
-
-/* category_hover_is_suppressed:
- *
- * Returns: the current process-wide arbitration state.
- */
-bool category_hover_is_suppressed();
+class CategoryActivation;
 
 class CategoryButton
 {
 public:
-	CategoryButton(Settings* settings, GIcon* icon, const gchar* text);
+	CategoryButton(Settings* settings, CategoryActivation* activation,
+			GIcon* icon, const gchar* text);
 	~CategoryButton();
 
 	CategoryButton(const CategoryButton&) = delete;
@@ -89,6 +59,17 @@ public:
 	}
 
 	void reload_icon_size();
+
+	/* set_activation_policy:
+	 * @activation: per-menu policy that outlives interactive use of this button.
+	 *
+	 * Binds buttons created by a base page before the owning Applications page
+	 * is available. The policy is borrowed and is never released here.
+	 */
+	void set_activation_policy(CategoryActivation* activation)
+	{
+		m_activation = activation;
+	}
 
 	/* reload_icon_size:
 	 * @render_size: icon artwork size in logical pixels; 1 hides the icon.
@@ -121,24 +102,18 @@ public:
 	 */
 	void set_min_label_width(int width);
 
-	/* suppress_hover_until_motion:
-	 *
-	 * Inhibit pointer-hover auto-activation for every category button until the
-	 * next genuine pointer motion. Called by the window keyboard handler when a
-	 * keyboard-driven category navigation occurs so a stationary pointer resting
-	 * over the sidebar cannot re-activate a hovered button and steal focus back.
-	 * Process-wide (one shared latch across all buttons); re-armed on the first
-	 * motion-notify over any category button.
-	 */
-	static void suppress_hover_until_motion();
-
 private:
+	static gboolean hover_timeout(gpointer user_data);
+	void schedule_hover();
+
 	Settings* const m_settings;
+	CategoryActivation* m_activation;
 	GtkRadioButton* m_button;
 	GtkBox* m_box;
 	GtkWidget* m_icon;
 	GtkWidget* m_label;
 	long m_label_chars;
+	guint m_hover_timeout_id;
 };
 
 }

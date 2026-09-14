@@ -2,13 +2,17 @@
  * Production-linked normal-path coverage for the usage statistics cache.
  */
 
-#include "config/usage-stats.h"
-
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <string>
+#include <unordered_map>
 
 #include <glib/gstdio.h>
+
+#define private public
+#include "config/usage-stats.h"
+#undef private
 
 using namespace WhiskerMenu;
 
@@ -47,6 +51,44 @@ int main()
 	assert(std::strstr(contents, "org.example.Seeded.desktop\t") != nullptr);
 	assert(std::strstr(contents, "org.example.New.desktop\t") != nullptr);
 	assert(std::strstr(contents, "\t2\n") != nullptr);
+	g_free(contents);
+
+	// Identifiers accepted by record_launch() must survive the tab-delimited
+	// writer/parser round trip even when they contain ordinary whitespace.
+	{
+		UsageStats writer;
+		writer.record_launch("org.example.Space App.desktop");
+		while (g_main_context_pending(nullptr))
+			g_main_context_iteration(nullptr, FALSE);
+	}
+	{
+		UsageStats reader;
+		assert(reader.get_frecency("org.example.Space App.desktop", 0.5) > 0.0);
+	}
+
+	// Saving an empty in-memory state must replace, rather than retain, the
+	// previously persisted statistics.
+	stats.m_stats.clear();
+	stats.save();
+	contents = nullptr;
+	length = 0;
+	assert(g_file_get_contents(cache_path, &contents, &length, &error));
+	assert(!error);
+	assert(length == 0);
+	g_free(contents);
+
+	// Teardown settles the coalesced write before releasing the state retained
+	// by its idle callback.
+	UsageStats* closing = new UsageStats();
+	closing->record_launch("org.example.Teardown.desktop");
+	delete closing;
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+	contents = nullptr;
+	length = 0;
+	assert(g_file_get_contents(cache_path, &contents, &length, &error));
+	assert(!error);
+	assert(std::strstr(contents, "org.example.Teardown.desktop\t") != nullptr);
 	g_free(contents);
 
 	assert(g_remove(cache_path) == 0);

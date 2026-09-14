@@ -104,6 +104,11 @@ static int run_test(int argc, char** argv)
 	g_signal_emit_by_name(screen, "composited-changed");
 	assert(gtk_widget_get_sensitive(opacity) == composited);
 
+	delete dialog;
+	gtk_widget_set_sensitive(opacity, !composited);
+	g_signal_emit_by_name(screen, "composited-changed");
+	assert(gtk_widget_get_sensitive(opacity) != composited);
+
 	std::printf("test_settings_dialog_lifecycle: ok\n");
 	return 0;
 }

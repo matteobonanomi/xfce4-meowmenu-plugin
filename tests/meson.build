@@ -845,19 +845,12 @@ test_category_lifetime = executable(
 
 test('category_lifetime', test_category_lifetime, timeout: 30)
 
-# The focused helpers live in category-button.cpp beside the widget callbacks.
-# Dead-section pruning excludes the full Settings-dependent CategoryButton
-# constructor while retaining the production hover timeout and arbitration.
 test_category_activation = executable(
   'test_category_activation',
-  [
-    'test_category_activation.cpp',
-    '..' / 'panel-plugin' / 'launcher' / 'category-button.cpp',
-  ],
+  ['test_category_activation.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  cpp_args: ['-ffunction-sections', '-fdata-sections'],
-  link_args: ['-Wl,--gc-sections'],
-  dependencies: [glib, gtk, libxfce4panel, libxfce4util, xfconf],
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('category_activation', test_category_activation, timeout: 30)
@@ -952,6 +945,16 @@ test_settings_dialog_lifecycle = executable(
 )
 
 test('settings_dialog_lifecycle', test_settings_dialog_lifecycle, timeout: 30)
+
+test_settings_lifecycle = executable(
+  'test_settings_lifecycle',
+  ['test_settings_lifecycle.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('settings_lifecycle', test_settings_lifecycle, timeout: 30)
 
 test_application_load_generation_sources = [
   'test_application_load_generation.cpp',

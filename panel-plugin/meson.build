@@ -7,6 +7,7 @@ plugin_sources = [
   'presets/preset-builtins.cpp',
   'presets/preset-io.cpp',
   'launcher/category.cpp',
+  'launcher/category-activation.cpp',
   'launcher/category-button.cpp',
   'launcher/command.cpp',
   'ui/command-edit.cpp',

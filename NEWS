@@ -7,6 +7,11 @@
 - Bugfix: prevent stale development modules from shadowing package-installed plugins
 - Bugfix: render Places names containing markup characters literally
 - Bugfix: show malformed panel button titles literally instead of leaving them blank or stale
+- Bugfix: preserve usage statistics for application identifiers containing spaces and clear stale empty caches
+- Bugfix: settle pending usage-stat writes safely when the plugin is removed
+- Bugfix: disconnect live settings updates safely when the plugin is removed
+- Bugfix: close and save an open Properties dialog when the plugin is removed
+- Bugfix: keep keyboard and hover category activation independent across multiple menu instances
 - UI: simplify Docked, Centered, and Full Screen composition and Properties controls with adaptive, preset-aware layouts that remain visibly distinct
 - Presets: substantially refresh Modern, align all built-in presets with the supported layout model, and use Modern by default
 

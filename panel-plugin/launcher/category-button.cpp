@@ -18,6 +18,7 @@
 #include "category-button.h"
 
 #include "core/sidebar-layout.h"
+#include "launcher/category-activation.h"
 #include "settings.h"
 #include "ui/slot.h"
 
@@ -25,69 +26,64 @@
 
 using namespace WhiskerMenu;
 
-namespace
-{
-
-// HACK: process-wide latch shared by every CategoryButton, toggled by the
-// window keyboard handler (CategoryButton::suppress_hover_until_motion) and the
-// per-button motion-notify handler below. It exists because keyboard category
-// navigation lives at the window level while the hover auto-activation lives in
-// these leaf widgets, and a leaf button has no back-reference to the Window.
-// When set, the enter-notify timeout and the focus-in auto-activate skip
-// activation so a stationary pointer cannot eject keyboard focus (the documented behavior); the
-// first genuine motion-notify over any category button re-arms hover.
-static bool s_hover_suppressed_until_motion = false;
-
-} // namespace
-
-void WhiskerMenu::CategoryButton::suppress_hover_until_motion()
-{
-	s_hover_suppressed_until_motion = true;
-}
-
-bool WhiskerMenu::category_hover_should_schedule(bool hover_enabled, bool active)
-{
-	return hover_enabled && !active;
-}
-
-void WhiskerMenu::category_hover_note_motion()
-{
-	s_hover_suppressed_until_motion = false;
-}
-
-bool WhiskerMenu::category_hover_is_suppressed()
-{
-	return s_hover_suppressed_until_motion;
-}
-
 //-----------------------------------------------------------------------------
 
-static gboolean hover_timeout(gpointer user_data)
+/* CategoryButton::hover_timeout:
+ * @user_data: CategoryButton that owns this source.
+ *
+ * Clears source ownership before consulting the per-menu suppression policy.
+ * The callback never retains the borrowed policy beyond this delivery.
+ *
+ * Returns: G_SOURCE_REMOVE after the single delivery.
+ */
+gboolean CategoryButton::hover_timeout(gpointer user_data)
 {
-	GtkToggleButton* button = GTK_TOGGLE_BUTTON(user_data);
+	CategoryButton* self = static_cast<CategoryButton*>(user_data);
+	self->m_hover_timeout_id = 0;
+	GtkToggleButton* button = GTK_TOGGLE_BUTTON(self->m_button);
 	// NOTE: a keyboard navigation may have fired after this 150 ms timeout was
-	// armed; honouring the suppression latch keeps the stale pointer from
+	// armed; honouring the per-menu policy keeps the stale pointer from
 	// activating the button it still rests over (the documented behavior).
-	if (s_hover_suppressed_until_motion)
-	{
-		return GDK_EVENT_PROPAGATE;
-	}
-	if (gtk_widget_get_state_flags(GTK_WIDGET(button)) & GTK_STATE_FLAG_PRELIGHT)
+	const bool pointer_inside = gtk_widget_get_state_flags(GTK_WIDGET(button))
+			& GTK_STATE_FLAG_PRELIGHT;
+	if (self->m_activation
+			&& self->m_activation->hover_should_activate(pointer_inside))
 	{
 		gtk_toggle_button_set_active(button, true);
 	}
-	return GDK_EVENT_PROPAGATE;
+	return G_SOURCE_REMOVE;
 }
 
-guint WhiskerMenu::schedule_category_hover(GtkToggleButton* button)
+/* CategoryButton::schedule_hover:
+ *
+ * Arms at most one delayed hover activation. The button owns the source and
+ * clears it on delivery or before widget teardown.
+ */
+void CategoryButton::schedule_hover()
 {
-	return g_timeout_add(150, &hover_timeout, button);
+	if (m_hover_timeout_id == 0)
+	{
+		m_hover_timeout_id = g_timeout_add(CategoryActivation::hover_delay_ms(),
+				&CategoryButton::hover_timeout, this);
+	}
 }
 
 //-----------------------------------------------------------------------------
 
-CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* text) :
-	m_settings(settings)
+/* CategoryButton::CategoryButton:
+ * @settings: settings owner that outlives this button.
+ * @activation: borrowed per-menu activation policy.
+ * @icon: borrowed icon used to create the button image.
+ * @text: label and tooltip text.
+ *
+ * Creates a category radio button whose hover source is owned locally and
+ * whose keyboard/pointer arbitration is delegated to @activation.
+ */
+CategoryButton::CategoryButton(Settings* settings, CategoryActivation* activation,
+		GIcon* icon, const gchar* text) :
+	m_settings(settings),
+	m_activation(activation),
+	m_hover_timeout_id(0)
 {
 	m_button = GTK_RADIO_BUTTON(gtk_radio_button_new(nullptr));
 	g_object_ref_sink(m_button);
@@ -104,11 +100,11 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 		[this](GtkWidget* widget, GdkEvent*) -> gboolean
 		{
 			GtkToggleButton* button = GTK_TOGGLE_BUTTON(widget);
-			if (category_hover_should_schedule(
+			if (m_activation && m_activation->hover_should_schedule(
 					m_settings->category_hover_activate,
 					gtk_toggle_button_get_active(button)))
 			{
-				schedule_category_hover(button);
+				schedule_hover();
 			}
 			return GDK_EVENT_PROPAGATE;
 		});
@@ -118,9 +114,10 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 	// deterministic: only after the user actually moves the mouse does hover
 	// take over again (the documented behavior, C5).
 	connect(m_button, "motion-notify-event",
-		[](GtkWidget*, GdkEvent*) -> gboolean
+		[this](GtkWidget*, GdkEvent*) -> gboolean
 		{
-			category_hover_note_motion();
+			if (m_activation)
+				m_activation->note_pointer_motion();
 			return GDK_EVENT_PROPAGATE;
 		});
 
@@ -132,9 +129,9 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 			// here), do not auto-activate on focus-in: the window handler owns
 			// the keyboard activation model (live vs Enter-to-commit) and a
 			// focus-in activation here would bypass its guard (the documented behavior).
-			if (m_settings->category_hover_activate
-					&& !s_hover_suppressed_until_motion
-					&& !gtk_toggle_button_get_active(button))
+			if (m_activation && m_activation->focus_should_activate(
+					m_settings->category_hover_activate,
+					gtk_toggle_button_get_active(button)))
 			{
 				gtk_toggle_button_set_active(button, true);
 				gtk_widget_grab_focus(widget);
@@ -183,6 +180,11 @@ CategoryButton::CategoryButton(Settings* settings, GIcon* icon, const gchar* tex
 
 CategoryButton::~CategoryButton()
 {
+	if (m_hover_timeout_id != 0)
+	{
+		g_source_remove(m_hover_timeout_id);
+		m_hover_timeout_id = 0;
+	}
 	gtk_widget_destroy(GTK_WIDGET(m_button));
 	g_object_unref(m_button);
 }

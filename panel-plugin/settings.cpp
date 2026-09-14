@@ -216,6 +216,12 @@ Settings::Settings(Plugin* plugin) :
 
 //-----------------------------------------------------------------------------
 
+/* ~Settings:
+ *
+ * Disconnects the channel callback before releasing settings storage. Xfconf
+ * channels may be retained elsewhere, so sender finalization is not sufficient
+ * to prevent later delivery into this instance.
+ */
 Settings::~Settings()
 {
 	for (auto i : command)
@@ -225,7 +231,9 @@ Settings::~Settings()
 
 	if (channel)
 	{
+		disconnect_signal(channel, m_change_slot);
 		g_object_unref(channel);
+		channel = nullptr;
 		xfconf_shutdown();
 	}
 }

@@ -29,11 +29,12 @@ namespace WhiskerMenu
 {
 
 class CategoryButton;
+class CategoryActivation;
 
 class Category : public Element
 {
 public:
-	Category(Settings* settings, GarconMenu* menu);
+	Category(Settings* settings, CategoryActivation* activation, GarconMenu* menu);
 	~Category();
 
 	CategoryButton* get_button();
@@ -78,6 +79,7 @@ private:
 
 private:
 	Settings* const m_settings;
+	CategoryActivation* const m_activation;
 	CategoryButton* m_button;
 	std::vector<Element*> m_items;
 	GtkTreeModel* m_model;

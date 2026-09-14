@@ -150,6 +150,7 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 	m_outer = meow::meowmenu_create_default_heading_page(get_widget(),
 			_("ALL APPLICATIONS"), &m_default_heading);
 	g_object_ref_sink(m_outer);
+	get_button()->set_activation_policy(&m_category_activation);
 
 	const decltype(m_categories.size()) index = 0;
 	connect(get_button()->get_widget(), "toggled",
@@ -521,7 +522,8 @@ void ApplicationsPage::populate_candidate(ApplicationCandidate& candidate)
 					invalidate();
 				});
 
-			Category* category = new Category(m_settings, nullptr);
+			Category* category = new Category(m_settings,
+					&m_category_activation, nullptr);
 			load_menu(candidate, candidate.settings_menu, category, false);
 			delete category;
 		}
@@ -543,7 +545,7 @@ void ApplicationsPage::populate_candidate(ApplicationCandidate& candidate)
 
 	// A failed or empty Garcon discovery still produces one coherent empty All
 	// Applications model; cold start never publishes a half-built navigation.
-	Category* all = new Category(m_settings, nullptr);
+	Category* all = new Category(m_settings, &m_category_activation, nullptr);
 	all->append_items(find_all(candidate));
 	candidate.categories.insert(candidate.categories.begin(), all);
 }
@@ -687,7 +689,7 @@ bool ApplicationsPage::load_menu(ApplicationCandidate& candidate,
 			}
 			else
 			{
-				category = new Category(m_settings, submenu);
+				category = new Category(m_settings, &m_category_activation, submenu);
 			}
 
 			// Populate category

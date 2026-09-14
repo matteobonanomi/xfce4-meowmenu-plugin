@@ -174,8 +174,16 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 
 //-----------------------------------------------------------------------------
 
+/* ~SettingsDialog:
+ *
+ * Disconnects callbacks owned by longer-lived Xfconf and display objects
+ * before releasing dialog-owned models and command editors.
+ */
 SettingsDialog::~SettingsDialog()
 {
+	disconnect_signal(m_composited_screen, m_composited_changed_slot);
+	m_composited_screen = nullptr;
+
 	if (m_size_change_slot && m_settings && m_settings->channel)
 	{
 		g_signal_handler_disconnect(m_settings->channel, m_size_change_slot);
@@ -195,6 +203,19 @@ SettingsDialog::~SettingsDialog()
 
 	g_object_unref(m_actions_model);
 	g_object_unref(m_aliases_model);
+}
+
+//-----------------------------------------------------------------------------
+
+/* close:
+ *
+ * Destroys the GTK dialog through its ordinary close path. The Plugin's
+ * window-destroy handler performs the associated save and releases this
+ * object, so callers must not access the dialog afterward.
+ */
+void SettingsDialog::close()
+{
+	gtk_widget_destroy(m_window);
 }
 
 //-----------------------------------------------------------------------------
