@@ -77,12 +77,6 @@ extern const LayoutPreset BUILTIN_PRESETS[PRESET_BUILTIN_COUNT];
 // a value for every key returned here, and a unit test enforces it.
 const std::vector<std::string>& governed_keys();
 
-// The set of governed keys the Properties dialog re-syncs onto its widgets when
-// a preset is applied (sync_preset_widgets). Kept as a display-free static list
-// so a unit test can assert it equals governed_keys() — i.e. no governed key is
-// left unsynced — without instantiating a GTK display.
-const std::vector<std::string>& synced_keys();
-
 /* preset_name_for_display:
  * @preset: preset whose canonical name should be presented.
  *

@@ -101,7 +101,7 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 			}
 			else
 			{
-				m_window->hide();
+				m_window->dismiss(Window::DismissReason::Explicit);
 			}
 			return GDK_EVENT_STOP;
 		});
@@ -296,7 +296,7 @@ void Plugin::reload_menu()
 {
 	if (m_window)
 	{
-		m_window->hide();
+		m_window->dismiss(Window::DismissReason::Explicit);
 		m_window->get_applications()->invalidate();
 	}
 }
@@ -447,7 +447,7 @@ gboolean Plugin::remote_event(const gchar* name, const GValue* value)
 
 	if (gtk_widget_get_visible(m_window->get_widget()))
 	{
-		m_window->hide();
+		m_window->dismiss(Window::DismissReason::Explicit);
 	}
 	else
 	{

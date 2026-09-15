@@ -23,15 +23,15 @@
 
 #include <cassert>
 #include <cstring>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
 
-// runtime implementation: the display-free synced-keys list (driven by sync_preset_widgets) MUST
-// equal the governed-key set, so a preset switch leaves no governed control
-// stale (supported behavior). Both lists live in the Settings-free preset-builtins.cpp,
-// linked directly so this assertion needs no GTK display.
+// The dialog-control descriptor is consumed by sync_preset_widgets() and is
+// independently compared with the governed preset keys here.
 #include "presets/preset.h"
+#include "ui/properties/preset-sync.h"
 
 namespace
 {
@@ -419,17 +419,59 @@ static void test_columns_match_contract()
 				&& "column contract names a key absent from the placement grid");
 }
 
-// runtime implementation: synced_keys() must cover exactly governed_keys() — order-independent.
-static void test_synced_keys_cover_governed_keys()
+static void test_preset_sync_descriptors_cover_governed_keys()
 {
+	const std::map<WhiskerMenu::PresetSyncControl, std::string> expected = {
+		{ WhiskerMenu::PresetSyncControl::CornerRadius, "corner-radius" },
+		{ WhiskerMenu::PresetSyncControl::PanelGap, "panel-gap" },
+		{ WhiskerMenu::PresetSyncControl::MenuOpacity, "menu-opacity" },
+		{ WhiskerMenu::PresetSyncControl::SidebarPosition, "sidebar-position" },
+		{ WhiskerMenu::PresetSyncControl::SidebarEnabled, "sidebar-enabled" },
+		{ WhiskerMenu::PresetSyncControl::CategoryShowName, "category-show-name" },
+		{ WhiskerMenu::PresetSyncControl::SearchBarPosition, "search-bar-position" },
+		{ WhiskerMenu::PresetSyncControl::ShowProfile, "show-profile" },
+		{ WhiskerMenu::PresetSyncControl::ShowSession, "show-session" },
+		{ WhiskerMenu::PresetSyncControl::LayoutMode, "layout-mode" },
+		{ WhiskerMenu::PresetSyncControl::LauncherIconSize, "launcher-icon-size" },
+		{ WhiskerMenu::PresetSyncControl::CategoryIconSize, "category-icon-size" },
+		{ WhiskerMenu::PresetSyncControl::HoverSwitchCategory,
+			"hover-switch-category" },
+		{ WhiskerMenu::PresetSyncControl::ViewModeDefault, "view-mode-default" },
+		{ WhiskerMenu::PresetSyncControl::DefaultCategory, "default-category" },
+		{ WhiskerMenu::PresetSyncControl::StayOnFocusOut, "stay-on-focus-out" },
+		{ WhiskerMenu::PresetSyncControl::PlacesEnabled, "places-enabled" },
+		{ WhiskerMenu::PresetSyncControl::PlacesShowIcons, "places-show-icons" },
+		{ WhiskerMenu::PresetSyncControl::CalculatorEngine, "calculator-engine" },
+		{ WhiskerMenu::PresetSyncControl::CalculatorResultFontSize,
+			"calculator-result-font-size" },
+		{ WhiskerMenu::PresetSyncControl::CalculatorMaxDecimalPlaces,
+			"calculator-max-decimal-places" },
+	};
 	std::set<std::string> governed(WhiskerMenu::governed_keys().begin(),
 		WhiskerMenu::governed_keys().end());
-	std::set<std::string> synced(WhiskerMenu::synced_keys().begin(),
-		WhiskerMenu::synced_keys().end());
+	std::set<std::string> synced;
+	std::set<int> controls;
+	for (const auto& descriptor : WhiskerMenu::preset_sync_descriptors())
+	{
+		assert(descriptor.key && *descriptor.key);
+		assert(synced.insert(descriptor.key).second
+				&& "duplicate preset-sync key");
+		assert(controls.insert(static_cast<int>(descriptor.control)).second
+				&& "one control is assigned to multiple preset keys");
+		auto operation = expected.find(descriptor.control);
+		assert(operation != expected.end());
+		assert(operation->second == descriptor.key
+				&& "preset key is wired to the wrong dialog control");
+	}
+	assert(synced.size() == expected.size());
+	assert(controls.size() == expected.size());
 	for (const auto& k : governed)
 		assert(synced.count(k) == 1 && "governed key not synced by the Properties dialog");
 	for (const auto& k : synced)
 		assert(governed.count(k) == 1 && "synced key is not in the governed set");
+	assert(synced.count("menu-width") == 0);
+	assert(synced.count("menu-height") == 0);
+	assert(synced.count("grid-density") == 0);
 }
 
 static void test_calculator_control_domains()
@@ -460,7 +502,7 @@ int main()
 	test_sane_enable_when();
 	test_placement_grid_complete_and_no_extras();
 	test_columns_match_contract();
-	test_synced_keys_cover_governed_keys();
+	test_preset_sync_descriptors_cover_governed_keys();
 	test_calculator_control_domains();
 	return 0;
 }

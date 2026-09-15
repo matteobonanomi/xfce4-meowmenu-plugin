@@ -30,6 +30,92 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+const IntegerSettingDefault WhiskerMenu::DEFAULT_CORNER_RADIUS = {
+	"/corner-radius", 0, 0, 24, false
+};
+const IntegerSettingDefault WhiskerMenu::DEFAULT_PANEL_GAP = {
+	"/panel-gap", 0, 0, 50, false
+};
+const StringSettingDefault WhiskerMenu::DEFAULT_SIDEBAR_POSITION = {
+	"/sidebar-position", "left"
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_SIDEBAR_ENABLED = {
+	"/sidebar-enabled", true
+};
+const StringSettingDefault WhiskerMenu::DEFAULT_SEARCH_BAR_POSITION = {
+	"/search-bar-position", "top"
+};
+const StringSettingDefault WhiskerMenu::DEFAULT_GRID_DENSITY = {
+	"/grid-density", "medium"
+};
+const StringSettingDefault WhiskerMenu::DEFAULT_LAYOUT_MODE = {
+	"/layout-mode", "docked"
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_PLACES_ENABLED = {
+	"/places/enabled", false
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_PLACES_HISTORY_ENABLED = {
+	"/places/history-enabled", true
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_PLACES_FAVOURITES_ENABLED = {
+	"/places/favourites-enabled", true
+};
+const StringSettingDefault WhiskerMenu::DEFAULT_PLACES_FAVOURITE_SYNC = {
+	"/places/favourite-sync", "meowmenu"
+};
+const IntegerSettingDefault WhiskerMenu::DEFAULT_PLACES_MAX_ITEMS = {
+	"/places/max-items", 20, 0, 30, false
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_PLACES_REMEMBER_LAST_MODE = {
+	"/places/remember-last-mode", false
+};
+const StringSettingDefault WhiskerMenu::DEFAULT_PLACES_LAST_MODE = {
+	"/places/last-mode", "apps"
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_TRANSPARENT_GRID = {
+	"/transparent-grid", false
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_SHOW_PROFILE = {
+	"/show-profile", SETTINGS_SHOW_PROFILE_DEFAULT
+};
+const BooleanSettingDefault WhiskerMenu::DEFAULT_SHOW_SESSION = {
+	"/show-session", SETTINGS_SHOW_SESSION_DEFAULT
+};
+const IntegerSettingDefault WhiskerMenu::DEFAULT_CALCULATOR_RESULT_FONT_SIZE = {
+	"/extras/calculator-result-font-size", -1, -1, 6, true
+};
+const IntegerSettingDefault WhiskerMenu::DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES = {
+	"/extras/calculator-max-decimal-places", 4, 0, 10, true
+};
+
+namespace
+{
+
+void seed_if_missing(XfconfChannel* channel,
+		const BooleanSettingDefault& descriptor)
+{
+	if (!xfconf_channel_has_property(channel, descriptor.property))
+		xfconf_channel_set_bool(channel, descriptor.property, descriptor.value);
+}
+
+void seed_if_missing(XfconfChannel* channel,
+		const IntegerSettingDefault& descriptor)
+{
+	if (!xfconf_channel_has_property(channel, descriptor.property))
+		xfconf_channel_set_int(channel, descriptor.property, descriptor.value);
+}
+
+void seed_if_missing(XfconfChannel* channel,
+		const StringSettingDefault& descriptor)
+{
+	if (!xfconf_channel_has_property(channel, descriptor.property))
+		xfconf_channel_set_string(channel, descriptor.property, descriptor.value);
+}
+
+}
+
+//-----------------------------------------------------------------------------
+
 const char* WhiskerMenu::migrate_layout_schema_v13(XfconfChannel* channel)
 {
 	if (!channel)
@@ -62,9 +148,9 @@ const char* WhiskerMenu::migrate_layout_schema_v13(XfconfChannel* channel)
  * Decides fresh-vs-upgrade from the marker (authoritative), not the raw
  * property count, then walks the channel forward through every known schema
  * version applying additive migrations. Versions are cumulative: each block
- * runs once per upgrade. The defaults tables here are the single source of
- * truth for Xfconf key defaults seeded on schema upgrade; they MUST stay
- * aligned with the inline defaults supplied in the Settings constructor.
+ * runs once per upgrade. Ordinary construction and migration seeds consume
+ * the typed descriptors above; preset-derived and historical seeds remain
+ * explicit at the migration step that owns their distinct behavior.
  *
  * Decision (the documented interface):
  *   - marker absent AND empty channel  ⇒ FRESH: apply the Modern preset.
@@ -116,29 +202,19 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		// NOTE: /grid-columns and /grid-rows were orphaned config (no control, no
 		// consumer) and are removed; they are intentionally not seeded here, and
 		// the schema-v6 block deletes any pre-existing values.
-		struct { const char* prop; int val; } int_props[] = {
-			{ "/corner-radius",       0   },
-			{ "/panel-gap",           0   },
-			{ "/categories-opacity",  100 },
-			{ "/apps-opacity",        100 },
-		};
-		for (auto& p : int_props)
-		{
-			if (!xfconf_channel_has_property(channel, p.prop))
-				xfconf_channel_set_int(channel, p.prop, p.val);
-		}
+		seed_if_missing(channel, DEFAULT_CORNER_RADIUS);
+		seed_if_missing(channel, DEFAULT_PANEL_GAP);
+		seed_if_missing(channel, DEFAULT_SIDEBAR_POSITION);
+		seed_if_missing(channel, DEFAULT_SEARCH_BAR_POSITION);
+		seed_if_missing(channel, DEFAULT_GRID_DENSITY);
+		seed_if_missing(channel, DEFAULT_LAYOUT_MODE);
 
-		struct { const char* prop; const char* val; } str_props[] = {
-			{ "/sidebar-position",     "left"      },
-			{ "/search-bar-position",  "top"       },
-			{ "/grid-density",         "medium"    },
-			{ "/layout-mode",          "docked"    },
-		};
-		for (auto& p : str_props)
-		{
-			if (!xfconf_channel_has_property(channel, p.prop))
-				xfconf_channel_set_string(channel, p.prop, p.val);
-		}
+		if (!xfconf_channel_has_property(channel, "/categories-opacity"))
+			xfconf_channel_set_int(channel, "/categories-opacity",
+					HISTORICAL_CATEGORIES_OPACITY_SEED);
+		if (!xfconf_channel_has_property(channel, "/apps-opacity"))
+			xfconf_channel_set_int(channel, "/apps-opacity",
+					HISTORICAL_APPS_OPACITY_SEED);
 
 		// NOTE: the fresh-install Modern preset is applied up front (see the
 		// top of this function), not here. Upgrades intentionally leave
@@ -157,7 +233,8 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		// preset's compiled default is used as the fallback. Users who want a custom value
 		// can edit it via the Properties dialog after upgrade.
 		if (!xfconf_channel_has_property(channel, "/full-screen-opacity"))
-			xfconf_channel_set_int(channel, "/full-screen-opacity", 100);
+			xfconf_channel_set_int(channel, "/full-screen-opacity",
+					HISTORICAL_FULL_SCREEN_OPACITY_SEED);
 
 		// Deprecate /position-categories-horizontal: subsumed by /sidebar-position ∈ {top, bottom}.
 		// If the user had it on AND sidebar-position is left|right (or unset), promote sidebar-position
@@ -198,30 +275,13 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		// NOTE: /places/show-metadata had no consumer and is removed; it is
 		// intentionally not seeded here, and the schema-v6 block deletes any
 		// pre-existing value.
-		struct { const char* prop; gboolean val; } bool_props[] = {
-			{ "/places/enabled",            FALSE },
-			{ "/places/history-enabled",    TRUE  },
-			{ "/places/favourites-enabled", TRUE  },
-			{ "/places/remember-last-mode", FALSE },
-		};
-		for (auto& p : bool_props)
-		{
-			if (!xfconf_channel_has_property(channel, p.prop))
-				xfconf_channel_set_bool(channel, p.prop, p.val);
-		}
-
-		struct { const char* prop; const char* val; } str_props[] = {
-			{ "/places/favourite-sync", "meowmenu" },
-			{ "/places/last-mode",      "apps"     },
-		};
-		for (auto& p : str_props)
-		{
-			if (!xfconf_channel_has_property(channel, p.prop))
-				xfconf_channel_set_string(channel, p.prop, p.val);
-		}
-
-		if (!xfconf_channel_has_property(channel, "/places/max-items"))
-			xfconf_channel_set_int(channel, "/places/max-items", 20);
+		seed_if_missing(channel, DEFAULT_PLACES_ENABLED);
+		seed_if_missing(channel, DEFAULT_PLACES_HISTORY_ENABLED);
+		seed_if_missing(channel, DEFAULT_PLACES_FAVOURITES_ENABLED);
+		seed_if_missing(channel, DEFAULT_PLACES_REMEMBER_LAST_MODE);
+		seed_if_missing(channel, DEFAULT_PLACES_FAVOURITE_SYNC);
+		seed_if_missing(channel, DEFAULT_PLACES_LAST_MODE);
+		seed_if_missing(channel, DEFAULT_PLACES_MAX_ITEMS);
 
 		schema_version = 3;
 	}
@@ -243,13 +303,12 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 
 		// Seed the new keys when absent. switch-show-icons follows the active
 		// preset's default if a preset is set; otherwise the classic OFF.
-		if (!xfconf_channel_has_property(channel, "/sidebar-enabled"))
-			xfconf_channel_set_bool(channel, "/sidebar-enabled", TRUE);
+		seed_if_missing(channel, DEFAULT_SIDEBAR_ENABLED);
 		if (!xfconf_channel_has_property(channel, "/places/switch-show-icons"))
 		{
 			const LayoutPreset* preset = find_preset_by_id(
 					std::string(static_cast<const char*>(current_preset_id)));
-			gboolean show_icons = FALSE;
+			gboolean show_icons = PRESET_SWITCH_SHOW_ICONS_SEED_FALLBACK;
 			if (preset)
 			{
 				auto it = preset->values.find("places-show-icons");
@@ -349,7 +408,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 		// /menu-opacity. Resetting an absent key is a no-op, so this block is
 		// idempotent and runs once (guarded by < 7), never clobbering a later
 		// user customisation of /menu-opacity.
-		int derived = 100;
+		int derived = PRESET_MENU_OPACITY_SEED_FALLBACK;
 		const gchar* preset_id = static_cast<const gchar*>(current_preset_id);
 		if (preset_id && *preset_id)
 		{
@@ -398,8 +457,7 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 	{
 		// NOTE: /transparent-grid defaults to false so existing installs keep
 		// their solid resting grid tiles until the user opts into transparency.
-		if (!xfconf_channel_has_property(channel, "/transparent-grid"))
-			xfconf_channel_set_bool(channel, "/transparent-grid", FALSE);
+		seed_if_missing(channel, DEFAULT_TRANSPARENT_GRID);
 
 		schema_version = 9;
 	}
@@ -417,11 +475,10 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 			|| g_strcmp0(id, "fullscreen") == 0 || g_strcmp0(id, "minimal") == 0;
 		if (!xfconf_channel_has_property(channel, "/extras/calculator-engine"))
 			xfconf_channel_set_string(channel, "/extras/calculator-engine",
-					known_nonclassic ? "bc" : "none");
-		if (!xfconf_channel_has_property(channel, "/extras/calculator-result-font-size"))
-			xfconf_channel_set_int(channel, "/extras/calculator-result-font-size", -1);
-		if (!xfconf_channel_has_property(channel, "/extras/calculator-max-decimal-places"))
-			xfconf_channel_set_int(channel, "/extras/calculator-max-decimal-places", 4);
+					known_nonclassic ? CALCULATOR_ENGINE_NONCLASSIC_SEED
+							: CALCULATOR_ENGINE_RUNTIME_DEFAULT);
+		seed_if_missing(channel, DEFAULT_CALCULATOR_RESULT_FONT_SIZE);
+		seed_if_missing(channel, DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES);
 		schema_version = 11;
 	}
 
@@ -429,11 +486,8 @@ void Settings::migrate_schema(bool marker, bool empty_channel)
 	{
 		// NOTE: both visibility keys default on so adding intent storage does not
 		// change the current renderer before it starts consuming these values.
-		for (const char* key : { "/show-profile", "/show-session" })
-		{
-			if (!xfconf_channel_has_property(channel, key))
-				xfconf_channel_set_bool(channel, key, TRUE);
-		}
+		seed_if_missing(channel, DEFAULT_SHOW_PROFILE);
+		seed_if_missing(channel, DEFAULT_SHOW_SESSION);
 		schema_version = 12;
 	}
 

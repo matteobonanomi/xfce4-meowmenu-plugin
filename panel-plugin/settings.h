@@ -303,6 +303,18 @@ class Settings
 	std::string m_button_title_default;
 
 public:
+	/* dispatch_property_change:
+	 * @property: base-relative Xfconf path whose value has changed.
+	 * @content_reload_allowed: false while a list wrapper is already managing
+	 *                          its own content lifetime.
+	 *
+	 * Applies the single declared Button, Layout, Content, or None consequence.
+	 * Local Properties handlers and external notifications share this entry
+	 * point so one logical write cannot select competing refresh paths.
+	 */
+	void dispatch_property_change(const gchar* property,
+			bool content_reload_allowed = true);
+
 	void begin_property_update()
 	{
 		g_signal_handler_block(channel, m_change_slot);

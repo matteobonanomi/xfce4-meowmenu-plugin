@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_WINDOW_H
 #define WHISKERMENU_WINDOW_H
 
+#include <functional>
 #include <vector>
 
 #include <gtk/gtk.h>
@@ -62,6 +63,12 @@ public:
 		PositionAtCenter
 	};
 
+	enum class DismissReason
+	{
+		Explicit,
+		FocusLoss
+	};
+
 	GtkWidget* get_widget() const
 	{
 		return GTK_WIDGET(m_window);
@@ -95,7 +102,22 @@ public:
 	int get_result_toplevel_width_authority() const;
 	int get_result_viewport_width_cap() const;
 
-	void hide(bool lost_focus = false);
+	/* dismiss:
+	 * @reason: why the menu is closing; only FocusLoss suppresses the panel
+	 *          notification used by explicit toggle and activation paths.
+	 *
+	 * Cancels resize work, persists the current menu state, clears transient UI,
+	 * hides the window, and restores the configured default page.
+	 */
+	void dismiss(DismissReason reason);
+
+	/* perform_then_dismiss:
+	 * @action: synchronous action that may depend on the current result model.
+	 *
+	 * Runs @action before dismissal can clear filters or replace model objects.
+	 * The callback is consumed synchronously and is not retained by Window.
+	 */
+	void perform_then_dismiss(const std::function<void()>& action);
 	void show(const Position position);
 	bool interactive_resize_begin(
 			InteractiveResize::Direction direction,
@@ -225,6 +247,8 @@ private:
 	void search();
 	void update_layout();
 	void apply_menu_composition(const MenuComposition& composition);
+	void apply_places_setting_side_effects(const gchar* property);
+	void apply_live_presentation_setting(const gchar* property);
 
 	/* set_mode_button_content:
 	 * @button: one of the Apps/Places mode toggles.

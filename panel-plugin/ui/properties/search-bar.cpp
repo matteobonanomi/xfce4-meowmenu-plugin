@@ -72,7 +72,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			if (!val)
 				return;
 			m_settings->search_bar_position = val;
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/search-bar-position");
 			refresh_customized_indicator();
 		});
 
@@ -116,7 +116,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			m_settings->show_profile =
 					gtk_switch_get_active(GTK_SWITCH(object));
 			apply_profile_sensitivity();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/show-profile");
 			refresh_customized_indicator();
 		});
 
@@ -126,7 +126,7 @@ GtkWidget* SettingsDialog::init_search_bar_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->profile_shape = gtk_combo_box_get_active(combo);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/profile-shape");
 			refresh_customized_indicator();
 		});
 

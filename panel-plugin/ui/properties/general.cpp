@@ -186,7 +186,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				_("Reset preset \"%s\"?"), preset_name.c_str()))
 			{
 				apply_preset(*preset, *m_settings);
-				m_plugin->reload_menu();
+				m_settings->dispatch_property_change("/view-mode");
 				sync_preset_widgets();
 				refresh_customized_indicator();
 			}
@@ -237,7 +237,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 					// on the new row (settings match it → not diverged), selected and
 					// named, with no dialog reopen (supported behavior, supported behavior).
 					refresh_preset_combo();
-					m_plugin->reload_menu();
+					m_settings->dispatch_property_change("/view-mode");
 				}
 			}
 			gtk_widget_destroy(dlg);
@@ -325,7 +325,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				// directly on Modern instead of flashing "Unsaved custom" (supported behavior).
 				delete_user_preset(uuid, *m_settings);
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
-				m_plugin->reload_menu();
+				m_settings->dispatch_property_change("/view-mode");
 				sync_preset_widgets();
 				refresh_preset_combo(); // drops the deleted row; recompute selects Modern
 			}
@@ -480,7 +480,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				if (imported)
 				{
 					apply_preset(*imported, *m_settings);
-					m_plugin->reload_menu();
+					m_settings->dispatch_property_change("/view-mode");
 					sync_preset_widgets();
 				}
 				refresh_preset_combo();
@@ -516,7 +516,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_settings->schema_version = 13;
 				m_settings->initialized = true;
-				m_plugin->reload_menu();
+				m_settings->dispatch_property_change("/view-mode");
 				sync_preset_widgets();
 				refresh_preset_combo("modern");
 				refresh_customized_indicator();
@@ -552,7 +552,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			// already-selected entry, which the combo's "changed" signal cannot.
 			apply_preset(*preset, *m_settings);
 			m_last_applied_preset_id = preset->id;
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/view-mode");
 			sync_preset_widgets();
 			// Recompute drives the active row, the description, and Rename/Delete/
 			// Export sensitivity from the freshly-applied /current-preset-id.
@@ -708,7 +708,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			// in sync even if the handler hasn't fired yet for the local channel.
 			apply_layout_mode_sensitivity();
 			update_grid_controls_state();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/layout-mode");
 			refresh_customized_indicator();
 		});
 
@@ -725,7 +725,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->panel_gap = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/panel-gap");
 			refresh_customized_indicator();
 		});
 
@@ -742,7 +742,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_width = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/menu-width");
 		});
 
 	// Row 1 C2: Menu height (narrow, enable-when-docked).
@@ -758,7 +758,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_height = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/menu-height");
 		});
 
 	// Row 2 C2: Corner radius (narrow).
@@ -774,7 +774,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->corner_radius = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/corner-radius");
 			refresh_customized_indicator();
 		});
 
@@ -794,7 +794,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_opacity = static_cast<int>(gtk_range_get_value(range));
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/menu-opacity");
 			refresh_customized_indicator();
 		});
 

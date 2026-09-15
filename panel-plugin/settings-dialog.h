@@ -108,6 +108,7 @@ private:
 	// every layout-mode change.
 	void install_layout_mode_handler();
 	void apply_layout_mode_sensitivity();
+	void mirror_menu_size_property(const gchar* property, const GValue* value);
 	std::vector<std::pair<GtkWidget*, WhiskerMenu::LayoutControl>> m_layout_controls;
 	std::vector<GtkWidget*> m_layout_enable_when_docked;
 	std::vector<GtkWidget*> m_layout_enable_when_fullscreen;

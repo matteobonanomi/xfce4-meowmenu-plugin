@@ -157,9 +157,14 @@ bool SearchPage::activate_calculator_result()
 	if (now - m_last_calculator_activation < 250000)
 		return true;
 	m_last_calculator_activation = now;
-	GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-	gtk_clipboard_set_text(clipboard, m_calculator_result->value().c_str(), -1);
-	get_window()->hide();
+	const std::string value = m_calculator_result->value();
+	get_window()->perform_then_dismiss(
+			[value]()
+			{
+				GtkClipboard* clipboard = gtk_clipboard_get(
+						GDK_SELECTION_CLIPBOARD);
+				gtk_clipboard_set_text(clipboard, value.c_str(), -1);
+			});
 	return true;
 }
 

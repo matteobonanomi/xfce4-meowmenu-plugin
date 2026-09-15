@@ -69,7 +69,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 				return;
 			m_settings->show_session =
 					gtk_switch_get_active(GTK_SWITCH(object));
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/show-session");
 			refresh_customized_indicator();
 		});
 

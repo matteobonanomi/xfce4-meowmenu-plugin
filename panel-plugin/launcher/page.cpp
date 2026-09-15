@@ -548,11 +548,9 @@ void Page::launcher_activated(GtkTreePath* path)
 		m_settings->usage_stats.record_launch(launcher->get_desktop_id());
 	}
 
-	// Hide window
-	m_window->hide();
-
-	// Execute app
-	element->run(gtk_widget_get_screen(m_widget));
+	GdkScreen* screen = gtk_widget_get_screen(m_widget);
+	m_window->perform_then_dismiss(
+			[element, screen]() { element->run(screen); });
 }
 
 //-----------------------------------------------------------------------------
@@ -567,11 +565,10 @@ void Page::launcher_action_activated(GtkMenuItem* menuitem, DesktopAction* actio
 		m_window->get_recent()->add(m_selected_launcher);
 	}
 
-	// Hide window
-	m_window->hide();
-
-	// Execute app
-	m_selected_launcher->run(gtk_widget_get_screen(GTK_WIDGET(menuitem)), action);
+	Launcher* launcher = m_selected_launcher;
+	GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(menuitem));
+	m_window->perform_then_dismiss(
+			[launcher, screen, action]() { launcher->run(screen, action); });
 }
 
 //-----------------------------------------------------------------------------
@@ -852,8 +849,9 @@ void Page::create_context_menu(GtkTreePath* path, GdkEvent* event)
 		[this](GtkMenuItem*)
 		{
 			g_assert(m_selected_launcher);
-			m_window->hide();
-			m_selected_launcher->hide();
+			Launcher* launcher = m_selected_launcher;
+			m_window->perform_then_dismiss(
+					[launcher]() { launcher->hide(); });
 		});
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
@@ -974,30 +972,31 @@ void Page::edit_selected()
 {
 	g_assert(m_selected_launcher);
 
-	m_window->hide();
+	Launcher* launcher = m_selected_launcher;
+	m_window->perform_then_dismiss(
+			[launcher]()
+			{
+				gchar* uri = launcher->get_uri();
+				if (!uri)
+					return;
 
-	gchar* uri = m_selected_launcher->get_uri();
-	if (!uri)
-	{
-		return;
-	}
-	const gchar* editor = xfce_desktop_item_editor(
-			current_xfce_dependency_regime());
-	gchar** argv = launcher_editor_argv(editor, uri);
-	g_free(uri);
-	if (!argv)
-	{
-		return;
-	}
+				const gchar* editor = xfce_desktop_item_editor(
+						current_xfce_dependency_regime());
+				gchar** argv = launcher_editor_argv(editor, uri);
+				g_free(uri);
+				if (!argv)
+					return;
 
-	GError* error = nullptr;
-	if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_SEARCH_PATH,
-			nullptr, nullptr, nullptr, &error))
-	{
-		xfce_dialog_show_error(nullptr, error, _("Unable to edit launcher."));
-		g_error_free(error);
-	}
-	g_strfreev(argv);
+				GError* error = nullptr;
+				if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_SEARCH_PATH,
+						nullptr, nullptr, nullptr, &error))
+				{
+					xfce_dialog_show_error(nullptr, error,
+							_("Unable to edit launcher."));
+					g_error_free(error);
+				}
+				g_strfreev(argv);
+			});
 }
 
 //-----------------------------------------------------------------------------

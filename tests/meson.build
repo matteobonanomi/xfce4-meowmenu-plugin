@@ -358,12 +358,12 @@ test_preset_xfconf = executable(
 
 test('preset_xfconf', test_preset_xfconf, timeout: 60)
 
-# test_properties_tabs: pure placement-grid invariants PLUS the synced-keys
-# coverage gate (runtime implementation). preset-builtins.cpp is Settings-free, so it links
-# directly to expose governed_keys()/synced_keys() without a GTK display.
+# test_properties_tabs: pure placement-grid invariants plus the independent
+# governed-key/dialog-control coverage gate.
 test_properties_tabs_sources = [
   'test_properties_tabs.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'properties' / 'preset-sync.cpp',
 ]
 
 test_properties_tabs = executable(
@@ -679,6 +679,21 @@ test_layout_sensitivity = executable(
 
 test('layout_sensitivity', test_layout_sensitivity)
 
+# Persisted layout values share the production parsers used by rendering and
+# sizing callers. This target covers every supported value and safe fallback.
+test_layout_domains = executable(
+  'test_layout_domains',
+  [
+    'test_layout_domains.cpp',
+    '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
+    '..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
+  ],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [],
+)
+
+test('layout_domains', test_layout_domains)
+
 # test_window_frame: pure window-frame decisions plus display-backed ownership,
 # coalescing, bounded readiness, and dependency teardown for mapped result
 # frames. Visible damage ordering and native scroller clipping remain covered
@@ -852,6 +867,26 @@ test_reload_intent = executable(
 )
 
 test('reload_intent', test_reload_intent)
+
+test_settings_defaults = executable(
+  'test_settings_defaults',
+  ['test_settings_defaults.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('settings_defaults', test_settings_defaults, timeout: 30)
+
+test_settings_dispatch = executable(
+  'test_settings_dispatch',
+  ['test_settings_dispatch.cpp', 'private-xfconf-fixture.cpp'],
+  link_with: meowmenu_test_runtime,
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+)
+
+test('settings_dispatch', test_settings_dispatch, timeout: 30)
 
 test_category_lifetime_sources = [
   'test_category_lifetime.cpp',

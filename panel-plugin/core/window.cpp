@@ -307,7 +307,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 					// Clear ownership before dismissal because hiding can synchronously
 					// trigger panel callbacks that inspect the Window lifecycle.
 					self->m_focus_out_idle = 0;
-					self->hide(true);
+					self->dismiss(DismissReason::FocusLoss);
 					return G_SOURCE_REMOVE;
 				},
 			this);
@@ -402,7 +402,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				{
 					return;
 				}
-				hide();
+				dismiss(DismissReason::Explicit);
 			});
 	}
 
@@ -890,32 +890,15 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		});
 	on_screen_changed(GTK_WIDGET(m_window));
 
-	// Places mode property-change subscriptions (current behavior).
+	// Places settings retain only their mode/drop-target side effects here;
+	// Settings owns the separate layout-refresh decision.
 	if (m_settings->channel)
 	{
 		m_places_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
-				auto* self = static_cast<Window*>(user_data);
-				if (g_strcmp0(property, "/places/enabled") == 0)
-				{
-					self->update_layout();
-					self->update_favourite_drop_targets();
-				}
-				else if (g_strcmp0(property, "/places/history-enabled") == 0
-						|| g_strcmp0(property, "/places/favourites-enabled") == 0
-						|| g_strcmp0(property, "/recent-items-max") == 0)
-				{
-					self->update_layout();
-					self->update_favourite_drop_targets();
-				}
-				else if (g_strcmp0(property, "/places/favourite-sync") == 0)
-				{
-					self->m_places->get_favourites_section()->refresh_mode();
-					if (self->m_places_active)
-						self->m_places->refresh_active();
-					self->update_favourite_drop_targets();
-				}
+				static_cast<Window*>(user_data)->apply_places_setting_side_effects(
+						property);
 			}), this);
 	}
 
@@ -926,32 +909,8 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		m_live_settings_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
-				const bool transparent_grid =
-						g_strcmp0(property, "/transparent-grid") == 0;
-				if (g_strcmp0(property, "/corner-radius") != 0
-						&& g_strcmp0(property, "/menu-opacity") != 0
-						&& !transparent_grid)
-					return;
-				// The corner radius is applied entirely by re-clipping and
-				// re-stroking in on_draw_event; a menu-opacity change re-runs the
-				// CSS so the single shell alpha updates live. The redraw queued
-				// below picks up either change without reopening the menu.
-				auto* self = static_cast<Window*>(user_data);
-				if (!transparent_grid)
-				{
-					self->update_background_css();
-				}
-				else
-				{
-					self->m_search_results->get_view()->reload_icon_size();
-					self->m_favorites->get_view()->reload_icon_size();
-					self->m_recent->get_view()->reload_icon_size();
-					self->m_applications->get_view()->reload_icon_size();
-					self->m_places->get_view()->reload_icon_size();
-				}
-				self->update_view_redraw_safeguards();
-				self->on_screen_changed(GTK_WIDGET(self->m_window));
-				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
+				static_cast<Window*>(user_data)->apply_live_presentation_setting(
+						property);
 			}), this);
 	}
 
@@ -1151,6 +1110,72 @@ void WhiskerMenu::Window::on_places_favourites_drag_data_received(
 
 //-----------------------------------------------------------------------------
 
+/* Window::apply_places_setting_side_effects:
+ * @property: base-relative Xfconf path delivered after Settings updated.
+ *
+ * Keeps Places mode synchronization and drop-target wiring with their Window
+ * owner. Layout refresh is intentionally absent because Settings dispatches
+ * that consequence once for the same property.
+ */
+void WhiskerMenu::Window::apply_places_setting_side_effects(
+		const gchar* property)
+{
+	if (g_strcmp0(property, "/places/enabled") == 0
+			|| g_strcmp0(property, "/places/history-enabled") == 0
+			|| g_strcmp0(property, "/places/favourites-enabled") == 0
+			|| g_strcmp0(property, "/recent-items-max") == 0)
+	{
+		update_favourite_drop_targets();
+	}
+	else if (g_strcmp0(property, "/places/favourite-sync") == 0)
+	{
+		m_places->get_favourites_section()->refresh_mode();
+		if (m_places_active)
+			m_places->refresh_active();
+		update_favourite_drop_targets();
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::apply_live_presentation_setting:
+ * @property: base-relative Xfconf path delivered after Settings updated.
+ *
+ * Applies drawing and view-side effects that are distinct from layout refresh.
+ * The scheduled style transaction coalesces repeated notifications and ignores
+ * recursive scheduling while it is running.
+ */
+void WhiskerMenu::Window::apply_live_presentation_setting(
+		const gchar* property)
+{
+	const bool transparent_grid =
+			g_strcmp0(property, "/transparent-grid") == 0;
+	if (g_strcmp0(property, "/corner-radius") != 0
+			&& g_strcmp0(property, "/menu-opacity") != 0
+			&& !transparent_grid)
+		return;
+
+	// Radius and opacity repaint the shell; transparent-grid changes require
+	// each existing result view to recompute its icon presentation.
+	if (!transparent_grid)
+	{
+		update_background_css();
+	}
+	else
+	{
+		m_search_results->get_view()->reload_icon_size();
+		m_favorites->get_view()->reload_icon_size();
+		m_recent->get_view()->reload_icon_size();
+		m_applications->get_view()->reload_icon_size();
+		m_places->get_view()->reload_icon_size();
+	}
+	update_view_redraw_safeguards();
+	on_screen_changed(GTK_WIDGET(m_window));
+	gtk_widget_queue_draw(GTK_WIDGET(m_window));
+}
+
+//-----------------------------------------------------------------------------
+
 WhiskerMenu::Window::~Window()
 {
 	if (m_focus_out_idle != 0)
@@ -1323,7 +1348,7 @@ void WhiskerMenu::Window::validate_resize_display()
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::hide(bool lost_focus)
+void WhiskerMenu::Window::dismiss(DismissReason reason)
 {
 	if (m_resizing)
 		interactive_resize_cancel();
@@ -1363,7 +1388,7 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 	show_default_page();
 
 	// Inform plugin that window is hidden
-	if (!lost_focus)
+	if (reason != DismissReason::FocusLoss)
 	{
 		m_plugin->menu_hidden();
 	}
@@ -1371,9 +1396,21 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::perform_then_dismiss(
+		const std::function<void()>& action)
+{
+	if (action)
+	{
+		action();
+	}
+	dismiss(DismissReason::Explicit);
+}
+
+//-----------------------------------------------------------------------------
+
 int WhiskerMenu::Window::get_result_toplevel_width_authority() const
 {
-	if (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+	if (layout_mode_from_key(m_settings->layout_mode) == LayoutMode::FullScreen)
 		return m_workarea.width;
 	int requested_width = -1;
 	gtk_widget_get_size_request(GTK_WIDGET(m_window), &requested_width, nullptr);
@@ -1384,7 +1421,7 @@ int WhiskerMenu::Window::get_result_toplevel_width_authority() const
 
 int WhiskerMenu::Window::get_result_viewport_width_cap() const
 {
-	if (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0
+	if (layout_mode_from_key(m_settings->layout_mode) != LayoutMode::FullScreen
 			|| m_workarea.width <= 0)
 	{
 		return -1;
@@ -2678,7 +2715,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 			break;
 
 		case Keyboard::EscAction::CloseMenu:
-			hide();
+			dismiss(DismissReason::Explicit);
 			break;
 		}
 		return GDK_EVENT_STOP;

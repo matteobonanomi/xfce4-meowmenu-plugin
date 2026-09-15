@@ -59,7 +59,8 @@ Settings::Settings(Plugin* plugin) :
 	launcher_show_name(this, "/launcher-show-name", true),
 	launcher_show_description(this, "/launcher-show-description", true),
 	launcher_show_tooltip(this, "/launcher-show-tooltip", true),
-	transparent_grid(this, "/transparent-grid", false),
+	transparent_grid(this, DEFAULT_TRANSPARENT_GRID.property,
+			DEFAULT_TRANSPARENT_GRID.value),
 	launcher_icon_size(this, "/launcher-icon-size", IconSize::Small),
 
 	category_hover_activate(this, "/hover-switch-category", false),
@@ -118,34 +119,59 @@ Settings::Settings(Plugin* plugin) :
 	current_preset_id(this, "/current-preset-id"),
 	initialized(this, "/initialized", false),
 
-	corner_radius(this, "/corner-radius", 0, 0, 24),
-	panel_gap(this, "/panel-gap", 0, 0, 50),
+	corner_radius(this, DEFAULT_CORNER_RADIUS.property,
+			DEFAULT_CORNER_RADIUS.value, DEFAULT_CORNER_RADIUS.minimum,
+			DEFAULT_CORNER_RADIUS.maximum),
+	panel_gap(this, DEFAULT_PANEL_GAP.property, DEFAULT_PANEL_GAP.value,
+			DEFAULT_PANEL_GAP.minimum, DEFAULT_PANEL_GAP.maximum),
 
 	// NOTE: GUI and preset storage use the closed left/right/horizontal domain.
 	// Unknown values render safely as Left.
-	sidebar_position(this, "/sidebar-position", "left"),
-	sidebar_enabled(this, "/sidebar-enabled", true),
-	search_bar_position(this, "/search-bar-position", "top"),
-	show_profile(this, "/show-profile", SETTINGS_SHOW_PROFILE_DEFAULT),
-	show_session(this, "/show-session", SETTINGS_SHOW_SESSION_DEFAULT),
+	sidebar_position(this, DEFAULT_SIDEBAR_POSITION.property,
+			DEFAULT_SIDEBAR_POSITION.value),
+	sidebar_enabled(this, DEFAULT_SIDEBAR_ENABLED.property,
+			DEFAULT_SIDEBAR_ENABLED.value),
+	search_bar_position(this, DEFAULT_SEARCH_BAR_POSITION.property,
+			DEFAULT_SEARCH_BAR_POSITION.value),
+	show_profile(this, DEFAULT_SHOW_PROFILE.property, DEFAULT_SHOW_PROFILE.value),
+	show_session(this, DEFAULT_SHOW_SESSION.property, DEFAULT_SHOW_SESSION.value),
 
-	grid_density(this, "/grid-density", "medium"),
+	grid_density(this, DEFAULT_GRID_DENSITY.property, DEFAULT_GRID_DENSITY.value),
 
-	layout_mode(this, "/layout-mode", "docked"),
+	layout_mode(this, DEFAULT_LAYOUT_MODE.property, DEFAULT_LAYOUT_MODE.value),
 
-	places_enabled(this, "/places/enabled", false),
-	places_history_enabled(this, "/places/history-enabled", true),
-	places_favourites_enabled(this, "/places/favourites-enabled", true),
-	places_favourite_sync(this, "/places/favourite-sync", "meowmenu"),
-	places_max_items(this, "/places/max-items", 20, 0, 30),
-	places_remember_last_mode(this, "/places/remember-last-mode", false),
-	places_last_mode(this, "/places/last-mode", "apps"),
+	places_enabled(this, DEFAULT_PLACES_ENABLED.property,
+			DEFAULT_PLACES_ENABLED.value),
+	places_history_enabled(this, DEFAULT_PLACES_HISTORY_ENABLED.property,
+			DEFAULT_PLACES_HISTORY_ENABLED.value),
+	places_favourites_enabled(this, DEFAULT_PLACES_FAVOURITES_ENABLED.property,
+			DEFAULT_PLACES_FAVOURITES_ENABLED.value),
+	places_favourite_sync(this, DEFAULT_PLACES_FAVOURITE_SYNC.property,
+			DEFAULT_PLACES_FAVOURITE_SYNC.value),
+	places_max_items(this, DEFAULT_PLACES_MAX_ITEMS.property,
+			DEFAULT_PLACES_MAX_ITEMS.value, DEFAULT_PLACES_MAX_ITEMS.minimum,
+			DEFAULT_PLACES_MAX_ITEMS.maximum),
+	places_remember_last_mode(this, DEFAULT_PLACES_REMEMBER_LAST_MODE.property,
+			DEFAULT_PLACES_REMEMBER_LAST_MODE.value),
+	places_last_mode(this, DEFAULT_PLACES_LAST_MODE.property,
+			DEFAULT_PLACES_LAST_MODE.value),
 	places_favourites(this, "/places/favourites", { }),
 	places_switch_show_icons(this, "/places/switch-show-icons", false),
 
-	calculator_engine(this, "/extras/calculator-engine", "none"),
-	calculator_result_font_size(this, "/extras/calculator-result-font-size", -1, -1, 6, true),
-	calculator_max_decimal_places(this, "/extras/calculator-max-decimal-places", 4, 0, 10, true)
+	calculator_engine(this, "/extras/calculator-engine",
+			CALCULATOR_ENGINE_RUNTIME_DEFAULT),
+	calculator_result_font_size(this,
+			DEFAULT_CALCULATOR_RESULT_FONT_SIZE.property,
+			DEFAULT_CALCULATOR_RESULT_FONT_SIZE.value,
+			DEFAULT_CALCULATOR_RESULT_FONT_SIZE.minimum,
+			DEFAULT_CALCULATOR_RESULT_FONT_SIZE.maximum,
+			DEFAULT_CALCULATOR_RESULT_FONT_SIZE.reject_to_default),
+	calculator_max_decimal_places(this,
+			DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES.property,
+			DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES.value,
+			DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES.minimum,
+			DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES.maximum,
+			DEFAULT_CALCULATOR_MAX_DECIMAL_PLACES.reject_to_default)
 {
 	command[CommandSettings] = new Command(this, "/command-settings", "/show-command-settings",
 			"org.xfce.settings.manager", "preferences-desktop",
@@ -451,6 +477,36 @@ void Settings::prevent_invalid()
 
 //-----------------------------------------------------------------------------
 
+/* Settings::dispatch_property_change:
+ * @property: base-relative Xfconf path whose value has changed.
+ * @content_reload_allowed: false while a list wrapper is already managing its
+ *                          own content lifetime.
+ *
+ * Executes exactly one consequence from the exhaustive reload classifier.
+ * Side-effect-only channel subscribers remain independent of this decision.
+ */
+void Settings::dispatch_property_change(const gchar* property,
+		bool content_reload_allowed)
+{
+	switch (classify_reload_intent(property))
+	{
+	case ReloadIntent::Button:
+		m_plugin->reload_button();
+		break;
+	case ReloadIntent::Layout:
+		m_plugin->refresh_layout();
+		break;
+	case ReloadIntent::Content:
+		if (content_reload_allowed)
+			m_plugin->reload_menu();
+		break;
+	case ReloadIntent::None:
+		break;
+	}
+}
+
+//-----------------------------------------------------------------------------
+
 void Settings::property_changed(const gchar* property, const GValue* value)
 {
 	bool reload = true;
@@ -541,23 +597,7 @@ void Settings::property_changed(const gchar* property, const GValue* value)
 		return;
 	}
 
-	switch (classify_reload_intent(property))
-	{
-	case ReloadIntent::Button:
-		m_plugin->reload_button();
-		break;
-	case ReloadIntent::Layout:
-		m_plugin->refresh_layout();
-		break;
-	case ReloadIntent::Content:
-		if (reload)
-		{
-			m_plugin->reload_menu();
-		}
-		break;
-	case ReloadIntent::None:
-		break;
-	}
+	dispatch_property_change(property, reload);
 }
 
 //-----------------------------------------------------------------------------

@@ -1,61 +1,151 @@
 /*
- * Headless coverage for the Settings reload-intent classifier.
+ * Exhaustive headless coverage for the Settings reload-intent classifier.
  */
 
 #include "settings.h"
 
 #include <cassert>
+#include <cstddef>
+#include <set>
+#include <string>
 
 using namespace WhiskerMenu;
 
-static void expect_intent(const char* property, ReloadIntent expected)
+namespace
 {
-	assert(classify_reload_intent(property) == expected);
+
+struct IntentCase
+{
+	const char* property;
+	ReloadIntent expected;
+};
+
+/* assert_exact_rules:
+ * @cases: independently maintained active-setting inventory.
+ * @count: number of exact property rules in @cases.
+ *
+ * Verifies that every active scalar/list setting has an explicit expected
+ * result and that the inventory contains no duplicate path which could hide a
+ * conflicting classification.
+ */
+void assert_exact_rules(const IntentCase* cases, std::size_t count)
+{
+	std::set<std::string> properties;
+	for (std::size_t i = 0; i < count; ++i)
+	{
+		assert(cases[i].property && cases[i].property[0] == '/');
+		assert(properties.insert(cases[i].property).second);
+		assert(classify_reload_intent(cases[i].property) == cases[i].expected);
+	}
+}
+
 }
 
 int main()
 {
-	expect_intent("/profile-position", ReloadIntent::None);
-	expect_intent("/commands-position", ReloadIntent::None);
-	expect_intent("/unified-bar", ReloadIntent::None);
-	expect_intent("/position-search-alternate", ReloadIntent::None);
-	expect_intent("/search-bar-position", ReloadIntent::Layout);
-	expect_intent("/show-profile", ReloadIntent::Layout);
-	expect_intent("/show-session", ReloadIntent::Layout);
-	expect_intent("/sidebar-position", ReloadIntent::Layout);
-	expect_intent("/sidebar-enabled", ReloadIntent::Layout);
-	expect_intent("/category-show-name", ReloadIntent::Layout);
-	expect_intent("/category-icon-size", ReloadIntent::Layout);
-	expect_intent("/menu-width", ReloadIntent::Layout);
-	expect_intent("/menu-height", ReloadIntent::Layout);
-	expect_intent("/menu-opacity", ReloadIntent::Layout);
-	expect_intent("/corner-radius", ReloadIntent::Layout);
-	expect_intent("/panel-gap", ReloadIntent::Layout);
-	expect_intent("/places/enabled", ReloadIntent::Layout);
-	expect_intent("/places/switch-show-icons", ReloadIntent::Layout);
-	expect_intent("/places/switch-button-shape", ReloadIntent::None);
-	expect_intent("/transparent-grid", ReloadIntent::Layout);
-	expect_intent("/show-command-lockscreen", ReloadIntent::Layout);
+	const IntentCase active_settings[] = {
+		{ "/favorites", ReloadIntent::Content },
+		{ "/recent", ReloadIntent::Content },
+		{ "/custom-menu-file", ReloadIntent::Content },
+		{ "/button-title", ReloadIntent::Button },
+		{ "/button-icon", ReloadIntent::Button },
+		{ "/show-button-title", ReloadIntent::Button },
+		{ "/show-button-icon", ReloadIntent::Button },
+		{ "/button-single-row", ReloadIntent::Button },
+		{ "/launcher-show-name", ReloadIntent::Content },
+		{ "/launcher-show-description", ReloadIntent::Content },
+		{ "/launcher-show-tooltip", ReloadIntent::Layout },
+		{ "/transparent-grid", ReloadIntent::Layout },
+		{ "/launcher-icon-size", ReloadIntent::Layout },
+		{ "/hover-switch-category", ReloadIntent::None },
+		{ "/category-show-name", ReloadIntent::Layout },
+		{ "/sort-categories", ReloadIntent::Content },
+		{ "/category-icon-size", ReloadIntent::Layout },
+		{ "/view-mode", ReloadIntent::Content },
+		{ "/default-category", ReloadIntent::Layout },
+		{ "/recent-items-max", ReloadIntent::Layout },
+		{ "/favorites-in-recent", ReloadIntent::Content },
+		{ "/stay-on-focus-out", ReloadIntent::Layout },
+		{ "/profile-shape", ReloadIntent::Layout },
+		{ "/confirm-session-command", ReloadIntent::Layout },
+		{ "/search-actions", ReloadIntent::None },
+		{ "/search/fuzzy-enabled", ReloadIntent::None },
+		{ "/search/fuzzy-threshold", ReloadIntent::None },
+		{ "/search/favorites-boost-enabled", ReloadIntent::None },
+		{ "/search/favorites-boost-level", ReloadIntent::None },
+		{ "/search/frecency-alpha", ReloadIntent::None },
+		{ "/search/aliases", ReloadIntent::None },
+		{ "/menu-width", ReloadIntent::Layout },
+		{ "/menu-height", ReloadIntent::Layout },
+		{ "/menu-opacity", ReloadIntent::Layout },
+		{ "/schema-version", ReloadIntent::None },
+		{ "/current-preset-id", ReloadIntent::Layout },
+		{ "/initialized", ReloadIntent::None },
+		{ "/corner-radius", ReloadIntent::Layout },
+		{ "/panel-gap", ReloadIntent::Layout },
+		{ "/sidebar-position", ReloadIntent::Layout },
+		{ "/sidebar-enabled", ReloadIntent::Layout },
+		{ "/search-bar-position", ReloadIntent::Layout },
+		{ "/show-profile", ReloadIntent::Layout },
+		{ "/show-session", ReloadIntent::Layout },
+		{ "/grid-density", ReloadIntent::Layout },
+		{ "/layout-mode", ReloadIntent::Layout },
+		{ "/places/enabled", ReloadIntent::Layout },
+		{ "/places/history-enabled", ReloadIntent::Layout },
+		{ "/places/favourites-enabled", ReloadIntent::Layout },
+		{ "/places/favourite-sync", ReloadIntent::Layout },
+		{ "/places/max-items", ReloadIntent::Layout },
+		{ "/places/remember-last-mode", ReloadIntent::Layout },
+		{ "/places/last-mode", ReloadIntent::Layout },
+		{ "/places/favourites", ReloadIntent::Layout },
+		{ "/places/switch-show-icons", ReloadIntent::Layout },
+		{ "/extras/calculator-engine", ReloadIntent::Content },
+		{ "/extras/calculator-result-font-size", ReloadIntent::Content },
+		{ "/extras/calculator-max-decimal-places", ReloadIntent::Content },
+	};
+	assert_exact_rules(active_settings,
+			sizeof(active_settings) / sizeof(active_settings[0]));
 
-	expect_intent("/button-title", ReloadIntent::Button);
-	expect_intent("/button-icon", ReloadIntent::Button);
-	expect_intent("/show-button-title", ReloadIntent::Button);
+	for (const char* property : {
+		"/command-settings", "/command-lockscreen", "/command-switchuser",
+		"/command-logoutuser", "/command-restart", "/command-shutdown",
+		"/command-suspend", "/command-hibernate", "/command-logout",
+		"/command-menueditor", "/command-profile",
+		"/show-command-settings", "/show-command-lockscreen",
+		"/show-command-switchuser", "/show-command-logoutuser",
+		"/show-command-restart", "/show-command-shutdown",
+		"/show-command-suspend", "/show-command-hibernate",
+		"/show-command-logout", "/show-command-menueditor",
+		"/show-command-profile",
+	})
+	{
+		assert(classify_reload_intent(property) == ReloadIntent::Layout);
+	}
 
-	expect_intent("/custom-menu-file", ReloadIntent::Content);
-	expect_intent("/favorites", ReloadIntent::Content);
-	expect_intent("/recent", ReloadIntent::Content);
-	expect_intent("/sort-categories", ReloadIntent::Content);
-	expect_intent("/view-mode", ReloadIntent::Content);
-	expect_intent("/launcher-show-name", ReloadIntent::Content);
-	expect_intent("/launcher-show-description", ReloadIntent::Content);
-	expect_intent("/favorites-in-recent", ReloadIntent::Content);
-	expect_intent("/extras/calculator-engine", ReloadIntent::Content);
-	expect_intent("/extras/calculator-result-font-size", ReloadIntent::Content);
-	expect_intent("/extras/calculator-max-decimal-places", ReloadIntent::Content);
+	for (const char* property : {
+		"/search-actions/action-0/name",
+		"/search-actions/action-2/pattern",
+		"/search-actions/action-4/command",
+		"/search-actions/action-5/regex",
+		"/search/aliases/org.example.App.desktop/0",
+	})
+	{
+		assert(classify_reload_intent(property) == ReloadIntent::None);
+	}
 
-	expect_intent("/search/fuzzy-enabled", ReloadIntent::None);
-	expect_intent("/current-preset-id", ReloadIntent::Layout);
-	expect_intent(nullptr, ReloadIntent::None);
+	for (const char* retired : {
+		"/position-profile-alternate", "/position-search-alternate",
+		"/position-commands-alternate", "/position-categories-alternate",
+		"/position-categories-horizontal", "/profile-position",
+		"/commands-position", "/unified-bar",
+		"/places/switch-button-shape",
+	})
+	{
+		assert(classify_reload_intent(retired) == ReloadIntent::None);
+	}
 
+	assert(classify_reload_intent("/unknown-setting") == ReloadIntent::None);
+	assert(classify_reload_intent("command-settings") == ReloadIntent::None);
+	assert(classify_reload_intent(nullptr) == ReloadIntent::None);
 	return 0;
 }

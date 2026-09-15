@@ -286,21 +286,3 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 	};
 	return keys;
 }
-
-/* synced_keys:
- *
- * The governed keys that sync_preset_widgets() drives onto Properties widgets
- * after a preset switch. This list MUST equal governed_keys() (a unit test
- * enforces it): every key a preset governs must also be re-synced into the
- * dialog so no control is left stale (supported behavior). It is declared here, away
- * from the GTK widget-driving code, so the coverage set is inspectable without
- * a display.
- *
- * Returns: a reference to a process-lifetime static vector.
- */
-const std::vector<std::string>& WhiskerMenu::synced_keys()
-{
-	// Mirrors governed_keys() — kept as a distinct list so that adding a
-	// governed key without wiring its sync fails the coverage test loudly.
-	return governed_keys();
-}

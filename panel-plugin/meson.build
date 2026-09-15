@@ -64,6 +64,7 @@ plugin_sources = [
   'settings-defaults.cpp',
   'settings-dialog.cpp',
   'ui/properties/common.cpp',
+  'ui/properties/preset-sync.cpp',
   'ui/properties/general.cpp',
   'ui/properties/user-session.cpp',
   'ui/properties/search-bar.cpp',
