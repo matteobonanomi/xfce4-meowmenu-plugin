@@ -99,19 +99,12 @@ bool WhiskerMenu::Window::interactive_resize_begin(
 	int content_minimum = 0;
 	gtk_widget_get_preferred_width(
 			GTK_WIDGET(m_frame), &content_minimum, nullptr);
-	if (m_places_active)
+	if (ResultSurface* surface = get_active_result_surface())
 	{
 		content_minimum = meow_grid_release_resize_minimum(
 				content_minimum,
-				m_places->get_viewport_width(),
-				m_places->get_minimum_viewport_width());
-	}
-	else if (Page* page = get_active_page())
-	{
-		content_minimum = meow_grid_release_resize_minimum(
-				content_minimum,
-				page->get_viewport_width(),
-				page->get_minimum_viewport_width());
+				surface->get_viewport_width(),
+				surface->get_minimum_viewport_width());
 	}
 	minimum_width = CLAMP(content_minimum, 10, maximum_width);
 	gtk_widget_get_preferred_height(

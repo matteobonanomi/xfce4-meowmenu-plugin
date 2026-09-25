@@ -1,11 +1,10 @@
 /* test_search_ranking:
  *
- * Fail-closed characterization gate over panel-plugin/query.cpp's three
- * public match functions. Freezes the score values returned for each
- * match class on a fixed dataset, so any subsequent change to the ranking
- * implementation (intentional or accidental) makes this test diverge.
+ * Fail-closed characterization gate over Query's three public match functions.
+ * It freezes the score values returned for each match class on a fixed dataset,
+ * so any subsequent ranking change makes this test diverge.
  *
- * Match classes exercised (per RF-SEARCH-001..005, spec §11.RR-03):
+ * Match classes exercised:
  *   Query::match()
  *     0x4   — exact match (haystack == query)
  *     0x8   — prefix match (haystack starts with query)
@@ -19,7 +18,7 @@
  *   Query::match_fuzzy()
  *     0x400 — Levenshtein distance ≤ max_errors against some haystack word
  *
- * What this test does NOT cover, by design (research.md §3.11):
+ * What this test does NOT cover, by design:
  *   - launcher.cpp::search() classifier OR-bits (0x400 name, 0x800 generic,
  *     0x1000 comment, 0x2000 keywords, 0x4000 exec) and alias iteration.
  *   - search-page.cpp favorites-boost / frecency arithmetic.
@@ -27,13 +26,14 @@
  *   them into a standalone unit requires the full Settings + Element +
  *   garcon dependency surface and is deferred to a follow-up task.
  *
- * Linking: query.cpp is compiled into this test binary so production code
- * is exercised end-to-end. No shadow re-implementation per RF-TESTS-003.
+ * Linking: query.cpp is compiled into this test binary so production code is
+ * exercised end-to-end without a shadow implementation.
  */
 
 #include "../panel-plugin/search/query.h"
 
 #include <cassert>
+#include <array>
 #include <climits>
 #include <cstdio>
 #include <string>
@@ -262,6 +262,53 @@ void test_class_ordering_is_strict()
 	assert(char_scattered < fuzzy);
 }
 
+/* test_ranking_corpus_is_byte_exact:
+ *
+ * Captures representative results from every production match path in one
+ * fixed-width corpus. Comparing the complete array prevents an optimization
+ * from preserving isolated examples while changing combined ranking output.
+ */
+void test_ranking_corpus_is_byte_exact()
+{
+	const std::array<unsigned int, 10> actual = {{
+		Query("firefox").match("firefox"),
+		Query("fire").match("firefox"),
+		Query("manager").match("file manager"),
+		Query("file utility").match("file manager utility"),
+		Query("utility file").match("file manager utility"),
+		Query("ref").match("firefox"),
+		Query("fm").match_as_characters("file manager"),
+		Query("ffo").match_as_characters("firefox"),
+		Query("firafox").match_fuzzy("firefox", 1),
+		Query("nothing").match("firefox")
+	}};
+	const std::array<unsigned int, 10> expected = {{
+		0x4, 0x8, 0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x400, UINT_MAX
+	}};
+	assert(actual == expected && "ranking corpus changed");
+}
+
+/* test_query_normalization_is_query_invariant:
+ *
+ * Proves the query-side fuzzy representation is established once and reused
+ * for every candidate while haystack words continue through normalization.
+ */
+void test_query_normalization_is_query_invariant()
+{
+	WhiskerMenu::reset_query_normalization_count();
+	Query query("firafox");
+	assert(WhiskerMenu::query_normalization_count() == 1);
+	assert(query.match_fuzzy("firefox", 1) == 0x400);
+	assert(query.match_fuzzy("firafox", 1) == 0x400);
+	assert(query.match_fuzzy("terminal", 1) == UINT_MAX);
+	assert(WhiskerMenu::query_normalization_count() == 1);
+
+	query.set("terminal");
+	assert(WhiskerMenu::query_normalization_count() == 2);
+	assert(query.match_fuzzy("termimal", 1) == 0x400);
+	assert(WhiskerMenu::query_normalization_count() == 2);
+}
+
 } // anonymous namespace
 
 int main()
@@ -291,6 +338,8 @@ int main()
 	test_match_fuzzy_non_latin_script();
 
 	test_class_ordering_is_strict();
+	test_ranking_corpus_is_byte_exact();
+	test_query_normalization_is_query_invariant();
 
 	std::printf("OK: search-ranking characterization passed\n");
 	return 0;

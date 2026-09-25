@@ -704,8 +704,8 @@ static void test_v8_profile_position_canonicalization()
 //
 // v7 collapses the three per-region opacities to one /menu-opacity, derived from
 // the active preset's menu-opacity (or 100 when no preset governs it), and resets
-// the three retired keys. Modelled here as pure logic; the live xfconf round-trip
-// is covered by test_migration.cpp.
+// the three retired keys. Modelled here as pure logic; the live Xfconf
+// round-trip is covered by the preset Xfconf integration target.
 // ---------------------------------------------------------------------------
 
 /* derive_menu_opacity_v7:

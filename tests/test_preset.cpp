@@ -6,8 +6,8 @@
  *  - find_preset_by_id finds the three built-in ids and returns nullptr for unknown
  *
  * NOTE: apply_preset / compute_preset_diff write to a Settings object backed by
- * Xfconf. Full integration testing (with real xfconfd) is covered by the
- * TODO-INTEGRATION tests in test_schema_migration.cpp.
+ * Xfconf. The live-Xfconf integration coverage resides in the dedicated preset
+ * and schema-migration tests.
  *
  * The tests here use a "mock" Settings object whose member fields are
  * initialised manually to known values WITHOUT connecting to Xfconf, by
@@ -56,7 +56,7 @@ struct PV
 
 typedef std::map<std::string, PV> PVMap;
 
-// Logical equivalent of the built-in preset table from data-model.md
+// Minimal table shape used to compare against the production preset data.
 struct TestPresetDef
 {
 	const char* id;

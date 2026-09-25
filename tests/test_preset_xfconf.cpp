@@ -19,9 +19,8 @@
  *     - schema-lenient seeded-file import (supported behavior): a .meowpreset with a newer
  *       SchemaVersion must be accepted best-effort rather than skipped.
  *
- * If xfconfd / dbus-daemon are unavailable the test prints a TAP SKIP and
- * returns 0, matching test_migration.cpp. The project CI containers ship
- * xfconfd, so the assertions run there.
+ * If xfconfd or dbus-daemon is unavailable the test prints a TAP SKIP and
+ * returns 0. The project CI containers ship xfconfd, so the assertions run.
  */
 
 #include "presets/preset.h"

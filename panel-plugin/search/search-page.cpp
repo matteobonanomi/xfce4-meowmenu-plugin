@@ -39,7 +39,7 @@ using namespace WhiskerMenu;
 
 // Favorites bonus values for boost_level 1 (Low), 2 (Medium), 3 (High).
 // Must exceed maximum frecency [0,1] so favorites always precede non-favorites
-// at equal textual score, while a much-worse textual match still loses (RF-02 R2.3).
+// at equal textual score, while a much-worse textual match still loses.
 static constexpr double kFavBonus[] = { 0.5, 1.0, 2.0 };
 
 void SearchPage::Match::set_frecency(double frecency, bool is_favorite, int boost_level)

@@ -228,7 +228,7 @@ protected:
 		// own vertical adjustment (notify::vadjustment fires once). Connect that
 		// adjustment's value-changed to the guarded redraw so a pure scroll
 		// that reveals rows — with no selection change — still recomposites the
-		// whole surface (the documented behavior's "newly revealed rows", the 041 symptom).
+		// whole surface, including newly revealed rows.
 		// Opaque list/tree surfaces leave the guard disabled.
 		//
 		// LIFECYCLE: this is the ONE safeguard connection made on an object the

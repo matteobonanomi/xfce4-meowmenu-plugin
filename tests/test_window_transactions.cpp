@@ -9,6 +9,7 @@
 #include "core/plugin.h"
 #include "core/window.h"
 #include "launcher/applications-page.h"
+#include "launcher/category-button.h"
 #include "launcher/favorites-page.h"
 #include "launcher/recent-page.h"
 #include "private-xfconf-fixture.h"
@@ -79,6 +80,73 @@ Page* expected_default_page(Settings* settings, Window* window)
 	}
 }
 
+/* assert_publication_order:
+ * @applications: production Applications page after its first publication.
+ *
+ * Confirms that models, categories, and the loaded state were committed in the
+ * order required before the first visible result frame.
+ */
+void assert_publication_order(ApplicationsPage* applications)
+{
+	const std::vector<ApplicationsPage::PublicationStep>& steps =
+			applications->last_publication_steps();
+	assert((steps == std::vector<ApplicationsPage::PublicationStep>{
+			ApplicationsPage::PublicationStep::Items,
+			ApplicationsPage::PublicationStep::Categories,
+			ApplicationsPage::PublicationStep::Loaded }));
+}
+
+/* assert_configured_defaults:
+ * @settings: live configuration whose opening default is varied.
+ * @window: real Window used for each opening transaction.
+ *
+ * Proves each supported configured page survives the same opening transaction
+ * used after initial Applications publication.
+ */
+void assert_configured_defaults(Settings* settings, Window* window)
+{
+	for (Settings::DefaultCategory category : { Settings::CategoryFavorites,
+			Settings::CategoryRecent, Settings::CategoryAll })
+	{
+		settings->default_category = category;
+		window->show(Window::PositionAtCenter);
+		assert(window->get_active_page() == expected_default_page(settings, window));
+		window->dismiss(Window::DismissReason::Explicit);
+	}
+}
+
+/* assert_stable_layout_reconciliation:
+ * @settings: live configuration changed across the supported layout domain.
+ * @window: real Window whose category hierarchy is observed.
+ *
+ * Repeating an identical layout pass must retain the category container rather
+ * than reparenting it. The matrix also exercises each physical sidebar edge,
+ * disabled state, horizontal strip, and interface direction.
+ */
+void assert_stable_layout_reconciliation(Settings* settings, Window* window)
+{
+	window->show(Window::PositionAtCenter);
+	for (const char* mode : { "docked", "centered", "fullscreen" })
+	for (bool enabled : { false, true })
+	for (const char* position : { "left", "right", "horizontal" })
+	for (GtkTextDirection direction : { GTK_TEXT_DIR_LTR, GTK_TEXT_DIR_RTL })
+	{
+		settings->layout_mode = mode;
+		settings->sidebar_enabled = enabled;
+		settings->sidebar_position = position;
+		gtk_widget_set_default_direction(direction);
+		window->refresh_layout();
+		GtkWidget* button = window->get_applications()->get_button()->get_widget();
+		GtkWidget* parent = gtk_widget_get_parent(button);
+		assert(parent);
+		window->refresh_layout();
+		assert(gtk_widget_get_parent(button) == parent);
+	}
+	gtk_widget_set_default_direction(GTK_TEXT_DIR_LTR);
+	window->dismiss(Window::DismissReason::Explicit);
+	drain_ready_sources();
+}
+
 }
 
 static int run_test(int argc, char** argv)
@@ -103,7 +171,10 @@ static int run_test(int argc, char** argv)
 	Settings* settings = plugin->get_settings();
 	Window* window = plugin->get_window();
 	assert(wait_for_publication(window->get_applications()));
+	assert_publication_order(window->get_applications());
 	assert(window->get_active_page() == expected_default_page(settings, window));
+	assert_configured_defaults(settings, window);
+	assert_stable_layout_reconciliation(settings, window);
 
 	settings->menu_width = 480;
 	settings->menu_height = 520;
@@ -210,7 +281,6 @@ static int run_test(int argc, char** argv)
 			&focus_out, &handled);
 	g_signal_emit_by_name(host, "free-data");
 	drain_ready_sources();
-
 	std::printf("test_window_transactions: ok\n");
 	return 0;
 }

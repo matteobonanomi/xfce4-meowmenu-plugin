@@ -42,6 +42,7 @@ class Plugin;
 class Profile;
 class Resizer;
 class RecentPage;
+class ResultSurface;
 class SearchPage;
 class Settings;
 
@@ -149,6 +150,8 @@ public:
 	void unset_items();
 
 private:
+	ResultSurface* get_active_result_surface();
+
 	/* sync_category_label_width:
 	 *
 	 * Pin every sidebar category button (Apps and Places) to the same minimum
@@ -398,6 +401,7 @@ private:
 	GdkRectangle m_geometry;
 	bool m_layout_ltr;
 	bool m_layout_categories_horizontal;
+	bool m_layout_vertical_sidebar;
 	CompositionSidebar m_layout_sidebar_position;
 	bool m_layout_sidebar_enabled;
 	unsigned int m_layout_available_session_actions;

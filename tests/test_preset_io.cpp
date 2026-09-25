@@ -1,9 +1,8 @@
 /*
  * Unit tests for the preset-io import/export *logic* — no GLib, no Xfconf.
  *
- * The actual I/O (GKeyFile, xfconf writes) is covered by manual integration
- * testing (quickstart.md §runtime implementation). Here we test the pure validation rules that
- * are extracted as shadow helpers below:
+ * The actual I/O (GKeyFile and Xfconf writes) is covered by integration tests
+ * and manual checks. Here we test the pure validation rules extracted below:
  *
  *   - round-trip: a valid INI-like map → validate → all entries survive
  *   - corrupted input: invalid / empty content → parse fails

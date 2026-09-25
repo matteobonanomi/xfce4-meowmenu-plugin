@@ -367,7 +367,7 @@ unsigned int Launcher::search(const Query& query)
 	}
 
 	// Fuzzy fallback on Name only (score 0x700: worse than any name char-match ≤0x600,
-	// better than generic-name matches ≥0x804, preserving RF-03 R3.4)
+	// better than generic-name matches ≥0x804)
 	if (m_settings->fuzzy_enabled)
 	{
 		const int max_errors = (static_cast<int>(m_settings->fuzzy_threshold) != 0)

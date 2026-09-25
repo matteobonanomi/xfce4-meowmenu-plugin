@@ -16,8 +16,68 @@ SPEC.loader.exec_module(PRESENTATION)
 
 
 class RepositoryPresentationTest(unittest.TestCase):
+    @staticmethod
+    def write_residue_fixture(root, entries):
+        fixture = root / "tests/fixtures/repository_presentation_residue.txt"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_text("\n".join(entries) + "\n", encoding="utf-8")
+
     def test_tracked_presentation_policy(self):
         self.assertEqual(PRESENTATION.violations(ROOT), [])
+
+    def test_repository_scan_rejects_real_workflow_leak(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_residue_fixture(root, [])
+            (root / "source.cpp").write_text(
+                "// See " + "spec" + ".md for the implementation.\n",
+                encoding="utf-8",
+            )
+            errors = PRESENTATION.workflow_reference_violations(root)
+            self.assertTrue(any("workflow document" in error for error in errors))
+
+    def test_repository_scan_rejects_nonexistent_test_reference(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_residue_fixture(root, [])
+            (root / "source.cpp").write_text(
+                "// Covered by test_" + "missing.cpp.\n",
+                encoding="utf-8",
+            )
+            errors = PRESENTATION.workflow_reference_violations(root)
+            self.assertTrue(any("nonexistent test source" in error for error in errors))
+
+    def test_repository_scan_rejects_added_residue_occurrence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fingerprint = PRESENTATION.normalized_fingerprint(".spec" + "ify/*")
+            self.write_residue_fixture(
+                root,
+                [f".gitignore\t{fingerprint}\t1"],
+            )
+            (root / ".gitignore").write_text(
+                ".spec" + "ify/*\n.spec" + "ify/*\n",
+                encoding="utf-8",
+            )
+            self.assertNotEqual(PRESENTATION.workflow_reference_violations(root), [])
+
+    def test_repository_scan_allows_residue_line_movement(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            specify = ".spec" + "ify/*"
+            agents = ".agents/*"
+            self.write_residue_fixture(
+                root,
+                [
+                    f".gitignore\t{PRESENTATION.normalized_fingerprint(specify)}\t1",
+                    f".gitignore\t{PRESENTATION.normalized_fingerprint(agents)}\t1",
+                ],
+            )
+            (root / ".gitignore").write_text(
+                "# Private trees\n\n" + specify + "\n\n\n" + agents + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(PRESENTATION.workflow_reference_violations(root), [])
 
     def test_gitless_source_tree_ignores_build_output(self):
         with tempfile.TemporaryDirectory() as temporary:

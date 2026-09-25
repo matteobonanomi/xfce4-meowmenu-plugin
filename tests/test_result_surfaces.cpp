@@ -6,7 +6,9 @@
 #include <cstdio>
 
 #include "core/plugin.h"
+#include "core/result-surface.h"
 #include "core/window.h"
+#include "launcher/applications-page.h"
 #include "launcher/favorites-page.h"
 #include "places/places-page.h"
 #include "private-xfconf-fixture.h"
@@ -18,8 +20,15 @@ using namespace WhiskerMenu;
 namespace
 {
 
-template<typename Surface>
-void exercise_result_surface(Surface* surface)
+/* exercise_result_surface:
+ * @surface: non-owning production result adapter under test.
+ *
+ * Runs the same empty/populated presentation, viewport, selection, focus, and
+ * resize contract against each concrete implementation. Mode-specific menus,
+ * drag payloads, focus leases, debounce, publication, and frame lifetime stay
+ * outside this generic boundary.
+ */
+void exercise_result_surface(ResultSurface* surface)
 {
 	GtkListStore* store = gtk_list_store_new(LauncherView::N_COLUMNS,
 			G_TYPE_ICON, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_POINTER);
@@ -31,6 +40,9 @@ void exercise_result_surface(Surface* surface)
 	surface->present();
 	assert(surface->get_viewport_width() > 0);
 	assert(surface->get_minimum_viewport_width() >= 0);
+	const int viewport_width = surface->get_viewport_width();
+	surface->prepare_viewport_resize(320, 360);
+	assert(surface->get_viewport_width() >= viewport_width);
 
 	GtkTreeIter iter;
 	gtk_list_store_append(store, &iter);
@@ -111,7 +123,7 @@ static int run_test(int argc, char** argv)
 	assert(host);
 	Plugin* plugin = new Plugin(host);
 	Window* window = plugin->get_window();
-	exercise_result_surface(window->get_favorites());
+	exercise_result_surface(window->get_applications());
 	exercise_result_surface(window->get_places());
 	exercise_view_replacement(plugin->get_settings(),
 			window->get_favorites(), window->get_places());

@@ -28,6 +28,22 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+#ifdef MEOWMENU_QUERY_NORMALIZATION_TEST
+static unsigned int query_normalizations = 0;
+
+void WhiskerMenu::reset_query_normalization_count()
+{
+	query_normalizations = 0;
+}
+
+unsigned int WhiskerMenu::query_normalization_count()
+{
+	return query_normalizations;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+
 /* normalized_codepoints:
  * @text: valid UTF-8 search text to normalize and case-fold.
  *
@@ -253,14 +269,22 @@ void Query::clear()
 	m_raw_query.clear();
 	m_query.clear();
 	m_query_words.clear();
+	m_query_codepoints.clear();
 }
 
 //-----------------------------------------------------------------------------
 
+/* Query::set:
+ * @query: raw user query; UTF-8 input follows the existing GLib contract.
+ *
+ * Establishes every query-invariant representation together so fuzzy matching
+ * can reuse query code points while continuing to normalize each haystack word.
+ */
 void Query::set(const std::string& query)
 {
 	m_query.clear();
 	m_query_words.clear();
+	m_query_codepoints.clear();
 
 	m_raw_query = query;
 	if (m_raw_query.empty())
@@ -273,6 +297,11 @@ void Query::set(const std::string& query)
 	m_query = utf8;
 	g_free(utf8);
 	g_free(normalized);
+
+#ifdef MEOWMENU_QUERY_NORMALIZATION_TEST
+	++query_normalizations;
+#endif
+	m_query_codepoints = normalized_codepoints(m_query);
 
 	std::string buffer;
 	std::stringstream ss(m_query);
@@ -290,8 +319,7 @@ unsigned int Query::match_fuzzy(const std::string& haystack, int max_errors) con
 	if (m_query.empty() || m_query_words.size() > 1)
 		return UINT_MAX;
 
-	const std::vector<gunichar> query_points = normalized_codepoints(m_query);
-	if (query_points.empty())
+	if (m_query_codepoints.empty())
 	{
 		return UINT_MAX;
 	}
@@ -307,11 +335,11 @@ unsigned int Query::match_fuzzy(const std::string& haystack, int max_errors) con
 			continue;
 		}
 		if (static_cast<int>(word_points.size())
-				< static_cast<int>(query_points.size()) - max_errors)
+				< static_cast<int>(m_query_codepoints.size()) - max_errors)
 		{
 			continue;
 		}
-		if (levenshtein(query_points, word_points) <= max_errors)
+		if (levenshtein(m_query_codepoints, word_points) <= max_errors)
 			return 0x400;
 	}
 	return UINT_MAX;

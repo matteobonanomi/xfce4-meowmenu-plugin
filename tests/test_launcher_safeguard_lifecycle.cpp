@@ -1,7 +1,6 @@
 /* test_launcher_safeguard_lifecycle:
  *
- * Freezes the the documented behavior invariant (render-invariants contract I13): the
- * transparent-surface scroll-reveal safeguard in the shared LauncherView base
+ * Freezes the transparent-surface scroll-reveal safeguard in LauncherView. It
  * connects a value-changed handler to the scrolled window's vertical
  * GtkAdjustment — the one safeguard connection on an object the view does NOT
  * own and which outlives it across menu rebuilds. That handler MUST stop firing

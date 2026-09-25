@@ -91,8 +91,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	// refresh_preset_combo (runtime implementation / behavior table).
 	initialize_file_presets();
 
-	// New 5-tab dictionary per data-model.md E-3. Each init_*_tab() already
-	// returns its content wrapped by wrap_in_scrolled().
+	// Each tab builder returns content already wrapped for the stack.
 	auto add_page = [stack](GtkWidget* child, const char* id, const char* title)
 	{
 		gtk_stack_add_titled(stack, child, id, title);

@@ -181,9 +181,8 @@ subdir('panel-plugin')
 subdir('icons')
 subdir('po')
 
-# Built-in preset files. Per contracts/preset-file.md §Locations, these are
-# installed read-only under ${datadir}/meowmenu/presets/ and enumerated at
-# runtime by panel-plugin/preset-io.cpp.
+# Built-in preset files are installed read-only under
+# ${datadir}/meowmenu/presets/ and enumerated by the preset loader.
 meowmenu_preset_files = run_command(
   'sh', '-c', 'ls data/presets/*.meowpreset 2>/dev/null || true',
   check: false,

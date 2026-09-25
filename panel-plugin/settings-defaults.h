@@ -162,9 +162,6 @@ const char* migrate_layout_schema_v13(XfconfChannel* channel);
  * declarations live alongside Settings (settings.h) because they are
  * member functions; this header exists only so the implementation file
  * remains a recognised compilation unit with a matching header.
- *
- * The Xfconf legacy-import path used on first launch from Whisker lives
- * in migration.cpp and is intentionally NOT consolidated here.
  */
 
 #endif // WHISKERMENU_SETTINGS_DEFAULTS_H

@@ -500,11 +500,10 @@ test_settings_key_inventory = executable(
 
 test('settings_key_inventory', test_settings_key_inventory)
 
-# test_search_ranking: characterization gate over query.cpp's match
-# scoring (RF-SEARCH-001..005). Pure unit test: query.cpp depends only on
-# glib, so linking the production source into the binary is direct. The
-# launcher.cpp classifier OR-bits and search-page.cpp boost arithmetic are
-# deliberately out of scope here — see research.md §3.11.
+# test_search_ranking: characterization gate over Query match scoring. This is
+# a pure unit test because query.cpp depends only on GLib, so linking the
+# production source into the binary is direct. Launcher classifier bits and
+# SearchPage boost arithmetic remain covered by their owning tests.
 test_search_ranking_sources = [
   'test_search_ranking.cpp',
   '..' / 'panel-plugin' / 'search' / 'query.cpp',
@@ -513,6 +512,7 @@ test_search_ranking_sources = [
 test_search_ranking = executable(
   'test_search_ranking',
   test_search_ranking_sources,
+  cpp_args: ['-DMEOWMENU_QUERY_NORMALIZATION_TEST'],
   dependencies: [glib],
 )
 
@@ -717,6 +717,7 @@ test('window_frame', test_window_frame)
 # orientation, forced icon/name states). GTK-free helper; no display.
 test_sidebar_layout_sources = [
   'test_sidebar_layout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
   '..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
 ]
 
@@ -1054,8 +1055,8 @@ test_application_load_generation = executable(
 
 test('application_load_generation', test_application_load_generation)
 
-# test_launcher_safeguard_lifecycle: headless freeze for the supported behavior safeguard
-# lifetime (render-invariants I13). The fix lives entirely in the header-only
+# test_launcher_safeguard_lifecycle: headless freeze for the supported
+# scroll-reveal safeguard lifetime. The fix lives entirely in the header-only
 # shared base LauncherView, so the binary needs only that header (plus slot.h)
 # and gtk — no production .cpp. It constructs a minimal concrete view, binds the
 # scroll-reveal safeguard to an externally-owned adjustment, destroys the view,

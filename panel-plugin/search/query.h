@@ -21,8 +21,15 @@
 #include <string>
 #include <vector>
 
+#include <glib.h>
+
 namespace WhiskerMenu
 {
+
+#ifdef MEOWMENU_QUERY_NORMALIZATION_TEST
+void reset_query_normalization_count();
+unsigned int query_normalization_count();
+#endif
 
 class Query
 {
@@ -61,6 +68,7 @@ private:
 	std::string m_raw_query;
 	std::string m_query;
 	std::vector<std::string> m_query_words;
+	std::vector<gunichar> m_query_codepoints;
 };
 
 }

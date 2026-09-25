@@ -16,6 +16,7 @@
 
 #include <gtk/gtk.h>
 
+#include "core/result-surface.h"
 #include "core/window-frame.h"
 
 namespace WhiskerMenu
@@ -139,7 +140,7 @@ private:
 	bool m_first_result_seen = false;
 };
 
-class PlacesPage
+class PlacesPage : public ResultSurface
 {
 public:
 	PlacesPage(Settings* settings, Window* window);
@@ -148,9 +149,9 @@ public:
 	PlacesPage(const PlacesPage&) = delete;
 	PlacesPage& operator=(const PlacesPage&) = delete;
 
-	GtkWidget* get_widget() const { return m_widget; }
+	GtkWidget* get_widget() const override { return m_widget; }
 	GtkWidget* get_message() const { return m_empty_message; }
-	LauncherView* get_view() const { return m_view; }
+	LauncherView* get_view() const override { return m_view; }
 
 	HomeSection* get_home_section() const             { return m_home; }
 	HistorySection* get_history_section() const       { return m_history; }
@@ -161,13 +162,13 @@ public:
 	void set_filter(const gchar* filter);
 	void refresh_active();
 	void reload_view();
-	void present();
+	void present() override;
 	void prepare_viewport_resize(int current_toplevel_width,
-			int requested_toplevel_width);
-	int get_viewport_width() const { return m_viewport_width; }
-	int get_minimum_viewport_width() const;
-	void select_first();
-	bool focus_first_result();
+			int requested_toplevel_width) override;
+	int get_viewport_width() const override { return m_viewport_width; }
+	int get_minimum_viewport_width() const override;
+	void select_first() override;
+	bool focus_first_result() override;
 	void note_deliberate_navigation();
 	void invalidate_focus_lease();
 

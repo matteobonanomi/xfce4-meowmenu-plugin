@@ -48,6 +48,10 @@ void check_cartesian_invariants()
 		MenuCompositionInput input = { mode, edge, sidebar, profile, session,
 			actions, places, direction };
 		MenuComposition out = meow_resolve_menu_composition(input);
+		const bool vertical = sidebar == CompositionSidebar::Left
+				|| sidebar == CompositionSidebar::Right;
+		CHECK(meow_composition_has_vertical_sidebar(sidebar) == vertical);
+		CHECK((out.sidebar_surface != MenuSurfaceRole::None) == vertical);
 
 		CHECK(out.effective_profile == profile);
 		CHECK(out.effective_session == (session && actions > 0));

@@ -59,6 +59,21 @@ Page* WhiskerMenu::Window::get_active_page()
 
 //-----------------------------------------------------------------------------
 
+/* Window::get_active_result_surface:
+ *
+ * Returns the visible generic result surface without transferring ownership.
+ * Window owns both concrete page families for longer than any caller may use
+ * the returned pointer.
+ */
+ResultSurface* WhiskerMenu::Window::get_active_result_surface()
+{
+	return m_places_active
+			? static_cast<ResultSurface*>(m_places)
+			: static_cast<ResultSurface*>(get_active_page());
+}
+
+//-----------------------------------------------------------------------------
+
 GtkWidget* WhiskerMenu::Window::get_active_category_button()
 {
 	return active_toggle_child_or_default(GTK_CONTAINER(m_category_buttons),
@@ -211,7 +226,7 @@ void WhiskerMenu::Window::show_default_page()
 		{
 			m_places->set_active_section(m_places->get_home_section());
 			gtk_stack_set_visible_child_name(m_panels_stack, "places");
-			m_places->present();
+			get_active_result_surface()->present();
 		}
 		gtk_entry_set_text(m_search_entry, "");
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
@@ -223,8 +238,8 @@ void WhiskerMenu::Window::show_default_page()
 	m_default_button->set_active(true);
 	if (already_active)
 	{
-		if (Page* page = get_active_page())
-			page->present();
+		if (ResultSurface* surface = get_active_result_surface())
+			surface->present();
 	}
 
 	// Clear search entry
@@ -248,9 +263,10 @@ void WhiskerMenu::Window::search()
 		// Places mode: stay on the places panel; filter the active section.
 		gtk_stack_set_visible_child_name(m_panels_stack, "places");
 		m_places->set_filter(text);
-		m_places->present();
+		ResultSurface* surface = get_active_result_surface();
+		surface->present();
 		if (text)
-			m_places->focus_first_result();
+			surface->focus_first_result();
 		// the documented behavior: query empty → return focus to the search entry so the
 		// user is back in Browsing-style entry focus.
 		if (!text)
@@ -278,8 +294,8 @@ void WhiskerMenu::Window::search()
 
 	// Apply filter
 	m_search_results->set_filter(text);
-	if (Page* page = get_active_page())
-		page->present();
+	if (ResultSurface* surface = get_active_result_surface())
+		surface->present();
 
 	if (text)
 	{
@@ -468,7 +484,7 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 		gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		if (places)
 		{
-			if (!m_places->focus_first_result())
+			if (!get_active_result_surface()->focus_first_result())
 				gtk_widget_grab_focus(GTK_WIDGET(m_search_entry));
 		}
 		else if (!m_search_results->focus_first_visual_result())
@@ -479,10 +495,8 @@ void WhiskerMenu::Window::apply_menu_mode(MenuMode requested_mode,
 	m_mode_switch_in_progress = false;
 	if (!content_presented_by_activation)
 	{
-		if (places)
-			m_places->present();
-		else if (Page* page = get_active_page())
-			page->present();
+		if (ResultSurface* surface = get_active_result_surface())
+			surface->present();
 	}
 	update_favourite_drop_targets();
 }

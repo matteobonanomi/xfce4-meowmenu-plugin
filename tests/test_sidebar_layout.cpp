@@ -7,6 +7,7 @@
  */
 
 #include "core/sidebar-layout.h"
+#include "core/menu-composition.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -130,6 +131,36 @@ void horizontal_edge_derivation()
 			== SidebarPosition::Bottom);
 	CHECK(meow_resolve_sidebar_edge(SidebarPosition::Left, true, false)
 			== SidebarPosition::Left);
+}
+
+/* vertical_sidebar_derivations_agree:
+ *
+ * Compares stored sidebar intent, sidebar presentation, composition vocabulary,
+ * and the retained vertical fact across the complete supported input domain.
+ */
+void vertical_sidebar_derivations_agree()
+{
+	for (bool enabled : { false, true })
+	for (SidebarPosition position : { SidebarPosition::Left,
+			SidebarPosition::Right, SidebarPosition::Horizontal })
+	for (bool names : { false, true })
+	{
+		const SidebarPresentation presentation =
+				meow_compute_sidebar_presentation(
+						make_state(enabled, position, names));
+		const CompositionSidebar composition = !enabled
+				? CompositionSidebar::Hidden
+				: (position == SidebarPosition::Right
+						? CompositionSidebar::Right
+						: (position == SidebarPosition::Horizontal
+								? CompositionSidebar::Horizontal
+								: CompositionSidebar::Left));
+		const bool expected = enabled
+				&& position != SidebarPosition::Horizontal;
+		CHECK(expected == (presentation.sidebar_visible
+				&& !presentation.categories_horizontal));
+		CHECK(expected == meow_composition_has_vertical_sidebar(composition));
+	}
 }
 
 // Top/Bottom strip stacking order, category centering, and width source
@@ -379,6 +410,7 @@ int main()
 	category_name_reversion();
 	parse_positions();
 	horizontal_edge_derivation();
+	vertical_sidebar_derivations_agree();
 	strip_geometry_ordering();
 	fullscreen_main_column_metrics();
 	fullscreen_places_disabled_strip_centers_categories();

@@ -14,6 +14,12 @@
 namespace WhiskerMenu
 {
 
+bool meow_composition_has_vertical_sidebar(CompositionSidebar sidebar)
+{
+	return sidebar == CompositionSidebar::Left
+			|| sidebar == CompositionSidebar::Right;
+}
+
 namespace
 {
 

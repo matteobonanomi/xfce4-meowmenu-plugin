@@ -1,8 +1,6 @@
 /*
  * Headless tests for the progressive Esc state machine declared in
  * panel-plugin/core/window-keyboard.h.
- *
- * Covers contracts/esc-ladder.md §"Test plan".
  */
 
 #include "core/window-keyboard.h"

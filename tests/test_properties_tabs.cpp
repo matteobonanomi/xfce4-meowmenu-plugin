@@ -6,8 +6,7 @@
  *   2. No omission — every required key is on the grid.
  *   3. Exactly seven tabs in the known dictionary (General, Session,
  *      Search Bar, Results View / app-grid, Sidebar, Places, Extras). The Places
- *      tab models the milestone-005 controls bound under the /places
- *      Xfconf prefix.
+ *      tab contains the controls bound under the /places Xfconf prefix.
  *   4. Sane enable-when values — docked|fullscreen rows correspond to widgets
  *      whose live behaviour is driven by /layout-mode (supported behavior); sibling sub-
  *      enables (ProfileVisible, ViewModeIcons/List, SidebarLeftRight,
@@ -196,7 +195,7 @@ const char* const kRequiredKeys[] = {
 	"sidebar-position",
 	"category-hover-activate", "sort-categories",
 	"default-category", "recent-items-max", "favorites-in-recent",
-	// Places milestone-005 controls
+	// Places controls
 	"places/enabled", "places/history-enabled", "places/favourites-enabled",
 	"places/favourite-sync", "places/max-items",
 	"places/remember-last-mode",

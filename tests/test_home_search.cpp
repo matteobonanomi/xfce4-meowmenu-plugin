@@ -1,6 +1,6 @@
 /*
- * Unit tests for milestone 005 amendment (Places Mode — recursive Home
- * search). Mirrors HomeSearchWorker's BFS walk over a temporary
+ * Unit tests for recursive Home search in Places Mode. Mirrors
+ * HomeSearchWorker's BFS walk over a temporary
  * directory tree without instantiating GTK widgets or threads,
  * matching the stand-in pattern used by the rest of tests/.
  *

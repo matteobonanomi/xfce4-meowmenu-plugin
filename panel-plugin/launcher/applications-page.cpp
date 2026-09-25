@@ -608,11 +608,15 @@ void ApplicationsPage::publish_candidate(ApplicationCandidate& candidate)
 	}
 
 	// Attach every model before category activation can expose its target.
+	m_last_publication_steps.clear();
 	get_window()->set_items();
+	m_last_publication_steps.push_back(PublicationStep::Items);
 
 	// Adding categories resolves and activates the publication target.
 	get_window()->set_categories(category_buttons);
+	m_last_publication_steps.push_back(PublicationStep::Categories);
 	get_window()->set_loaded();
+	m_last_publication_steps.push_back(PublicationStep::Loaded);
 
 	m_has_publication = true;
 	m_status = LoadStatus::Done;
