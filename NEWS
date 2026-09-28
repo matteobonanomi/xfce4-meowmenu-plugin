@@ -1,20 +1,16 @@
-0.8.2 (2026-09-07)
+0.8.2 (2026-09-30)
 =====
-- Locale: Localize built-in preset names and descriptions while preserving custom presets
-- Locale: Generate localized AppStream metadata and translator credits
-- Locale: Refresh and validate all 56 translation catalogs
-- Locale: Add reproducible translation status and audit tooling
-- Bugfix: prevent stale development modules from shadowing package-installed plugins
-- Bugfix: render Places names containing markup characters literally
-- Bugfix: show malformed panel button titles literally instead of leaving them blank or stale
-- Bugfix: preserve usage statistics for application identifiers containing spaces and clear stale empty caches
-- Bugfix: settle pending usage-stat writes safely when the plugin is removed
-- Bugfix: disconnect live settings updates safely when the plugin is removed
-- Bugfix: close and save an open Properties dialog when the plugin is removed
-- Bugfix: keep keyboard and hover category activation independent across multiple menu instances
-- Bugfix: keep switching to Favorites after sorting or reordering the list
-- UI: simplify Docked, Centered, and Full Screen composition and Properties controls with adaptive, preset-aware layouts that remain visibly distinct
-- Presets: substantially refresh Modern, align all built-in presets with the supported layout model, and use Modern by default
+- Translations: localize built-in preset names and descriptions while preserving custom presets
+- Translations: refresh and validate all 56 catalogs, including localized AppStream metadata and translator credits
+- Installer: prevent stale development modules from shadowing package-installed plugins
+- Places: display names containing markup characters literally
+- Panel: show malformed button titles literally instead of leaving them blank or stale
+- Usage statistics: preserve statistics for application identifiers containing spaces, clear stale empty caches, and flush pending writes safely when the plugin is removed
+- Lifecycle: disconnect live settings updates and save open Properties dialogs safely when the plugin is removed
+- Navigation: keep keyboard and hover category activation independent across multiple menu instances
+- Favorites: keep switching to Favorites after sorting or reordering the list
+- UI: simplify Docked, Centered, and Full Screen composition with adaptive, preset-aware layouts and visibly distinct Properties controls
+- Presets: align built-in presets with the supported layout model and use Modern by default
 
 0.8.1 (2026-09-01)
 =====
