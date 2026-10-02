@@ -12,6 +12,7 @@
 #include "launcher/page.h"
 #include "places/places-page.h"
 #include "private-xfconf-fixture.h"
+#include "settings-defaults.h"
 #include "ui/launcher-view.h"
 
 using namespace WhiskerMenu;
@@ -53,6 +54,8 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9003,
 			nullptr));
 	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	Window* window = plugin->get_window();
 	assert_drag_target(window->get_favorites()->get_view()->get_widget(),

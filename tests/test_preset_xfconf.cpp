@@ -27,6 +27,7 @@
 #include "presets/preset-io.h"
 #include "launcher/favorite-projection.h"
 #include "settings-defaults.h"
+#include "private-xfconf-fixture.h"
 
 #include <gio/gio.h>
 #include <glib.h>
@@ -37,6 +38,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -50,138 +52,30 @@
 namespace
 {
 
-GTestDBus* g_test_bus = nullptr;
-GPid g_xfconfd_pid = 0;
-std::string g_scratch_dir;
+bool g_xfconf_initialized = false;
 int g_unique_counter = 0;
 
 std::string write_meowpreset(const std::string& dir, const std::string& stem,
 	const std::string& content);
 
-const char* k_xfconfd_candidate_paths[] = {
-	"/usr/lib/x86_64-linux-gnu/xfce4/xfconf/xfconfd",
-	"/usr/lib/xfce4/xfconf/xfconfd",
-	"/usr/libexec/xfconf/xfconfd",
-	"/usr/libexec/xfce4/xfconf/xfconfd",
-	"/usr/lib64/xfce4/xfconf/xfconfd",
-	nullptr,
-};
-
-const char* find_xfconfd_binary()
-{
-	for (const char** p = k_xfconfd_candidate_paths; *p != nullptr; ++p)
-		if (g_file_test(*p, G_FILE_TEST_IS_EXECUTABLE))
-			return *p;
-	gchar* in_path = g_find_program_in_path("xfconfd");
-	if (in_path != nullptr)
-		return in_path; // NOTE: leak intentional — process-lifetime constant.
-	return nullptr;
-}
-
-bool wait_for_xfconfd_registration()
-{
-	// HACK: D-Bus auto-activation is not configured for the private bus, so
-	// xfconfd was spawned manually; poll until org.xfce.Xfconf appears (5 s cap).
-	GError* err = nullptr;
-	GDBusConnection* conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &err);
-	if (conn == nullptr)
-	{
-		if (err != nullptr) { g_error_free(err); }
-		return false;
-	}
-	for (int i = 0; i < 50; ++i)
-	{
-		GVariant* res = g_dbus_connection_call_sync(conn,
-			"org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
-			"NameHasOwner", g_variant_new("(s)", "org.xfce.Xfconf"),
-			G_VARIANT_TYPE("(b)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, nullptr);
-		if (res != nullptr)
-		{
-			gboolean owned = FALSE;
-			g_variant_get(res, "(b)", &owned);
-			g_variant_unref(res);
-			if (owned) { g_object_unref(conn); return true; }
-		}
-		g_usleep(100 * 1000);
-	}
-	g_object_unref(conn);
-	return false;
-}
-
 bool fixture_up()
 {
-	const char* xfconfd = find_xfconfd_binary();
-	if (xfconfd == nullptr)
-	{
-		std::printf("# SKIP: xfconfd binary not found on this host\n");
-		return false;
-	}
-	gchar* dbus_daemon = g_find_program_in_path("dbus-daemon");
-	if (dbus_daemon == nullptr)
-	{
-		std::printf("# SKIP: dbus-daemon binary not found on this host\n");
-		return false;
-	}
-	g_free(dbus_daemon);
-
-	gchar* tmpl = g_strdup("/tmp/meow-preset-xfconf-XXXXXX");
-	gchar* dir = g_mkdtemp(tmpl);
-	if (dir == nullptr)
-	{
-		g_free(tmpl);
-		std::printf("# SKIP: cannot create scratch dir\n");
-		return false;
-	}
-	g_scratch_dir = dir;
-	g_setenv("XDG_CONFIG_HOME", g_scratch_dir.c_str(), TRUE);
-	g_setenv("XDG_CACHE_HOME", g_scratch_dir.c_str(), TRUE);
-	g_setenv("XDG_RUNTIME_DIR", g_scratch_dir.c_str(), TRUE);
-	g_free(tmpl);
-
-	g_test_bus = g_test_dbus_new(G_TEST_DBUS_NONE);
-	g_test_dbus_up(g_test_bus);
-
 	GError* err = nullptr;
-	const gchar* argv[] = { xfconfd, nullptr };
-	gboolean ok = g_spawn_async(nullptr, const_cast<gchar**>(argv), nullptr,
-		static_cast<GSpawnFlags>(G_SPAWN_LEAVE_DESCRIPTORS_OPEN
-			| G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL),
-		nullptr, nullptr, &g_xfconfd_pid, &err);
-	if (!ok)
-	{
-		std::printf("# SKIP: failed to spawn xfconfd: %s\n", err ? err->message : "(no error)");
-		if (err != nullptr) { g_error_free(err); }
-		return false;
-	}
-	if (!wait_for_xfconfd_registration())
-	{
-		std::printf("# SKIP: xfconfd did not register on the private bus\n");
-		return false;
-	}
 	if (!xfconf_init(&err))
 	{
 		std::printf("# SKIP: xfconf_init failed: %s\n", err ? err->message : "(no error)");
-		if (err != nullptr) { g_error_free(err); }
+		g_clear_error(&err);
 		return false;
 	}
+	g_xfconf_initialized = true;
 	return true;
 }
 
 void fixture_down()
 {
-	xfconf_shutdown();
-	if (g_xfconfd_pid != 0)
-	{
-		kill(g_xfconfd_pid, SIGTERM);
-		g_spawn_close_pid(g_xfconfd_pid);
-		g_xfconfd_pid = 0;
-	}
-	if (g_test_bus != nullptr)
-	{
-		g_test_dbus_down(g_test_bus);
-		g_object_unref(g_test_bus);
-		g_test_bus = nullptr;
-	}
+	if (g_xfconf_initialized)
+		xfconf_shutdown();
+	g_xfconf_initialized = false;
 }
 
 XfconfChannel* fresh_channel()
@@ -1046,12 +940,12 @@ void test_incompatible_user_overlay_cannot_shadow_supported_preset()
 
 } // anonymous namespace
 
-int main()
+static int run_preset_tests(int, char**)
 {
 	if (!fixture_up())
 	{
 		fixture_down();
-		return 0; // clean SKIP when xfconfd/private bus unavailable
+		return 77;
 	}
 
 	test_enumerate_surfaces_saved_uuid();
@@ -1075,4 +969,9 @@ int main()
 
 	std::printf("OK: preset xfconf integration tests passed\n");
 	return 0;
+}
+
+int main(int argc, char** argv)
+{
+	return run_with_private_xfconf(argc, argv, &run_preset_tests);
 }

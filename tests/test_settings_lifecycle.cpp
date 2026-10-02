@@ -9,6 +9,7 @@
 
 #include "core/plugin.h"
 #include "private-xfconf-fixture.h"
+#include "settings-defaults.h"
 #include "settings.h"
 
 using namespace WhiskerMenu;
@@ -29,6 +30,9 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9007,
 			nullptr));
 	assert(host);
+	assert(xfconf_init(nullptr));
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	XfconfChannel* channel = XFCONF_CHANNEL(
 			g_object_ref(plugin->get_settings()->channel));

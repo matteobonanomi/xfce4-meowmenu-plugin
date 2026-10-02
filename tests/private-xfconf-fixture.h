@@ -15,4 +15,22 @@
 int run_with_private_xfconf(int argc, char** argv,
 		int (*child_main)(int argc, char** argv));
 
+/* settle_private_xfconf:
+ *
+ * Gives asynchronous property writes a bounded opportunity to complete before
+ * a test tears down its panel-owned Xfconf channels.
+ */
+void settle_private_xfconf();
+
+/* seed_private_xfconf_profile:
+ * @channel_name: private Xfconf channel name.
+ * @property_base: panel-plugin property base to initialize.
+ * @schema_version: current schema version expected by the test.
+ *
+ * Seeds an already initialized profile so lifecycle tests exercise their
+ * target behavior without also replaying the migration write stream.
+ */
+void seed_private_xfconf_profile(const char* channel_name,
+		const char* property_base, int schema_version);
+
 #endif

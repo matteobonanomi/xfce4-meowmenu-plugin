@@ -338,6 +338,14 @@ void FavoritesPage::sort_descending()
 	set_menu_items();
 }
 
+void FavoritesPage::sort_favourites(bool descending)
+{
+	if (descending)
+		sort_descending();
+	else
+		sort_ascending();
+}
+
 //-----------------------------------------------------------------------------
 
 void FavoritesPage::view_created()

@@ -132,29 +132,37 @@ static int run_test(int argc, char** argv)
 	g_free(initial_tooltip);
 
 	plugin->set_button_style(Plugin::ShowIcon);
+	settle_private_xfconf();
 	assert(!gtk_widget_get_visible(GTK_WIDGET(label)));
 	assert(gtk_widget_get_visible(GTK_WIDGET(icon)));
 	assert(gtk_widget_get_has_tooltip(plugin->get_button()));
 
 	plugin->set_button_style(Plugin::ShowText);
+	settle_private_xfconf();
 	assert(gtk_widget_get_visible(GTK_WIDGET(label)));
 	assert(!gtk_widget_get_visible(GTK_WIDGET(icon)));
 	assert(!gtk_widget_get_has_tooltip(plugin->get_button()));
 
 	plugin->set_button_style(Plugin::ShowIconAndText);
+	settle_private_xfconf();
 	assert(gtk_widget_get_visible(GTK_WIDGET(label)));
 	assert(gtk_widget_get_visible(GTK_WIDGET(icon)));
 	assert(!gtk_widget_get_has_tooltip(plugin->get_button()));
 
 	assert_title_presentation(plugin, "<b>Meow &amp; Menu</b>",
 			"Meow & Menu");
+	settle_private_xfconf();
 	assert_title_presentation(plugin, "Meow Menu", "Meow Menu");
+	settle_private_xfconf();
 	assert_title_presentation(plugin,
 			"Cats &amp; Kittens &lt;3 &gt; 0 — 100%",
 			"Cats & Kittens <3 > 0 — 100%");
+	settle_private_xfconf();
 	assert_title_presentation(plugin, "<i>Live edit</i>", "Live edit");
+	settle_private_xfconf();
 
 	plugin->set_button_title("<b>Malformed title");
+	settle_private_xfconf();
 	gchar* malformed_tooltip =
 			gtk_widget_get_tooltip_text(plugin->get_button());
 	assert(std::strcmp(gtk_label_get_text(label), "<b>Malformed title") == 0);
@@ -182,6 +190,7 @@ static int run_test(int argc, char** argv)
 					++*static_cast<int*>(data);
 			}), &search_action_writes);
 
+	settle_private_xfconf();
 	g_signal_emit_by_name(host, "free-data");
 	while (g_main_context_iteration(nullptr, false))
 	{

@@ -1,12 +1,22 @@
-test_smoke_sources = ['test_smoke.cpp']
-
-test_smoke = executable(
-  'test_smoke',
-  test_smoke_sources,
-  dependencies: [],
+test_support = static_library(
+  'meowmenu-test-support',
+  files(
+    'support/assertions.cpp',
+    'support/glib-main-loop.cpp',
+    'support/temp-tree.cpp',
+    'support/gtk-fixture.cpp',
+    'support/application-fixture.cpp',
+    'support/xfconf-fixture.cpp',
+    'support/xfconf-xml.cpp',
+  ),
+  include_directories: include_directories('support', '..' / 'panel-plugin'),
+  dependencies: [gio, glib, gtk, xfconf],
 )
 
-test('smoke', test_smoke)
+test_support_dep = declare_dependency(
+  link_with: test_support,
+  include_directories: include_directories('support', '..' / 'panel-plugin'),
+)
 
 test_menu_mode_state = executable(
   'test_menu_mode_state',
@@ -15,36 +25,59 @@ test_menu_mode_state = executable(
     '..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [test_support_dep],
 )
 
 test('menu_mode_state', test_menu_mode_state)
 
-test_window_mode_integration = executable(
-  'test_window_mode_integration',
-  [
-    'test_window_mode_integration.cpp',
-	'..' / 'panel-plugin' / 'core' / 'menu-mode-state.cpp',
-	'..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
-	'..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
-	'..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
-	'..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
-	'..' / 'panel-plugin' / 'core' / 'user-session-relayout.cpp',
-  ],
+# Independent pure decisions share one executable. Each registration selects a
+# named case, so failures still identify the owning contract without copying
+# the same GTK-free setup into a dozen binaries.
+test_contract_matrix_sources = [
+  'test_contract_matrix.cpp',
+  '..' / 'panel-plugin' / 'core' / 'category-lifetime.cpp',
+  '..' / 'panel-plugin' / 'core' / 'interactive-resize.cpp',
+  '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
+  '..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
+  '..' / 'panel-plugin' / 'core' / 'opacity-model.cpp',
+  '..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
+  '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
+  '..' / 'panel-plugin' / 'config' / 'usage-stats.cpp',
+  '..' / 'panel-plugin' / 'launcher' / 'application-load-generation.cpp',
+  '..' / 'panel-plugin' / 'settings-reload-intent.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
+  '..' / 'panel-plugin' / 'ui' / 'switch-icons.cpp',
+  '..' / 'panel-plugin' / 'core' / 'user-session-relayout.cpp',
+]
+
+test_contract_matrix = executable(
+  'test_contract_matrix',
+  test_contract_matrix_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk, libxfce4util, xfconf],
+  dependencies: [test_support_dep, glib, gtk, libxfce4util, xfconf],
 )
 
-test('window_mode_integration', test_window_mode_integration)
+foreach contract_case : [
+  ['focus_router', 'keyboard'],
+  ['window_size_clamp', 'geometry'], ['layout_sensitivity', 'layout'],
+  ['window_frame', 'frame'],
+  ['menu_composition', 'composition'], ['grid_cell_metrics', 'grid'],
+  ['opacity_model', 'opacity'], ['switch_icons', 'icons'],
+  ['user_session_relayout', 'category'], ['reload_intent', 'reload'],
+  ['application_load_generation', 'generation'],
+]
+  test(
+    contract_case[0],
+    test_contract_matrix,
+    args: ['--case=' + contract_case[1]],
+  )
+endforeach
 
 # Package checks run without a display. Keep the pure integration checks
 # available there while ensuring display-backed cases skip before creating GTK
 # widgets.
-test(
-  'window_mode_integration_headless',
-  test_window_mode_integration,
-  env: ['DISPLAY=', 'GDK_BACKEND=x11'],
-)
-
 test_grid_presentation = executable(
   'test_grid_presentation',
   [
@@ -72,7 +105,7 @@ test_launcher_icon_view = executable(
   # presentation-helper test's source set.
   cpp_args: ['-ffunction-sections', '-fdata-sections'],
   link_args: ['-Wl,--gc-sections'],
-  dependencies: [exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, exo, garcon, glib, gio, gtk, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('launcher_icon_view', test_launcher_icon_view, timeout: 30)
@@ -95,27 +128,6 @@ test_launcher_tree_view = executable(
 
 test('launcher_tree_view', test_launcher_tree_view, timeout: 30)
 
-test_places_home_contract = executable(
-  'test_places_home_contract',
-  [
-    'test_places_home_contract.cpp',
-    '..' / 'panel-plugin' / 'places' / 'home-shortcuts.cpp',
-  ],
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib],
-)
-
-test('places_home_contract', test_places_home_contract)
-
-test_places_focus_policy = executable(
-  'test_places_focus_policy',
-  'test_places_focus_policy.cpp',
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
-)
-
-test('places_focus_policy', test_places_focus_policy)
-
 test(
   'release_version',
   python3,
@@ -135,6 +147,7 @@ test(
   python3,
   args: [meson.current_source_dir() / 'test_translation_status.py'],
   env: ['PYTHONDONTWRITEBYTECODE=1'],
+  timeout: 60,
 )
 
 test(
@@ -165,17 +178,13 @@ test(
   env: ['PYTHONDONTWRITEBYTECODE=1'],
 )
 
-test_xfce_helpers = executable(
-  'test_xfce_helpers',
-  [
-    'test_xfce_helpers.cpp',
-    '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
-  ],
-  cpp_args: xfce_helper_cpp_args,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib],
+test(
+  'suite_metrics_self_check',
+  python3,
+  args: [meson.current_source_dir() / 'test_suite_metrics.py',
+         '--self-check', '--root', meson.current_source_dir() / '..'],
+  env: ['PYTHONDONTWRITEBYTECODE=1'],
 )
-test('xfce_helpers', test_xfce_helpers)
 
 # Compile the helper selector in both supported modes, independent of which
 # optional helper library is present on the build host.
@@ -267,17 +276,6 @@ test_calculator_search_results = executable(
 )
 test('calculator_search_results', test_calculator_search_results)
 
-test_calculator_packaging = executable(
-  'test_calculator_packaging',
-  'test_calculator_packaging.cpp',
-  cpp_args: [
-    '-DMEOWMENU_DEBIAN_CONTROL="' + meson.current_source_dir() / '..' / 'debian' / 'control' + '"',
-    '-DMEOWMENU_RPM_SPEC="' + meson.current_source_dir() / '..' / 'dist' / 'rpm' / 'xfce4-meowmenu-plugin.spec' + '"',
-    '-DMEOWMENU_ARCH_PKGBUILD="' + meson.current_source_dir() / '..' / 'dist' / 'arch' / 'PKGBUILD' + '"',
-  ],
-)
-test('calculator_packaging', test_calculator_packaging)
-
 test_schema_migration_sources = ['test_schema_migration.cpp']
 
 test_schema_migration = executable(
@@ -286,7 +284,8 @@ test_schema_migration = executable(
   cpp_args: [
     '-DMEOWMENU_080_XFCONF_FIXTURE="' + meson.current_source_dir() / 'fixtures' / 'xfconf-0.8.0.xml' + '"',
   ],
-  dependencies: [],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, xfconf],
 )
 
 test('schema_migration', test_schema_migration)
@@ -308,17 +307,24 @@ test_preset = executable(
     '-DMEOWMENU_TEST_PRESET_DIR="' + meson.current_source_dir() / '..' / 'data' / 'presets' + '"',
   ],
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, xfconf],
+  dependencies: [glib, xfconf, libxfce4util],
 )
 
 test('preset', test_preset)
 
-test_preset_io_sources = ['test_preset_io.cpp']
+test_preset_io_sources = [
+  'test_preset_io.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-io.cpp',
+  '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
+]
 
 test_preset_io = executable(
   'test_preset_io',
   test_preset_io_sources,
-  dependencies: [],
+  cpp_args: ['-ffunction-sections', '-fdata-sections'],
+  link_args: ['-Wl,--gc-sections'],
+  include_directories: include_directories('..' / 'panel-plugin'),
+  dependencies: [glib, xfconf, libxfce4util],
 )
 
 test('preset_io', test_preset_io)
@@ -335,6 +341,7 @@ test('preset_io', test_preset_io)
 # skips cleanly (TAP SKIP, exit 0) when xfconfd / dbus-daemon are unavailable.
 test_preset_xfconf_sources = [
   'test_preset_xfconf.cpp',
+  'private-xfconf-fixture.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-io.cpp',
   '..' / 'panel-plugin' / 'presets' / 'preset-builtins.cpp',
@@ -353,7 +360,7 @@ test_preset_xfconf = executable(
   ],
   link_args: ['-Wl,--gc-sections'],
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gio, xfconf, libxfce4ui],
+  dependencies: [test_support_dep, glib, gio, xfconf, libxfce4ui],
 )
 
 test('preset_xfconf', test_preset_xfconf, timeout: 60)
@@ -448,16 +455,6 @@ test_desktop_drag = executable(
 
 test('desktop_drag', test_desktop_drag)
 
-test_home_search_sources = ['test_home_search.cpp']
-
-test_home_search = executable(
-  'test_home_search',
-  test_home_search_sources,
-  dependencies: [glib, gio],
-)
-
-test('home_search', test_home_search)
-
 # test_places_open: GTK-free coverage of the Places open-path hardening —
 # the g_shell_quote round-trip handed to the external helper (supported behavior) and
 # the open-failure reason string built for the error dialog (supported behavior). Compiles
@@ -481,24 +478,6 @@ test_places_open = executable(
 )
 
 test('places_open', test_places_open)
-
-# Supported per-instance key inventory and retired-key exclusion gate.
-test_settings_key_inventory_sources = ['test_settings_key_inventory.cpp']
-
-test_settings_key_inventory = executable(
-  'test_settings_key_inventory',
-  test_settings_key_inventory_sources,
-  cpp_args: [
-    # NOTE: path baked in at configure time so the test binary is
-    # independent of its working directory.
-    '-DMEOWMENU_TEST_XFCONF_SNAPSHOT_PATH="'
-      + meson.current_source_dir()
-      + '/fixtures/xfconf-keys.txt"',
-  ],
-  dependencies: [],
-)
-
-test('settings_key_inventory', test_settings_key_inventory)
 
 # test_search_ranking: characterization gate over Query match scoring. This is
 # a pure unit test because query.cpp depends only on GLib, so linking the
@@ -538,59 +517,10 @@ test_home_search_lifecycle = executable(
   test_home_search_lifecycle_sources,
   include_directories: include_directories('..' / 'panel-plugin'),
   cpp_args: xfce_helper_cpp_args,
-  dependencies: [glib, gio, gtk, libxfce4ui, libxfce4util],
+  dependencies: [test_support_dep, glib, gio, gtk, libxfce4ui, libxfce4util],
 )
 
 test('home_search_lifecycle', test_home_search_lifecycle, timeout: 30)
-
-# test_focus_router: headless coverage of physical directional resolution
-# implemented in panel-plugin/core/window-keyboard.cpp. Pulls only the
-# helper translation unit; no display server, no GTK widgets.
-test_focus_router_sources = [
-  'test_focus_router.cpp',
-  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
-]
-
-test_focus_router = executable(
-  'test_focus_router',
-  test_focus_router_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
-)
-
-test('focus_router', test_focus_router)
-
-# test_esc_ladder: headless coverage of the progressive Esc state
-# machine in panel-plugin/core/window-keyboard.cpp.
-test_esc_ladder_sources = [
-  'test_esc_ladder.cpp',
-  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
-]
-
-test_esc_ladder = executable(
-  'test_esc_ladder',
-  test_esc_ladder_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
-)
-
-test('esc_ladder', test_esc_ladder)
-
-# test_key_routing: headless coverage of classify_key /
-# is_printable_for_search. Fabricates GdkEventKey values directly.
-test_key_routing_sources = [
-  'test_key_routing.cpp',
-  '..' / 'panel-plugin' / 'core' / 'window-keyboard.cpp',
-]
-
-test_key_routing = executable(
-  'test_key_routing',
-  test_key_routing_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
-)
-
-test('key_routing', test_key_routing)
 
 # test_theme_fallback: headless coverage of the theme-aware background
 # fallback chooser in panel-plugin/core/theme-fallback.cpp. Pulls only the
@@ -609,76 +539,6 @@ test_theme_fallback = executable(
 
 test('theme_fallback', test_theme_fallback)
 
-# test_window_size_clamp: headless coverage of the pure window default-size
-# clamp in panel-plugin/core/window-size-clamp.cpp (HiDPI defensive guard,
-# cases C1..C7). Pulls only the GTK-free helper translation unit; no display
-# server, no GTK widgets.
-test_window_size_clamp_sources = [
-  'test_window_size_clamp.cpp',
-  '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
-]
-
-test_window_size_clamp = executable(
-  'test_window_size_clamp',
-  test_window_size_clamp_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk],
-)
-
-test('window_size_clamp', test_window_size_clamp)
-
-# test_centered_geometry: headless coverage of the pure Centered-mode decision
-# logic — the /layout-mode classifier in core/layout-mode.cpp and the
-# centred-origin geometry helper in core/window-size-clamp.cpp. GdkRectangle is
-# a plain integer struct, so gtk is linked for the type only; no display.
-test_centered_geometry_sources = [
-  'test_centered_geometry.cpp',
-  '..' / 'panel-plugin' / 'core' / 'window-size-clamp.cpp',
-  '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
-]
-
-test_centered_geometry = executable(
-  'test_centered_geometry',
-  test_centered_geometry_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk],
-)
-
-test('centered_geometry', test_centered_geometry)
-
-# Display-free coverage of the interactive resize geometry reducer. The
-# production helper has no GTK dependency and accepts plain logical geometry.
-test_interactive_resize_sources = [
-  'test_interactive_resize.cpp',
-  '..' / 'panel-plugin' / 'core' / 'interactive-resize.cpp',
-]
-
-test_interactive_resize = executable(
-  'test_interactive_resize',
-  test_interactive_resize_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
-)
-
-test('interactive_resize', test_interactive_resize)
-
-# test_layout_sensitivity: headless coverage of the pure supported behavior control-
-# sensitivity matrix (control_enabled) in core/layout-mode.cpp. No
-# display; the helper is GTK-free.
-test_layout_sensitivity_sources = [
-  'test_layout_sensitivity.cpp',
-  '..' / 'panel-plugin' / 'core' / 'layout-mode.cpp',
-]
-
-test_layout_sensitivity = executable(
-  'test_layout_sensitivity',
-  test_layout_sensitivity_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
-)
-
-test('layout_sensitivity', test_layout_sensitivity)
-
 # Persisted layout values share the production parsers used by rendering and
 # sizing callers. This target covers every supported value and safe fallback.
 test_layout_domains = executable(
@@ -694,187 +554,12 @@ test_layout_domains = executable(
 
 test('layout_domains', test_layout_domains)
 
-# test_window_frame: pure window-frame decisions plus display-backed ownership,
-# coalescing, bounded readiness, and dependency teardown for mapped result
-# frames. Visible damage ordering and native scroller clipping remain covered
-# by window_mode_integration.
-test_window_frame_sources = [
-  'test_window_frame.cpp',
-  '..' / 'panel-plugin' / 'core' / 'window-frame.cpp',
-]
-
-test_window_frame = executable(
-  'test_window_frame',
-  test_window_frame_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk],
-)
-
-test('window_frame', test_window_frame)
-
-# test_sidebar_layout: headless coverage of the pure layout-decision mapping in
-# panel-plugin/core/sidebar-layout.cpp (sidebar visibility, switch placement /
-# orientation, forced icon/name states). GTK-free helper; no display.
-test_sidebar_layout_sources = [
-  'test_sidebar_layout.cpp',
-  '..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
-  '..' / 'panel-plugin' / 'core' / 'sidebar-layout.cpp',
-]
-
-test_sidebar_layout = executable(
-  'test_sidebar_layout',
-  test_sidebar_layout_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
-)
-
-test('sidebar_layout', test_sidebar_layout)
-
-test_menu_composition = executable(
-  'test_menu_composition',
-  [
-    'test_menu_composition.cpp',
-    '..' / 'panel-plugin' / 'core' / 'menu-composition.cpp',
-  ],
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
-)
-
-test('menu_composition', test_menu_composition)
-
-# test_grid_cell_metrics: headless coverage of the pure icon-grid cell metric
-# arithmetic in panel-plugin/ui/grid-cell-metrics.cpp (minimum/natural width
-# and height from geometry inputs, with no label-text input). GTK-free helper;
-# no display.
-test_grid_cell_metrics_sources = [
-  'test_grid_cell_metrics.cpp',
-  '..' / 'panel-plugin' / 'ui' / 'grid-cell-metrics.cpp',
-]
-
-test_grid_cell_metrics = executable(
-  'test_grid_cell_metrics',
-  test_grid_cell_metrics_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [],
-)
-
-test('grid_cell_metrics', test_grid_cell_metrics)
-
-# test_opacity_model: headless coverage of the pure percentage->alpha and
-# per-region alpha-assignment helper in panel-plugin/core/opacity-model.cpp
-# (the 0=transparent / 100=solid contract, no dead zone, no inter-region
-# compounding). GTK-free helper; no display. Links glib because the same
-# translation unit now uses g_ascii_formatd for locale-independent alpha text.
-test_opacity_model_sources = [
-  'test_opacity_model.cpp',
-  '..' / 'panel-plugin' / 'core' / 'opacity-model.cpp',
-]
-
-test_opacity_model = executable(
-  'test_opacity_model',
-  test_opacity_model_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib],
-)
-
-test('opacity_model', test_opacity_model)
-
-# test_opacity_css_format: headless coverage of the locale-independent CSS
-# alpha formatter (meowmenu_format_css_alpha). Always-run assertions guarantee
-# dot-decimal output regardless of the ambient locale; an opportunistic block
-# additionally re-runs them under a comma-decimal locale activated thread-locally
-# (uselocale) when one is installed, and prints an explicit skip notice (never a
-# silent skip) when none is. Links glib for g_ascii_formatd.
-test_opacity_css_format_sources = [
-  'test_opacity_css_format.cpp',
-  '..' / 'panel-plugin' / 'core' / 'opacity-model.cpp',
-]
-
-test_opacity_css_format = executable(
-  'test_opacity_css_format',
-  test_opacity_css_format_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib],
-)
-
-test('opacity_css_format', test_opacity_css_format)
-
-# test_switch_icons: coverage of the Apps/Places icon-chain resolver in
-# panel-plugin/ui/switch-icons.cpp. Builds a synthetic on-disk icon theme so
-# the present/absent cases are deterministic; GtkIconTheme lookups need no
-# display.
-test_switch_icons_sources = [
-  'test_switch_icons.cpp',
-  '..' / 'panel-plugin' / 'ui' / 'switch-icons.cpp',
-]
-
-test_switch_icons = executable(
-  'test_switch_icons',
-  test_switch_icons_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk, libxfce4util, xfconf],
-)
-
-test('switch_icons', test_switch_icons, timeout: 30)
-
-# test_properties_switch: coverage of the shared Properties-dialog switch
-# factory make_form_switch() in panel-plugin/ui/properties/common.cpp. Asserts
-# the halign=START / valign=CENTER / inactive invariant that makes grid-attached
-# switches render compact instead of stretching to a wider sibling's column.
-# common.cpp uses only GLib + GTK, so it links directly. Building a GtkSwitch
-# creates its style context, which GTK 3 needs a display for: the test skips
-# cleanly when none is present and CI runs it under a virtual display.
-test_properties_switch_sources = [
-  'test_properties_switch.cpp',
-  '..' / 'panel-plugin' / 'ui' / 'properties' / 'common.cpp',
-]
-
-test_properties_switch = executable(
-  'test_properties_switch',
-  test_properties_switch_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, gtk, libxfce4util, xfconf],
-)
-
-test('properties_switch', test_properties_switch, timeout: 30)
-
-# test_user_session_relayout: GTK coverage for the guarded row-relayout helpers
-# used by window.cpp when Profile/Session visibility changes while Properties is
-# open. It skips cleanly when no display is available.
-test_user_session_relayout_sources = [
-  'test_user_session_relayout.cpp',
-  '..' / 'panel-plugin' / 'core' / 'user-session-relayout.cpp',
-]
-
-test_user_session_relayout = executable(
-  'test_user_session_relayout',
-  test_user_session_relayout_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk],
-)
-
-test('user_session_relayout', test_user_session_relayout)
-
-test_reload_intent_sources = [
-  'test_reload_intent.cpp',
-  '..' / 'panel-plugin' / 'settings-reload-intent.cpp',
-]
-
-test_reload_intent = executable(
-  'test_reload_intent',
-  test_reload_intent_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib, libxfce4util, xfconf],
-)
-
-test('reload_intent', test_reload_intent)
-
 test_settings_defaults = executable(
   'test_settings_defaults',
   ['test_settings_defaults.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('settings_defaults', test_settings_defaults, timeout: 30)
@@ -884,46 +569,20 @@ test_settings_dispatch = executable(
   ['test_settings_dispatch.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('settings_dispatch', test_settings_dispatch, timeout: 30)
-
-test_category_lifetime_sources = [
-  'test_category_lifetime.cpp',
-  '..' / 'panel-plugin' / 'core' / 'category-lifetime.cpp',
-]
-
-test_category_lifetime = executable(
-  'test_category_lifetime',
-  test_category_lifetime_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [gtk],
-)
-
-test('category_lifetime', test_category_lifetime, timeout: 30)
 
 test_category_activation = executable(
   'test_category_activation',
   ['test_category_activation.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('category_activation', test_category_activation, timeout: 30)
-
-test_usage_stats = executable(
-  'test_usage_stats',
-  [
-    'test_usage_stats.cpp',
-    '..' / 'panel-plugin' / 'config' / 'usage-stats.cpp',
-  ],
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib],
-)
-
-test('usage_stats', test_usage_stats)
 
 # Production command parsing and PATH availability share the same owned argv
 # boundary used by session and Element launch paths. Dead-section pruning keeps
@@ -937,17 +596,6 @@ test_command_interpretation_sources = [
   '..' / 'panel-plugin' / 'config' / 'xfce-helpers.cpp',
   '..' / 'panel-plugin' / 'search' / 'run-action.cpp',
 ]
-
-test_command_interpretation = executable(
-  'test_command_interpretation',
-  test_command_interpretation_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  cpp_args: ['-ffunction-sections', '-fdata-sections'],
-  link_args: ['-Wl,--gc-sections'],
-  dependencies: [glib, gtk, libxfce4ui, libxfce4util, xfconf],
-)
-
-test('command_interpretation', test_command_interpretation)
 
 foreach helper_variant : [
   ['legacy', '-DMEOWMENU_XFCE_SUCCESSOR=0'],
@@ -976,7 +624,7 @@ test_favorites_page = executable(
   ['test_favorites_page.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('favorites_page', test_favorites_page, timeout: 30)
@@ -986,7 +634,7 @@ test_result_surfaces = executable(
   ['test_result_surfaces.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('result_surfaces', test_result_surfaces, timeout: 30)
@@ -996,7 +644,7 @@ test_result_drag_contract = executable(
   ['test_result_drag_contract.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('result_drag_contract', test_result_drag_contract, timeout: 30)
@@ -1006,7 +654,7 @@ test_window_transactions = executable(
   ['test_window_transactions.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('window_transactions', test_window_transactions, timeout: 30)
@@ -1016,7 +664,7 @@ test_plugin_lifecycle = executable(
   ['test_plugin_lifecycle.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('plugin_lifecycle', test_plugin_lifecycle, timeout: 30)
@@ -1026,7 +674,7 @@ test_settings_dialog_lifecycle = executable(
   ['test_settings_dialog_lifecycle.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('settings_dialog_lifecycle', test_settings_dialog_lifecycle, timeout: 30)
@@ -1036,24 +684,10 @@ test_settings_lifecycle = executable(
   ['test_settings_lifecycle.cpp', 'private-xfconf-fixture.cpp'],
   link_with: meowmenu_test_runtime,
   include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
+  dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
 test('settings_lifecycle', test_settings_lifecycle, timeout: 30)
-
-test_application_load_generation_sources = [
-  'test_application_load_generation.cpp',
-  '..' / 'panel-plugin' / 'launcher' / 'application-load-generation.cpp',
-]
-
-test_application_load_generation = executable(
-  'test_application_load_generation',
-  test_application_load_generation_sources,
-  include_directories: include_directories('..' / 'panel-plugin'),
-  dependencies: [glib],
-)
-
-test('application_load_generation', test_application_load_generation)
 
 # test_launcher_safeguard_lifecycle: headless freeze for the supported
 # scroll-reveal safeguard lifetime. The fix lives entirely in the header-only

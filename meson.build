@@ -117,6 +117,10 @@ elif optimization in ['3', 's']
   ]
 endif
 
+if get_option('enable_tests')
+  extra_cflags += ['-UNDEBUG', '-UG_DISABLE_ASSERT']
+endif
+
 if dependency_versions.has_key('glib')
   glib_version_parts = dependency_versions['glib'].split(' ')
   glib_min_version_parts = glib_version_parts[1].split('.')

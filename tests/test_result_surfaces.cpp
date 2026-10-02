@@ -12,6 +12,7 @@
 #include "launcher/favorites-page.h"
 #include "places/places-page.h"
 #include "private-xfconf-fixture.h"
+#include "settings-defaults.h"
 #include "settings.h"
 #include "ui/launcher-view.h"
 
@@ -78,6 +79,7 @@ void exercise_view_replacement(Settings* settings, FavoritesPage* favorites,
 		PlacesPage* places)
 {
 	settings->view_mode = Settings::ViewAsIcons;
+	settle_private_xfconf();
 	favorites->update_view();
 	places->reload_view();
 
@@ -87,6 +89,7 @@ void exercise_view_replacement(Settings* settings, FavoritesPage* favorites,
 	gtk_widget_hide(old_favorites);
 	favorites->present();
 	settings->view_mode = Settings::ViewAsList;
+	settle_private_xfconf();
 	favorites->update_view();
 	while (g_main_context_pending(nullptr))
 		g_main_context_iteration(nullptr, FALSE);
@@ -121,12 +124,15 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9002,
 			nullptr));
 	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	Window* window = plugin->get_window();
 	exercise_result_surface(window->get_applications());
 	exercise_result_surface(window->get_places());
 	exercise_view_replacement(plugin->get_settings(),
 			window->get_favorites(), window->get_places());
+	settle_private_xfconf();
 
 	std::printf("test_result_surfaces: ok\n");
 	return 0;

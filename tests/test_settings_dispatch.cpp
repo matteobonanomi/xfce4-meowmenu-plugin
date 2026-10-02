@@ -124,13 +124,17 @@ static int run_test(int argc, char** argv)
 	// Both coupled-setting repairs remain part of every external notification.
 	assert(xfconf_channel_set_bool(settings->channel,
 			"/category-show-name", false));
+	settle_private_xfconf();
 	assert(xfconf_channel_set_int(settings->channel,
 			"/category-icon-size", IconSize::NONE));
+	settle_private_xfconf();
 	assert(settings->category_show_name);
 	assert(xfconf_channel_set_int(settings->channel,
 			"/recent-items-max", 0));
+	settle_private_xfconf();
 	assert(xfconf_channel_set_int(settings->channel,
 			"/default-category", Settings::CategoryRecent));
+	settle_private_xfconf();
 	assert(static_cast<int>(settings->default_category)
 			== Settings::CategoryFavorites);
 
@@ -153,6 +157,10 @@ static int run_test(int argc, char** argv)
 
 	g_signal_handler_disconnect(settings->channel, observer);
 	delete dialog;
+	GHashTable* persisted = xfconf_channel_get_properties(settings->channel, nullptr);
+	if (persisted)
+		g_hash_table_destroy(persisted);
+	settle_private_xfconf();
 	g_signal_emit_by_name(host, "free-data");
 	std::printf("test_settings_dispatch: ok\n");
 	return 0;

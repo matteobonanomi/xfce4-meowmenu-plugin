@@ -23,6 +23,9 @@
 
 #include "../panel-plugin/places/home-search-worker.h"
 #include "../panel-plugin/places/places-item.h"
+#include "support/assertions.h"
+#include "support/glib-main-loop.h"
+#include "support/temp-tree.h"
 
 #include <gio/gio.h>
 #include <glib.h>
@@ -33,11 +36,15 @@
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <memory>
 #include <string>
 #include <vector>
 
 using WhiskerMenu::HomeSearchWorker;
 using WhiskerMenu::PlacesItem;
+
+#undef assert
+#define assert(condition) MEOWMENU_TEST_CHECK(condition)
 
 namespace
 {
@@ -55,6 +62,8 @@ namespace
 // ---------------------------------------------------------------------------
 
 std::string g_scratch_root;
+std::unique_ptr<meowmenu_test::TemporaryTree> g_tree;
+std::unique_ptr<meowmenu_test::EnvironmentScope> g_environment;
 
 bool mkdir_p(const std::string& path)
 {
@@ -101,20 +110,12 @@ void rmrf(const std::string& path)
 
 bool fixture_init()
 {
-	gchar* tmpl = g_strdup("/tmp/meow-home-search-test-XXXXXX");
-	gchar* dir = g_mkdtemp(tmpl);
-	if (!dir)
-	{
-		g_free(tmpl);
+	g_environment.reset(new meowmenu_test::EnvironmentScope({"HOME"}));
+	g_tree.reset(new meowmenu_test::TemporaryTree());
+	if (!g_tree->valid())
 		return false;
-	}
-	g_scratch_root = dir;
-	g_free(tmpl);
-
-	// Point $HOME at the scratch root BEFORE any GLib home-dir resolution.
-	// g_get_home_dir() caches on first call and ignores later HOME changes,
-	// so this must run before gtk_init_check() and before the worker starts;
-	// main() calls fixture_init() first to guarantee that ordering.
+	g_scratch_root = g_tree->root();
+	// Point HOME at the scratch root before GLib resolves it for the worker.
 	g_setenv("HOME", g_scratch_root.c_str(), TRUE);
 	return true;
 }
@@ -126,6 +127,8 @@ void fixture_cleanup()
 		rmrf(g_scratch_root);
 		g_scratch_root.clear();
 	}
+	g_tree.reset();
+	g_environment.reset();
 }
 
 void reset_tree()
@@ -172,7 +175,6 @@ struct DriveResult
 DriveResult drive_worker(const std::string& query, int cap)
 {
 	DriveResult result;
-	GMainLoop* loop = g_main_loop_new(nullptr, FALSE);
 	std::mutex mu;
 
 	gchar* folded = g_utf8_casefold(query.c_str(), -1);
@@ -196,29 +198,30 @@ DriveResult drive_worker(const std::string& query, int cap)
 			{
 				std::lock_guard<std::mutex> guard(mu);
 				result.done_fired = true;
-				g_main_loop_quit(loop);
 			});
 	g_free(folded);
-
-	// Failsafe timeout — the worker honors HARD_BUDGET_US (300ms) plus
-	// any pending idle dispatch. Two seconds is generous.
-	guint timeout = g_timeout_add(2000,
-			[](gpointer data) -> gboolean
-			{
-				g_main_loop_quit(static_cast<GMainLoop*>(data));
-				return G_SOURCE_REMOVE;
-			},
-			loop);
-
-	g_main_loop_run(loop);
-	g_source_remove(timeout);
+	meowmenu_test::run_until([&]() { return result.done_fired; }, 2000,
+			"home-search completion");
 
 	// Worker may not be done yet if the failsafe fired; cancel + delete
 	// is idempotent.
 	worker->cancel();
 	delete worker;
-	g_main_loop_unref(loop);
 	return result;
+}
+
+struct TimeoutState
+{
+	bool* expired;
+	meowmenu_test::SourceOwner* owner;
+};
+
+gboolean mark_timeout(gpointer data)
+{
+	TimeoutState* state = static_cast<TimeoutState*>(data);
+	*state->expired = true;
+	state->owner->fired();
+	return G_SOURCE_REMOVE;
 }
 
 bool contains(const std::vector<std::string>& v, const std::string& needle)
@@ -338,31 +341,25 @@ void test_immediate_cancel_silences_callbacks()
 	// Drive manually: start, cancel before the first idle ticks, then
 	// pump the main loop briefly. The cancel() contract states that
 	// after return no user callback will fire.
-	GMainLoop* loop = g_main_loop_new(nullptr, FALSE);
 	int result_count = 0;
 	bool done_seen = false;
 
 	gchar* folded = g_utf8_casefold("foobar", -1);
 	HomeSearchWorker* worker = HomeSearchWorker::start(
-			folded, 0,
-			[&](PlacesItem* item) { ++result_count; delete item; },
-			[&]() { done_seen = true; g_main_loop_quit(loop); });
+		folded, 0,
+		[&](PlacesItem* item) { ++result_count; delete item; },
+		[&]() { done_seen = true; });
 	g_free(folded);
 
 	worker->cancel();
-
-	guint timeout = g_timeout_add(300,
-			[](gpointer data) -> gboolean
-			{
-				g_main_loop_quit(static_cast<GMainLoop*>(data));
-				return G_SOURCE_REMOVE;
-			},
-			loop);
-	g_main_loop_run(loop);
-	g_source_remove(timeout);
+	bool expired = false;
+	meowmenu_test::SourceOwner timeout_owner;
+	TimeoutState timeout_state = {&expired, &timeout_owner};
+	timeout_owner.attach(g_timeout_add(300, mark_timeout, &timeout_state));
+	meowmenu_test::run_until([&]() { return done_seen || expired; }, 300,
+			"cancelled home-search worker");
 
 	delete worker;
-	g_main_loop_unref(loop);
 
 	assert(result_count == 0
 		&& "cancel() before any idle must silence result callbacks");
@@ -387,18 +384,6 @@ int main(int argc, char** argv)
 	if (!fixture_init())
 	{
 		std::printf("# SKIP: cannot create scratch HOME\n");
-		return 0;
-	}
-
-	// gtk_init_check is required because element.cpp pulls in GTK
-	// headers; the worker itself never touches GTK widgets, but the
-	// translation unit links GTK symbols that need an initialised
-	// X11/Wayland display only for widget construction. Plain
-	// g_type_init is enough for the GObject side.
-	if (!gtk_init_check(&argc, &argv))
-	{
-		std::printf("# SKIP: GTK could not initialise (no display)\n");
-		fixture_cleanup();
 		return 0;
 	}
 

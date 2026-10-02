@@ -42,6 +42,15 @@ public:
 	void move_up(Launcher* launcher);
 	void move_down(Launcher* launcher);
 
+	/* sort_favourites:
+	 * @descending: apply the reverse alphabetical order when true.
+	 *
+	 * Applies the same ordering used by the context-menu actions. Keeping this
+	 * small operation on the production object lets non-native fixture tests
+	 * verify the outcome without synthesizing a pointer event.
+	 */
+	void sort_favourites(bool descending);
+
 	/* set_item_inserted_callback:
 	 * @callback: observer owned by the Window that owns this page.
 	 *

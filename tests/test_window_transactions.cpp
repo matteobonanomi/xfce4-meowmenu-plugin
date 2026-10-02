@@ -13,7 +13,9 @@
 #include "launcher/favorites-page.h"
 #include "launcher/recent-page.h"
 #include "private-xfconf-fixture.h"
+#include "settings-defaults.h"
 #include "settings.h"
+#include "support/glib-main-loop.h"
 
 using namespace WhiskerMenu;
 
@@ -109,6 +111,7 @@ void assert_configured_defaults(Settings* settings, Window* window)
 			Settings::CategoryRecent, Settings::CategoryAll })
 	{
 		settings->default_category = category;
+		settle_private_xfconf();
 		window->show(Window::PositionAtCenter);
 		assert(window->get_active_page() == expected_default_page(settings, window));
 		window->dismiss(Window::DismissReason::Explicit);
@@ -134,6 +137,7 @@ void assert_stable_layout_reconciliation(Settings* settings, Window* window)
 		settings->layout_mode = mode;
 		settings->sidebar_enabled = enabled;
 		settings->sidebar_position = position;
+		settle_private_xfconf();
 		gtk_widget_set_default_direction(direction);
 		window->refresh_layout();
 		GtkWidget* button = window->get_applications()->get_button()->get_widget();
@@ -167,6 +171,8 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9004,
 			nullptr));
 	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	Settings* settings = plugin->get_settings();
 	Window* window = plugin->get_window();
@@ -183,26 +189,31 @@ static int run_test(int argc, char** argv)
 	settings->sidebar_enabled = true;
 	settings->sidebar_position = "horizontal";
 	settings->places_enabled = true;
+	settle_private_xfconf();
 	window->show(Window::PositionAtCenter);
-	assert(gtk_widget_get_visible(window->get_widget()));
+	assert(meowmenu_test::run_until([&]() { return gtk_widget_get_visible(window->get_widget()); }, 2000, "window visibility after show"));
 	assert(window->get_result_toplevel_width_authority() == 480);
 	assert(window->get_result_viewport_width_cap() == -1);
 	settings->layout_mode = "centered";
+	settle_private_xfconf();
 	assert(window->get_result_toplevel_width_authority() == 480);
 	assert(window->get_result_viewport_width_cap() == -1);
 	settings->layout_mode = "unsupported";
+	settle_private_xfconf();
 	assert(window->get_result_toplevel_width_authority() == 480);
 	assert(window->get_result_viewport_width_cap() == -1);
 	settings->layout_mode = "fullscreen";
+	settle_private_xfconf();
 	const int fullscreen_width = window->get_result_toplevel_width_authority();
 	assert(fullscreen_width > 0);
 	assert(window->get_result_viewport_width_cap()
 			== meow_fullscreen_main_column(fullscreen_width).width);
 	settings->layout_mode = "docked";
+	settle_private_xfconf();
 	window->refresh_layout();
 	window->refresh_layout();
 	drain_ready_sources();
-	assert(gtk_widget_get_visible(window->get_widget()));
+	assert(meowmenu_test::run_until([&]() { return gtk_widget_get_visible(window->get_widget()); }, 2000, "window visibility after layout refresh"));
 
 	window->switch_mode(true);
 	assert(window->is_places_active());
@@ -236,6 +247,7 @@ static int run_test(int argc, char** argv)
 	assert(!gtk_widget_get_visible(window->get_widget()));
 
 	settings->default_category = Settings::CategoryFavorites;
+	settle_private_xfconf();
 	window->show(Window::PositionAtCenter);
 	window->dismiss(Window::DismissReason::Explicit);
 	assert(!gtk_widget_get_visible(window->get_widget()));
@@ -279,6 +291,7 @@ static int run_test(int argc, char** argv)
 	assert(gtk_widget_get_visible(window->get_widget()));
 	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
 			&focus_out, &handled);
+	settle_private_xfconf();
 	g_signal_emit_by_name(host, "free-data");
 	drain_ready_sources();
 	std::printf("test_window_transactions: ok\n");

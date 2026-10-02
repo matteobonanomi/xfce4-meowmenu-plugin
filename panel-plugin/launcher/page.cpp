@@ -859,10 +859,16 @@ void Page::create_context_menu(GtkTreePath* path, GdkEvent* event)
 
 	gtk_widget_show_all(menu);
 
-	// Show context menu
+	// Show context menu. Keyboard-triggered popup-menu signals do not carry a
+	// pointer event, so anchor those menus to the view instead of passing a
+	// null event to gtk_menu_popup_at_pointer().
 	m_window->set_child_has_focus();
 	gtk_menu_attach_to_widget(GTK_MENU(menu), m_view->get_widget(), nullptr);
-	gtk_menu_popup_at_pointer(GTK_MENU(menu), event);
+	if (event)
+		gtk_menu_popup_at_pointer(GTK_MENU(menu), event);
+	else
+		gtk_menu_popup_at_widget(GTK_MENU(menu), m_view->get_widget(),
+				GDK_GRAVITY_SOUTH_WEST, GDK_GRAVITY_NORTH_WEST, nullptr);
 
 	// Keep selection
 	m_view->select_path(path);

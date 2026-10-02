@@ -11,6 +11,7 @@
 #include "launcher/category-activation.h"
 #include "launcher/category-button.h"
 #include "private-xfconf-fixture.h"
+#include "settings-defaults.h"
 #include "settings.h"
 
 using namespace WhiskerMenu;
@@ -117,6 +118,8 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9006,
 			nullptr));
 	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	ApplicationsPage* applications = plugin->get_window()->get_applications();
 	assert(wait_for_publication(applications));
@@ -186,6 +189,7 @@ static int run_test(int argc, char** argv)
 	delete anchor;
 
 	g_object_unref(icon);
+	settle_private_xfconf();
 	std::puts("test_category_activation: ok");
 	return 0;
 }

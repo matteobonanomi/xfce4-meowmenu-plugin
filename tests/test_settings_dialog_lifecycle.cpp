@@ -9,7 +9,9 @@
 
 #include "core/plugin.h"
 #include "private-xfconf-fixture.h"
+#include "presets/preset.h"
 #include "settings-dialog.h"
+#include "settings-defaults.h"
 #include "settings.h"
 
 using namespace WhiskerMenu;
@@ -80,8 +82,12 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9006,
 			nullptr));
 	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	Settings* settings = plugin->get_settings();
+	apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *settings);
+	settle_private_xfconf();
 	SettingsDialog* dialog = new SettingsDialog(settings, plugin);
 	std::vector<GtkWidget*> widgets;
 	collect_widgets(dialog->get_widget(), &widgets);

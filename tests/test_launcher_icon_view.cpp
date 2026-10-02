@@ -11,6 +11,7 @@
 #include "ui/grid-cell-metrics.h"
 #include "ui/icon-renderer.h"
 #include "core/window-frame.h"
+#include "support/gtk-fixture.h"
 
 #include <gtk/gtk.h>
 
@@ -263,17 +264,18 @@ void check_applications_and_places_share_automatic_policy()
 
 int main()
 {
-	if (!gtk_init_check(nullptr, nullptr))
-	{
-		std::printf("# SKIP: GTK could not initialise (no display)\n");
+	if (!meowmenu_test::ensure_display(
+			meowmenu_test::DisplayRequirement::DeveloperOptional,
+			"launcher icon view"))
 		return 77;
-	}
 	check_hidden_populated_layout();
 	check_applications_and_places_share_automatic_policy();
 
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	GtkWidget* view_widget = gtk_icon_view_new();
+	GtkWidget* scroller = gtk_scrolled_window_new(nullptr, nullptr);
 	g_object_ref_sink(window);
+	gtk_window_set_default_size(GTK_WINDOW(window), 420, 260);
 	GtkIconView* view = GTK_ICON_VIEW(view_widget);
 	GtkListStore* model = gtk_list_store_new(1, G_TYPE_STRING);
 	for (const char* text : {"One", "Two", "Three", "Four", "Five"})
@@ -283,7 +285,8 @@ int main()
 	gtk_icon_view_set_item_width(view, 80);
 	gtk_icon_view_set_columns(view, 2);
 	gtk_icon_view_set_selection_mode(view, GTK_SELECTION_SINGLE);
-	gtk_container_add(GTK_CONTAINER(window), view_widget);
+	gtk_container_add(GTK_CONTAINER(scroller), view_widget);
+	gtk_container_add(GTK_CONTAINER(window), scroller);
 
 	g_signal_connect(view, "item-activated",
 			G_CALLBACK(+[](GtkIconView*, GtkTreePath*, gpointer)

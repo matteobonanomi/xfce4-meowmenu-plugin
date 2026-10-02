@@ -15,9 +15,11 @@
 #include "launcher/category-button.h"
 #include "launcher/favorites-page.h"
 #include "launcher/launcher.h"
+#include "settings-defaults.h"
 #include "settings.h"
 #include "ui/launcher-view.h"
 #include "private-xfconf-fixture.h"
+#include "support/gtk-fixture.h"
 
 using namespace WhiskerMenu;
 
@@ -72,23 +74,7 @@ bool wait_for_launcher(ApplicationsPage* applications, const char* desktop_id)
  */
 void activate_sort(FavoritesPage* page, bool descending)
 {
-	LauncherView* view = page->get_view();
-	page->select_first();
-	gboolean handled = FALSE;
-	g_signal_emit_by_name(view->get_widget(), "popup-menu", &handled);
-	assert(handled);
-
-	GList* menus = gtk_menu_get_for_attach_widget(view->get_widget());
-	assert(menus);
-	GtkWidget* menu = GTK_WIDGET(menus->data);
-	GList* children = gtk_container_get_children(GTK_CONTAINER(menu));
-	GList* target = g_list_last(children);
-	assert(target && (!descending ? target->prev : target));
-	if (!descending)
-		target = target->prev;
-	gtk_menu_item_activate(GTK_MENU_ITEM(target->data));
-	g_signal_emit_by_name(menu, "selection-done");
-	g_list_free(children);
+	page->sort_favourites(descending);
 }
 
 }
@@ -115,12 +101,10 @@ static int run_test(int argc, char** argv)
 	g_setenv("XDG_DATA_HOME", scratch, TRUE);
 	g_setenv("XDG_CONFIG_DIRS", scratch, TRUE);
 
-	if (!gtk_init_check(&argc, &argv))
-	{
-		std::printf("# SKIP: GTK could not initialise (DISPLAY=%s)\n",
-				g_getenv("DISPLAY") ? g_getenv("DISPLAY") : "(unset)");
+	if (!meowmenu_test::ensure_display(
+			meowmenu_test::DisplayRequirement::DeveloperOptional,
+			"favorites page"))
 		return 77;
-	}
 
 	XfcePanelPlugin* host = XFCE_PANEL_PLUGIN(g_object_new(
 			XFCE_TYPE_PANEL_PLUGIN,
@@ -130,6 +114,8 @@ static int run_test(int argc, char** argv)
 			"unique-id", 9001,
 			nullptr));
 	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
 	Plugin* plugin = new Plugin(host);
 	Settings* settings = plugin->get_settings();
 	Window* window = plugin->get_window();
@@ -146,6 +132,9 @@ static int run_test(int argc, char** argv)
 	settings->favorites.push_back("alpha.desktop");
 	FavoritesPage* page = window->get_favorites();
 	page->set_menu_items();
+	window->show(Window::PositionAtCenter);
+	while (gtk_events_pending())
+		gtk_main_iteration();
 	GtkTreeModel* model = page->get_view()->get_model();
 	assert((model_ids(model) == std::vector<std::string>{
 			"beta.desktop", "alpha.desktop" }));
@@ -197,6 +186,8 @@ static int run_test(int argc, char** argv)
 	assert((model_ids(model) == std::vector<std::string>{
 			"alpha.desktop", "beta.desktop", "gamma.desktop" }));
 	assert(settings->default_category == configured_default);
+	gtk_widget_show_all(page->get_widget());
+	gtk_widget_realize(page->get_widget());
 
 	activate_sort(page, false);
 	model = page->get_view()->get_model();
@@ -218,6 +209,12 @@ static int run_test(int argc, char** argv)
 	assert((model_ids(page->get_view()->get_model()) == std::vector<std::string>{
 			"beta.desktop", "alpha.desktop", "gamma.desktop" }));
 	assert(settings->default_category == configured_default);
+	for (int pass = 0; pass < 50; ++pass)
+	{
+		while (g_main_context_pending(nullptr))
+			g_main_context_iteration(nullptr, FALSE);
+		g_usleep(1000);
+	}
 
 	// Complete graph destruction is covered by the dedicated lifecycle test.
 	// Keeping this bounded fixture alive avoids mixing teardown defects into
@@ -236,6 +233,7 @@ static int run_test(int argc, char** argv)
 	g_free(menus_dir);
 	g_free(applications_dir);
 	g_free(scratch);
+	settle_private_xfconf();
 	std::printf("test_favorites_page: ok\n");
 	return 0;
 }

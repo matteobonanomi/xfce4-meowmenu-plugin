@@ -195,6 +195,7 @@ static int run_test(int argc, char** argv)
 	Plugin* plugin = new Plugin(host);
 	assert_descriptor_policy();
 	assert_default_matrix(*plugin->get_settings());
+	settle_private_xfconf();
 	g_signal_emit_by_name(host, "free-data");
 	std::printf("test_settings_defaults: ok\n");
 	return 0;
