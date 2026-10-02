@@ -154,10 +154,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "view-mode-default",    PresetValue::from_str("icons")       },
 			{ "default-category",     PresetValue::from_str("recent")      },
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)        },
-			// NOTE: 450 reconciles the C++ table with the shipped
-			// modern.meowpreset (which already carried 450), so a fresh
-			// Modern install keeps its current width.
-			{ "menu-width",           PresetValue::from_int(450)           },
+			{ "menu-width",           PresetValue::from_int(590)           },
 			{ "menu-height",          PresetValue::from_int(500)           },
 			{ "places-enabled",       PresetValue::from_bool(true)         },
 			{ "places-show-icons",    PresetValue::from_bool(true)         },

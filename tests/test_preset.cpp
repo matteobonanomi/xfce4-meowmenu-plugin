@@ -46,6 +46,8 @@ void test_builtin_values_and_provenance()
 	CHECK(BUILTIN_PRESETS[PRESET_CLASSIC].values.at("menu-opacity").i == 100);
 	CHECK(BUILTIN_PRESETS[PRESET_FULLSCREEN].values.at("menu-opacity").i == 80);
 	CHECK(BUILTIN_PRESETS[PRESET_MINIMAL].values.at("menu-opacity").i == 60);
+	CHECK(BUILTIN_PRESETS[PRESET_MODERN].values.at("menu-width").i == 590);
+	CHECK(BUILTIN_PRESETS[PRESET_MODERN].values.at("menu-height").i == 500);
 	CHECK(preset_name_for_display(BUILTIN_PRESETS[PRESET_MODERN])
 			== BUILTIN_PRESETS[PRESET_MODERN].name);
 	CHECK(preset_description_for_display(BUILTIN_PRESETS[PRESET_CLASSIC])

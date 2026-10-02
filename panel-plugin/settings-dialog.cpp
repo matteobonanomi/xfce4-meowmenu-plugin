@@ -35,6 +35,7 @@
 #include "ui/properties/preset-sync.h"
 
 #include <algorithm>
+#include <set>
 
 #include <libxfce4panel/libxfce4panel.h>
 #include <libxfce4ui/libxfce4ui.h>
@@ -884,14 +885,22 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 	gtk_list_store_clear(m_preset_model);
 
 	// Built-ins first (file-seeded order), bold.
+	std::set<std::string> added_preset_ids;
+	auto append_unique_preset = [&](const LayoutPreset& preset, bool is_builtin)
+	{
+		// Keep the first row for a stable ID. Built-ins are appended first so a
+		// legacy user entry cannot render a second copy of the same preset.
+		if (!added_preset_ids.insert(preset.id).second)
+			return;
+		append_preset_row(m_preset_model, preset.id,
+			preset_name_for_display(preset), is_builtin);
+	};
+
 	const auto& file_presets = get_file_presets();
 	if (!file_presets.empty())
 	{
 		for (const auto& p : file_presets)
-		{
-			const std::string label = preset_name_for_display(p);
-			append_preset_row(m_preset_model, p.id, label, true);
-		}
+			append_unique_preset(p, true);
 	}
 	else
 	{
@@ -899,18 +908,14 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 		for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
 		{
 			const LayoutPreset& preset = BUILTIN_PRESETS[i];
-			append_preset_row(m_preset_model, preset.id,
-				preset_name_for_display(preset), true);
+			append_unique_preset(preset, true);
 		}
 	}
 
 	// Then saved customs (uuid order), standard weight.
 	const auto& user = enumerate_user_presets(m_settings->channel);
 	for (const auto& p : user)
-	{
-		const std::string label = preset_name_for_display(p);
-		append_preset_row(m_preset_model, p.id, label, false);
-	}
+		append_unique_preset(p, false);
 
 	m_programmatic_update = false;
 

@@ -64,6 +64,35 @@ GtkWidget* find_opacity_scale(const std::vector<GtkWidget*>& widgets)
 	return nullptr;
 }
 
+/* count_preset_rows:
+ * @presets: combo box whose model is inspected.
+ * @id: stable preset identifier to count.
+ *
+ * Counts rows with the requested stable ID so the regression check is not
+ * affected by unrelated custom presets already present in the test profile.
+ */
+int count_preset_rows(GtkComboBox* presets, const char* id)
+{
+	GtkTreeModel* model = gtk_combo_box_get_model(presets);
+	GtkTreeIter iter;
+	int count = 0;
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return 0;
+
+	do
+	{
+		gchar* row_id = nullptr;
+		gtk_tree_model_get(model, &iter,
+			SettingsDialog::PRESET_COL_ID, &row_id, -1);
+		if (row_id && std::strcmp(row_id, id) == 0)
+			++count;
+		g_free(row_id);
+	}
+	while (gtk_tree_model_iter_next(model, &iter));
+
+	return count;
+}
+
 }
 
 static int run_test(int argc, char** argv)
@@ -87,6 +116,12 @@ static int run_test(int argc, char** argv)
 	Plugin* plugin = new Plugin(host);
 	Settings* settings = plugin->get_settings();
 	apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *settings);
+	// A legacy profile can contain a user row whose id collides with a built-in.
+	// The built-in must remain the sole visible row for that stable id.
+	xfconf_channel_set_string(settings->channel,
+		"/presets/modern/display-name", "Modern");
+	xfconf_channel_set_string(settings->channel,
+		"/presets/modern/name", "Modern");
 	settle_private_xfconf();
 	SettingsDialog* dialog = new SettingsDialog(settings, plugin);
 	std::vector<GtkWidget*> widgets;
@@ -94,6 +129,7 @@ static int run_test(int argc, char** argv)
 
 	GtkComboBox* presets = find_preset_combo(widgets);
 	assert(presets);
+	assert(count_preset_rows(presets, "modern") == 1);
 	const gchar* initial_id = gtk_combo_box_get_active_id(presets);
 	assert(initial_id);
 	assert(settings->current_preset_id == initial_id);
