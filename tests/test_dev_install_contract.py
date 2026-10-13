@@ -26,18 +26,23 @@ def main() -> None:
     assert "installed package payload is missing" in source
     assert "pgrep -f 'wrapper-2\\.0 .*libmeowmenu\\.so'" in source
     assert "--clean-stale-dev" in source
-    assert "Potential conflicting MeowMenu development modules found" in source
+    assert "Removing stale MeowMenu development payloads from known prefixes." in source
+    assert "remove_dev_payload_under_root" in source
+    assert "PANEL_XDG_DATA_DIRS" in source
+    assert 'XDG_DATA_DIRS="${PANEL_XDG_DATA_DIRS}"' in source
+    assert "MEOWMENU_WAS_CONFIGURED" in source
     assert "readelf -d" in source
     assert "INSTALLED_SANITIZER_DEPS" in source
     assert "Installed module:" in source
     assert "/usr/local" in source
-    assert source.index("collect_known_modules") < source.index("meson compile -C")
+    assert source.index("remove_dev_payload_under_root") < source.index("meson compile -C")
 
     assert "is_protected_system_path" in uninstall_source
     assert "XDG_DATA_HOME" in uninstall_source
     assert "XDG_CACHE_HOME" in uninstall_source
     assert "USER_CACHE_DIR" in uninstall_source
-    assert "Other custom prefixes are not searched" in uninstall_source
+    assert "Known temporary MeowMenu prefixes are searched as well." in uninstall_source
+    assert "remove_dev_payload_under_root" in uninstall_source
 
     remove_data = source.index('rm -rf -- "${USER_MEOWMENU_DATA}"')
     install_payload = source.index("meson install --no-rebuild")
