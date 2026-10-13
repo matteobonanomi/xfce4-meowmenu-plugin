@@ -91,6 +91,45 @@ remove_exact_tree() {
     sudo rm -rf -- "${target}" 2>/dev/null || true
 }
 
+# remove_dev_payload_under_root:
+# @1: approved development prefix to inspect.
+#
+# Removes only exact MeowMenu payload paths, leaving unrelated files intact.
+remove_dev_payload_under_root() {
+    local root="$1"
+    local candidate
+
+    [[ -d "${root}" ]] || return 0
+    while IFS= read -r -d '' candidate; do
+        step "Remove development file ${candidate}"
+        remove_exact_file "${candidate}"
+        if [[ -e "${candidate}" || -L "${candidate}" ]]; then
+            echo "FAILED: development file remains: ${candidate}"
+            exit 1
+        fi
+    done < <(find "${root}" \
+        \( -path '*/xfce4/panel/plugins/libmeowmenu.so' \
+        -o -path '*/xfce4/panel/plugins/meowmenu.desktop' \
+        -o -path '*/bin/xfce4-popup-meowmenu' \
+        -o -path '*/share/man/man1/xfce4-popup-meowmenu.1' \
+        -o -path '*/share/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml' \
+        -o -path '*/share/icons/hicolor/*/apps/org.xfce.panel.meowmenu.png' \
+        -o -path '*/share/icons/hicolor/scalable/apps/org.xfce.panel.meowmenu.svg' \
+        -o -path '*/share/locale/*/LC_MESSAGES/xfce4-meowmenu-plugin.mo' \) \
+        \( -type f -o -type l \) -print0 2>/dev/null)
+    while IFS= read -r -d '' candidate; do
+        step "Remove development directory ${candidate}"
+        remove_exact_tree "${candidate}"
+        if [[ -e "${candidate}" || -L "${candidate}" ]]; then
+            echo "FAILED: development directory remains: ${candidate}"
+            exit 1
+        fi
+    done < <(find "${root}" -type d \
+        \( -path '*/share/meowmenu' \
+        -o -path '*/share/xfce4-meowmenu-plugin' \) \
+        -prune -print0 2>/dev/null)
+}
+
 # ---------------------------------------------------------------------------
 # Resolve install prefix
 # ---------------------------------------------------------------------------
@@ -102,8 +141,7 @@ if [[ -d "${BUILD_DIR}" ]]; then
         | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="libdir"][0])')"
 else
     echo "  Build directory '${BUILD_DIR}' not found, falling back to prefix=/usr/local"
-    echo "  Other custom prefixes are not searched; inspect exact module paths manually."
-    echo "  find /path/to/prefix -path '*/xfce4/panel/plugins/libmeowmenu.so' -print"
+    echo "  Known temporary MeowMenu prefixes are searched as well."
     PREFIX="/usr/local"
     LIBDIR="lib/x86_64-linux-gnu"
 fi
@@ -124,10 +162,14 @@ echo "────────────────────────�
 
 # Find only the known module filename in development prefixes. Do not search
 # /usr: package removal is the package manager's responsibility.
-KNOWN_ROOTS=("${HOME}/.local" "/usr/local")
+KNOWN_ROOTS=("/usr/local")
+for candidate in /tmp/meowmenu-*; do
+    [[ -d "${candidate}" ]] && KNOWN_ROOTS+=("${candidate}")
+done
 if ! is_protected_system_path "${PREFIX}"; then
     KNOWN_ROOTS+=("${PREFIX}")
 fi
+KNOWN_ROOTS+=("${HOME}/.local")
 declare -A seen_roots=()
 for root in "${KNOWN_ROOTS[@]}"; do
     root="$(realpath -m -- "${root}")"
@@ -136,16 +178,7 @@ for root in "${KNOWN_ROOTS[@]}"; do
         continue
     fi
     seen_roots["${root}"]=1
-    while IFS= read -r -d '' candidate; do
-        step "Remove development module ${candidate}"
-        remove_exact_file "${candidate}"
-        if [[ -e "${candidate}" || -L "${candidate}" ]]; then
-            echo "FAILED: development module remains: ${candidate}"
-            exit 1
-        fi
-    done < <(find "${root}" \
-        -path '*/xfce4/panel/plugins/libmeowmenu.so' \
-        \( -type f -o -type l \) -print0 2>/dev/null)
+    remove_dev_payload_under_root "${root}"
 done
 
 # ---------------------------------------------------------------------------
