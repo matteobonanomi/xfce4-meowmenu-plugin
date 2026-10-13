@@ -27,6 +27,13 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+bool WhiskerMenu::command_line_is_available(const char* command_line)
+{
+	return CommandInterpretation::parse(command_line).available();
+}
+
+//-----------------------------------------------------------------------------
+
 Command::Command(Settings* settings, const gchar* property, const gchar* show_property,
 		const gchar* icon, const gchar* fallback_icon,
 		const gchar* text,
@@ -186,22 +193,20 @@ void Command::set_shown(bool shown)
 
 //-----------------------------------------------------------------------------
 
+/* check:
+ *
+ * Parses and resolves a changed command once, then keeps its exact argv for a
+ * later activation while synchronizing every existing presentation widget.
+ *
+ * Returns: true when the visible command is currently available.
+ */
 bool Command::check()
 {
 	if (m_status == CommandStatus::Unchecked)
 	{
-		gchar** argv;
-		if (g_shell_parse_argv(m_command, nullptr, &argv, nullptr))
-		{
-			gchar* path = g_find_program_in_path(argv[0]);
-			m_status = path ? CommandStatus::Valid : CommandStatus::Invalid;
-			g_free(path);
-			g_strfreev(argv);
-		}
-		else
-		{
-			m_status = CommandStatus::Invalid;
-		}
+		m_interpretation = CommandInterpretation::parse(m_command);
+		m_status = m_interpretation.available()
+				? CommandStatus::Valid : CommandStatus::Invalid;
 	}
 
 	if (m_button)
@@ -223,6 +228,11 @@ bool Command::check()
 
 //-----------------------------------------------------------------------------
 
+/* activate:
+ *
+ * Applies the optional confirmation flow and launches the retained argv. A
+ * stale availability result intentionally reaches the established error UI.
+ */
 void Command::activate()
 {
 	if (m_settings->confirm_session_command
@@ -233,11 +243,13 @@ void Command::activate()
 		return;
 	}
 
+	if (m_interpretation.command_line() != static_cast<const char*>(m_command))
+		m_interpretation = CommandInterpretation::parse(m_command);
 	GError* error = nullptr;
-	if (!g_spawn_command_line_async(m_command, &error))
+	if (!spawn_session_command_async(m_interpretation, &error))
 	{
 		xfce_dialog_show_error(nullptr, error, m_error_text, nullptr);
-		g_error_free(error);
+		g_clear_error(&error);
 	}
 }
 

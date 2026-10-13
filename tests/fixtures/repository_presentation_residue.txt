@@ -1,0 +1,3 @@
+# Normalized path, normalized-content SHA-256, permitted occurrence count.
+.gitignore	67168bb14f767fe3b605d0b61033fdb89240faecc72bcdfd68423186abe6c1cd	1
+.gitignore	7a455e220da673ab116fc14f0e144ddbd583475fba2b5b92aa15115ef08948db	1

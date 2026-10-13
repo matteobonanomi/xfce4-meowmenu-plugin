@@ -2,9 +2,11 @@
 """Check release-facing repository text for stale internal presentation."""
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
+from collections import Counter
 from pathlib import Path
 
 
@@ -66,6 +68,20 @@ FALLBACK_EXCLUDED_DIRS = {
 }
 FALLBACK_EXCLUDED_FILES = {".codex", "AGENTS.md", "CLAUDE.md"}
 MAINTAINER_MARKDOWN = {"dev/docs/ci.md"}
+WORKFLOW_RESIDUE = "tests/fixtures/repository_presentation_residue.txt"
+WORKFLOW_FORBIDDEN = (
+    ("private workflow path", re.compile(r"\.(?:specify|agents)/")),
+    ("workflow document", re.compile(
+        r"\b(?:contracts/[A-Za-z0-9_.-]+|spec|plan|tasks|research|"
+        r"data-model|quickstart)\.md\b"
+    )),
+    ("workflow identifier", re.compile(
+        r"\bRF-(?:\d{2,3}|[A-Z][A-Z0-9-]*)\b|"
+        r"\bmilestone[- ]?\d{3}\b|\brender-invariants\b|"
+        r"\bTODO-INTEGRATION\b"
+    )),
+)
+TEST_SOURCE_REFERENCE_RE = re.compile(r"\btest_[A-Za-z0-9_-]+\.cpp\b")
 
 
 def fallback_repository_files(root: Path):
@@ -233,11 +249,71 @@ def current_state_violations(root: Path):
     return errors
 
 
+def normalized_fingerprint(line):
+    """Hash line content independently of indentation and repeated spacing."""
+    normalized = " ".join(line.split())
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def workflow_residue(root: Path):
+    """Load bounded containment references allowed by normalized content."""
+    residue = {}
+    fixture = root / WORKFLOW_RESIDUE
+    if not fixture.is_file():
+        return residue
+    for line in fixture.read_text(encoding="utf-8").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        relative, fingerprint, count = line.split("\t")
+        residue[(relative, fingerprint)] = int(count)
+    return residue
+
+
+def workflow_reference_violations(root: Path):
+    """Reject internal workflow text and references to absent test sources."""
+    errors = []
+    permitted = workflow_residue(root)
+    found = Counter()
+
+    for relative, path in repository_files(root):
+        if relative in SELF_EXCLUDES or relative == WORKFLOW_RESIDUE:
+            continue
+        content = path.read_text(encoding="utf-8", errors="replace")
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            fingerprint = normalized_fingerprint(line)
+            residue_key = (relative, fingerprint)
+            matches = [
+                (label, match.group(0))
+                for label, expression in WORKFLOW_FORBIDDEN
+                for match in expression.finditer(line)
+            ]
+            if matches and residue_key in permitted:
+                found[residue_key] += 1
+                if found[residue_key] <= permitted[residue_key]:
+                    matches = []
+            for label, value in matches:
+                errors.append(f"{relative}:{line_number}: {label}: {value}")
+
+            for match in TEST_SOURCE_REFERENCE_RE.finditer(line):
+                name = match.group(0)
+                if not (root / name).is_file() and not (root / "tests" / name).is_file():
+                    errors.append(
+                        f"{relative}:{line_number}: nonexistent test source: {name}"
+                    )
+
+    for key, expected in permitted.items():
+        actual = found[key]
+        if actual != expected:
+            errors.append(
+                f"{key[0]}: permitted workflow residue count {actual}, expected {expected}"
+            )
+    return errors
+
+
 def violations(root: Path):
     """Return presentation-policy violations with bounded public allowances."""
     errors = []
     forbidden = (
-        ("private workflow path", re.compile(r"\." + r"specify/")),
         ("requirement identifier", re.compile(r"\b(?:FR|SC)-\d{3}\b")),
         ("task identifier", re.compile(r"\bT\d{3}\b")),
         ("obsolete helper", re.compile(
@@ -264,11 +340,6 @@ def violations(root: Path):
         if relative in SELF_EXCLUDES:
             continue
         content = path.read_text(encoding="utf-8", errors="replace")
-        if relative == ".gitignore":
-            content = "\n".join(
-                line for line in content.splitlines()
-                if not line.startswith((".specify/", ".agents/"))
-            )
         for label, expression in forbidden:
             for match in expression.finditer(content):
                 line = content.count("\n", 0, match.start()) + 1
@@ -283,6 +354,7 @@ def violations(root: Path):
             if not allowed:
                 errors.append(f"{relative}: assistance disclosure is not allowed here")
 
+    errors.extend(workflow_reference_violations(root))
     errors.extend(current_state_violations(root))
 
     readme = (root / "README.md").read_text(encoding="utf-8")

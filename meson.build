@@ -117,6 +117,10 @@ elif optimization in ['3', 's']
   ]
 endif
 
+if get_option('enable_tests')
+  extra_cflags += ['-UNDEBUG', '-UG_DISABLE_ASSERT']
+endif
+
 if dependency_versions.has_key('glib')
   glib_version_parts = dependency_versions['glib'].split(' ')
   glib_min_version_parts = glib_version_parts[1].split('.')
@@ -181,9 +185,8 @@ subdir('panel-plugin')
 subdir('icons')
 subdir('po')
 
-# Built-in preset files. Per contracts/preset-file.md §Locations, these are
-# installed read-only under ${datadir}/meowmenu/presets/ and enumerated at
-# runtime by panel-plugin/preset-io.cpp.
+# Built-in preset files are installed read-only under
+# ${datadir}/meowmenu/presets/ and enumerated by the preset loader.
 meowmenu_preset_files = run_command(
   'sh', '-c', 'ls data/presets/*.meowpreset 2>/dev/null || true',
   check: false,
@@ -200,9 +203,13 @@ install_data(
   install_dir: pkgdatadir,
 )
 
-# Install AppStream metadata under the standard data directory.
-install_data(
-  'data' / 'metainfo' / 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
+# Generate and install localized AppStream metadata from the main catalog.
+i18n.merge_file(
+  input: 'data' / 'metainfo' / 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
+  output: 'io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml',
+  po_dir: 'po',
+  type: 'xml',
+  install: true,
   install_dir: get_option('prefix') / get_option('datadir') / 'metainfo',
 )
 

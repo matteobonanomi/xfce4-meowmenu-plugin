@@ -89,14 +89,13 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 	m_launcher_dragged(false),
 	m_favourite_drag_payload_delivered(false),
 	m_reorderable(false),
-	m_viewport_width(0),
-	m_present_tick_id(0)
+	m_viewport_width(0)
 {
 	// Create button
 	if (icon && text)
 	{
 		GIcon* gicon = g_themed_icon_new(icon);
-		m_button = new CategoryButton(m_settings, gicon, text);
+		m_button = new CategoryButton(m_settings, nullptr, gicon, text);
 		g_object_unref(gicon);
 	}
 
@@ -131,8 +130,7 @@ Page::Page(Settings* settings, Window* window, const gchar* icon, const gchar* t
 
 Page::~Page()
 {
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	delete m_button;
 	delete m_view;
 	gtk_widget_destroy(m_widget);
@@ -235,8 +233,7 @@ void Page::update_view()
 
 	g_assert(m_view);
 	LauncherView* view = m_view;
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	create_view();
 	m_view->set_model(view->get_model());
 	delete view;
@@ -290,9 +287,7 @@ void Page::present()
 			toplevel, m_view->get_widget());
 	if (!ready)
 	{
-		meow::meowmenu_schedule_mapped_result_frame(toplevel,
-				toplevel, m_view->get_widget(),
-				&m_present_tick_id,
+		m_present_frame.schedule(toplevel, toplevel, m_view->get_widget(),
 				+[](void* data) -> bool
 				{
 					return static_cast<LauncherView*>(data)
@@ -553,11 +548,9 @@ void Page::launcher_activated(GtkTreePath* path)
 		m_settings->usage_stats.record_launch(launcher->get_desktop_id());
 	}
 
-	// Hide window
-	m_window->hide();
-
-	// Execute app
-	element->run(gtk_widget_get_screen(m_widget));
+	GdkScreen* screen = gtk_widget_get_screen(m_widget);
+	m_window->perform_then_dismiss(
+			[element, screen]() { element->run(screen); });
 }
 
 //-----------------------------------------------------------------------------
@@ -572,11 +565,10 @@ void Page::launcher_action_activated(GtkMenuItem* menuitem, DesktopAction* actio
 		m_window->get_recent()->add(m_selected_launcher);
 	}
 
-	// Hide window
-	m_window->hide();
-
-	// Execute app
-	m_selected_launcher->run(gtk_widget_get_screen(GTK_WIDGET(menuitem)), action);
+	Launcher* launcher = m_selected_launcher;
+	GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(menuitem));
+	m_window->perform_then_dismiss(
+			[launcher, screen, action]() { launcher->run(screen, action); });
 }
 
 //-----------------------------------------------------------------------------
@@ -857,8 +849,9 @@ void Page::create_context_menu(GtkTreePath* path, GdkEvent* event)
 		[this](GtkMenuItem*)
 		{
 			g_assert(m_selected_launcher);
-			m_window->hide();
-			m_selected_launcher->hide();
+			Launcher* launcher = m_selected_launcher;
+			m_window->perform_then_dismiss(
+					[launcher]() { launcher->hide(); });
 		});
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
@@ -866,10 +859,16 @@ void Page::create_context_menu(GtkTreePath* path, GdkEvent* event)
 
 	gtk_widget_show_all(menu);
 
-	// Show context menu
+	// Show context menu. Keyboard-triggered popup-menu signals do not carry a
+	// pointer event, so anchor those menus to the view instead of passing a
+	// null event to gtk_menu_popup_at_pointer().
 	m_window->set_child_has_focus();
 	gtk_menu_attach_to_widget(GTK_MENU(menu), m_view->get_widget(), nullptr);
-	gtk_menu_popup_at_pointer(GTK_MENU(menu), event);
+	if (event)
+		gtk_menu_popup_at_pointer(GTK_MENU(menu), event);
+	else
+		gtk_menu_popup_at_widget(GTK_MENU(menu), m_view->get_widget(),
+				GDK_GRAVITY_SOUTH_WEST, GDK_GRAVITY_NORTH_WEST, nullptr);
 
 	// Keep selection
 	m_view->select_path(path);
@@ -979,30 +978,31 @@ void Page::edit_selected()
 {
 	g_assert(m_selected_launcher);
 
-	m_window->hide();
+	Launcher* launcher = m_selected_launcher;
+	m_window->perform_then_dismiss(
+			[launcher]()
+			{
+				gchar* uri = launcher->get_uri();
+				if (!uri)
+					return;
 
-	gchar* uri = m_selected_launcher->get_uri();
-	if (!uri)
-	{
-		return;
-	}
-	const gchar* editor = xfce_desktop_item_editor(
-			current_xfce_dependency_regime());
-	gchar** argv = launcher_editor_argv(editor, uri);
-	g_free(uri);
-	if (!argv)
-	{
-		return;
-	}
+				const gchar* editor = xfce_desktop_item_editor(
+						current_xfce_dependency_regime());
+				gchar** argv = launcher_editor_argv(editor, uri);
+				g_free(uri);
+				if (!argv)
+					return;
 
-	GError* error = nullptr;
-	if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_SEARCH_PATH,
-			nullptr, nullptr, nullptr, &error))
-	{
-		xfce_dialog_show_error(nullptr, error, _("Unable to edit launcher."));
-		g_error_free(error);
-	}
-	g_strfreev(argv);
+				GError* error = nullptr;
+				if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_SEARCH_PATH,
+						nullptr, nullptr, nullptr, &error))
+				{
+					xfce_dialog_show_error(nullptr, error,
+							_("Unable to edit launcher."));
+					g_error_free(error);
+				}
+				g_strfreev(argv);
+			});
 }
 
 //-----------------------------------------------------------------------------

@@ -21,7 +21,7 @@
   <url type="bugtracker">https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues</url>
 
   <developer id="io.github.matteobonanomi">
-    <name>Matteo Bonanomi</name>
+    <name translate="no">Matteo Bonanomi</name>
   </developer>
 
   <provides>

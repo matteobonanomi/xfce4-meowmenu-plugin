@@ -5,9 +5,8 @@
  * display: the shell-quote round-trip used to hand paths to the external
  * helper, and the open-failure reason string built for the error dialog.
  *
- * NOTE: the item-lifetime fix and the single-dialog discipline are UI-flow
- * properties that cannot be driven by this headless harness; they are covered
- * by the manual verification steps in the feature's quickstart.
+ * NOTE: item lifetime and the single-dialog discipline are UI-flow properties
+ * that cannot be driven by this headless harness; manual checks cover them.
  *
  * Like the other tests in this folder, the production translation unit
  * (places-item.cpp) is compiled directly into the binary rather than linked

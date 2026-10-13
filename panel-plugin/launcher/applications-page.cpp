@@ -150,6 +150,7 @@ ApplicationsPage::ApplicationsPage(Settings* settings, Window* window) :
 	m_outer = meow::meowmenu_create_default_heading_page(get_widget(),
 			_("ALL APPLICATIONS"), &m_default_heading);
 	g_object_ref_sink(m_outer);
+	get_button()->set_activation_policy(&m_category_activation);
 
 	const decltype(m_categories.size()) index = 0;
 	connect(get_button()->get_widget(), "toggled",
@@ -521,7 +522,8 @@ void ApplicationsPage::populate_candidate(ApplicationCandidate& candidate)
 					invalidate();
 				});
 
-			Category* category = new Category(m_settings, nullptr);
+			Category* category = new Category(m_settings,
+					&m_category_activation, nullptr);
 			load_menu(candidate, candidate.settings_menu, category, false);
 			delete category;
 		}
@@ -543,7 +545,7 @@ void ApplicationsPage::populate_candidate(ApplicationCandidate& candidate)
 
 	// A failed or empty Garcon discovery still produces one coherent empty All
 	// Applications model; cold start never publishes a half-built navigation.
-	Category* all = new Category(m_settings, nullptr);
+	Category* all = new Category(m_settings, &m_category_activation, nullptr);
 	all->append_items(find_all(candidate));
 	candidate.categories.insert(candidate.categories.begin(), all);
 }
@@ -606,11 +608,15 @@ void ApplicationsPage::publish_candidate(ApplicationCandidate& candidate)
 	}
 
 	// Attach every model before category activation can expose its target.
+	m_last_publication_steps.clear();
 	get_window()->set_items();
+	m_last_publication_steps.push_back(PublicationStep::Items);
 
 	// Adding categories resolves and activates the publication target.
 	get_window()->set_categories(category_buttons);
+	m_last_publication_steps.push_back(PublicationStep::Categories);
 	get_window()->set_loaded();
+	m_last_publication_steps.push_back(PublicationStep::Loaded);
 
 	m_has_publication = true;
 	m_status = LoadStatus::Done;
@@ -687,7 +693,7 @@ bool ApplicationsPage::load_menu(ApplicationCandidate& candidate,
 			}
 			else
 			{
-				category = new Category(m_settings, submenu);
+				category = new Category(m_settings, &m_category_activation, submenu);
 			}
 
 			// Populate category

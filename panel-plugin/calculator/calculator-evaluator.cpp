@@ -296,8 +296,25 @@ void CalculatorEvaluator::evaluate(CalculatorEngine engine,
 		return;
 	}
 
-	const std::vector<std::string> arguments = calculator_engine_argv(engine,
-			program_path, expression, maximum_decimals);
+	const CalculatorEvaluationRequest request = { engine, expression, program_path,
+			calculator_engine_stdin(engine, expression, maximum_decimals),
+			maximum_decimals, generation };
+	evaluate_request(request, callback);
+}
+
+/* evaluate_request:
+ * @request: validated engine request with resolved executable and stdin data.
+ * @callback: runs on the GLib main context after the process is reaped.
+ *
+ * Starts the transport lifecycle for one prepared request. Keeping this
+ * boundary below query filtering makes pipe completion independently testable.
+ */
+void CalculatorEvaluator::evaluate_request(
+		const CalculatorEvaluationRequest& request, Callback callback)
+{
+	cancel();
+	const std::vector<std::string> arguments = calculator_engine_argv(request.engine,
+			request.program_path, request.expression, request.maximum_decimals);
 	std::vector<const gchar*> argv;
 	for (const auto& argument : arguments)
 		argv.push_back(argument.c_str());
@@ -305,13 +322,13 @@ void CalculatorEvaluator::evaluate(CalculatorEngine engine,
 
 	GSubprocessFlags flags = static_cast<GSubprocessFlags>(
 			G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE);
-	if (calculator_engine_descriptor(engine).input == CalculatorInput::StandardInput)
+	if (calculator_engine_descriptor(request.engine).input == CalculatorInput::StandardInput)
 		flags = static_cast<GSubprocessFlags>(flags | G_SUBPROCESS_FLAGS_STDIN_PIPE);
 	else
 		flags = static_cast<GSubprocessFlags>(flags | G_SUBPROCESS_FLAGS_STDIN_INHERIT);
 
 	GSubprocessLauncher* launcher = g_subprocess_launcher_new(flags);
-	if (engine == CalculatorEngine::Bc)
+	if (request.engine == CalculatorEngine::Bc)
 		g_subprocess_launcher_setenv(launcher, "BC_LINE_LENGTH", "0", TRUE);
 	GError* error = nullptr;
 	GSubprocess* process = g_subprocess_launcher_spawnv(launcher, argv.data(), &error);
@@ -319,19 +336,17 @@ void CalculatorEvaluator::evaluate(CalculatorEngine engine,
 	if (!process)
 	{
 		g_clear_error(&error);
-		callback({ CalculatorEvaluationState::Failed, engine, expression,
-				std::string(), maximum_decimals, generation });
+		callback({ CalculatorEvaluationState::Failed, request.engine,
+				request.expression, std::string(), request.maximum_decimals,
+				request.generation });
 		return;
 	}
 
-	CalculatorEvaluationRequest request = { engine, expression, program_path,
-			maximum_decimals, generation };
 	m_job = new CalculatorEvaluationJob { this, request, callback, process,
-			g_cancellable_new(), 0,
-			calculator_engine_stdin(engine, expression, maximum_decimals),
+			g_cancellable_new(), 0, request.stdin_payload,
 			std::string(), std::string(), JobTerminalReason::None,
 			false, false,
-			calculator_engine_descriptor(engine).input != CalculatorInput::StandardInput,
+			calculator_engine_descriptor(request.engine).input != CalculatorInput::StandardInput,
 			false, false };
 	CalculatorEvaluationJob* job = m_job;
 	job->timeout_source = g_timeout_add(2000, &on_timeout, job);
@@ -348,6 +363,15 @@ void CalculatorEvaluator::evaluate(CalculatorEngine engine,
 		g_output_stream_write_all_async(stdin_pipe, job->stdin_payload.data(),
 				job->stdin_payload.size(), G_PRIORITY_DEFAULT, job->io_cancellable,
 				&on_stdin_written, job);
+	}
+	else if (calculator_engine_descriptor(request.engine).input
+			== CalculatorInput::StandardInput)
+	{
+		// EOF is the completion signal even when this adapter has no bytes to
+		// write; leaving the pipe open would also prevent timeout cleanup.
+		GOutputStream* stdin_pipe = g_subprocess_get_stdin_pipe(process);
+		g_output_stream_close_async(stdin_pipe, G_PRIORITY_DEFAULT, nullptr,
+				&on_stdin_closed, job);
 	}
 }
 

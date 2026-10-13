@@ -32,8 +32,10 @@
 #include "presets/preset.h"
 #include "presets/preset-io.h"
 #include "ui/properties/common.h"
+#include "ui/properties/preset-sync.h"
 
 #include <algorithm>
+#include <set>
 
 #include <libxfce4panel/libxfce4panel.h>
 #include <libxfce4ui/libxfce4ui.h>
@@ -90,8 +92,7 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 	// refresh_preset_combo (runtime implementation / behavior table).
 	initialize_file_presets();
 
-	// New 5-tab dictionary per data-model.md E-3. Each init_*_tab() already
-	// returns its content wrapped by wrap_in_scrolled().
+	// Each tab builder returns content already wrapped for the stack.
 	auto add_page = [stack](GtkWidget* child, const char* id, const char* title)
 	{
 		gtk_stack_add_titled(stack, child, id, title);
@@ -154,14 +155,8 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 		m_size_change_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue* value, gpointer data) -> void
 			{
-				auto* self = static_cast<SettingsDialog*>(data);
-				if (!G_VALUE_HOLDS_INT(value))
-					return;
-				const int v = g_value_get_int(value);
-				if (g_strcmp0(property, "/menu-width") == 0 && self->m_menu_width)
-					gtk_spin_button_set_value(GTK_SPIN_BUTTON(self->m_menu_width), v);
-				else if (g_strcmp0(property, "/menu-height") == 0 && self->m_menu_height)
-					gtk_spin_button_set_value(GTK_SPIN_BUTTON(self->m_menu_height), v);
+				static_cast<SettingsDialog*>(data)->mirror_menu_size_property(
+						property, value);
 			}), this);
 	}
 
@@ -174,8 +169,38 @@ SettingsDialog::SettingsDialog(Settings* settings, Plugin* plugin) :
 
 //-----------------------------------------------------------------------------
 
+/* SettingsDialog::mirror_menu_size_property:
+ * @property: base-relative Xfconf path delivered to the dialog.
+ * @value: property value; ignored unless it contains an integer menu size.
+ *
+ * Mirrors drag-resized dimensions into the two controls. This adapter does not
+ * classify or initiate menu refreshes; Settings remains the sole authority for
+ * those consequences.
+ */
+void SettingsDialog::mirror_menu_size_property(const gchar* property,
+		const GValue* value)
+{
+	if (!G_VALUE_HOLDS_INT(value))
+		return;
+	const int size = g_value_get_int(value);
+	if (g_strcmp0(property, "/menu-width") == 0 && m_menu_width)
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_width), size);
+	else if (g_strcmp0(property, "/menu-height") == 0 && m_menu_height)
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_height), size);
+}
+
+//-----------------------------------------------------------------------------
+
+/* ~SettingsDialog:
+ *
+ * Disconnects callbacks owned by longer-lived Xfconf and display objects
+ * before releasing dialog-owned models and command editors.
+ */
 SettingsDialog::~SettingsDialog()
 {
+	disconnect_signal(m_composited_screen, m_composited_changed_slot);
+	m_composited_screen = nullptr;
+
 	if (m_size_change_slot && m_settings && m_settings->channel)
 	{
 		g_signal_handler_disconnect(m_settings->channel, m_size_change_slot);
@@ -195,6 +220,19 @@ SettingsDialog::~SettingsDialog()
 
 	g_object_unref(m_actions_model);
 	g_object_unref(m_aliases_model);
+}
+
+//-----------------------------------------------------------------------------
+
+/* close:
+ *
+ * Destroys the GTK dialog through its ordinary close path. The Plugin's
+ * window-destroy handler performs the associated save and releases this
+ * object, so callers must not access the dialog afterward.
+ */
+void SettingsDialog::close()
+{
+	gtk_widget_destroy(m_window);
 }
 
 //-----------------------------------------------------------------------------
@@ -467,8 +505,10 @@ void SettingsDialog::response(int response_id)
 	{
 		std::string command = build_help_command(
 				current_xfce_dependency_regime(), PLUGIN_WEBSITE);
+		CommandInterpretation interpretation =
+				CommandInterpretation::parse(command.c_str());
 		GError* error = nullptr;
-		bool result = g_spawn_command_line_async(command.c_str(), &error);
+		bool result = spawn_session_command_async(interpretation, &error);
 
 		if (G_UNLIKELY(!result))
 		{
@@ -573,7 +613,10 @@ void SettingsDialog::refresh_customized_indicator()
 	{
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_preset_combo), applied->id.c_str());
 		if (m_preset_help)
-			gtk_widget_set_tooltip_text(m_preset_help, _(applied->description.c_str()));
+		{
+			const std::string description = preset_description_for_display(*applied);
+			gtk_widget_set_tooltip_text(m_preset_help, description.c_str());
+		}
 	}
 
 	// Rename/Delete/Export apply only to a real, saved user preset — never a
@@ -612,51 +655,144 @@ void SettingsDialog::sync_preset_widgets()
 	// the cascade of set_active calls cannot write a divergent value back into
 	// Settings (supported behavior) — each widget handler early-returns while it is set.
 	//
-	// The authoritative set of keys driven here is synced_keys(); a unit test
-	// asserts it equals governed_keys() so no governed control is left stale
-	// (supported behavior). When adding a governed key, add both its sync call below
-	// and its entry in synced_keys().
+	// The dialog-owned descriptor is consumed directly here. Its independent
+	// agreement test ensures that a newly governed key cannot leave a control
+	// stale after a preset switch.
 	//
 	// NOTE: each widget is null-guarded because tabs are built independently;
 	// a widget owned by an as-yet-unbuilt tab is nullptr.
 
 	m_programmatic_update = true;
 
-	if (m_layout_mode_combo)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo),
-			static_cast<const gchar*>(m_settings->layout_mode));
+	for (const PresetSyncDescriptor& descriptor : preset_sync_descriptors())
+	{
+		switch (descriptor.control)
+		{
+		case PresetSyncControl::CornerRadius:
+			if (m_corner_radius)
+				gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_corner_radius), m_settings->corner_radius);
+			break;
+		case PresetSyncControl::PanelGap:
+			if (m_panel_gap)
+				gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_panel_gap), m_settings->panel_gap);
+			break;
+		case PresetSyncControl::MenuOpacity:
+			if (m_menu_opacity)
+				gtk_range_set_value(GTK_RANGE(m_menu_opacity), m_settings->menu_opacity);
+			break;
+		case PresetSyncControl::SidebarPosition:
+			if (m_sidebar_position_combo)
+				gtk_combo_box_set_active_id(
+					GTK_COMBO_BOX(m_sidebar_position_combo),
+					m_settings->sidebar_position);
+			break;
+		case PresetSyncControl::SidebarEnabled:
+			if (m_enable_sidebar_switch)
+				gtk_switch_set_active(GTK_SWITCH(m_enable_sidebar_switch), m_settings->sidebar_enabled);
+			break;
+		case PresetSyncControl::CategoryShowName:
+			if (m_show_category_names)
+				gtk_toggle_button_set_active(
+					GTK_TOGGLE_BUTTON(m_show_category_names),
+					m_settings->category_show_name);
+			break;
+		case PresetSyncControl::SearchBarPosition:
+			if (m_search_bar_position_combo)
+				gtk_combo_box_set_active_id(
+					GTK_COMBO_BOX(m_search_bar_position_combo),
+					m_settings->search_bar_position);
+			break;
+		case PresetSyncControl::ShowProfile:
+			if (m_show_profile)
+				gtk_switch_set_active(GTK_SWITCH(m_show_profile), m_settings->show_profile);
+			break;
+		case PresetSyncControl::ShowSession:
+			if (m_show_session)
+				gtk_switch_set_active(GTK_SWITCH(m_show_session), m_settings->show_session);
+			break;
+		case PresetSyncControl::LayoutMode:
+			if (m_layout_mode_combo)
+				gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_layout_mode_combo), m_settings->layout_mode);
+			break;
+		case PresetSyncControl::LauncherIconSize:
+			if (m_item_icon_size)
+				gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size), m_settings->launcher_icon_size + 1);
+			break;
+		case PresetSyncControl::CategoryIconSize:
+			if (m_category_icon_size)
+				gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size),
+					m_settings->category_icon_size + 1);
+			break;
+		case PresetSyncControl::HoverSwitchCategory:
+			if (m_hover_switch_category)
+				gtk_toggle_button_set_active(
+					GTK_TOGGLE_BUTTON(m_hover_switch_category),
+					m_settings->category_hover_activate);
+			break;
+		case PresetSyncControl::ViewModeDefault:
+			if (m_show_as_icons && m_show_as_tree && m_show_as_list)
+			{
+				GtkWidget* active = m_show_as_list;
+				if (m_settings->view_mode == Settings::ViewAsIcons)
+					active = m_show_as_icons;
+				else if (m_settings->view_mode == Settings::ViewAsTree)
+					active = m_show_as_tree;
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(active), true);
+			}
+			break;
+		case PresetSyncControl::DefaultCategory:
+			if (m_display_favorites && m_display_recent && m_display_applications)
+			{
+				GtkWidget* active = m_display_favorites;
+				if (m_settings->default_category == Settings::CategoryRecent)
+					active = m_display_recent;
+				else if (m_settings->default_category == Settings::CategoryAll)
+					active = m_display_applications;
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(active), true);
+			}
+			break;
+		case PresetSyncControl::StayOnFocusOut:
+			if (m_stay_on_focus_out)
+				gtk_toggle_button_set_active(
+					GTK_TOGGLE_BUTTON(m_stay_on_focus_out),
+					m_settings->stay_on_focus_out);
+			break;
+		case PresetSyncControl::PlacesEnabled:
+			if (m_places_enabled_switch)
+				gtk_switch_set_active(GTK_SWITCH(m_places_enabled_switch), m_settings->places_enabled);
+			break;
+		case PresetSyncControl::PlacesShowIcons:
+			if (m_places_switch_show_icons)
+				gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
+					m_settings->places_switch_show_icons);
+			break;
+		case PresetSyncControl::CalculatorEngine:
+			if (m_calculator_engine)
+				gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_calculator_engine), m_settings->calculator_engine);
+			break;
+		case PresetSyncControl::CalculatorResultFontSize:
+			if (m_calculator_result_font_size)
+				gtk_combo_box_set_active(
+					GTK_COMBO_BOX(m_calculator_result_font_size),
+					m_settings->calculator_result_font_size + 1);
+			break;
+		case PresetSyncControl::CalculatorMaxDecimalPlaces:
+			if (m_calculator_max_decimal_places)
+				gtk_spin_button_set_value(
+					GTK_SPIN_BUTTON(m_calculator_max_decimal_places),
+					m_settings->calculator_max_decimal_places);
+			break;
+		}
+	}
 
-	if (m_corner_radius)
-		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_corner_radius),
-			static_cast<int>(m_settings->corner_radius));
-	if (m_panel_gap)
-		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_panel_gap),
-			static_cast<int>(m_settings->panel_gap));
+	// These controls can be carried by individual presets but are deliberately
+	// outside the set every preset must govern.
 	if (m_menu_width)
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_width),
 			static_cast<int>(m_settings->menu_width));
 	if (m_menu_height)
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_menu_height),
 			static_cast<int>(m_settings->menu_height));
-	if (m_menu_opacity)
-		gtk_range_set_value(GTK_RANGE(m_menu_opacity),
-			static_cast<int>(m_settings->menu_opacity));
-
-	if (m_sidebar_position_combo)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_sidebar_position_combo),
-			static_cast<const gchar*>(m_settings->sidebar_position));
-	if (m_enable_sidebar_switch)
-		gtk_switch_set_active(GTK_SWITCH(m_enable_sidebar_switch),
-			static_cast<bool>(m_settings->sidebar_enabled));
-	if (m_show_category_names)
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_category_names),
-			static_cast<bool>(m_settings->category_show_name));
-	if (m_search_bar_position_combo)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_search_bar_position_combo),
-			static_cast<const gchar*>(m_settings->search_bar_position));
-	if (m_show_profile)
-		gtk_switch_set_active(GTK_SWITCH(m_show_profile),
-			static_cast<bool>(m_settings->show_profile));
 	if (m_profile_shape)
 		gtk_combo_box_set_active(GTK_COMBO_BOX(m_profile_shape),
 			static_cast<int>(m_settings->profile_shape));
@@ -666,10 +802,6 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_profile_shape)
 		gtk_widget_set_sensitive(m_profile_shape,
 			static_cast<bool>(m_settings->show_profile));
-	if (m_show_session)
-		gtk_switch_set_active(GTK_SWITCH(m_show_session),
-			static_cast<bool>(m_settings->show_session));
-
 	if (m_grid_density_combo)
 		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_grid_density_combo),
 			static_cast<const gchar*>(m_settings->grid_density));
@@ -677,21 +809,6 @@ void SettingsDialog::sync_preset_widgets()
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_transparent_grid),
 			static_cast<bool>(m_settings->transparent_grid));
 
-	if (m_places_enabled_switch)
-		gtk_switch_set_active(GTK_SWITCH(m_places_enabled_switch),
-			static_cast<bool>(m_settings->places_enabled));
-	if (m_places_switch_show_icons)
-		gtk_switch_set_active(GTK_SWITCH(m_places_switch_show_icons),
-			static_cast<bool>(m_settings->places_switch_show_icons));
-	if (m_calculator_engine)
-		gtk_combo_box_set_active_id(GTK_COMBO_BOX(m_calculator_engine),
-			static_cast<const gchar*>(m_settings->calculator_engine));
-	if (m_calculator_result_font_size)
-		gtk_combo_box_set_active(GTK_COMBO_BOX(m_calculator_result_font_size),
-			static_cast<int>(m_settings->calculator_result_font_size) + 1);
-	if (m_calculator_max_decimal_places)
-		gtk_spin_button_set_value(GTK_SPIN_BUTTON(m_calculator_max_decimal_places),
-			static_cast<int>(m_settings->calculator_max_decimal_places));
 	if (m_calculator_engine)
 	{
 		const bool enabled = g_strcmp0(m_settings->calculator_engine, "none") != 0;
@@ -700,19 +817,6 @@ void SettingsDialog::sync_preset_widgets()
 		gtk_widget_set_sensitive(m_calculator_result_font_size_label, enabled);
 		gtk_widget_set_sensitive(m_calculator_max_decimal_places_label, enabled);
 	}
-
-	if (m_hover_switch_category)
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_hover_switch_category),
-			static_cast<bool>(m_settings->category_hover_activate));
-	if (m_item_icon_size)
-		gtk_combo_box_set_active(GTK_COMBO_BOX(m_item_icon_size),
-			static_cast<int>(m_settings->launcher_icon_size) + 1);
-	if (m_category_icon_size)
-		gtk_combo_box_set_active(GTK_COMBO_BOX(m_category_icon_size),
-			static_cast<int>(m_settings->category_icon_size) + 1);
-	if (m_stay_on_focus_out)
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_stay_on_focus_out),
-			static_cast<bool>(m_settings->stay_on_focus_out));
 
 	if (m_button_title_visible)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_button_title_visible),
@@ -723,28 +827,6 @@ void SettingsDialog::sync_preset_widgets()
 	if (m_button_single_row)
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_button_single_row),
 			static_cast<bool>(m_settings->button_single_row));
-
-	const int vm = static_cast<int>(m_settings->view_mode);
-	if (m_show_as_icons && m_show_as_tree && m_show_as_list)
-	{
-		if (vm == Settings::ViewAsIcons)
-			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_icons), true);
-		else if (vm == Settings::ViewAsTree)
-			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_tree), true);
-		else
-			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_show_as_list), true);
-	}
-
-	const int dc = static_cast<int>(m_settings->default_category);
-	if (m_display_favorites && m_display_recent && m_display_applications)
-	{
-		if (dc == Settings::CategoryRecent)
-			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_recent), true);
-		else if (dc == Settings::CategoryAll)
-			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_applications), true);
-		else
-			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_favorites), true);
-	}
 
 	// Recompute every dependent control's sensitivity across all tabs (supported behavior):
 	// grid controls, layout-mode-gated widgets, Places dependents, and the
@@ -803,33 +885,37 @@ void SettingsDialog::refresh_preset_combo(const std::string& select_id)
 	gtk_list_store_clear(m_preset_model);
 
 	// Built-ins first (file-seeded order), bold.
+	std::set<std::string> added_preset_ids;
+	auto append_unique_preset = [&](const LayoutPreset& preset, bool is_builtin)
+	{
+		// Keep the first row for a stable ID. Built-ins are appended first so a
+		// legacy user entry cannot render a second copy of the same preset.
+		if (!added_preset_ids.insert(preset.id).second)
+			return;
+		append_preset_row(m_preset_model, preset.id,
+			preset_name_for_display(preset), is_builtin);
+	};
+
 	const auto& file_presets = get_file_presets();
 	if (!file_presets.empty())
 	{
 		for (const auto& p : file_presets)
-		{
-			// Label from the stored identity name — one code path for built-in
-			// and custom presets. For built-ins name == display name.
-			const std::string& label = p.name.empty() ? p.display_name : p.name;
-			append_preset_row(m_preset_model, p.id, label, true);
-		}
+			append_unique_preset(p, true);
 	}
 	else
 	{
 		// NOTE: fallback if initialize_file_presets() was not called or all files missing.
-		append_preset_row(m_preset_model, "classic",    _("Classic"),     true);
-		append_preset_row(m_preset_model, "modern",     _("Modern"),      true);
-		append_preset_row(m_preset_model, "fullscreen", _("Full Screen"), true);
-		append_preset_row(m_preset_model, "minimal",    _("Minimal"),     true);
+		for (int i = 0; i < PRESET_BUILTIN_COUNT; ++i)
+		{
+			const LayoutPreset& preset = BUILTIN_PRESETS[i];
+			append_unique_preset(preset, true);
+		}
 	}
 
 	// Then saved customs (uuid order), standard weight.
 	const auto& user = enumerate_user_presets(m_settings->channel);
 	for (const auto& p : user)
-	{
-		const std::string& label = p.name.empty() ? p.display_name : p.name;
-		append_preset_row(m_preset_model, p.id, label, false);
-	}
+		append_unique_preset(p, false);
 
 	m_programmatic_update = false;
 

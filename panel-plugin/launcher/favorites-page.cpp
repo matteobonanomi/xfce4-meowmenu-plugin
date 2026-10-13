@@ -128,6 +128,12 @@ void FavoritesPage::set_menu_items()
 		{
 			on_rows_reordered(tree_model);
 		});
+	connect(model, "row-inserted",
+		[this](GtkTreeModel*, GtkTreePath*, GtkTreeIter*)
+		{
+			if (m_item_inserted_callback)
+				m_item_inserted_callback();
+		});
 
 	g_object_unref(model);
 }
@@ -330,6 +336,14 @@ void FavoritesPage::sort_descending()
 	}
 	apply_resolved_order(order);
 	set_menu_items();
+}
+
+void FavoritesPage::sort_favourites(bool descending)
+{
+	if (descending)
+		sort_descending();
+	else
+		sort_ascending();
 }
 
 //-----------------------------------------------------------------------------

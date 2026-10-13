@@ -20,6 +20,8 @@
 
 #include "menu-composition.h"
 
+#include <cstring>
+
 namespace WhiskerMenu
 {
 
@@ -136,6 +138,18 @@ struct SidebarPresentation
  * Returns: the matching SidebarPosition (Left for unknown/NULL/"hidden").
  */
 SidebarPosition meow_parse_sidebar_position(const char* value);
+
+/* meow_sidebar_position_key_is_supported:
+ * @value: raw /sidebar-position value; may be NULL.
+ *
+ * Returns: true only for values in the persisted sidebar-position domain.
+ */
+inline bool meow_sidebar_position_key_is_supported(const char* value)
+{
+	return value && (std::strcmp(value, "left") == 0
+			|| std::strcmp(value, "right") == 0
+			|| std::strcmp(value, "horizontal") == 0);
+}
 
 /* meow_resolve_sidebar_edge:
  * @position: stored supported or tolerated legacy sidebar position.

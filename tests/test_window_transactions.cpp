@@ -1,0 +1,313 @@
+/*
+ * Direct normal-path transactions on the real launcher Window.
+ */
+
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+
+#include "core/plugin.h"
+#include "core/window.h"
+#include "launcher/applications-page.h"
+#include "launcher/category-button.h"
+#include "launcher/favorites-page.h"
+#include "launcher/recent-page.h"
+#include "private-xfconf-fixture.h"
+#include "settings-defaults.h"
+#include "settings.h"
+#include "support/glib-main-loop.h"
+
+using namespace WhiskerMenu;
+
+namespace
+{
+
+// Sanitized GTK builds can need extra time to process the first layout pass;
+// keep the deadline finite while allowing the slowest supported CI runner.
+constexpr guint k_window_visibility_timeout_ms = 5000;
+
+/* assert_dismissal_family_inventory:
+ *
+ * Keeps the external call-family audit beside the production transaction test.
+ * The first ten entries carry a user action; the Plugin entries are explicit
+ * toggle/reload/remote dismissals. Focus loss is exercised separately below.
+ */
+void assert_dismissal_family_inventory()
+{
+	static const char* const families[] = {
+		"places-row-open",
+		"places-menu-open",
+		"places-open-containing",
+		"places-open-terminal",
+		"launcher-run",
+		"launcher-desktop-action",
+		"launcher-hide",
+		"launcher-edit",
+		"search-calculator-copy",
+		"profile-command",
+		"plugin-button-toggle",
+		"plugin-reload",
+		"plugin-remote-toggle",
+	};
+	static_assert(G_N_ELEMENTS(families) == 13,
+			"external dismissal family inventory changed");
+	for (const char* family : families)
+		assert(family && std::strlen(family) > 0);
+}
+
+bool wait_for_publication(ApplicationsPage* applications)
+{
+	const gint64 deadline = g_get_monotonic_time() + (5 * G_USEC_PER_SEC);
+	while (!applications->has_publication()
+			&& g_get_monotonic_time() < deadline)
+	{
+		g_main_context_iteration(nullptr, TRUE);
+	}
+	return applications->has_publication();
+}
+
+void drain_ready_sources()
+{
+	while (g_main_context_pending(nullptr))
+		g_main_context_iteration(nullptr, FALSE);
+}
+
+Page* expected_default_page(Settings* settings, Window* window)
+{
+	switch (static_cast<Settings::DefaultCategory>(
+			static_cast<int>(settings->default_category)))
+	{
+	case Settings::CategoryRecent:
+		return window->get_recent();
+	case Settings::CategoryAll:
+		return window->get_applications();
+	default:
+		return window->get_favorites();
+	}
+}
+
+/* assert_publication_order:
+ * @applications: production Applications page after its first publication.
+ *
+ * Confirms that models, categories, and the loaded state were committed in the
+ * order required before the first visible result frame.
+ */
+void assert_publication_order(ApplicationsPage* applications)
+{
+	const std::vector<ApplicationsPage::PublicationStep>& steps =
+			applications->last_publication_steps();
+	assert((steps == std::vector<ApplicationsPage::PublicationStep>{
+			ApplicationsPage::PublicationStep::Items,
+			ApplicationsPage::PublicationStep::Categories,
+			ApplicationsPage::PublicationStep::Loaded }));
+}
+
+/* assert_configured_defaults:
+ * @settings: live configuration whose opening default is varied.
+ * @window: real Window used for each opening transaction.
+ *
+ * Proves each supported configured page survives the same opening transaction
+ * used after initial Applications publication.
+ */
+void assert_configured_defaults(Settings* settings, Window* window)
+{
+	for (Settings::DefaultCategory category : { Settings::CategoryFavorites,
+			Settings::CategoryRecent, Settings::CategoryAll })
+	{
+		settings->default_category = category;
+		settle_private_xfconf();
+		window->show(Window::PositionAtCenter);
+		assert(window->get_active_page() == expected_default_page(settings, window));
+		window->dismiss(Window::DismissReason::Explicit);
+	}
+}
+
+/* assert_stable_layout_reconciliation:
+ * @settings: live configuration changed across the supported layout domain.
+ * @window: real Window whose category hierarchy is observed.
+ *
+ * Repeating an identical layout pass must retain the category container rather
+ * than reparenting it. The matrix also exercises each physical sidebar edge,
+ * disabled state, horizontal strip, and interface direction.
+ */
+void assert_stable_layout_reconciliation(Settings* settings, Window* window)
+{
+	window->show(Window::PositionAtCenter);
+	for (const char* mode : { "docked", "centered", "fullscreen" })
+	for (bool enabled : { false, true })
+	for (const char* position : { "left", "right", "horizontal" })
+	for (GtkTextDirection direction : { GTK_TEXT_DIR_LTR, GTK_TEXT_DIR_RTL })
+	{
+		settings->layout_mode = mode;
+		settings->sidebar_enabled = enabled;
+		settings->sidebar_position = position;
+		settle_private_xfconf();
+		gtk_widget_set_default_direction(direction);
+		window->refresh_layout();
+		GtkWidget* button = window->get_applications()->get_button()->get_widget();
+		GtkWidget* parent = gtk_widget_get_parent(button);
+		assert(parent);
+		window->refresh_layout();
+		assert(gtk_widget_get_parent(button) == parent);
+	}
+	gtk_widget_set_default_direction(GTK_TEXT_DIR_LTR);
+	window->dismiss(Window::DismissReason::Explicit);
+	drain_ready_sources();
+}
+
+}
+
+static int run_test(int argc, char** argv)
+{
+	assert_dismissal_family_inventory();
+
+	if (!gtk_init_check(&argc, &argv))
+	{
+		std::printf("# SKIP: GTK could not initialise (no display)\n");
+		return 77;
+	}
+
+	XfcePanelPlugin* host = XFCE_PANEL_PLUGIN(g_object_new(
+			XFCE_TYPE_PANEL_PLUGIN,
+			"name", "meowmenu",
+			"display-name", "MeowMenu",
+			"comment", "Window transaction test host",
+			"unique-id", 9004,
+			nullptr));
+	assert(host);
+	seed_private_xfconf_profile(xfce_panel_get_channel_name(),
+			xfce_panel_plugin_get_property_base(host), SETTINGS_SCHEMA_VERSION);
+	Plugin* plugin = new Plugin(host);
+	Settings* settings = plugin->get_settings();
+	Window* window = plugin->get_window();
+	assert(wait_for_publication(window->get_applications()));
+	assert_publication_order(window->get_applications());
+	assert(window->get_active_page() == expected_default_page(settings, window));
+	assert_configured_defaults(settings, window);
+	assert_stable_layout_reconciliation(settings, window);
+
+	settings->menu_width = 480;
+	settings->menu_height = 520;
+	settings->menu_opacity = 83;
+	settings->layout_mode = "docked";
+	settings->sidebar_enabled = true;
+	settings->sidebar_position = "horizontal";
+	settings->places_enabled = true;
+	settle_private_xfconf();
+	window->show(Window::PositionAtCenter);
+	assert(meowmenu_test::run_until(
+			[&]() { return gtk_widget_get_visible(window->get_widget()); },
+			k_window_visibility_timeout_ms, "window visibility after show"));
+	assert(window->get_result_toplevel_width_authority() == 480);
+	assert(window->get_result_viewport_width_cap() == -1);
+	settings->layout_mode = "centered";
+	settle_private_xfconf();
+	assert(window->get_result_toplevel_width_authority() == 480);
+	assert(window->get_result_viewport_width_cap() == -1);
+	settings->layout_mode = "unsupported";
+	settle_private_xfconf();
+	assert(window->get_result_toplevel_width_authority() == 480);
+	assert(window->get_result_viewport_width_cap() == -1);
+	settings->layout_mode = "fullscreen";
+	settle_private_xfconf();
+	const int fullscreen_width = window->get_result_toplevel_width_authority();
+	assert(fullscreen_width > 0);
+	assert(window->get_result_viewport_width_cap()
+			== meow_fullscreen_main_column(fullscreen_width).width);
+	settings->layout_mode = "docked";
+	settle_private_xfconf();
+	window->refresh_layout();
+	window->refresh_layout();
+	drain_ready_sources();
+	assert(meowmenu_test::run_until(
+			[&]() { return gtk_widget_get_visible(window->get_widget()); },
+			k_window_visibility_timeout_ms,
+			"window visibility after layout refresh"));
+
+	window->switch_mode(true);
+	assert(window->is_places_active());
+	window->switch_mode(false);
+	assert(!window->is_places_active());
+
+	window->set_child_has_focus();
+	GdkEventFocus focus_out = {};
+	focus_out.type = GDK_FOCUS_CHANGE;
+	focus_out.in = FALSE;
+	gboolean handled = FALSE;
+	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
+			&focus_out, &handled);
+	drain_ready_sources();
+	assert(gtk_widget_get_visible(window->get_widget()));
+
+	GdkEventFocus focus_in = {};
+	focus_in.type = GDK_FOCUS_CHANGE;
+	focus_in.in = TRUE;
+	g_signal_emit_by_name(window->get_widget(), "focus-in-event",
+			&focus_in, &handled);
+	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
+			&focus_out, &handled);
+	assert(gtk_widget_get_visible(window->get_widget()));
+	drain_ready_sources();
+	assert(!gtk_widget_get_visible(window->get_widget()));
+	gboolean remote_handled = FALSE;
+	g_signal_emit_by_name(host, "remote-event", "popup", nullptr,
+			&remote_handled);
+	assert(remote_handled);
+	assert(!gtk_widget_get_visible(window->get_widget()));
+
+	settings->default_category = Settings::CategoryFavorites;
+	settle_private_xfconf();
+	window->show(Window::PositionAtCenter);
+	window->dismiss(Window::DismissReason::Explicit);
+	assert(!gtk_widget_get_visible(window->get_widget()));
+	assert(window->get_active_page() == window->get_favorites());
+
+	window->show(Window::PositionAtCenter);
+	window->switch_mode(false);
+	gtk_entry_set_text(window->get_search_entry(), "dismissal-order");
+	Page* action_page = window->get_active_page();
+	bool action_ran = false;
+	window->perform_then_dismiss(
+			[&]()
+			{
+				assert(gtk_widget_get_visible(window->get_widget()));
+				assert(window->get_active_page() == action_page);
+				assert(std::strcmp(gtk_entry_get_text(window->get_search_entry()),
+						"dismissal-order") == 0);
+				action_ran = true;
+			});
+	assert(action_ran);
+	assert(!gtk_widget_get_visible(window->get_widget()));
+	assert(window->get_active_page() == window->get_favorites());
+
+	window->show(Window::PositionAtCenter);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(plugin->get_button()), true);
+	GdkEventButton button_press = {};
+	button_press.type = GDK_BUTTON_PRESS;
+	button_press.button = 1;
+	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
+			&focus_out, &handled);
+	assert(gtk_widget_get_visible(window->get_widget()));
+	gboolean button_handled = FALSE;
+	g_signal_emit_by_name(plugin->get_button(), "button-press-event",
+			&button_press, &button_handled);
+	assert(button_handled);
+	assert(!gtk_widget_get_visible(window->get_widget()));
+	drain_ready_sources();
+	assert(!gtk_widget_get_visible(window->get_widget()));
+
+	window->show(Window::PositionAtCenter);
+	assert(gtk_widget_get_visible(window->get_widget()));
+	g_signal_emit_by_name(window->get_widget(), "focus-out-event",
+			&focus_out, &handled);
+	settle_private_xfconf();
+	g_signal_emit_by_name(host, "free-data");
+	drain_ready_sources();
+	std::printf("test_window_transactions: ok\n");
+	return 0;
+}
+
+int main(int argc, char** argv)
+{
+	return run_with_private_xfconf(argc, argv, &run_test);
+}

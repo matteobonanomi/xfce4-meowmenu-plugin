@@ -179,13 +179,14 @@ GtkWidget* SettingsDialog::init_general_tab()
 			const LayoutPreset* preset = find_preset_by_id(pid ? std::string(pid) : std::string());
 			if (!preset)
 				return;
+			const std::string preset_name = preset_name_for_display(*preset);
 			if (xfce_dialog_confirm(GTK_WINDOW(gtk_widget_get_toplevel(m_window)),
 				"edit-undo", _("_Reset"),
 				_("All customizations will be discarded and the preset values restored."),
-				_("Reset preset \"%s\"?"), _(preset->display_name.c_str())))
+				_("Reset preset \"%s\"?"), preset_name.c_str()))
 			{
 				apply_preset(*preset, *m_settings);
-				m_plugin->reload_menu();
+				m_settings->dispatch_property_change("/view-mode");
 				sync_preset_widgets();
 				refresh_customized_indicator();
 			}
@@ -236,7 +237,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 					// on the new row (settings match it → not diverged), selected and
 					// named, with no dialog reopen (supported behavior, supported behavior).
 					refresh_preset_combo();
-					m_plugin->reload_menu();
+					m_settings->dispatch_property_change("/view-mode");
 				}
 			}
 			gtk_widget_destroy(dlg);
@@ -324,7 +325,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				// directly on Modern instead of flashing "Unsaved custom" (supported behavior).
 				delete_user_preset(uuid, *m_settings);
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
-				m_plugin->reload_menu();
+				m_settings->dispatch_property_change("/view-mode");
 				sync_preset_widgets();
 				refresh_preset_combo(); // drops the deleted row; recompute selects Modern
 			}
@@ -479,7 +480,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				if (imported)
 				{
 					apply_preset(*imported, *m_settings);
-					m_plugin->reload_menu();
+					m_settings->dispatch_property_change("/view-mode");
 					sync_preset_widgets();
 				}
 				refresh_preset_combo();
@@ -515,7 +516,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 				apply_preset(BUILTIN_PRESETS[PRESET_MODERN], *m_settings);
 				m_settings->schema_version = 13;
 				m_settings->initialized = true;
-				m_plugin->reload_menu();
+				m_settings->dispatch_property_change("/view-mode");
 				sync_preset_widgets();
 				refresh_preset_combo("modern");
 				refresh_customized_indicator();
@@ -541,7 +542,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 				return;
 			// Reveal the selected preset's description via the "?" help control's
 			// hover/focus tooltip (the always-visible inline paragraph is gone).
-			gtk_widget_set_tooltip_text(m_preset_help, _(preset->description.c_str()));
+			const std::string description = preset_description_for_display(*preset);
+			gtk_widget_set_tooltip_text(m_preset_help, description.c_str());
 			// Applying a built-in preset only writes Settings fields and
 			// current_preset_id; it never touches any /presets/<uuid>/ entry, so
 			// custom presets stay immutable and distinct (supported behavior). Re-running
@@ -550,7 +552,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			// already-selected entry, which the combo's "changed" signal cannot.
 			apply_preset(*preset, *m_settings);
 			m_last_applied_preset_id = preset->id;
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/view-mode");
 			sync_preset_widgets();
 			// Recompute drives the active row, the description, and Rename/Delete/
 			// Export sensitivity from the freshly-applied /current-preset-id.
@@ -617,6 +619,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	m_icon_button = gtk_button_new();
 	gtk_label_set_mnemonic_widget(GTK_LABEL(icon_label), m_icon_button);
 	add_form_row(panel_grid, COLUMN_C2, 1, icon_label, m_icon_button, false, panel_c2_labels);
+	g_object_unref(panel_c1_labels);
+	g_object_unref(panel_c2_labels);
 
 	connect(m_icon_button, "clicked",
 		[this](GtkButton*)
@@ -706,7 +710,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			// in sync even if the handler hasn't fired yet for the local channel.
 			apply_layout_mode_sensitivity();
 			update_grid_controls_state();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/layout-mode");
 			refresh_customized_indicator();
 		});
 
@@ -723,7 +727,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->panel_gap = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/panel-gap");
 			refresh_customized_indicator();
 		});
 
@@ -740,7 +744,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_width = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/menu-width");
 		});
 
 	// Row 1 C2: Menu height (narrow, enable-when-docked).
@@ -756,7 +760,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_height = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/menu-height");
 		});
 
 	// Row 2 C2: Corner radius (narrow).
@@ -772,7 +776,7 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->corner_radius = gtk_spin_button_get_value_as_int(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/corner-radius");
 			refresh_customized_indicator();
 		});
 
@@ -785,6 +789,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	gtk_range_set_value(GTK_RANGE(m_menu_opacity), m_settings->menu_opacity);
 	add_form_row(menu_grid, COLUMN_C1, 3, mo_label, m_menu_opacity, true, menu_c1_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(mo_label), m_menu_opacity);
+	g_object_unref(menu_c1_labels);
+	g_object_unref(menu_c2_labels);
 
 	connect(m_menu_opacity, "value-changed",
 		[this](GtkRange* range)
@@ -792,23 +798,23 @@ GtkWidget* SettingsDialog::init_general_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->menu_opacity = static_cast<int>(gtk_range_get_value(range));
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/menu-opacity");
 			refresh_customized_indicator();
 		});
 
-	// HACK: opacity is a compositor feature. Without a compositor the menu always
-	// renders solid (the window guards force it), so the control would otherwise
-	// look functional while doing nothing. Gate it on compositing — disabled with
-	// an explanatory tooltip when absent — and track the screen's
-	// composited-changed so it re-enables live if a compositor starts. Best-effort:
-	// X11 is the verified path; the renderer fallback is independent of this.
+	// HACK: without a compositor the window guards render the menu solid. Keep
+	// the control disabled in that fallback, but follow compositor changes live.
+	// X11 is the verified path; rendering remains safe on other backends.
 	set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
 	if (GdkScreen* mo_screen = gtk_widget_get_screen(m_menu_opacity))
-		connect(mo_screen, "composited-changed",
+	{
+		m_composited_screen = mo_screen;
+		m_composited_changed_slot = connect(mo_screen, "composited-changed",
 			[this, mo_label](GdkScreen*)
 			{
 				set_menu_opacity_compositing_state(m_menu_opacity, mo_label);
 			});
+	}
 
 	// Row 3 C2: Stay visible when focus is lost (control-only).
 	m_stay_on_focus_out = gtk_check_button_new_with_mnemonic(_("Stay _visible when focus is lost"));

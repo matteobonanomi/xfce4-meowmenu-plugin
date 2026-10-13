@@ -19,6 +19,7 @@
 #define WHISKERMENU_APPLICATIONS_PAGE_H
 
 #include "page.h"
+#include "category-activation.h"
 
 #include <string>
 #include <unordered_map>
@@ -36,6 +37,13 @@ class ApplicationsPage : public Page
 {
 
 public:
+	enum class PublicationStep
+	{
+		Items,
+		Categories,
+		Loaded
+	};
+
 	ApplicationsPage(Settings* settings, Window* window);
 	~ApplicationsPage();
 
@@ -62,7 +70,12 @@ public:
 	void invalidate();
 	bool load();
 	bool has_publication() const { return m_has_publication; }
+	const std::vector<PublicationStep>& last_publication_steps() const
+	{
+		return m_last_publication_steps;
+	}
 	void reload_category_icon_size();
+	CategoryActivation* get_category_activation() { return &m_category_activation; }
 
 private:
 	struct ApplicationCandidate;
@@ -83,6 +96,7 @@ private:
 	// unless the sidebar is disabled.
 	GtkWidget* m_outer;
 	GtkWidget* m_default_heading;
+	CategoryActivation m_category_activation;
 
 	GarconMenu* m_garcon_menu;
 	GarconMenu* m_garcon_settings_menu;
@@ -90,6 +104,7 @@ private:
 	std::unordered_map<std::string, Launcher*> m_items;
 	LoadJob* m_load_job;
 	guint64 m_load_generation;
+	std::vector<PublicationStep> m_last_publication_steps;
 	bool m_has_publication;
 
 	enum class LoadStatus

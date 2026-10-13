@@ -47,6 +47,7 @@ struct CalculatorEvaluationRequest
 	CalculatorEngine engine;
 	std::string expression;
 	std::string program_path;
+	std::string stdin_payload;
 	int maximum_decimals;
 	unsigned int generation;
 };
@@ -61,6 +62,8 @@ public:
 
 	void evaluate(CalculatorEngine engine, const std::string& expression,
 			int maximum_decimals, unsigned int generation, Callback callback);
+	void evaluate_request(const CalculatorEvaluationRequest& request,
+			Callback callback);
 	void cancel();
 
 	// Internal completion hook used by the GLib callback after child reaping.

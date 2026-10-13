@@ -19,6 +19,7 @@
 #define WHISKERMENU_SETTINGS_DIALOG_H
 
 #include "core/layout-mode.h"
+#include "ui/properties/common.h"
 
 #include <functional>
 #include <string>
@@ -49,6 +50,21 @@ public:
 	GtkWidget* get_widget() const
 	{
 		return m_window;
+	}
+
+	void close();
+
+	/* create_form_switch:
+	 * @role: Settings control that will own the returned widget.
+	 *
+	 * Exposes the builder's narrow construction boundary without constructing
+	 * the complete dialog or its Plugin graph.
+	 *
+	 * Returns: a floating switch with the shared form-switch contract.
+	 */
+	static GtkWidget* create_form_switch(SettingsFormSwitch role)
+	{
+		return make_settings_form_switch(role);
 	}
 
 private:
@@ -92,6 +108,7 @@ private:
 	// every layout-mode change.
 	void install_layout_mode_handler();
 	void apply_layout_mode_sensitivity();
+	void mirror_menu_size_property(const gchar* property, const GValue* value);
 	std::vector<std::pair<GtkWidget*, WhiskerMenu::LayoutControl>> m_layout_controls;
 	std::vector<GtkWidget*> m_layout_enable_when_docked;
 	std::vector<GtkWidget*> m_layout_enable_when_fullscreen;
@@ -173,6 +190,11 @@ private:
 	// Tracks Xfconf "property-changed" subscription that mirrors live
 	// menu_width/menu_height updates (e.g. drag-resize) into the spin buttons.
 	gulong m_size_change_slot = 0;
+
+	// The screen outlives the dialog, so its callback is explicitly disconnected
+	// before any widget state captured by the callback can be released.
+	GdkScreen* m_composited_screen = nullptr;
+	gulong m_composited_changed_slot = 0;
 
 	// Appearance customization (runtime implementation)
 	GtkWidget* m_corner_radius = nullptr;

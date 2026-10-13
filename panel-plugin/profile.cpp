@@ -52,8 +52,8 @@ Profile::Profile(Settings* settings, Window* window) :
 			Command* command = settings->command[Settings::CommandProfile];
 			if (command->get_shown())
 			{
-				window->hide();
-				command->activate();
+				window->perform_then_dismiss(
+						[command]() { command->activate(); });
 			}
 			return GDK_EVENT_STOP;
 		});

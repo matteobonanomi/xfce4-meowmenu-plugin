@@ -123,6 +123,25 @@ void add_form_row(GtkWidget* grid, int column, int row, GtkWidget* label,
  */
 GtkWidget* make_form_switch();
 
+enum class SettingsFormSwitch
+{
+	ProfileVisibility,
+	SessionVisibility,
+	SidebarEnabled,
+	PlacesEnabled
+};
+
+/* make_settings_form_switch:
+ * @role: bounded Settings-dialog switch role under test.
+ *
+ * Gives the corresponding production builders a shared, directly testable
+ * construction seam without requiring a Plugin instance. Binding and active
+ * state restoration remain owned by each builder.
+ *
+ * Returns: a switch with the make_form_switch() construction contract.
+ */
+GtkWidget* make_settings_form_switch(SettingsFormSwitch role);
+
 }
 
 #endif // WHISKERMENU_UI_PROPERTIES_COMMON_H

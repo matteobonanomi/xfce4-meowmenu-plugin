@@ -55,7 +55,8 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 			gtk_label_new_with_mnemonic(_("Show _session controls:"));
 	gtk_widget_set_halign(show_session_label, GTK_ALIGN_START);
 	gtk_grid_attach(commands_table, show_session_label, 0, 0, 1, 1);
-	m_show_session = make_form_switch();
+	m_show_session = create_form_switch(
+			SettingsFormSwitch::SessionVisibility);
 	gtk_switch_set_active(GTK_SWITCH(m_show_session),
 			static_cast<bool>(m_settings->show_session));
 	gtk_grid_attach(commands_table, m_show_session, 1, 0, 1, 1);
@@ -68,7 +69,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 				return;
 			m_settings->show_session =
 					gtk_switch_get_active(GTK_SWITCH(object));
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/show-session");
 			refresh_customized_indicator();
 		});
 
@@ -97,6 +98,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 		gtk_box_pack_start(commands_vbox, command_edit->get_widget(), false, false, 0);
 		m_commands.push_back(command_edit);
 	}
+	g_object_unref(cmd_label_size_group);
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

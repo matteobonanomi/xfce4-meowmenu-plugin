@@ -145,7 +145,10 @@ void WhiskerMenu::apply_preset(const LayoutPreset& preset, Settings& settings)
  */
 void WhiskerMenu::initialize_file_presets()
 {
-	std::string sys_dir  = std::string(PACKAGE_DATADIR) + G_DIR_SEPARATOR_S + "presets";
+	// Meson installs presets below datadir/meowmenu, while PACKAGE_DATADIR is
+	// reserved for project-owned files such as NEWS.
+	std::string sys_dir  = std::string(DATADIR) + G_DIR_SEPARATOR_S
+		+ "meowmenu" + G_DIR_SEPARATOR_S + "presets";
 	std::string user_dir = std::string(g_get_user_data_dir())
 		+ G_DIR_SEPARATOR_S + "meowmenu" + G_DIR_SEPARATOR_S + "presets";
 
@@ -466,6 +469,7 @@ const std::vector<LayoutPreset>& WhiskerMenu::enumerate_user_presets(XfconfChann
 		p.name         = pair.second.name.empty() ? display_name : pair.second.name;
 		p.description  = "";
 		p.is_builtin   = false;
+		p.identity_localizable = false;
 		p.values       = std::move(pair.second.values);
 		g_user_presets.push_back(std::move(p));
 	}

@@ -1,10 +1,8 @@
 # Security policy
 
-Before final 1.0.0, 0.x releases are experimental and release candidates are
-the more stable testing channel. Compatibility and configuration preservation
-are not guaranteed in any way before final 1.0.0; configuration preservation
-is guaranteed from final 1.0.0 onward. This is a spare-time open-source
-project, so no response or resolution deadline is guaranteed.
+Security fixes are provided through current GitHub releases. This is a
+spare-time open-source project, so no response or resolution deadline is
+guaranteed.
 
 Potential security problems include unsafe command or path handling, unintended
 file access, privilege-boundary mistakes, crashes caused by crafted launcher

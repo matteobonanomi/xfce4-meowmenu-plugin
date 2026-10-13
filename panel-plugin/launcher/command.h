@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_COMMAND_H
 #define WHISKERMENU_COMMAND_H
 
+#include "command-interpreter.h"
 #include "settings.h"
 
 #include <gtk/gtk.h>
@@ -34,6 +35,16 @@ inline bool command_effectively_available(bool shown, bool valid)
 {
 	return shown && valid;
 }
+
+/* command_line_is_available:
+ * @command_line: GLib shell command line; may be NULL.
+ *
+ * Parses the command without executing it and checks the first argv element
+ * against PATH.
+ *
+ * Returns: true when parsing succeeds and the executable is currently found.
+ */
+bool command_line_is_available(const char* command_line);
 
 class Command
 {
@@ -107,6 +118,7 @@ private:
 		Valid
 	}
 	m_status;
+	CommandInterpretation m_interpretation;
 
 	struct TimeoutDetails
 	{

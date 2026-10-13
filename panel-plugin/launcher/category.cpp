@@ -29,8 +29,10 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-Category::Category(Settings* settings, GarconMenu* menu) :
+Category::Category(Settings* settings, CategoryActivation* activation,
+		GarconMenu* menu) :
 	m_settings(settings),
+	m_activation(activation),
 	m_button(nullptr),
 	m_model(nullptr),
 	m_has_separators(false),
@@ -82,7 +84,8 @@ CategoryButton* Category::get_button()
 {
 	if (!m_button)
 	{
-		m_button = new CategoryButton(m_settings, get_icon(), get_text());
+		m_button = new CategoryButton(m_settings, m_activation,
+				get_icon(), get_text());
 	}
 
 	return m_button;

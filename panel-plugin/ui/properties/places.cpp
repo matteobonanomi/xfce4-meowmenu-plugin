@@ -51,7 +51,8 @@ GtkWidget* SettingsDialog::init_places_tab()
 	GtkWidget* enable_grid = make_two_column_section();
 	gtk_box_pack_start(page, make_aligned_frame(_("Places mode"), enable_grid), false, false, 0);
 
-	GtkWidget* enable_switch = make_form_switch();
+	GtkWidget* enable_switch = create_form_switch(
+			SettingsFormSwitch::PlacesEnabled);
 	m_places_enabled_switch = enable_switch;
 	GtkWidget* enable_label = gtk_label_new_with_mnemonic(_("Enable _Places"));
 	gtk_switch_set_active(GTK_SWITCH(enable_switch), m_settings->places_enabled);
@@ -83,12 +84,12 @@ GtkWidget* SettingsDialog::init_places_tab()
 	gtk_label_set_mnemonic_widget(GTK_LABEL(history_label), history_switch);
 
 	GtkWidget* fav_switch = make_form_switch();
-	GtkWidget* fav_label = gtk_label_new_with_mnemonic(_("Enable _Favourites section"));
+	GtkWidget* fav_label = gtk_label_new_with_mnemonic(_("Enable _Favorites section"));
 	gtk_switch_set_active(GTK_SWITCH(fav_switch), m_settings->places_favourites_enabled);
 	add_form_row(sections_grid, COLUMN_C2, 0, fav_label, fav_switch, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(fav_label), fav_switch);
 
-	GtkWidget* sync_label = gtk_label_new_with_mnemonic(_("Favourite _sync:"));
+	GtkWidget* sync_label = gtk_label_new_with_mnemonic(_("Favorite _sync:"));
 	GtkWidget* sync_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sync_combo), "meowmenu", _("MeowMenu only"));
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(sync_combo), "thunar",   _("Thunar bookmarks (read-only)"));
@@ -103,16 +104,16 @@ GtkWidget* SettingsDialog::init_places_tab()
 	add_form_row(sections_grid, COLUMN_C2, 1, max_label, max_spin, false, nullptr);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(max_label), max_spin);
 
-	// Behaviour section: mode memory remains the only selector behavior choice.
-	GtkWidget* behaviour_grid = make_two_column_section();
-	GtkWidget* behaviour_frame = make_aligned_frame(_("Behaviour"), behaviour_grid);
-	gtk_box_pack_start(page, behaviour_frame, false, false, 0);
-	places_dependents.push_back(behaviour_frame);
+	// Behavior section: mode memory remains the only selector behavior choice.
+	GtkWidget* behavior_grid = make_two_column_section();
+	GtkWidget* behavior_frame = make_aligned_frame(_("Behavior"), behavior_grid);
+	gtk_box_pack_start(page, behavior_frame, false, false, 0);
+	places_dependents.push_back(behavior_frame);
 
 	GtkWidget* remember_check = gtk_check_button_new_with_mnemonic(_("_Remember last selected mode"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remember_check),
 			m_settings->places_remember_last_mode);
-	add_form_row(behaviour_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
+	add_form_row(behavior_grid, COLUMN_C1, 0, nullptr, remember_check, false, nullptr);
 
 	// Sensitivity helpers (supported behavior, supported behavior).
 	auto refresh_sensitivity = [=]()
@@ -149,7 +150,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 				return FALSE;
 			m_settings->places_enabled = state;
 			refresh_sensitivity();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/places/enabled");
 			return FALSE; // let the switch update its visual state
 		});
 	connect(show_icons_switch, "state-set",
@@ -160,14 +161,14 @@ GtkWidget* SettingsDialog::init_places_tab()
 			// Stored intent only; the switch re-renders on the next menu open
 			// when update_layout() reads the new value (supported behavior, render-time).
 			m_settings->places_switch_show_icons = state;
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/places/switch-show-icons");
 			return FALSE;
 		});
 	connect(history_switch, "state-set",
 		[this](GtkSwitch*, gboolean state) -> gboolean
 		{
 			m_settings->places_history_enabled = state;
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/places/history-enabled");
 			return FALSE;
 		});
 	connect(fav_switch, "state-set",
@@ -175,7 +176,7 @@ GtkWidget* SettingsDialog::init_places_tab()
 		{
 			m_settings->places_favourites_enabled = state;
 			refresh_sensitivity();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/places/favourites-enabled");
 			return FALSE;
 		});
 	connect(sync_combo, "changed",
@@ -185,14 +186,14 @@ GtkWidget* SettingsDialog::init_places_tab()
 			if (val)
 			{
 				m_settings->places_favourite_sync = val;
-				m_plugin->refresh_layout();
+				m_settings->dispatch_property_change("/places/favourite-sync");
 			}
 		});
 	connect(max_spin, "value-changed",
 		[this](GtkSpinButton* btn)
 		{
 			m_settings->places_max_items = gtk_spin_button_get_value_as_int(btn);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/places/max-items");
 		});
 	connect(remember_check, "toggled",
 		[this](GtkToggleButton* btn)

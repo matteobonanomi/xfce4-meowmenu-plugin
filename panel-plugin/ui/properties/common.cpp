@@ -164,6 +164,12 @@ GtkWidget* make_form_switch()
 	return sw;
 }
 
+GtkWidget* make_settings_form_switch(SettingsFormSwitch role)
+{
+	(void)role;
+	return make_form_switch();
+}
+
 GtkWidget* wrap_in_scrolled(GtkWidget* content)
 {
 	GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);

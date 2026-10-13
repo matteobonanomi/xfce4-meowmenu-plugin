@@ -28,11 +28,29 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
-UsageStats::UsageStats()
+UsageStats::UsageStats() :
+	m_write_idle_id(0)
 {
 	const gchar* cache_dir = g_get_user_cache_dir();
 	m_cache_path = std::string(cache_dir) + "/xfce4/meowmenu/stats";
 	load();
+}
+
+//-----------------------------------------------------------------------------
+
+/* UsageStats::~UsageStats:
+ *
+ * Cancels a pending coalesced idle before releasing its retained state and
+ * performs the promised write synchronously so the last launch is not lost.
+ */
+UsageStats::~UsageStats()
+{
+	if (m_write_idle_id != 0)
+	{
+		g_source_remove(m_write_idle_id);
+		m_write_idle_id = 0;
+		save();
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -65,6 +83,12 @@ double UsageStats::get_frecency(const char* desktop_id, double alpha, int max_la
 
 //-----------------------------------------------------------------------------
 
+/* UsageStats::record_launch:
+ * @desktop_id: application identifier to update; NULL is ignored.
+ *
+ * Updates the in-memory counters and schedules at most one coalesced write.
+ * The stored source identifier is cleared on delivery or settled at teardown.
+ */
 void UsageStats::record_launch(const char* desktop_id)
 {
 	if (!desktop_id)
@@ -74,25 +98,38 @@ void UsageStats::record_launch(const char* desktop_id)
 	s.last_launch_unix = g_get_real_time() / G_USEC_PER_SEC;
 	s.launch_count     = (s.launch_count < 100000) ? s.launch_count + 1 : 100000;
 
-	if (!m_write_scheduled)
+	if (m_write_idle_id == 0)
 	{
-		m_write_scheduled = true;
-		g_idle_add(write_idle_cb, this);
+		m_write_idle_id = g_idle_add(write_idle_cb, this);
 	}
 }
 
 //-----------------------------------------------------------------------------
 
+/* UsageStats::write_idle_cb:
+ * @data: UsageStats that owns the delivered source.
+ *
+ * Clears source ownership before saving so teardown cannot remove a delivered
+ * identifier or perform a duplicate final flush.
+ *
+ * Returns: G_SOURCE_REMOVE after the coalesced write.
+ */
 gboolean UsageStats::write_idle_cb(gpointer data)
 {
 	UsageStats* self = static_cast<UsageStats*>(data);
-	self->m_write_scheduled = false;
+	self->m_write_idle_id = 0;
 	self->save();
 	return G_SOURCE_REMOVE;
 }
 
 //-----------------------------------------------------------------------------
 
+/* UsageStats::load:
+ *
+ * Loads the tab-delimited cache while treating the first tab as the field
+ * boundary, so identifiers containing ordinary whitespace remain intact.
+ * Malformed records are ignored with the existing warning.
+ */
 void UsageStats::load()
 {
 	FILE* f = std::fopen(m_cache_path.c_str(), "r");
@@ -107,13 +144,17 @@ void UsageStats::load()
 		if (len > 0 && line[len - 1] == '\n')
 			line[len - 1] = '\0';
 
-		char desktop_id[256];
 		gint64 last_launch;
 		int    launch_count;
 
 		// TSV: desktop_id <TAB> last_launch_unix <TAB> launch_count
-		if (std::sscanf(line, "%255s\t%" G_GINT64_FORMAT "\t%d", desktop_id, &last_launch, &launch_count) == 3)
+		const char* separator = std::strchr(line, '\t');
+		if (separator && std::sscanf(separator + 1,
+				"%" G_GINT64_FORMAT "\t%d",
+				&last_launch, &launch_count) == 2)
 		{
+			const std::string desktop_id(line,
+					static_cast<std::size_t>(separator - line));
 			AppStats s;
 			s.last_launch_unix = last_launch;
 			s.launch_count     = launch_count;
@@ -132,9 +173,6 @@ void UsageStats::load()
 
 void UsageStats::save() const
 {
-	if (m_stats.empty())
-		return;
-
 	// Ensure cache directory exists
 	gchar* dir = g_path_get_dirname(m_cache_path.c_str());
 	if (g_mkdir_with_parents(dir, 0700) != 0)

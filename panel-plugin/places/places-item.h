@@ -41,9 +41,9 @@ public:
 	 *
 	 * Returns: the label to feed into the markup-rendered list column. For a
 	 * missing item this is muted Pango markup (theme foreground at reduced
-	 * alpha, no hard-coded colour); for an available item it is the plain
-	 * display text, identical to get_text(). The returned string is owned by
-	 * the item and stays valid for its lifetime.
+	 * alpha, no hard-coded colour); for an available item it is the escaped
+	 * literal display text. The returned string is owned by the item and stays
+	 * valid for its lifetime.
 	 */
 	const char* get_display_markup() const { return m_display_markup.c_str(); }
 	bool is_directory() const   { return m_is_directory; }

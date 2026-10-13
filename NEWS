@@ -1,3 +1,17 @@
+0.8.2 (2026-10-13)
+=====
+- Translations: localize built-in preset names and descriptions while preserving custom presets
+- Translations: refresh and validate all 56 catalogs, including localized AppStream metadata and translator credits
+- Installer: prevent stale development modules from shadowing package-installed plugins
+- Places: display names containing markup characters literally
+- Panel: show malformed button titles literally instead of leaving them blank or stale
+- Usage statistics: preserve statistics for application identifiers containing spaces, clear stale empty caches, and flush pending writes safely when the plugin is removed
+- Lifecycle: disconnect live settings updates and save open Properties dialogs safely when the plugin is removed
+- Navigation: keep keyboard and hover category activation independent across multiple menu instances
+- Favorites: keep switching to Favorites after sorting or reordering the list
+- UI: simplify Docked, Centered, and Full Screen composition with adaptive, preset-aware layouts and visibly distinct Properties controls
+- Presets: align built-in presets with the supported layout model and use Modern by default
+
 0.8.1 (2026-09-01)
 =====
 - Keyboard: introduce unified physical arrow navigation across Search, results, grids, sidebars, Places, and session controls

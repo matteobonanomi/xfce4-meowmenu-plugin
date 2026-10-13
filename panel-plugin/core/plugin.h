@@ -53,6 +53,11 @@ public:
 		return m_window;
 	}
 
+	Settings* get_settings() const
+	{
+		return m_settings;
+	}
+
 	enum ButtonStyle
 	{
 		ShowIcon = 0x1,
@@ -87,6 +92,7 @@ public:
 	void set_loaded(bool loaded);
 
 private:
+	void apply_button_title();
 	void configure();
 	void icon_changed(const gchar* icon);
 	void mode_changed(XfcePanelPluginMode mode);

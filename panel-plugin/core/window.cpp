@@ -214,6 +214,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_geometry{0,0,1,1},
 	m_layout_ltr(true),
 	m_layout_categories_horizontal(false),
+	m_layout_vertical_sidebar(true),
 	m_layout_sidebar_position(CompositionSidebar::Left),
 	m_layout_sidebar_enabled(true),
 	m_layout_available_session_actions(0),
@@ -223,6 +224,7 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 	m_layout_metrics{6, ThemeMetricsSource::SafeFallback},
 	m_style_refresh_source(0),
 	m_style_refresh_running(false),
+	m_focus_out_idle(0),
 	m_profile_shape(0),
 	m_supports_alpha(false),
 	m_child_has_focus(false),
@@ -298,10 +300,15 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 			// Needed to make focus out event happen after button press event,
 			// otherwise it is impossible to toggle panel button.
-			g_idle_add(
+			if (m_focus_out_idle == 0)
+				m_focus_out_idle = g_idle_add(
 				+[](gpointer user_data) -> gboolean
 				{
-					static_cast<Window*>(user_data)->hide(true);
+					Window* self = static_cast<Window*>(user_data);
+					// Clear ownership before dismissal because hiding can synchronously
+					// trigger panel callbacks that inspect the Window lifecycle.
+					self->m_focus_out_idle = 0;
+					self->dismiss(DismissReason::FocusLoss);
 					return G_SOURCE_REMOVE;
 				},
 			this);
@@ -396,13 +403,13 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 				{
 					return;
 				}
-				hide();
+				dismiss(DismissReason::Explicit);
 			});
 	}
 
 	// The avatar event-box and username label are decorative only; keep
 	// them out of the focus chain so Tab into the Profile bar lands on
-	// the first visible session button (data-model "Entry widget mapping").
+	// the first visible session button.
 	if (m_profile)
 	{
 		gtk_widget_set_can_focus(m_profile->get_picture(), FALSE);
@@ -450,6 +457,11 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create favorites
 	m_favorites = new FavoritesPage(m_settings, this);
+	m_favorites->set_item_inserted_callback(
+		[this]()
+		{
+			show_favorites();
+		});
 
 	CategoryButton* favorites_button = m_favorites->get_button();
 	connect(favorites_button->get_widget(), "toggled",
@@ -487,6 +499,10 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	// Create applications
 	m_applications = new ApplicationsPage(m_settings, this);
+	CategoryActivation* category_activation =
+			m_applications->get_category_activation();
+	favorites_button->set_activation_policy(category_activation);
+	recent_button->set_activation_policy(category_activation);
 
 	CategoryButton* applications_button = m_applications->get_button();
 	applications_button->join_group(recent_button);
@@ -502,18 +518,21 @@ WhiskerMenu::Window::Window(Settings* settings, Plugin* plugin) :
 
 	{
 		GIcon* home_icon = g_themed_icon_new(m_places->get_home_section()->get_icon_name());
-		m_places_home_btn = new CategoryButton(m_settings, home_icon,
+		m_places_home_btn = new CategoryButton(m_settings, category_activation,
+				home_icon,
 				m_places->get_home_section()->get_display_name());
 		g_object_unref(home_icon);
 
 		GIcon* hist_icon = g_themed_icon_new(m_places->get_history_section()->get_icon_name());
-		m_places_history_btn = new CategoryButton(m_settings, hist_icon,
+		m_places_history_btn = new CategoryButton(m_settings, category_activation,
+				hist_icon,
 				m_places->get_history_section()->get_display_name());
 		g_object_unref(hist_icon);
 		m_places_history_btn->join_group(m_places_home_btn);
 
 		GIcon* fav_icon = g_themed_icon_new(m_places->get_favourites_section()->get_icon_name());
-		m_places_fav_btn = new CategoryButton(m_settings, fav_icon,
+		m_places_fav_btn = new CategoryButton(m_settings, category_activation,
+				fav_icon,
 				m_places->get_favourites_section()->get_display_name());
 		g_object_unref(fav_icon);
 		m_places_fav_btn->join_group(m_places_history_btn);
@@ -872,32 +891,15 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		});
 	on_screen_changed(GTK_WIDGET(m_window));
 
-	// Places mode property-change subscriptions (current behavior).
+	// Places settings retain only their mode/drop-target side effects here;
+	// Settings owns the separate layout-refresh decision.
 	if (m_settings->channel)
 	{
 		m_places_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
-				auto* self = static_cast<Window*>(user_data);
-				if (g_strcmp0(property, "/places/enabled") == 0)
-				{
-					self->update_layout();
-					self->update_favourite_drop_targets();
-				}
-				else if (g_strcmp0(property, "/places/history-enabled") == 0
-						|| g_strcmp0(property, "/places/favourites-enabled") == 0
-						|| g_strcmp0(property, "/recent-items-max") == 0)
-				{
-					self->update_layout();
-					self->update_favourite_drop_targets();
-				}
-				else if (g_strcmp0(property, "/places/favourite-sync") == 0)
-				{
-					self->m_places->get_favourites_section()->refresh_mode();
-					if (self->m_places_active)
-						self->m_places->refresh_active();
-					self->update_favourite_drop_targets();
-				}
+				static_cast<Window*>(user_data)->apply_places_setting_side_effects(
+						property);
 			}), this);
 	}
 
@@ -908,32 +910,8 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 		m_live_settings_property_slot = g_signal_connect(m_settings->channel, "property-changed",
 			G_CALLBACK(+[](XfconfChannel*, const gchar* property, const GValue*, gpointer user_data) -> void
 			{
-				const bool transparent_grid =
-						g_strcmp0(property, "/transparent-grid") == 0;
-				if (g_strcmp0(property, "/corner-radius") != 0
-						&& g_strcmp0(property, "/menu-opacity") != 0
-						&& !transparent_grid)
-					return;
-				// The corner radius is applied entirely by re-clipping and
-				// re-stroking in on_draw_event; a menu-opacity change re-runs the
-				// CSS so the single shell alpha updates live. The redraw queued
-				// below picks up either change without reopening the menu.
-				auto* self = static_cast<Window*>(user_data);
-				if (!transparent_grid)
-				{
-					self->update_background_css();
-				}
-				else
-				{
-					self->m_search_results->get_view()->reload_icon_size();
-					self->m_favorites->get_view()->reload_icon_size();
-					self->m_recent->get_view()->reload_icon_size();
-					self->m_applications->get_view()->reload_icon_size();
-					self->m_places->get_view()->reload_icon_size();
-				}
-				self->update_view_redraw_safeguards();
-				self->on_screen_changed(GTK_WIDGET(self->m_window));
-				gtk_widget_queue_draw(GTK_WIDGET(self->m_window));
+				static_cast<Window*>(user_data)->apply_live_presentation_setting(
+						property);
 			}), this);
 	}
 
@@ -1133,8 +1111,84 @@ void WhiskerMenu::Window::on_places_favourites_drag_data_received(
 
 //-----------------------------------------------------------------------------
 
+/* Window::apply_places_setting_side_effects:
+ * @property: base-relative Xfconf path delivered after Settings updated.
+ *
+ * Keeps Places mode synchronization and drop-target wiring with their Window
+ * owner. Layout refresh is intentionally absent because Settings dispatches
+ * that consequence once for the same property.
+ */
+void WhiskerMenu::Window::apply_places_setting_side_effects(
+		const gchar* property)
+{
+	if (g_strcmp0(property, "/places/enabled") == 0
+			|| g_strcmp0(property, "/places/history-enabled") == 0
+			|| g_strcmp0(property, "/places/favourites-enabled") == 0
+			|| g_strcmp0(property, "/recent-items-max") == 0)
+	{
+		update_favourite_drop_targets();
+	}
+	else if (g_strcmp0(property, "/places/favourite-sync") == 0)
+	{
+		m_places->get_favourites_section()->refresh_mode();
+		if (m_places_active)
+			m_places->refresh_active();
+		update_favourite_drop_targets();
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* Window::apply_live_presentation_setting:
+ * @property: base-relative Xfconf path delivered after Settings updated.
+ *
+ * Applies drawing and view-side effects that are distinct from layout refresh.
+ * The scheduled style transaction coalesces repeated notifications and ignores
+ * recursive scheduling while it is running.
+ */
+void WhiskerMenu::Window::apply_live_presentation_setting(
+		const gchar* property)
+{
+	const bool transparent_grid =
+			g_strcmp0(property, "/transparent-grid") == 0;
+	if (g_strcmp0(property, "/corner-radius") != 0
+			&& g_strcmp0(property, "/menu-opacity") != 0
+			&& !transparent_grid)
+		return;
+
+	// Radius and opacity repaint the shell; transparent-grid changes require
+	// each existing result view to recompute its icon presentation.
+	if (!transparent_grid)
+	{
+		update_background_css();
+	}
+	else
+	{
+		m_search_results->get_view()->reload_icon_size();
+		m_favorites->get_view()->reload_icon_size();
+		m_recent->get_view()->reload_icon_size();
+		m_applications->get_view()->reload_icon_size();
+		m_places->get_view()->reload_icon_size();
+	}
+	update_view_redraw_safeguards();
+	on_screen_changed(GTK_WIDGET(m_window));
+	gtk_widget_queue_draw(GTK_WIDGET(m_window));
+}
+
+//-----------------------------------------------------------------------------
+
+/* ~Window:
+ *
+ * Releases the menu's GTK resources and cancels callbacks that may otherwise
+ * retain the window after the panel plugin has begun shutting down.
+ */
 WhiskerMenu::Window::~Window()
 {
+	if (m_focus_out_idle != 0)
+	{
+		g_source_remove(m_focus_out_idle);
+		m_focus_out_idle = 0;
+	}
 	if (m_resizing)
 		interactive_resize_cancel();
 	if (m_style_refresh_source != 0)
@@ -1175,6 +1229,11 @@ WhiskerMenu::Window::~Window()
 	{
 		g_object_unref(m_category_width_group);
 		m_category_width_group = nullptr;
+	}
+	if (m_mode_button_size_group)
+	{
+		g_object_unref(m_mode_button_size_group);
+		m_mode_button_size_group = nullptr;
 	}
 
 
@@ -1300,7 +1359,7 @@ void WhiskerMenu::Window::validate_resize_display()
 
 //-----------------------------------------------------------------------------
 
-void WhiskerMenu::Window::hide(bool lost_focus)
+void WhiskerMenu::Window::dismiss(DismissReason reason)
 {
 	if (m_resizing)
 		interactive_resize_cancel();
@@ -1340,7 +1399,7 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 	show_default_page();
 
 	// Inform plugin that window is hidden
-	if (!lost_focus)
+	if (reason != DismissReason::FocusLoss)
 	{
 		m_plugin->menu_hidden();
 	}
@@ -1348,9 +1407,21 @@ void WhiskerMenu::Window::hide(bool lost_focus)
 
 //-----------------------------------------------------------------------------
 
+void WhiskerMenu::Window::perform_then_dismiss(
+		const std::function<void()>& action)
+{
+	if (action)
+	{
+		action();
+	}
+	dismiss(DismissReason::Explicit);
+}
+
+//-----------------------------------------------------------------------------
+
 int WhiskerMenu::Window::get_result_toplevel_width_authority() const
 {
-	if (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0)
+	if (layout_mode_from_key(m_settings->layout_mode) == LayoutMode::FullScreen)
 		return m_workarea.width;
 	int requested_width = -1;
 	gtk_widget_get_size_request(GTK_WIDGET(m_window), &requested_width, nullptr);
@@ -1361,7 +1432,7 @@ int WhiskerMenu::Window::get_result_toplevel_width_authority() const
 
 int WhiskerMenu::Window::get_result_viewport_width_cap() const
 {
-	if (g_strcmp0(m_settings->layout_mode, "fullscreen") != 0
+	if (layout_mode_from_key(m_settings->layout_mode) != LayoutMode::FullScreen
 			|| m_workarea.width <= 0)
 	{
 		return -1;
@@ -1533,30 +1604,9 @@ void WhiskerMenu::Window::show(const Position position)
 	// Move window
 	move_window();
 
-	// Relayout window if necessary.
-	const bool layout_ltr = gtk_widget_get_default_direction() != GTK_TEXT_DIR_RTL;
-
-	const char* sidebar_pos  = m_settings->sidebar_position;
-	CompositionSidebar sidebar_layout = CompositionSidebar::Hidden;
-	if (m_settings->sidebar_enabled)
-	{
-		if (g_strcmp0(sidebar_pos, "right") == 0)
-			sidebar_layout = CompositionSidebar::Right;
-		else if (g_strcmp0(sidebar_pos, "horizontal") == 0)
-			sidebar_layout = CompositionSidebar::Horizontal;
-		else
-			sidebar_layout = CompositionSidebar::Left;
-	}
-	const bool cats_horizontal = sidebar_layout
-			== CompositionSidebar::Horizontal;
-	const bool sidebar_enabled = m_settings->sidebar_enabled;
 	const bool is_fullscreen = (g_strcmp0(m_settings->layout_mode, "fullscreen") == 0);
 	// Reconcile once before every presentation. The transaction is bounded and
 	// idempotent, so no parallel cache predicate can omit a new layout input.
-	m_layout_ltr = layout_ltr;
-	m_layout_categories_horizontal = cats_horizontal;
-	m_layout_sidebar_position = sidebar_layout;
-	m_layout_sidebar_enabled = sidebar_enabled;
 	if (m_profile_shape != m_settings->profile_shape)
 	{
 		m_profile->update_picture();
@@ -1567,14 +1617,14 @@ void WhiskerMenu::Window::show(const Position position)
 	// only while closing can be invalidated by the next opening's reparent and
 	// size negotiation, leaving Favourites/Recent/All Applications above the
 	// first visible viewport.
-	if (!is_fullscreen && sidebar_enabled && !cats_horizontal)
+	if (!is_fullscreen && m_layout_vertical_sidebar)
 		meow_reset_vertical_sidebar_scroll(m_sidebar);
 
 	// Sidebar visibility now follows the Enable-sidebar switch (supported behavior);
 	// update_layout() owns the in-strip/relocated cases, this is the docked
 	// vertical-sidebar show/hide. (Legacy "hidden" position migrated away.)
 	gtk_widget_set_visible(GTK_WIDGET(m_sidebar),
-			sidebar_enabled && !cats_horizontal);
+			m_layout_vertical_sidebar);
 
 	// Apply mode-dependent child size requests *before* resizing the toplevel.
 	// This prevents stale fullscreen requests from forcing docked presets wider
@@ -1619,7 +1669,7 @@ void WhiskerMenu::Window::show(const Position position)
 		// "no void on the left" symptom. Mirror the margin on both sides there to
 		// keep the grid centred with symmetric voids, aligned with the centred
 		// search bar (supported behavior).
-		const bool vertical_sidebar_visible = sidebar_enabled && !cats_horizontal;
+		const bool vertical_sidebar_visible = m_layout_vertical_sidebar;
 		if (vertical_sidebar_visible)
 		{
 			gtk_widget_set_margin_start(GTK_WIDGET(m_panels_stack),
@@ -1805,8 +1855,7 @@ void WhiskerMenu::Window::set_categories(const std::vector<CategoryButton*>& cat
 		// restore the centered strip order before the next allocation pass.
 		gtk_box_reorder_child(m_category_buttons, m_strip_trail_spacer, -1);
 	}
-	const bool windowed_vertical_sidebar = m_layout_sidebar_enabled
-			&& !m_layout_categories_horizontal
+	const bool windowed_vertical_sidebar = m_layout_vertical_sidebar
 			&& g_strcmp0(m_settings->layout_mode, "fullscreen") != 0;
 	meow_configure_vertical_sidebar_content(
 			GTK_WIDGET(m_category_buttons), windowed_vertical_sidebar);
@@ -1936,13 +1985,6 @@ void WhiskerMenu::Window::set_items()
 	m_search_results->set_menu_items();
 	m_favorites->set_menu_items();
 	m_recent->set_menu_items();
-
-	// Handle switching to favorites are added
-	connect(m_favorites->get_view()->get_model(), "row-inserted",
-		[this](GtkTreeModel*, GtkTreePath*, GtkTreeIter*)
-		{
-			show_favorites();
-		});
 }
 
 //-----------------------------------------------------------------------------
@@ -1965,10 +2007,8 @@ void WhiskerMenu::Window::set_loaded()
 	// All application-backed models are attached before this point. Invalidate
 	// the concrete active result and its composed owner after the stack switch so
 	// asynchronous loading cannot publish an empty first frame.
-	if (m_places_active)
-		m_places->present();
-	else if (Page* page = get_active_page())
-		page->present();
+	if (ResultSurface* surface = get_active_result_surface())
+		surface->present();
 }
 
 //-----------------------------------------------------------------------------
@@ -1999,7 +2039,8 @@ void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
 	// and suppress pointer-hover auto-activation until the next real motion so a
 	// stationary pointer resting over the sidebar cannot steal focus back.
 	m_keyboard_category_nav = true;
-	CategoryButton::suppress_hover_until_motion();
+	CategoryActivation* activation = m_applications->get_category_activation();
+	activation->note_keyboard_navigation();
 
 	gtk_widget_grab_focus(target);
 
@@ -2007,7 +2048,8 @@ void WhiskerMenu::Window::keyboard_navigate_category(GtkWidget* target)
 	// (no new preference): hover ON → activate now so results follow the
 	// highlight live; hover OFF → move highlight only and leave the committed
 	// category untouched until the user presses Enter/Space.
-	if (m_settings->category_hover_activate)
+	if (activation->keyboard_should_activate(
+			m_settings->category_hover_activate))
 	{
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(target), true);
 	}
@@ -2060,8 +2102,9 @@ bool WhiskerMenu::Window::dispatch_directional_navigation(
 	Keyboard::NavigationRegion origin_region;
 	GtkWidget* origin_widget = nullptr;
 	Page* active_page = m_places_active ? nullptr : get_active_page();
-	LauncherView* active_view = m_places_active
-		? m_places->get_view() : (active_page ? active_page->get_view() : nullptr);
+	ResultSurface* active_surface = get_active_result_surface();
+	LauncherView* active_view = active_surface
+			? active_surface->get_view() : nullptr;
 	GtkTreePath* origin_path = nullptr;
 	Keyboard::NavigationRect origin_rect;
 	bool origin_found = false;
@@ -2660,7 +2703,7 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 			break;
 
 		case Keyboard::EscAction::CloseMenu:
-			hide();
+			dismiss(DismissReason::Explicit);
 			break;
 		}
 		return GDK_EVENT_STOP;
@@ -2677,12 +2720,8 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 				? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
 	}
 
-	Page* page = get_active_page();
-	// NOTE: in Places mode get_active_page() returns the hidden applications
-	// page; use m_places directly so focus and selection target the visible view.
-	GtkWidget* view = m_places_active
-		? m_places->get_view()->get_widget()
-		: page->get_view()->get_widget();
+	ResultSurface* surface = get_active_result_surface();
+	GtkWidget* view = surface->get_view()->get_widget();
 	GtkWidget* search = GTK_WIDGET(m_search_entry);
 
 
@@ -2699,12 +2738,11 @@ gboolean WhiskerMenu::Window::on_key_press_event(GtkWidget* widget, GdkEventKey*
 		if ((widget == search) || (gtk_window_get_focus(m_window) == search))
 		{
 			gtk_widget_grab_focus(view);
-			LauncherView* results_view = m_places_active
-				? m_places->get_view() : page->get_view();
+			LauncherView* results_view = surface->get_view();
 			GtkTreePath* selected = results_view->get_selected_path();
 			if (!selected)
 			{
-				m_places_active ? m_places->select_first() : page->select_first();
+				surface->select_first();
 			}
 			else
 			{
@@ -2809,14 +2847,9 @@ void WhiskerMenu::Window::update_view_redraw_safeguards()
 void WhiskerMenu::Window::prepare_results_width_resize(int current_width,
 		int requested_width)
 {
-	if (m_places_active)
+	if (ResultSurface* surface = get_active_result_surface())
 	{
-		m_places->prepare_viewport_resize(current_width,
-				requested_width);
-	}
-	else if (Page* page = get_active_page())
-	{
-		page->prepare_viewport_resize(current_width,
+		surface->prepare_viewport_resize(current_width,
 				requested_width);
 	}
 }
@@ -3789,11 +3822,8 @@ void WhiskerMenu::Window::apply_menu_composition(
 			gtk_box_reorder_child(m_vbox, widget, band_position++);
 	}
 
-	const char* sidebar_value = m_settings->sidebar_position;
 	const bool vertical_sidebar = !fullscreen_middle
-			&& m_settings->sidebar_enabled
-			&& (g_strcmp0(sidebar_value, "left") == 0
-				|| g_strcmp0(sidebar_value, "right") == 0);
+			&& m_layout_vertical_sidebar;
 	if (vertical_sidebar)
 	{
 		// Profile and navigation share one content-derived width, but not a
@@ -3915,6 +3945,8 @@ void WhiskerMenu::Window::update_layout()
 	m_layout_snapshot = meow_resolve_layout_snapshot(snapshot_input);
 	MenuComposition composition = m_layout_snapshot.composition;
 	m_composition = composition;
+	m_layout_vertical_sidebar =
+			meow_composition_has_vertical_sidebar(composition.sidebar);
 	const SelectorPresentation selector_presentation =
 			meow_resolve_selector_presentation(
 					composition.apps_places_location,
@@ -3954,8 +3986,7 @@ void WhiskerMenu::Window::update_layout()
 	// vertical sidebar list, shared secondary row, or unified Search row — are
 	// reconciled here. A steady-state pass observes the current parent and
 	// performs no reparenting.
-	const bool want_vertical = sidebar_presentation.sidebar_visible
-			&& !sidebar_presentation.categories_horizontal;
+	const bool want_vertical = m_layout_vertical_sidebar;
 	const bool want_strip = sidebar_presentation.sidebar_visible
 			&& sidebar_presentation.categories_horizontal;
 	const int  want_struct   = want_vertical ? 1 : (want_strip ? 2 : 3);
@@ -4144,9 +4175,9 @@ void WhiskerMenu::Window::update_layout()
 	// category. Restore the stable vertical-sidebar order on every pass.
 	if (want_vertical)
 	{
-		gtk_box_reorder_child(m_category_buttons,
+		meow_box_reorder_child_if_present(m_category_buttons,
 				GTK_WIDGET(m_mode_selector_box), 0);
-		gtk_box_reorder_child(m_category_buttons,
+		meow_box_reorder_child_if_present(m_category_buttons,
 				m_mode_selector_separator, 1);
 	}
 
@@ -4231,7 +4262,7 @@ void WhiskerMenu::Window::update_layout()
 	else
 	{
 		gtk_grid_set_column_spacing(m_contents_box,
-				meow_resolve_boundary_gap(m_layout_sidebar_enabled,
+				meow_resolve_boundary_gap(m_layout_vertical_sidebar,
 						true, region_gap));
 		gtk_grid_set_row_spacing(m_contents_box, 0);
 

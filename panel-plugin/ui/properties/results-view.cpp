@@ -137,7 +137,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			if (!val)
 				return;
 			m_settings->grid_density = val;
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/grid-density");
 			refresh_customized_indicator();
 		});
 
@@ -157,7 +157,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->launcher_icon_size = gtk_combo_box_get_active(combo) - 1;
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/launcher-icon-size");
 		});
 
 	// NOTE: launcher_show_name stores "show the real (non-generic) name"; the
@@ -170,7 +170,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->launcher_show_name = !gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/launcher-show-name");
 		});
 
 	m_show_tooltips = gtk_check_button_new_with_mnemonic(_("Show application too_ltips"));
@@ -181,7 +181,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->launcher_show_tooltip = gtk_toggle_button_get_active(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/launcher-show-tooltip");
 		});
 
 	// Show descriptions — list-only sub-enable. C1 with C2 left empty (the documented behavior).
@@ -193,7 +193,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->launcher_show_description = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/launcher-show-description");
 		});
 
 	m_transparent_grid = gtk_check_button_new_with_mnemonic(_("Transparent grid"));
@@ -206,7 +206,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->transparent_grid = gtk_toggle_button_get_active(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/transparent-grid");
 		});
 
 	// Apply the view-mode sub-enables now and on every toggle.
@@ -232,7 +232,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 				return;
 			m_settings->view_mode = Settings::ViewAsIcons;
 			apply_view_mode_sub_enables();
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/view-mode");
 			refresh_customized_indicator();
 		});
 
@@ -245,7 +245,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 				return;
 			m_settings->view_mode = Settings::ViewAsList;
 			apply_view_mode_sub_enables();
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/view-mode");
 			refresh_customized_indicator();
 		});
 
@@ -258,7 +258,7 @@ GtkWidget* SettingsDialog::init_app_grid_tab()
 				return;
 			m_settings->view_mode = Settings::ViewAsTree;
 			apply_view_mode_sub_enables();
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/view-mode");
 			refresh_customized_indicator();
 		});
 

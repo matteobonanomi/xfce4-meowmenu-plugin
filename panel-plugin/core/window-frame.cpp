@@ -29,63 +29,164 @@ namespace
 const int kMinCornerRadius = 0;
 const int kMaxCornerRadius = 24;
 const unsigned int kMaxMappedResultPreparationFrames = 8;
-
-struct MappedResultFrame
-{
-	GtkWidget* toplevel;
-	GtkWidget* result;
-	guint* callback_id;
-	MeowMenuResultFramePrepare prepare;
-	void* prepare_data;
-	guint id;
-	unsigned int preparation_frames;
-};
-
-/* queue_mapped_result_frame:
- * @data: owned MappedResultFrame retained by GTK until callback destruction.
- *
- * Re-enters page layout preparation from the mapped launcher clock, then
- * damages both the concrete result and composed toplevel. An incomplete result
- * retains the callback for a bounded number of frames so hidden-stack mapping
- * and the resulting layout can settle without user input.
- *
- * Returns: G_SOURCE_CONTINUE while readiness is pending within the bound;
- * otherwise G_SOURCE_REMOVE.
- */
-gboolean queue_mapped_result_frame(GtkWidget*, GdkFrameClock*, gpointer data)
-{
-	MappedResultFrame* frame = static_cast<MappedResultFrame*>(data);
-	++frame->preparation_frames;
-	const bool ready = !frame->prepare
-			|| frame->prepare(frame->prepare_data);
-	meow::meowmenu_queue_complete_result_frame(
-			frame->toplevel, frame->result);
-	if (!ready && frame->preparation_frames
-			< kMaxMappedResultPreparationFrames)
-	{
-		return G_SOURCE_CONTINUE;
-	}
-	if (frame->callback_id && *frame->callback_id == frame->id)
-		*frame->callback_id = 0;
-	return G_SOURCE_REMOVE;
-}
-
-/* destroy_mapped_result_frame:
- * @data: owned MappedResultFrame whose GTK callback has ended or was removed.
- *
- * Clears the caller's slot only when it still names this callback, releases
- * the widgets retained across the frame boundary, and destroys the context.
- */
-void destroy_mapped_result_frame(gpointer data)
-{
-	MappedResultFrame* frame = static_cast<MappedResultFrame*>(data);
-	if (frame->callback_id && *frame->callback_id == frame->id)
-		*frame->callback_id = 0;
-	g_object_unref(frame->toplevel);
-	g_object_unref(frame->result);
-	delete frame;
-}
 } // namespace
+
+MappedResultFrame::MappedResultFrame() :
+	m_owner(nullptr),
+	m_toplevel(nullptr),
+	m_result(nullptr),
+	m_prepare(nullptr),
+	m_prepare_data(nullptr),
+	m_callback_id(0),
+	m_owner_destroy_handler(0),
+	m_result_destroy_handler(0),
+	m_preparation_frames(0)
+{
+}
+
+MappedResultFrame::~MappedResultFrame()
+{
+	cancel();
+}
+
+/* MappedResultFrame::schedule:
+ * @owner: mapped widget whose frame clock delivers the callback.
+ * @toplevel: launcher toplevel that owns composition and clipping.
+ * @result: concrete result widget to invalidate.
+ * @prepare: optional layout-readiness callback.
+ * @prepare_data: borrowed context valid until cancellation or completion.
+ *
+ * Starts one bounded mapped-frame transaction and observes dependency
+ * destruction so no callback can outlive its page-owned preparation context.
+ * An already pending request remains authoritative and is not replaced.
+ *
+ * Returns: true when a callback is already pending or was scheduled.
+ */
+bool MappedResultFrame::schedule(GtkWidget* owner, GtkWidget* toplevel,
+		GtkWidget* result, MeowMenuResultFramePrepare prepare,
+		void* prepare_data)
+{
+	if (!GTK_IS_WIDGET(owner) || !GTK_IS_WIDGET(toplevel)
+			|| !GTK_IS_WIDGET(result))
+	{
+		return false;
+	}
+	if (pending())
+		return true;
+
+	m_owner = owner;
+	m_toplevel = GTK_WIDGET(g_object_ref(toplevel));
+	m_result = GTK_WIDGET(g_object_ref(result));
+	m_prepare = prepare;
+	m_prepare_data = prepare_data;
+	m_preparation_frames = 0;
+	m_owner_destroy_handler = g_signal_connect(owner, "destroy",
+			G_CALLBACK(on_owner_destroyed), this);
+	if (result != owner)
+	{
+		m_result_destroy_handler = g_signal_connect(result, "destroy",
+				G_CALLBACK(on_result_destroyed), this);
+	}
+	m_callback_id = gtk_widget_add_tick_callback(owner, on_frame, this,
+			on_callback_destroyed);
+	if (m_callback_id == 0)
+		clear_retained_state();
+	return m_callback_id != 0;
+}
+
+/* MappedResultFrame::cancel:
+ *
+ * Removes the current tick callback. GTK invokes the registered destroy
+ * notifier synchronously, which releases every retained dependency.
+ */
+void MappedResultFrame::cancel()
+{
+	if (m_callback_id == 0)
+		return;
+	const guint callback_id = m_callback_id;
+	m_callback_id = 0;
+	if (GTK_IS_WIDGET(m_owner))
+		gtk_widget_remove_tick_callback(m_owner, callback_id);
+}
+
+/* MappedResultFrame::on_frame:
+ * @data: MappedResultFrame that owns this callback and its retained surfaces.
+ *
+ * Re-enters page layout preparation before independently damaging the result
+ * and composed toplevel. Readiness polling stops after the established bound.
+ *
+ * Returns: G_SOURCE_CONTINUE only while readiness remains within the bound.
+ */
+gboolean MappedResultFrame::on_frame(GtkWidget*, GdkFrameClock*, gpointer data)
+{
+	MappedResultFrame* frame = static_cast<MappedResultFrame*>(data);
+	++frame->m_preparation_frames;
+	const bool ready = !frame->m_prepare
+			|| frame->m_prepare(frame->m_prepare_data);
+	meowmenu_queue_complete_result_frame(frame->m_toplevel, frame->m_result);
+	return !ready && frame->m_preparation_frames
+			< kMaxMappedResultPreparationFrames
+			? G_SOURCE_CONTINUE : G_SOURCE_REMOVE;
+}
+
+void MappedResultFrame::on_callback_destroyed(gpointer data)
+{
+	MappedResultFrame* frame = static_cast<MappedResultFrame*>(data);
+	frame->m_callback_id = 0;
+	frame->clear_retained_state();
+}
+
+void MappedResultFrame::on_owner_destroyed(GtkWidget*, gpointer data)
+{
+	MappedResultFrame* frame = static_cast<MappedResultFrame*>(data);
+	frame->m_owner_destroy_handler = 0;
+	frame->cancel();
+}
+
+void MappedResultFrame::on_result_destroyed(GtkWidget*, gpointer data)
+{
+	MappedResultFrame* frame = static_cast<MappedResultFrame*>(data);
+	frame->m_result_destroy_handler = 0;
+	frame->cancel();
+}
+
+/* MappedResultFrame::clear_retained_state:
+ *
+ * Disconnects dependency observers and releases all retained or borrowed state
+ * after GTK has removed the callback. Clearing fields before unref prevents a
+ * widget finalizer from re-entering cancellation with stale data.
+ */
+void MappedResultFrame::clear_retained_state()
+{
+	GtkWidget* owner = m_owner;
+	GtkWidget* toplevel = m_toplevel;
+	GtkWidget* result = m_result;
+	const gulong owner_handler = m_owner_destroy_handler;
+	const gulong result_handler = m_result_destroy_handler;
+	m_owner = nullptr;
+	m_toplevel = nullptr;
+	m_result = nullptr;
+	m_prepare = nullptr;
+	m_prepare_data = nullptr;
+	m_owner_destroy_handler = 0;
+	m_result_destroy_handler = 0;
+	m_preparation_frames = 0;
+
+	if (owner_handler && GTK_IS_WIDGET(owner)
+			&& g_signal_handler_is_connected(owner, owner_handler))
+	{
+		g_signal_handler_disconnect(owner, owner_handler);
+	}
+	if (result_handler && GTK_IS_WIDGET(result)
+			&& g_signal_handler_is_connected(result, result_handler))
+	{
+		g_signal_handler_disconnect(result, result_handler);
+	}
+	if (result)
+		g_object_unref(result);
+	if (toplevel)
+		g_object_unref(toplevel);
+}
 
 int meowmenu_clamp_corner_radius(int radius)
 {
@@ -155,38 +256,6 @@ bool meowmenu_queue_complete_result_frame(GtkWidget* toplevel,
 		queued = true;
 	}
 	return queued;
-}
-
-bool meowmenu_schedule_mapped_result_frame(GtkWidget* owner,
-		GtkWidget* toplevel, GtkWidget* result, guint* callback_id,
-		MeowMenuResultFramePrepare prepare, void* prepare_data)
-{
-	if (!GTK_IS_WIDGET(owner) || !GTK_IS_WIDGET(toplevel)
-			|| !GTK_IS_WIDGET(result) || !callback_id)
-	{
-		return false;
-	}
-	if (*callback_id != 0)
-		return true;
-
-	MappedResultFrame* frame = new MappedResultFrame{
-			GTK_WIDGET(g_object_ref(toplevel)),
-			GTK_WIDGET(g_object_ref(result)), callback_id,
-			prepare, prepare_data, 0, 0};
-	frame->id = gtk_widget_add_tick_callback(owner,
-			queue_mapped_result_frame, frame, destroy_mapped_result_frame);
-	*callback_id = frame->id;
-	return frame->id != 0;
-}
-
-void meowmenu_cancel_mapped_result_frame(GtkWidget* owner, guint* callback_id)
-{
-	if (!callback_id || *callback_id == 0)
-		return;
-	const guint id = *callback_id;
-	*callback_id = 0;
-	if (GTK_IS_WIDGET(owner))
-		gtk_widget_remove_tick_callback(owner, id);
 }
 
 GtkWidget* meowmenu_create_default_heading_page(GtkWidget* content,

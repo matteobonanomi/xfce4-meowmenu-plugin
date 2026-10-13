@@ -1,14 +1,11 @@
 /*
- * Unit tests for milestone 005 (Places mode) pure logic.
+ * Unit tests for Places behavior and presentation.
  *
- * Mirrors PlacesItem::search() (case-folded substring match) and
- * HomeSection::get_items()'s existence filter without instantiating GTK
- * widgets, matching the pattern of the other tests in this folder.
- *
- * NOTE: the production code paths still use GTK / GIO; this test exercises
- * the same algorithms in isolation. A future test harness that can host
- * GTK widget construction (the documented behavior follow-up) will replace this stand-in.
+ * The markup cases construct the production PlacesItem. The remaining small
+ * helpers pin filtering behavior without constructing a complete Places page.
  */
+
+#include "places/places-item.h"
 
 #include <cassert>
 #include <cstring>
@@ -111,33 +108,20 @@ static std::vector<std::string> hide_missing_external_favourite_uris(
 	return visible;
 }
 
-// ---------------------------------------------------------------------------
-// Stand-in for PlacesItem's availability-driven presentation (places-item.cpp):
-// an available item keeps its plain display name; a missing item is wrapped in
-// muted Pango markup with the name escaped, and its tooltip names the target and
-// marks it missing. Mirrors the production logic without constructing GTK.
-// ---------------------------------------------------------------------------
-static std::string places_display_markup(const char* name, bool exists)
+static std::string escape_markup(const char* text)
 {
-	const char* label = name ? name : "";
-	if (exists)
-	{
-		return label;
-	}
-	gchar* escaped = g_markup_escape_text(label, -1);
-	gchar* markup = g_strdup_printf("<span alpha=\"55%%\">%s</span>",
-			escaped ? escaped : "");
-	std::string out = markup ? markup : "";
-	g_free(markup);
+	gchar* escaped = g_markup_escape_text(text ? text : "", -1);
+	std::string out = escaped ? escaped : "";
 	g_free(escaped);
 	return out;
 }
 
-static std::string places_missing_tooltip(const char* target)
+static std::string missing_markup(const char* escaped_name)
 {
-	gchar* tip = g_strdup_printf("%s (missing)", target ? target : "");
-	std::string out = tip ? tip : "";
-	g_free(tip);
+	gchar* markup = g_strdup_printf("<span alpha=\"55%%\">%s</span>",
+			escaped_name ? escaped_name : "");
+	std::string out = markup ? markup : "";
+	g_free(markup);
 	return out;
 }
 
@@ -180,47 +164,62 @@ static bool is_valid_alpha_span(const std::string& markup)
 
 // ---------------------------------------------------------------------------
 
-static void test_missing_item_markup_is_muted_and_escaped()
+/* test_places_item_markup:
+ * @exists: whether the fixture target is created before constructing the item.
+ * @is_favourite: whether the item represents the favourites result path.
+ *
+ * Constructs the real PlacesItem with a hostile literal filename and verifies
+ * that both ordinary and favourite result paths expose exactly-once escaped
+ * markup while retaining their distinct available/missing tooltip behavior.
+ */
+static void test_places_item_markup(bool exists, bool is_favourite)
 {
-	// A name with markup-significant characters must be escaped inside the span.
-	const std::string markup = places_display_markup("Tom & Jerry <draft>", false);
-	assert(is_valid_alpha_span(markup));
+	const char* name = "Tom & Jerry <draft> 100%.txt";
+	gchar* tmpdir = g_dir_make_tmp("meowmenu-markup-XXXXXX", nullptr);
+	assert(tmpdir);
+	gchar* path = g_build_filename(tmpdir, name, nullptr);
+	assert(path);
+	if (exists)
+	{
+		assert(g_file_set_contents(path, "fixture", -1, nullptr));
+	}
+
+	GFile* file = g_file_new_for_path(path);
+	assert(file);
+	WhiskerMenu::PlacesItem item(file, is_favourite);
+	g_object_unref(file);
+
+	assert(item.exists() == exists);
+	assert(item.is_favourite() == is_favourite);
+	assert(std::string(item.get_text()) == name);
+	const std::string escaped = escape_markup(name);
+	const std::string markup = item.get_display_markup();
+	assert(markup == (exists ? escaped : missing_markup(escaped.c_str())));
 	assert(markup.find("&amp;") != std::string::npos);
 	assert(markup.find("&lt;draft&gt;") != std::string::npos);
-	// The raw, unescaped ampersand must not survive into the markup.
-	assert(markup.find("& Jerry") == std::string::npos);
-}
+	assert(markup.find("100%") != std::string::npos);
+	assert(markup.find("&amp;amp;") == std::string::npos);
+	if (exists)
+	{
+		assert(markup.find("<span") == std::string::npos);
+	}
+	else
+	{
+		assert(is_valid_alpha_span(markup));
+	}
 
-static void test_missing_item_tooltip_names_target()
-{
-	const std::string tip = places_missing_tooltip("/home/u/Docs/report.odt");
-	assert(tip.find("/home/u/Docs/report.odt") != std::string::npos);
-	assert(tip.find("missing") != std::string::npos);
-}
+	const std::string escaped_path = escape_markup(path);
+	const std::string tooltip = item.get_tooltip() ? item.get_tooltip() : "";
+	assert(tooltip.find(escaped_path) != std::string::npos);
+	assert((tooltip == escaped_path) == exists);
 
-static void test_available_item_keeps_plain_label()
-{
-	// An available item's label is the plain display text, untouched.
-	const std::string label = places_display_markup("report.odt", true);
-	assert(label == "report.odt");
-	assert(label.find("<span") == std::string::npos);
-}
-
-static void test_missing_treatment_is_source_agnostic()
-{
-	// A missing favourite and a missing recent entry pointing at the same
-	// target get an identical muted label and "missing" tooltip — one shared
-	// treatment, regardless of which section produced the item (the documented behavior).
-	const char* name = "Project";
-	const char* target = "/srv/Project";
-
-	const std::string recent_markup = places_display_markup(name, false);
-	const std::string favourite_markup = places_display_markup(name, false);
-	assert(recent_markup == favourite_markup);
-
-	const std::string recent_tip = places_missing_tooltip(target);
-	const std::string favourite_tip = places_missing_tooltip(target);
-	assert(recent_tip == favourite_tip);
+	if (exists)
+	{
+		assert(g_remove(path) == 0);
+	}
+	assert(g_rmdir(tmpdir) == 0);
+	g_free(path);
+	g_free(tmpdir);
 }
 
 // ---------------------------------------------------------------------------
@@ -340,10 +339,10 @@ static void test_external_favourites_hide_missing_uris_without_pruning_source()
 
 int main()
 {
-	test_missing_item_markup_is_muted_and_escaped();
-	test_missing_item_tooltip_names_target();
-	test_available_item_keeps_plain_label();
-	test_missing_treatment_is_source_agnostic();
+	test_places_item_markup(true, false);
+	test_places_item_markup(false, false);
+	test_places_item_markup(true, true);
+	test_places_item_markup(false, true);
 	test_search_empty_filter_matches_everything();
 	test_search_case_insensitive_ascii();
 	test_search_utf8();

@@ -30,6 +30,13 @@ enum class LayoutMode
  */
 LayoutMode layout_mode_from_key(const char* value);
 
+/* layout_mode_key_is_supported:
+ * @value: raw /layout-mode value; may be NULL.
+ *
+ * Returns: true only for values in the persisted layout-mode domain.
+ */
+bool layout_mode_key_is_supported(const char* value);
+
 enum class LayoutControl
 {
 	MenuWidth,

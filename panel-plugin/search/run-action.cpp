@@ -20,7 +20,16 @@
 #include "query.h"
 #include "settings.h"
 
+#include <utility>
+
 using namespace WhiskerMenu;
+
+//-----------------------------------------------------------------------------
+
+bool WhiskerMenu::run_action_command_is_available(const char* command_line)
+{
+	return CommandInterpretation::parse(command_line).available();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -34,31 +43,31 @@ RunAction::RunAction(Settings* settings) :
 
 void RunAction::run(GdkScreen* screen) const
 {
-	spawn(screen, m_command_line.c_str(), nullptr, false, nullptr);
+	spawn(screen, m_interpretation, nullptr, false, nullptr);
 }
 
 //-----------------------------------------------------------------------------
 
+/* search:
+ * @query: raw launcher query proposed as a command line.
+ *
+ * Retains the same parsed argv used for PATH availability so activation cannot
+ * reinterpret shell-bearing text. Invalid or unavailable commands do not rank.
+ *
+ * Returns: the Run Action rank, or UINT_MAX when unavailable.
+ */
 unsigned int RunAction::search(const Query& query)
 {
 	// Check if in PATH
-	bool valid = false;
-
-	gchar** argv;
-	if (g_shell_parse_argv(query.raw_query().c_str(), nullptr, &argv, nullptr))
-	{
-		gchar* path = g_find_program_in_path(argv[0]);
-		valid = path;
-		g_free(path);
-		g_strfreev(argv);
-	}
-
-	if (!valid)
+	CommandInterpretation interpretation =
+			CommandInterpretation::parse(query.raw_query().c_str());
+	if (!interpretation.available())
 	{
 		return UINT_MAX;
 	}
 
 	m_command_line = query.raw_query();
+	m_interpretation = std::move(interpretation);
 
 	// Set item text
 	const gchar* direction = (gtk_widget_get_default_direction() != GTK_TEXT_DIR_RTL) ? "\342\200\216" : "\342\200\217";

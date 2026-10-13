@@ -1,27 +1,18 @@
 panel-plugin/launcher/applications-page.cpp
-panel-plugin/launcher/category-button.cpp
 panel-plugin/launcher/category.cpp
 panel-plugin/ui/command-edit.cpp
-panel-plugin/launcher/command.cpp
 panel-plugin/launcher/element.cpp
 panel-plugin/launcher/favorites-page.cpp
 panel-plugin/places/favourites-section.cpp
 panel-plugin/places/history-section.cpp
 panel-plugin/places/home-section.cpp
-panel-plugin/ui/icon-renderer.cpp
 panel-plugin/ui/icon-size.cpp
-panel-plugin/ui/launcher-icon-view.cpp
-panel-plugin/ui/launcher-tree-view.cpp
 panel-plugin/launcher/launcher.cpp
 panel-plugin/launcher/page.cpp
 panel-plugin/places/places-item.cpp
 panel-plugin/places/places-page.cpp
 panel-plugin/core/plugin.cpp
-panel-plugin/presets/preset.cpp
-panel-plugin/profile.cpp
-panel-plugin/search/query.cpp
 panel-plugin/launcher/recent-page.cpp
-panel-plugin/core/resizer.cpp
 panel-plugin/search/run-action.cpp
 panel-plugin/search/search-action.cpp
 panel-plugin/search/search-page.cpp
@@ -42,5 +33,8 @@ panel-plugin/calculator/calculator-engine.cpp
 panel-plugin/core/window.cpp
 panel-plugin/core/window-pages.cpp
 panel-plugin/core/xfce4-popup-meowmenu.cpp
+panel-plugin/presets/preset-builtins.cpp
+panel-plugin/presets/preset-io.cpp
 
 panel-plugin/meowmenu.desktop.in
+data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml

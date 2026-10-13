@@ -21,6 +21,14 @@ using namespace WhiskerMenu;
 
 //-----------------------------------------------------------------------------
 
+/* PlacesItem:
+ * @file: file or folder represented by the item; referenced for this lifetime.
+ * @is_favourite: whether the item belongs to the favourites result path.
+ *
+ * Resolves the target synchronously and prepares its literal display name for
+ * the shared markup column. Missing targets retain the muted presentation and
+ * distinct tooltip while every result path receives exactly-once escaping.
+ */
 PlacesItem::PlacesItem(GFile* file, bool is_favourite) :
 	m_file(file ? G_FILE(g_object_ref(file)) : nullptr),
 	m_accessed(0),
@@ -81,19 +89,16 @@ PlacesItem::PlacesItem(GFile* file, bool is_favourite) :
 	}
 
 	const char* label = get_text() ? get_text() : "";
+	gchar* escaped = g_markup_escape_text(label, -1);
 	if (m_exists)
 	{
-		// Available: keep today's plain label and the path/URI tooltip.
-		m_display_markup = label;
+		// The shared tree-view renders COLUMN_TEXT as Pango markup.
+		m_display_markup = escaped ? escaped : "";
 		set_tooltip(path ? path : m_uri.c_str());
 	}
 	else
 	{
 		// Missing: mute the label and flag the target as gone.
-		// NOTE: escape the display name before wrapping it — the shared
-		// tree-view renders COLUMN_TEXT as Pango markup, so an unescaped
-		// "&" or "<" in a file name would corrupt the row.
-		gchar* escaped = g_markup_escape_text(label, -1);
 		// NOTE: dim via alpha over the inherited theme foreground rather than
 		// a fixed colour, so the muted text stays legible on light and dark
 		// themes (no hard-coded colour).
@@ -101,7 +106,6 @@ PlacesItem::PlacesItem(GFile* file, bool is_favourite) :
 				escaped ? escaped : "");
 		m_display_markup = markup ? markup : "";
 		g_free(markup);
-		g_free(escaped);
 
 		// Tooltip names the target and states it is missing; set_tooltip()
 		// escapes the text for markup, so pass it raw.
@@ -109,6 +113,7 @@ PlacesItem::PlacesItem(GFile* file, bool is_favourite) :
 		set_tooltip(tip);
 		g_free(tip);
 	}
+	g_free(escaped);
 
 	gchar* folded = g_utf8_casefold(get_text(), -1);
 	m_casefolded_name = folded ? folded : "";

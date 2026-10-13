@@ -18,14 +18,75 @@
 #ifndef MEOWMENU_CORE_WINDOW_FRAME_H
 #define MEOWMENU_CORE_WINDOW_FRAME_H
 
-struct _GtkWidget;
-typedef struct _GtkWidget GtkWidget;
+#include <gtk/gtk.h>
 
 namespace meow
 {
 
 /* Reports page-owned layout readiness from a mapped launcher frame. */
 typedef bool (*MeowMenuResultFramePrepare)(void* data);
+
+/* MappedResultFrame:
+ *
+ * Owns one coalesced mapped-frame request and every object retained until its
+ * delivery. Dependency destruction, explicit cancellation, and owner teardown
+ * all clear the pending callback before borrowed preparation data can be used.
+ */
+class MappedResultFrame
+{
+public:
+	MappedResultFrame();
+	~MappedResultFrame();
+
+	MappedResultFrame(const MappedResultFrame&) = delete;
+	MappedResultFrame(MappedResultFrame&&) = delete;
+	MappedResultFrame& operator=(const MappedResultFrame&) = delete;
+	MappedResultFrame& operator=(MappedResultFrame&&) = delete;
+
+	/* schedule:
+	 * @owner: mapped widget whose frame clock delivers the callback.
+	 * @toplevel: launcher toplevel that owns composition and clipping.
+	 * @result: concrete result widget to invalidate.
+	 * @prepare: optional layout-readiness callback.
+	 * @prepare_data: borrowed context valid until cancellation or completion.
+	 *
+	 * Retains the presentation widgets, polls readiness for a bounded number of
+	 * frames, and damages both surfaces on every delivery. Repeated requests
+	 * coalesce without replacing the retained transaction.
+	 *
+	 * Returns: true when a callback is already pending or was scheduled.
+	 */
+	bool schedule(GtkWidget* owner, GtkWidget* toplevel, GtkWidget* result,
+			MeowMenuResultFramePrepare prepare = nullptr,
+			void* prepare_data = nullptr);
+
+	/* cancel:
+	 *
+	 * Idempotently removes the callback and releases all retained widgets and
+	 * borrowed preparation data before a page or view is replaced.
+	 */
+	void cancel();
+
+	bool pending() const { return m_callback_id != 0; }
+
+private:
+	static gboolean on_frame(GtkWidget*, GdkFrameClock*, gpointer data);
+	static void on_callback_destroyed(gpointer data);
+	static void on_owner_destroyed(GtkWidget* widget, gpointer data);
+	static void on_result_destroyed(GtkWidget* widget, gpointer data);
+	void clear_retained_state();
+
+private:
+	GtkWidget* m_owner;
+	GtkWidget* m_toplevel;
+	GtkWidget* m_result;
+	MeowMenuResultFramePrepare m_prepare;
+	void* m_prepare_data;
+	guint m_callback_id;
+	gulong m_owner_destroy_handler;
+	gulong m_result_destroy_handler;
+	unsigned int m_preparation_frames;
+};
 
 /* meowmenu_clamp_corner_radius:
  * @radius: a requested corner radius in logical pixels (may be out of range).
@@ -94,37 +155,6 @@ bool meowmenu_queue_complete_window_frame(GtkWidget* widget);
  */
 bool meowmenu_queue_complete_result_frame(GtkWidget* toplevel,
 		GtkWidget* result);
-
-/* meowmenu_schedule_mapped_result_frame:
- * @owner: mapped lifecycle widget that owns the callback, normally @toplevel.
- * @toplevel: launcher toplevel that owns composition and clipping.
- * @result: concrete result widget to invalidate.
- * @callback_id: page-owned callback slot; zero means no callback is pending.
- * @prepare: optional layout-readiness callback invoked at the mapped frame.
- * @prepare_data: borrowed callback context owned by the caller.
- *
- * Coalesces layout preparation and complete-result invalidation on @owner's
- * frame clock. A request made while a stack child is hidden remains
- * active for a bounded number of frames until the concrete result reports
- * readiness, then damages both surfaces. The caller must cancel the slot before
- * destroying or replacing @owner, @result, or @prepare_data.
- *
- * Returns: true when a callback is already pending or was scheduled.
- */
-bool meowmenu_schedule_mapped_result_frame(GtkWidget* owner,
-		GtkWidget* toplevel, GtkWidget* result, unsigned int* callback_id,
-		MeowMenuResultFramePrepare prepare = nullptr,
-		void* prepare_data = nullptr);
-
-/* meowmenu_cancel_mapped_result_frame:
- * @owner: exact widget used to register the pending callback.
- * @callback_id: page-owned callback slot to clear.
- *
- * Removes a pending mapped-frame invalidation before page teardown or result
- * replacement. Invalid or already-clear slots are harmless.
- */
-void meowmenu_cancel_mapped_result_frame(GtkWidget* owner,
-		unsigned int* callback_id);
 
 /* meowmenu_create_default_heading_page:
  * @content: built-in result page to wrap.

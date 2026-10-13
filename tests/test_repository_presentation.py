@@ -2,6 +2,7 @@
 
 import importlib.util
 import re
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,8 +16,68 @@ SPEC.loader.exec_module(PRESENTATION)
 
 
 class RepositoryPresentationTest(unittest.TestCase):
+    @staticmethod
+    def write_residue_fixture(root, entries):
+        fixture = root / "tests/fixtures/repository_presentation_residue.txt"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_text("\n".join(entries) + "\n", encoding="utf-8")
+
     def test_tracked_presentation_policy(self):
         self.assertEqual(PRESENTATION.violations(ROOT), [])
+
+    def test_repository_scan_rejects_real_workflow_leak(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_residue_fixture(root, [])
+            (root / "source.cpp").write_text(
+                "// See " + "spec" + ".md for the implementation.\n",
+                encoding="utf-8",
+            )
+            errors = PRESENTATION.workflow_reference_violations(root)
+            self.assertTrue(any("workflow document" in error for error in errors))
+
+    def test_repository_scan_rejects_nonexistent_test_reference(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_residue_fixture(root, [])
+            (root / "source.cpp").write_text(
+                "// Covered by test_" + "missing.cpp.\n",
+                encoding="utf-8",
+            )
+            errors = PRESENTATION.workflow_reference_violations(root)
+            self.assertTrue(any("nonexistent test source" in error for error in errors))
+
+    def test_repository_scan_rejects_added_residue_occurrence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fingerprint = PRESENTATION.normalized_fingerprint(".spec" + "ify/*")
+            self.write_residue_fixture(
+                root,
+                [f".gitignore\t{fingerprint}\t1"],
+            )
+            (root / ".gitignore").write_text(
+                ".spec" + "ify/*\n.spec" + "ify/*\n",
+                encoding="utf-8",
+            )
+            self.assertNotEqual(PRESENTATION.workflow_reference_violations(root), [])
+
+    def test_repository_scan_allows_residue_line_movement(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            specify = ".spec" + "ify/*"
+            agents = ".agents/*"
+            self.write_residue_fixture(
+                root,
+                [
+                    f".gitignore\t{PRESENTATION.normalized_fingerprint(specify)}\t1",
+                    f".gitignore\t{PRESENTATION.normalized_fingerprint(agents)}\t1",
+                ],
+            )
+            (root / ".gitignore").write_text(
+                "# Private trees\n\n" + specify + "\n\n\n" + agents + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(PRESENTATION.workflow_reference_violations(root), [])
 
     def test_gitless_source_tree_ignores_build_output(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -62,6 +123,101 @@ class RepositoryPresentationTest(unittest.TestCase):
             "<id>io.github.matteobonanomi.xfce4-meowmenu-plugin</id>",
             metainfo.read_text(encoding="utf-8"),
         )
+
+    def test_about_translator_credit_is_guarded(self):
+        plugin = (ROOT / "panel-plugin/core/plugin.cpp").read_text(encoding="utf-8")
+        self.assertIn('_("translator-credits")', plugin)
+        self.assertIn("g_strstrip(credits)", plugin)
+        self.assertIn('g_strcmp0(credits, "translator-credits")', plugin)
+        self.assertIn("*credits != '\\0'", plugin)
+        self.assertIn("gtk_about_dialog_set_translator_credits(about, credits)", plugin)
+
+    def test_appstream_developer_name_is_not_localized(self):
+        metainfo = ROOT / (
+            "data/metainfo/"
+            "io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml"
+        )
+        self.assertIn(
+            '<name translate="no">Matteo Bonanomi</name>',
+            metainfo.read_text(encoding="utf-8"),
+        )
+
+    def test_localization_sources_cover_preset_and_metadata_files(self):
+        potfiles = (ROOT / "po/POTFILES").read_text(encoding="utf-8").splitlines()
+        self.assertIn("panel-plugin/presets/preset-builtins.cpp", potfiles)
+        self.assertIn("panel-plugin/presets/preset-io.cpp", potfiles)
+        self.assertIn(
+            "data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml",
+            potfiles,
+        )
+        for message_free in (
+            "panel-plugin/launcher/category-button.cpp",
+            "panel-plugin/launcher/command.cpp",
+            "panel-plugin/ui/icon-renderer.cpp",
+            "panel-plugin/ui/launcher-icon-view.cpp",
+            "panel-plugin/ui/launcher-tree-view.cpp",
+            "panel-plugin/presets/preset.cpp",
+            "panel-plugin/profile.cpp",
+            "panel-plugin/search/query.cpp",
+            "panel-plugin/core/resizer.cpp",
+        ):
+            self.assertNotIn(message_free, potfiles)
+
+    def test_appstream_uses_gettext_merge_target(self):
+        meson = (ROOT / "meson.build").read_text(encoding="utf-8")
+        self.assertIn("i18n.merge_file(", meson)
+        self.assertIn("type: 'xml'", meson)
+        self.assertIn("po_dir: 'po'", meson)
+        self.assertNotIn("install_data(\n  'data' / 'metainfo'", meson)
+
+    def test_appstream_locale_merge_and_fallback_artifacts(self):
+        metainfo = ROOT / (
+            "data/metainfo/"
+            "io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml"
+        )
+        pot = (ROOT / "po/xfce4-meowmenu-plugin.pot").read_text(encoding="utf-8")
+        self.assertNotIn("Matteo Bonanomi", pot)
+        with tempfile.TemporaryDirectory() as temporary:
+            for locale in ("it", "ca@valencia", "sr@latin"):
+                output = Path(temporary) / f"{locale}.xml"
+                subprocess.run(
+                    [
+                        "msgfmt",
+                        "--xml",
+                        "-l",
+                        locale,
+                        "--template",
+                        str(metainfo),
+                        str(ROOT / "po" / f"{locale}.po"),
+                        "--output",
+                        str(output),
+                    ],
+                    check=True,
+                )
+                merged = output.read_text(encoding="utf-8")
+                self.assertIn(
+                    "<id>io.github.matteobonanomi.xfce4-meowmenu-plugin</id>",
+                    merged,
+                )
+                self.assertIn(
+                    '<name translate="no">Matteo Bonanomi</name>',
+                    merged,
+                )
+                self.assertNotIn('xml:lang="it"><name>Matteo Bonanomi', merged)
+
+            italian = (Path(temporary) / "it.xml").read_text(encoding="utf-8")
+            self.assertIn(
+                '<summary xml:lang="it">Plugin di menu moderno per il pannello Xfce</summary>',
+                italian,
+            )
+            for locale in ("ca@valencia", "sr@latin"):
+                fallback = (Path(temporary) / f"{locale}.xml").read_text(
+                    encoding="utf-8"
+                )
+                self.assertIn(
+                    "<summary>Modern menu launcher plugin for the Xfce panel</summary>",
+                    fallback,
+                )
 
     def test_release_guide_is_evergreen_and_automatic(self):
         releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8")

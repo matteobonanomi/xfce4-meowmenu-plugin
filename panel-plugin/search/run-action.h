@@ -18,6 +18,7 @@
 #ifndef WHISKERMENU_RUN_ACTION_H
 #define WHISKERMENU_RUN_ACTION_H
 
+#include "launcher/command-interpreter.h"
 #include "launcher/element.h"
 
 #include <string>
@@ -26,6 +27,13 @@ namespace WhiskerMenu
 {
 
 class Settings;
+
+/* run_action_command_is_available:
+ * @command_line: search text interpreted with GLib shell syntax.
+ *
+ * Returns: true when parsing succeeds and the first argv element is on PATH.
+ */
+bool run_action_command_is_available(const char* command_line);
 
 class RunAction : public Element
 {
@@ -38,6 +46,7 @@ public:
 private:
 	Settings* const m_settings;
 	std::string m_command_line;
+	CommandInterpretation m_interpretation;
 };
 
 }

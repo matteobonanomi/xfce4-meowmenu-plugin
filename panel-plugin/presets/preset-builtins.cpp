@@ -41,6 +41,43 @@ static PresetValueMap make_values(std::initializer_list<std::pair<const char*, P
 	return m;
 }
 
+/* preset_name_for_display:
+ * @preset: preset whose canonical name should be presented.
+ *
+ * Applies gettext only to packaged MeowMenu-owned identity text. The raw
+ * value remains untouched so storage and conflict checks keep using English
+ * canonical data.
+ *
+ * Returns: translated text when available, otherwise the canonical name.
+ */
+std::string WhiskerMenu::preset_name_for_display(const LayoutPreset& preset)
+{
+	const std::string& raw = preset.name.empty() ? preset.display_name : preset.name;
+	if (!preset.identity_localizable || raw.empty())
+		return raw;
+
+	const gchar* translated = g_dgettext(GETTEXT_PACKAGE, raw.c_str());
+	return translated ? translated : raw;
+}
+
+/* preset_description_for_display:
+ * @preset: preset whose canonical description should be presented.
+ *
+ * Translates only packaged identity descriptions and keeps user-authored
+ * descriptions verbatim. Empty descriptions are kept empty for callers that
+ * use them to clear a tooltip.
+ *
+ * Returns: translated text when available, otherwise the canonical description.
+ */
+std::string WhiskerMenu::preset_description_for_display(const LayoutPreset& preset)
+{
+	if (preset.description.empty() || !preset.identity_localizable)
+		return preset.description;
+
+	const gchar* translated = g_dgettext(GETTEXT_PACKAGE, preset.description.c_str());
+	return translated ? translated : preset.description;
+}
+
 // ---------------------------------------------------------------------------
 // Built-in preset definitions.
 //
@@ -62,6 +99,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Classic"),
 		N_("Classic"),
 		N_("Traditional compact layout with the sidebar on the right and applications in a list."),
+		true,
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
@@ -96,6 +134,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Modern"),
 		N_("Contemporary layout with rounded corners, categories on the left, and hover-to-switch enabled."),
 		true,
+		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)            },
 			{ "panel-gap",            PresetValue::from_int(8)             },
@@ -115,10 +154,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 			{ "view-mode-default",    PresetValue::from_str("icons")       },
 			{ "default-category",     PresetValue::from_str("recent")      },
 			{ "stay-on-focus-out",    PresetValue::from_bool(false)        },
-			// NOTE: 450 reconciles the C++ table with the shipped
-			// modern.meowpreset (which already carried 450), so a fresh
-			// Modern install keeps its current width.
-			{ "menu-width",           PresetValue::from_int(450)           },
+			{ "menu-width",           PresetValue::from_int(590)           },
 			{ "menu-height",          PresetValue::from_int(500)           },
 			{ "places-enabled",       PresetValue::from_bool(true)         },
 			{ "places-show-icons",    PresetValue::from_bool(true)         },
@@ -133,6 +169,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Full Screen"),
 		N_("Full Screen"),
 		N_("Launcher fills the whole screen with a centered grid and categories on the left."),
+		true,
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(0)              },
@@ -169,6 +206,7 @@ const LayoutPreset WhiskerMenu::BUILTIN_PRESETS[PRESET_BUILTIN_COUNT] = {
 		N_("Minimal"),
 		N_("Minimal"),
 		N_("Compact, distraction-free launcher with no sidebar, profile, or session buttons."),
+		true,
 		true,
 		make_values({
 			{ "corner-radius",        PresetValue::from_int(12)             },
@@ -244,22 +282,4 @@ const std::vector<std::string>& WhiskerMenu::governed_keys()
 		"calculator-max-decimal-places",
 	};
 	return keys;
-}
-
-/* synced_keys:
- *
- * The governed keys that sync_preset_widgets() drives onto Properties widgets
- * after a preset switch. This list MUST equal governed_keys() (a unit test
- * enforces it): every key a preset governs must also be re-synced into the
- * dialog so no control is left stale (supported behavior). It is declared here, away
- * from the GTK widget-driving code, so the coverage set is inspectable without
- * a display.
- *
- * Returns: a reference to a process-lifetime static vector.
- */
-const std::vector<std::string>& WhiskerMenu::synced_keys()
-{
-	// Mirrors governed_keys() — kept as a distinct list so that adding a
-	// governed key without wiring its sync fails the coverage test loudly.
-	return governed_keys();
 }

@@ -1,7 +1,6 @@
 /* test_launcher_safeguard_lifecycle:
  *
- * Freezes the the documented behavior invariant (render-invariants contract I13): the
- * transparent-surface scroll-reveal safeguard in the shared LauncherView base
+ * Freezes the transparent-surface scroll-reveal safeguard in LauncherView. It
  * connects a value-changed handler to the scrolled window's vertical
  * GtkAdjustment — the one safeguard connection on an object the view does NOT
  * own and which outlives it across menu rebuilds. That handler MUST stop firing
@@ -44,10 +43,12 @@
 #include "launcher/launcher-safety.h"
 
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
 #include <cstdio>
 #include <cstdlib>
+#include <unistd.h>
 
 using namespace WhiskerMenu;
 
@@ -177,6 +178,43 @@ int main()
 	CHECK(launcher_hide_relpath_for_uri(
 			"file:///opt/apps/app.desktop",
 			"/usr/share/applications") == nullptr);
+	CHECK(launcher_hide_relpath_for_uri(
+			"file:///usr/share/applications-other/app.desktop",
+			"/usr/share/applications") == nullptr);
+	CHECK(launcher_hide_relpath_for_uri(
+			"file:///usr/share/applications/../outside.desktop",
+			"/usr/share/applications") == nullptr);
+	CHECK(launcher_hide_relpath_for_uri(
+			"smb://example.invalid/app.desktop",
+			"/usr/share/applications") == nullptr);
+
+	GError* error = nullptr;
+	gchar* scratch = g_dir_make_tmp("meow-launcher-safety-XXXXXX", &error);
+	CHECK(scratch != nullptr);
+	CHECK(error == nullptr);
+	gchar* applications_dir = g_build_filename(scratch, "applications", nullptr);
+	gchar* outside_dir = g_build_filename(scratch, "outside", nullptr);
+	CHECK(g_mkdir(applications_dir, 0700) == 0);
+	CHECK(g_mkdir(outside_dir, 0700) == 0);
+	gchar* link_path = g_build_filename(applications_dir, "linked", nullptr);
+	CHECK(symlink(outside_dir, link_path) == 0);
+	gchar* escaped_path = g_build_filename(link_path, "app.desktop", nullptr);
+	gchar* escaped_uri = g_filename_to_uri(escaped_path, nullptr, &error);
+	CHECK(escaped_uri != nullptr);
+	CHECK(error == nullptr);
+	relpath = launcher_hide_relpath_for_uri(escaped_uri, applications_dir);
+	CHECK(g_strcmp0(relpath, "applications/linked/app.desktop") == 0);
+	g_free(relpath);
+	g_free(escaped_uri);
+	g_free(escaped_path);
+	CHECK(g_remove(link_path) == 0);
+	CHECK(g_rmdir(outside_dir) == 0);
+	CHECK(g_rmdir(applications_dir) == 0);
+	CHECK(g_rmdir(scratch) == 0);
+	g_free(link_path);
+	g_free(outside_dir);
+	g_free(applications_dir);
+	g_free(scratch);
 
 	GtkListStore* store = gtk_list_store_new(1, G_TYPE_STRING);
 	gtk_list_store_insert_with_values(store, nullptr, -1, 0, "row", -1);

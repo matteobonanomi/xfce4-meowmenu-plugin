@@ -31,6 +31,7 @@
 #include "window-size-clamp.h"
 
 #include <libxfce4ui/libxfce4ui.h>
+#include <glib/gi18n-lib.h>
 
 using namespace WhiskerMenu;
 
@@ -93,14 +94,14 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 				return GDK_EVENT_PROPAGATE;
 			}
 
-			GtkToggleButton* button GTK_TOGGLE_BUTTON(widget);
+			GtkToggleButton* button = GTK_TOGGLE_BUTTON(widget);
 			if (!gtk_toggle_button_get_active(button))
 			{
 				show_menu(Window::PositionAtButton);
 			}
 			else
 			{
-				m_window->hide();
+				m_window->dismiss(Window::DismissReason::Explicit);
 			}
 			return GDK_EVENT_STOP;
 		});
@@ -113,7 +114,6 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 
 	m_button_icon = GTK_IMAGE(gtk_image_new());
 	icon_changed(m_settings->button_icon_name);
-	gtk_widget_set_tooltip_markup(m_button, m_settings->button_title);
 	gtk_box_pack_start(m_button_box, GTK_WIDGET(m_button_icon), true, false, 0);
 	if (m_settings->button_icon_visible)
 	{
@@ -126,13 +126,13 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 	gtk_widget_set_sensitive(GTK_WIDGET(m_button_icon), false);
 
 	m_button_label = GTK_LABEL(gtk_label_new(nullptr));
-	gtk_label_set_markup(m_button_label, m_settings->button_title);
 	gtk_box_pack_start(m_button_box, GTK_WIDGET(m_button_label), true, true, 0);
 	if (m_settings->button_title_visible)
 	{
 		gtk_widget_show(GTK_WIDGET(m_button_label));
 	}
 	gtk_widget_set_sensitive(GTK_WIDGET(m_button_label), false);
+	apply_button_title();
 
 	// Add plugin to panel
 	gtk_container_add(GTK_CONTAINER(plugin), m_button);
@@ -198,8 +198,16 @@ Plugin::Plugin(XfcePanelPlugin* plugin) :
 
 //-----------------------------------------------------------------------------
 
+/* ~Plugin:
+ *
+ * Settles an open Properties dialog while Settings is still alive, then tears
+ * down the menu, panel button, and configuration in dependency order.
+ */
 Plugin::~Plugin()
 {
+	if (m_settings_dialog)
+		m_settings_dialog->close();
+
 	delete m_window;
 	m_window = nullptr;
 
@@ -288,7 +296,7 @@ void Plugin::reload_menu()
 {
 	if (m_window)
 	{
-		m_window->hide();
+		m_window->dismiss(Window::DismissReason::Explicit);
 		m_window->get_applications()->invalidate();
 	}
 }
@@ -327,10 +335,32 @@ void Plugin::set_button_style(ButtonStyle style)
 void Plugin::set_button_title(const std::string& title)
 {
 	m_settings->button_title = title;
-	gtk_label_set_markup(m_button_label, m_settings->button_title);
-	gtk_widget_set_tooltip_markup(m_button, m_settings->button_title);
-	gtk_widget_set_has_tooltip(m_button, !m_settings->button_title_visible);
+	apply_button_title();
 	update_size();
+}
+
+//-----------------------------------------------------------------------------
+
+/* Plugin::apply_button_title:
+ *
+ * Updates both title sinks from the stored value. Valid Pango markup remains
+ * intact; malformed markup uses literal text so an invalid edit cannot leave
+ * the label blank or stale, or make the tooltip impossible to render.
+ */
+void Plugin::apply_button_title()
+{
+	const char* title = m_settings->button_title;
+	if (pango_parse_markup(title, -1, 0, nullptr, nullptr, nullptr, nullptr))
+	{
+		gtk_label_set_markup(m_button_label, title);
+		gtk_widget_set_tooltip_markup(m_button, title);
+	}
+	else
+	{
+		gtk_label_set_text(m_button_label, title);
+		gtk_widget_set_tooltip_text(m_button, title);
+	}
+	gtk_widget_set_has_tooltip(m_button, !m_settings->button_title_visible);
 }
 
 //-----------------------------------------------------------------------------
@@ -417,7 +447,7 @@ gboolean Plugin::remote_event(const gchar* name, const GValue* value)
 
 	if (gtk_widget_get_visible(m_window->get_widget()))
 	{
-		m_window->hide();
+		m_window->dismiss(Window::DismissReason::Explicit);
 	}
 	else
 	{
@@ -547,6 +577,16 @@ void Plugin::show_about()
 	gtk_about_dialog_set_authors(about, authors);
 	gtk_about_dialog_set_logo_icon_name(about, "org.xfce.panel.meowmenu");
 	gtk_about_dialog_add_credit_section(about, _("Based on Whisker Menu"), whisker_credits);
+
+	const gchar* translated_credits = _("translator-credits");
+	if (translated_credits)
+	{
+		gchar* credits = g_strdup(translated_credits);
+		g_strstrip(credits);
+		if (*credits != '\0' && g_strcmp0(credits, "translator-credits") != 0)
+			gtk_about_dialog_set_translator_credits(about, credits);
+		g_free(credits);
+	}
 
 	gtk_dialog_add_button(GTK_DIALOG(dialog), _("What's New"), RESPONSE_NEWS);
 

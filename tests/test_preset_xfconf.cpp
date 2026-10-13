@@ -19,15 +19,15 @@
  *     - schema-lenient seeded-file import (supported behavior): a .meowpreset with a newer
  *       SchemaVersion must be accepted best-effort rather than skipped.
  *
- * If xfconfd / dbus-daemon are unavailable the test prints a TAP SKIP and
- * returns 0, matching test_migration.cpp. The project CI containers ship
- * xfconfd, so the assertions run there.
+ * If xfconfd or dbus-daemon is unavailable the test prints a TAP SKIP and
+ * returns 0. The project CI containers ship xfconfd, so the assertions run.
  */
 
 #include "presets/preset.h"
 #include "presets/preset-io.h"
 #include "launcher/favorite-projection.h"
 #include "settings-defaults.h"
+#include "private-xfconf-fixture.h"
 
 #include <gio/gio.h>
 #include <glib.h>
@@ -38,6 +38,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -51,135 +52,30 @@
 namespace
 {
 
-GTestDBus* g_test_bus = nullptr;
-GPid g_xfconfd_pid = 0;
-std::string g_scratch_dir;
+bool g_xfconf_initialized = false;
 int g_unique_counter = 0;
 
-const char* k_xfconfd_candidate_paths[] = {
-	"/usr/lib/x86_64-linux-gnu/xfce4/xfconf/xfconfd",
-	"/usr/lib/xfce4/xfconf/xfconfd",
-	"/usr/libexec/xfconf/xfconfd",
-	"/usr/libexec/xfce4/xfconf/xfconfd",
-	"/usr/lib64/xfce4/xfconf/xfconfd",
-	nullptr,
-};
-
-const char* find_xfconfd_binary()
-{
-	for (const char** p = k_xfconfd_candidate_paths; *p != nullptr; ++p)
-		if (g_file_test(*p, G_FILE_TEST_IS_EXECUTABLE))
-			return *p;
-	gchar* in_path = g_find_program_in_path("xfconfd");
-	if (in_path != nullptr)
-		return in_path; // NOTE: leak intentional — process-lifetime constant.
-	return nullptr;
-}
-
-bool wait_for_xfconfd_registration()
-{
-	// HACK: D-Bus auto-activation is not configured for the private bus, so
-	// xfconfd was spawned manually; poll until org.xfce.Xfconf appears (5 s cap).
-	GError* err = nullptr;
-	GDBusConnection* conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &err);
-	if (conn == nullptr)
-	{
-		if (err != nullptr) { g_error_free(err); }
-		return false;
-	}
-	for (int i = 0; i < 50; ++i)
-	{
-		GVariant* res = g_dbus_connection_call_sync(conn,
-			"org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
-			"NameHasOwner", g_variant_new("(s)", "org.xfce.Xfconf"),
-			G_VARIANT_TYPE("(b)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, nullptr);
-		if (res != nullptr)
-		{
-			gboolean owned = FALSE;
-			g_variant_get(res, "(b)", &owned);
-			g_variant_unref(res);
-			if (owned) { g_object_unref(conn); return true; }
-		}
-		g_usleep(100 * 1000);
-	}
-	g_object_unref(conn);
-	return false;
-}
+std::string write_meowpreset(const std::string& dir, const std::string& stem,
+	const std::string& content);
 
 bool fixture_up()
 {
-	const char* xfconfd = find_xfconfd_binary();
-	if (xfconfd == nullptr)
-	{
-		std::printf("# SKIP: xfconfd binary not found on this host\n");
-		return false;
-	}
-	gchar* dbus_daemon = g_find_program_in_path("dbus-daemon");
-	if (dbus_daemon == nullptr)
-	{
-		std::printf("# SKIP: dbus-daemon binary not found on this host\n");
-		return false;
-	}
-	g_free(dbus_daemon);
-
-	gchar* tmpl = g_strdup("/tmp/meow-preset-xfconf-XXXXXX");
-	gchar* dir = g_mkdtemp(tmpl);
-	if (dir == nullptr)
-	{
-		g_free(tmpl);
-		std::printf("# SKIP: cannot create scratch dir\n");
-		return false;
-	}
-	g_scratch_dir = dir;
-	g_setenv("XDG_CONFIG_HOME", g_scratch_dir.c_str(), TRUE);
-	g_setenv("XDG_CACHE_HOME", g_scratch_dir.c_str(), TRUE);
-	g_setenv("XDG_RUNTIME_DIR", g_scratch_dir.c_str(), TRUE);
-	g_free(tmpl);
-
-	g_test_bus = g_test_dbus_new(G_TEST_DBUS_NONE);
-	g_test_dbus_up(g_test_bus);
-
 	GError* err = nullptr;
-	const gchar* argv[] = { xfconfd, nullptr };
-	gboolean ok = g_spawn_async(nullptr, const_cast<gchar**>(argv), nullptr,
-		static_cast<GSpawnFlags>(G_SPAWN_LEAVE_DESCRIPTORS_OPEN
-			| G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL),
-		nullptr, nullptr, &g_xfconfd_pid, &err);
-	if (!ok)
-	{
-		std::printf("# SKIP: failed to spawn xfconfd: %s\n", err ? err->message : "(no error)");
-		if (err != nullptr) { g_error_free(err); }
-		return false;
-	}
-	if (!wait_for_xfconfd_registration())
-	{
-		std::printf("# SKIP: xfconfd did not register on the private bus\n");
-		return false;
-	}
 	if (!xfconf_init(&err))
 	{
 		std::printf("# SKIP: xfconf_init failed: %s\n", err ? err->message : "(no error)");
-		if (err != nullptr) { g_error_free(err); }
+		g_clear_error(&err);
 		return false;
 	}
+	g_xfconf_initialized = true;
 	return true;
 }
 
 void fixture_down()
 {
-	xfconf_shutdown();
-	if (g_xfconfd_pid != 0)
-	{
-		kill(g_xfconfd_pid, SIGTERM);
-		g_spawn_close_pid(g_xfconfd_pid);
-		g_xfconfd_pid = 0;
-	}
-	if (g_test_bus != nullptr)
-	{
-		g_test_dbus_down(g_test_bus);
-		g_object_unref(g_test_bus);
-		g_test_bus = nullptr;
-	}
+	if (g_xfconf_initialized)
+		xfconf_shutdown();
+	g_xfconf_initialized = false;
 }
 
 XfconfChannel* fresh_channel()
@@ -467,10 +363,65 @@ void set_string_array(XfconfChannel* channel, const char* key,
  */
 void run_bounded_upgrade_pass(XfconfChannel* channel)
 {
-	if (xfconf_channel_get_int(channel, "/schema-version", 0) >= 13)
+	if (!WhiskerMenu::settings_schema_needs_upgrade(
+			xfconf_channel_get_int(channel, "/schema-version", 0)))
 		return;
 	WhiskerMenu::migrate_layout_schema_v13(channel);
-	xfconf_channel_set_int(channel, "/schema-version", 13);
+	xfconf_channel_set_int(channel, "/schema-version",
+			WhiskerMenu::SETTINGS_SCHEMA_VERSION);
+}
+
+/* test_complete_profile_state_matrix:
+ *
+ * Exercises empty, partially initialized, initialized-upgrade, current, and
+ * customized profiles through the real Xfconf channel. Snapshots ensure the
+ * bounded pass removes only declared retired state, preserves user data, and
+ * becomes an exact no-op at the current schema.
+ */
+void test_complete_profile_state_matrix()
+{
+	XfconfChannel* empty = fresh_channel();
+	assert(property_snapshot(empty).empty());
+	assert(WhiskerMenu::should_apply_fresh_preset(false, true));
+	const WhiskerMenu::LayoutPreset* modern =
+			WhiskerMenu::find_preset_by_id("modern");
+	assert(modern && modern->id == "modern");
+	g_object_unref(empty);
+
+	XfconfChannel* partial = fresh_channel();
+	xfconf_channel_set_int(partial, "/menu-width", 731);
+	assert(!WhiskerMenu::should_apply_fresh_preset(false, false));
+	const std::vector<std::string> partial_before = property_snapshot(partial);
+	assert(partial_before.size() == 1);
+	g_object_unref(partial);
+
+	XfconfChannel* upgraded = fresh_channel();
+	xfconf_channel_set_bool(upgraded, "/initialized", TRUE);
+	xfconf_channel_set_int(upgraded, "/schema-version", 10);
+	xfconf_channel_set_int(upgraded, "/menu-width", 683);
+	xfconf_channel_set_string(upgraded, "/current-preset-id", "my-layout");
+	xfconf_channel_set_string(upgraded, "/sidebar-position", "bottom");
+	xfconf_channel_set_bool(upgraded, "/unified-bar", TRUE);
+	xfconf_channel_set_int(upgraded, "/places/switch-button-shape", 2);
+	const std::vector<std::string> durable_before = property_snapshot(upgraded,
+			{ "/initialized", "/menu-width", "/current-preset-id" });
+	run_bounded_upgrade_pass(upgraded);
+	assert(property_snapshot(upgraded,
+			{ "/initialized", "/menu-width", "/current-preset-id" })
+			== durable_before);
+	assert(xfconf_channel_get_int(upgraded, "/schema-version", 0)
+			== WhiskerMenu::SETTINGS_SCHEMA_VERSION);
+	gchar* sidebar = xfconf_channel_get_string(upgraded,
+			"/sidebar-position", nullptr);
+	assert(sidebar && std::strcmp(sidebar, "horizontal") == 0);
+	g_free(sidebar);
+	for (const char* key : WhiskerMenu::RETIRED_SETTINGS_KEYS)
+		assert(!xfconf_channel_has_property(upgraded, key));
+
+	const std::vector<std::string> current = property_snapshot(upgraded);
+	run_bounded_upgrade_pass(upgraded);
+	assert(property_snapshot(upgraded) == current);
+	g_object_unref(upgraded);
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +443,7 @@ void test_enumerate_surfaces_saved_uuid()
 	assert(p->name == "My Layout");
 	assert(p->display_name == "My Layout");
 	assert(!p->is_builtin);
+	assert(!p->identity_localizable);
 	assert(p->values.find("corner-radius") != p->values.end());
 	assert(p->values.at("corner-radius").kind == WhiskerMenu::PresetValue::Int);
 	assert(p->values.at("corner-radius").i == 7);
@@ -615,7 +567,34 @@ void test_enumerate_name_falls_back_to_display_name()
 	const WhiskerMenu::LayoutPreset* p = find_in(presets, uuid);
 	assert(p != nullptr);
 	assert(p->name == "Legacy");
+	assert(!p->identity_localizable);
 	g_object_unref(ch);
+}
+
+void test_seeded_file_localization_provenance()
+{
+	gchar* system_template = g_strdup("/tmp/meow-system-presets-XXXXXX");
+	gchar* user_template = g_strdup("/tmp/meow-user-presets-XXXXXX");
+	const gchar* system_dir_raw = g_mkdtemp(system_template);
+	const gchar* user_dir_raw = g_mkdtemp(user_template);
+	assert(system_dir_raw && user_dir_raw);
+	const std::string system_dir(system_dir_raw);
+	const std::string user_dir(user_dir_raw);
+
+	write_meowpreset(system_dir, "packaged",
+		"[Preset]\nName=Classic\n\n[Settings]\ncorner-radius=4\n");
+	write_meowpreset(user_dir, "drop-in",
+		"[Preset]\nName=Classic\n\n[Settings]\ncorner-radius=8\n");
+
+	const auto presets = WhiskerMenu::enumerate_preset_files(system_dir, user_dir);
+	const WhiskerMenu::LayoutPreset* packaged = find_in(presets, "packaged");
+	const WhiskerMenu::LayoutPreset* drop_in = find_in(presets, "drop-in");
+	assert(packaged && packaged->identity_localizable);
+	assert(drop_in && !drop_in->identity_localizable);
+	assert(WhiskerMenu::preset_name_for_display(*drop_in) == "Classic");
+
+	g_free(system_template);
+	g_free(user_template);
 }
 
 /* test_upgrade_baseline_enumeration_is_idempotent:
@@ -961,12 +940,12 @@ void test_incompatible_user_overlay_cannot_shadow_supported_preset()
 
 } // anonymous namespace
 
-int main()
+static int run_preset_tests(int, char**)
 {
 	if (!fixture_up())
 	{
 		fixture_down();
-		return 0; // clean SKIP when xfconfd/private bus unavailable
+		return 77;
 	}
 
 	test_enumerate_surfaces_saved_uuid();
@@ -977,15 +956,22 @@ int main()
 	test_upgrade_baseline_enumeration_is_idempotent();
 	test_reset_preserves_presets_clears_rest();
 	test_fresh_channel_has_no_legacy_reset_markers();
+	test_complete_profile_state_matrix();
 	test_favourite_projection_does_not_write_private_xfconf();
 	test_rc1_upgrade_preserves_durable_families();
 	test_affected_upgrade_preserves_survivors_and_inert_markers();
 	test_seeded_file_accepts_newer_schema();
 	test_seeded_file_skips_section_missing();
+	test_seeded_file_localization_provenance();
 	test_incompatible_user_overlay_cannot_shadow_supported_preset();
 
 	fixture_down();
 
 	std::printf("OK: preset xfconf integration tests passed\n");
 	return 0;
+}
+
+int main(int argc, char** argv)
+{
+	return run_with_private_xfconf(argc, argv, &run_preset_tests);
 }

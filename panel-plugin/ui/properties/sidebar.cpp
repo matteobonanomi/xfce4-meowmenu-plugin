@@ -38,7 +38,7 @@ using namespace WhiskerMenu;
  * Sections (top-to-bottom, supported behavior):
  *   1. Visuals      — show category names, icon size, sidebar opacity.
  *   2. Position     — sidebar position (Left/Right/Horizontal).
- *   3. Behaviour    — hover-switch, sort categories, default category.
+ *   3. Behavior     — hover-switch, sort categories, default category.
  *   4. Recently used — max items, include favorites.
  *
  * Sub-enable rule for category-show-name: greyed when sidebar-position
@@ -62,7 +62,8 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 	GtkWidget* enable_grid = make_two_column_section();
 	gtk_box_pack_start(page, make_aligned_frame(_("Sidebar"), enable_grid), false, false, 0);
 
-	m_enable_sidebar_switch = make_form_switch();
+	m_enable_sidebar_switch = create_form_switch(
+			SettingsFormSwitch::SidebarEnabled);
 	GtkWidget* enable_sidebar_switch = m_enable_sidebar_switch;
 	GtkWidget* enable_sidebar_label = gtk_label_new_with_mnemonic(_("_Enable sidebar"));
 	gtk_switch_set_active(GTK_SWITCH(enable_sidebar_switch), m_settings->sidebar_enabled);
@@ -101,7 +102,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->category_show_name = gtk_toggle_button_get_active(button);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/category-show-name");
 			refresh_customized_indicator();
 		});
 
@@ -122,7 +123,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (m_programmatic_update)
 				return;
 			m_settings->category_icon_size = gtk_combo_box_get_active(combo) - 1;
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/category-icon-size");
 			refresh_customized_indicator();
 		});
 
@@ -173,7 +174,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			apply_sidebar_sub_enable();
 			if (m_places_refresh_sensitivity)
 				m_places_refresh_sensitivity();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/sidebar-enabled");
 			refresh_customized_indicator();
 			return FALSE;
 		});
@@ -190,15 +191,15 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			apply_sidebar_sub_enable();
 			if (m_places_refresh_sensitivity)
 				m_places_refresh_sensitivity();
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/sidebar-position");
 			refresh_customized_indicator();
 		});
 
 	// =========================================================================
-	// 3. Behaviour section (supported behavior) — hover C1 / sort C2.
+	// 3. Behavior section (supported behavior) — hover C1 / sort C2.
 	// =========================================================================
 	GtkWidget* behavior_grid = make_two_column_section();
-	GtkWidget* behavior_frame = make_aligned_frame(_("Behaviour"), behavior_grid);
+	GtkWidget* behavior_frame = make_aligned_frame(_("Behavior"), behavior_grid);
 	gtk_box_pack_start(page, behavior_frame, false, false, 0);
 	sidebar_section_frames->push_back(behavior_frame);
 
@@ -223,7 +224,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->sort_categories = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/sort-categories");
 		});
 
 	// Default category — three radio buttons.
@@ -264,7 +265,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (gtk_toggle_button_get_active(button))
 			{
 				m_settings->default_category = Settings::CategoryFavorites;
-				m_plugin->refresh_layout();
+				m_settings->dispatch_property_change("/default-category");
 			}
 		});
 
@@ -276,7 +277,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (gtk_toggle_button_get_active(button))
 			{
 				m_settings->default_category = Settings::CategoryRecent;
-				m_plugin->refresh_layout();
+				m_settings->dispatch_property_change("/default-category");
 			}
 		});
 
@@ -288,7 +289,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			if (gtk_toggle_button_get_active(button))
 			{
 				m_settings->default_category = Settings::CategoryAll;
-				m_plugin->refresh_layout();
+				m_settings->dispatch_property_change("/default-category");
 			}
 		});
 
@@ -314,7 +315,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 			gtk_widget_set_sensitive(m_display_recent, active);
 			if (!active && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(m_display_recent)))
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(m_display_favorites), true);
-			m_plugin->refresh_layout();
+			m_settings->dispatch_property_change("/recent-items-max");
 		});
 
 	m_remember_favorites = gtk_check_button_new_with_mnemonic(_("Include _favorites in \"Recent\""));
@@ -326,7 +327,7 @@ GtkWidget* SettingsDialog::init_sidebar_tab()
 		[this](GtkToggleButton* button)
 		{
 			m_settings->favorites_in_recent = gtk_toggle_button_get_active(button);
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/favorites-in-recent");
 		});
 
 	// Initial sensitivity pass: run once every section frame exists so a

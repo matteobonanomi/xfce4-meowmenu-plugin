@@ -31,6 +31,8 @@ enum class CompositionSidebar
 	Horizontal
 };
 
+bool meow_composition_has_vertical_sidebar(CompositionSidebar sidebar);
+
 enum class MenuDirection
 {
 	LeftToRight,

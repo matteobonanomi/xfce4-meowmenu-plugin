@@ -54,7 +54,6 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 	m_empty_message(nullptr),
 	m_model(nullptr),
 	m_viewport_width(0),
-	m_present_tick_id(0),
 	m_item_dragged(false),
 	m_pressed_drag_item(nullptr),
 	m_pressed_drag_info(0),
@@ -102,8 +101,7 @@ PlacesPage::PlacesPage(Settings* settings, Window* window) :
 
 PlacesPage::~PlacesPage()
 {
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	clear_drag_state();
 	cancel_home_search();
 	clear_home_search_items();
@@ -227,8 +225,7 @@ void PlacesPage::reload_view()
 		return;
 	}
 
-	meow::meowmenu_cancel_mapped_result_frame(
-			gtk_widget_get_toplevel(m_widget), &m_present_tick_id);
+	m_present_frame.cancel();
 	gtk_container_remove(GTK_CONTAINER(m_widget), m_view->get_widget());
 	delete m_view;
 	m_view = nullptr;
@@ -279,9 +276,7 @@ void PlacesPage::present()
 			toplevel, m_view->get_widget());
 	if (!ready)
 	{
-		meow::meowmenu_schedule_mapped_result_frame(toplevel,
-				toplevel, m_view->get_widget(),
-				&m_present_tick_id,
+		m_present_frame.schedule(toplevel, toplevel, m_view->get_widget(),
 				+[](void* data) -> bool
 				{
 					return static_cast<LauncherView*>(data)
@@ -420,7 +415,7 @@ void PlacesPage::set_filter(const gchar* filter)
 		// Cancel any pending debounce or in-flight worker; we'll
 		// schedule a fresh run after the debounce window.
 		cancel_home_search();
-		const std::uint64_t generation = m_focus_lease.begin(
+		m_focus_lease.begin(
 				m_filter, m_active_section,
 				m_window && m_window->is_places_active());
 		// Clear visible model immediately so stale results don't linger
@@ -432,7 +427,6 @@ void PlacesPage::set_filter(const gchar* filter)
 		m_home_search_active = true;
 		m_debounce_id = g_timeout_add(150,
 				&PlacesPage::on_debounce_fired, this);
-		(void)generation;
 		return;
 	}
 
@@ -631,13 +625,8 @@ void PlacesPage::on_row_activated(GtkTreePath* path)
 		return;
 	}
 	GdkScreen* screen = gtk_widget_get_screen(m_view->get_widget());
-	// Lifetime invariant: dispatch the open BEFORE closing the menu. open() is a
-	// synchronous dispatch — once it returns, the launch has been handed off —
-	// whereas m_window->hide() clears the search entry, which re-runs the filter
-	// and can delete this very item via clear_home_search_items(). Opening first
-	// guarantees the item stays valid for the whole open (the documented behavior).
-	item->open(screen, m_widget);
-	m_window->hide();
+	m_window->perform_then_dismiss(
+			[item, screen, this]() { item->open(screen, m_widget); });
 }
 
 //-----------------------------------------------------------------------------
@@ -839,8 +828,8 @@ void PlacesPage::clear_drag_state(bool defer_folder_cleanup)
 /* show_context_menu:
  *
  * Builds the per-item context menu fresh on every right-click (the documented behavior). Action
- * visibility depends on item type and active favourite-sync mode. Add/Remove
- * Favourites are omitted in ThunarBookmarks mode (read-only).
+ * visibility depends on item type and active favorite-sync mode. Add/Remove
+ * Favorites are omitted in ThunarBookmarks mode (read-only).
  */
 void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 {
@@ -858,10 +847,8 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		[this, item](GtkMenuItem*)
 		{
 			GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
-			// Dispatch before hide — see on_row_activated(): hide() can free the
-			// item mid-open, so the open must complete first (the documented behavior).
-			item->open(s, m_widget);
-			m_window->hide();
+			m_window->perform_then_dismiss(
+					[item, s, this]() { item->open(s, m_widget); });
 		});
 	// "Open" stays present but insensitive for a missing target, matching the
 	// inert primary activation; "Open Containing Folder" below remains enabled
@@ -875,7 +862,7 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 	{
 		if (item->is_favourite())
 		{
-			mi = whiskermenu_image_menu_item_new("list-remove", _("Remove from Favourites"));
+			mi = whiskermenu_image_menu_item_new("list-remove", _("Remove from Favorites"));
 			connect(mi, "activate",
 				[this, item](GtkMenuItem*)
 				{
@@ -886,7 +873,7 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		}
 		else
 		{
-			mi = whiskermenu_image_menu_item_new("bookmark-new", _("Add to Favourites"));
+			mi = whiskermenu_image_menu_item_new("bookmark-new", _("Add to Favorites"));
 			connect(mi, "activate",
 				[this, item](GtkMenuItem*)
 				{
@@ -906,9 +893,8 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 		[this, item](GtkMenuItem*)
 		{
 			GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
-			// Dispatch before hide — same lifetime invariant as on_row_activated().
-			item->open_containing(s, m_widget);
-			m_window->hide();
+			m_window->perform_then_dismiss(
+					[item, s, this]() { item->open_containing(s, m_widget); });
 		});
 	append(mi);
 
@@ -924,9 +910,8 @@ void PlacesPage::show_context_menu(PlacesItem* item, GdkEvent* event)
 			[this, item](GtkMenuItem*)
 			{
 				GdkScreen* s = gtk_widget_get_screen(m_view->get_widget());
-				// Dispatch before hide — same lifetime invariant as above.
-				item->open_in_terminal(s, m_widget);
-				m_window->hide();
+				m_window->perform_then_dismiss(
+						[item, s, this]() { item->open_in_terminal(s, m_widget); });
 			});
 		append(mi);
 

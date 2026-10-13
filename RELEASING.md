@@ -43,11 +43,9 @@ python3 build-aux/news-version.py --arch-version --news NEWS
 
 Release tags use `v<version>` and may be annotated or lightweight. In both
 cases, the tag must match the top `NEWS` version exactly and resolve to a
-commit reachable from `main`. Before final 1.0.0, 0.x releases are
-experimental feature releases and `-rcN` releases are the more stable testing
-channel. Both are standard public GitHub releases. GitHub's `latest` marker
-follows chronological release order and is independent of that stability
-guidance.
+commit reachable from `main`. Release candidates are the more stable choice;
+regular 0.x.x releases provide the latest features and improvements. GitHub's
+`latest` marker follows chronological release order.
 
 ## Before tagging
 
@@ -61,9 +59,18 @@ guidance.
    meson setup build
    meson compile -C build
    meson test -C build --print-errorlogs
+   python3 build-aux/translation-status.py --check
+   python3 build-aux/localization-audit.py --self-test
+   python3 build-aux/localization-audit.py
+   for catalog in po/*.po; do msgfmt --check --check-format -o /dev/null "$catalog"; done
    appstreamcli validate --no-net \
      data/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml
    ```
+
+   Use the manual localization checklist in
+   `dev/docs/localization-audit.md` for the visible source, About dialog,
+   preset, and software-catalog surfaces. Record any unperformed session or
+   reader check before tagging; automated catalog checks do not replace it.
 
 4. Merge through protected `main`, update the local branch, and derive the tag:
 

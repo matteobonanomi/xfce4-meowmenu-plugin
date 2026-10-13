@@ -143,21 +143,21 @@ GtkWidget* SettingsDialog::init_extras_tab()
 				return;
 			m_settings->calculator_engine = id;
 			update_sensitivity();
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/extras/calculator-engine");
 		});
 	connect(font, "changed", [this](GtkComboBox* combo)
 		{
 			if (m_programmatic_update)
 				return;
 			m_settings->calculator_result_font_size = gtk_combo_box_get_active(combo) - 1;
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/extras/calculator-result-font-size");
 		});
 	connect(decimals, "value-changed", [this](GtkSpinButton* spin)
 		{
 			if (m_programmatic_update)
 				return;
 			m_settings->calculator_max_decimal_places = gtk_spin_button_get_value_as_int(spin);
-			m_plugin->reload_menu();
+			m_settings->dispatch_property_change("/extras/calculator-max-decimal-places");
 		});
 
 	return wrap_in_scrolled(GTK_WIDGET(page));

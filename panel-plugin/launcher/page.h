@@ -20,6 +20,8 @@
 
 #include <gtk/gtk.h>
 
+#include "core/result-surface.h"
+#include "core/window-frame.h"
 #include "core/window-keyboard.h"
 
 namespace WhiskerMenu
@@ -37,7 +39,7 @@ class LauncherView;
 class Settings;
 class Window;
 
-class Page
+class Page : public ResultSurface
 {
 public:
 	Page(Settings* settings, Window* window, const gchar* icon, const gchar* text);
@@ -48,7 +50,7 @@ public:
 	Page& operator=(const Page&) = delete;
 	Page& operator=(Page&&) = delete;
 
-	GtkWidget* get_widget() const
+	GtkWidget* get_widget() const override
 	{
 		return m_widget;
 	}
@@ -58,17 +60,17 @@ public:
 		return m_button;
 	}
 
-	LauncherView* get_view() const
+	LauncherView* get_view() const override
 	{
 		return m_view;
 	}
 
 	void reset_selection();
-	void select_first();
-	bool focus_first_result();
+	void select_first() override;
+	bool focus_first_result() override;
 	bool keyboard_move(Keyboard::PhysicalDirection direction);
 	void update_view();
-	void present();
+	void present() override;
 
 	/* prepare_viewport_resize:
 	 * @current_toplevel_width: launcher width before the resize step.
@@ -78,10 +80,10 @@ public:
 	 * the new window. List views and height-only steps are left unchanged.
 	 */
 	void prepare_viewport_resize(int current_toplevel_width,
-			int requested_toplevel_width);
+			int requested_toplevel_width) override;
 
-	int get_viewport_width() const { return m_viewport_width; }
-	int get_minimum_viewport_width() const;
+	int get_viewport_width() const override { return m_viewport_width; }
+	int get_minimum_viewport_width() const override;
 
 	/* activate_first:
 	 *
@@ -144,7 +146,7 @@ private:
 	bool m_favourite_drag_payload_delivered;
 	bool m_reorderable;
 	int m_viewport_width;
-	guint m_present_tick_id;
+	meow::MappedResultFrame m_present_frame;
 };
 
 }
