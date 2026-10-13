@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# install.sh — build, install, and hot-reload MeowMenu in a running Xfce session.
+# install.sh — build and clean-install MeowMenu for maintainer testing.
 #
 # BACKGROUND
-#   MeowMenu runs inside xfce4-panel's `wrapper-2.0` process, not inside the panel
-#   itself.  Simply restarting the panel with `xfce4-panel -r` does NOT recycle the
-#   wrapper, so the old libmeowmenu.so stays loaded.  This script kills the wrapper
-#   explicitly so the panel re-spawns it against the freshly installed library.
-#
-#   Every run is a clean-install transaction: prior MeowMenu user data and settings
-#   are removed, the complete current payload is installed into the Meson-configured
-#   prefix, and the restarted plugin performs its normal first-run initialization.
-#   Configure Meson with a system prefix to exercise system paths; a user-local
-#   prefix exercises the same payload and first-run behavior without root access.
+#   Every run is a clean-install transaction representative of a normal manual
+#   installation. It compiles first, completely removes prior development payloads,
+#   panel slots, settings, presets, and usage history, then installs the current
+#   payload under /usr/local. The panel is restarted without a MeowMenu instance;
+#   add it through Xfce's Add New Items dialog to exercise a genuine first run.
 #
 # USAGE
 #   ./dev/install.sh [--icons] [--reconfigure] [--clean-stale-dev] [BUILD_DIR]
@@ -26,7 +21,8 @@
 #                  Kept for compatibility with older development workflows.
 #                  Exact stale development payloads are now cleaned
 #                  automatically before installation.
-#   BUILD_DIR      Meson build directory (default: ./build).
+#   BUILD_DIR      Meson build directory (default: ./build). The script
+#                  reconfigures its prefix to /usr/local when necessary.
 #                  Must already exist; run `meson setup build` once first.
 #
 # LOGS
@@ -69,25 +65,40 @@ run() {
     fi
 }
 
+# restore_panel_after_failure:
+#
+# Restarts the panel if a clean uninstall succeeded but the replacement install
+# later failed. This prevents a compiler, privilege, or payload error from
+# leaving the maintainer's desktop without its panel.
+restore_panel_after_failure() {
+    local status=$?
+
+    if (( status != 0 )) && [[ "${PANEL_NEEDS_RESTORE:-false}" == true ]] \
+            && ! pgrep -x xfce4-panel >/dev/null 2>&1; then
+        setsid -f xfce4-panel --disable-wm-check >> "${LOG_FILE}" 2>&1 || true
+    fi
+    return "${status}"
+}
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
 
 REGEN_ICONS=false
 FORCE_RECONFIGURE=false
-CLEAN_STALE_DEV=false
 BUILD_DIR=""
 
 for arg in "$@"; do
     case "${arg}" in
         --icons)       REGEN_ICONS=true ;;
         --reconfigure) FORCE_RECONFIGURE=true ;;
-        --clean-stale-dev) CLEAN_STALE_DEV=true ;;
+        --clean-stale-dev) : ;;
         *)             BUILD_DIR="${arg}" ;;
     esac
 done
 
 BUILD_DIR="${BUILD_DIR:-${REPO}/build}"
+STANDARD_PREFIX="/usr/local"
 
 if [[ ! -d "${BUILD_DIR}" ]]; then
     echo "Build directory '${BUILD_DIR}' not found."
@@ -95,10 +106,31 @@ if [[ ! -d "${BUILD_DIR}" ]]; then
     exit 1
 fi
 
-# Resolve the selected install location before compiling so a conflicting
-# source payload is found before the running panel can load it.
+# A maintainer clean install must survive logout and reboot and must use the
+# same conventional paths as a manual system-wide source installation. Never
+# inherit a temporary or user-local prefix from an earlier build experiment.
+CURRENT_PREFIX="$(meson introspect --buildoptions "${BUILD_DIR}" \
+    | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="prefix"][0])')"
+if [[ "$(realpath -m -- "${CURRENT_PREFIX}")" != "${STANDARD_PREFIX}" ]]; then
+    run "Reconfigure durable install prefix (${CURRENT_PREFIX} -> ${STANDARD_PREFIX})" \
+        meson setup --reconfigure "${BUILD_DIR}" "--prefix=${STANDARD_PREFIX}"
+fi
+
 PREFIX="$(meson introspect --buildoptions "${BUILD_DIR}" \
     | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="prefix"][0])')"
+if [[ "$(realpath -m -- "${PREFIX}")" != "${STANDARD_PREFIX}" ]]; then
+    echo "FAILED: Meson prefix is '${PREFIX}', expected '${STANDARD_PREFIX}'."
+    exit 1
+fi
+
+case ":${XDG_DATA_DIRS:-/usr/local/share:/usr/share}:" in
+    *:/usr/local/share:*) ;;
+    *)
+        echo "FAILED: XDG_DATA_DIRS does not include /usr/local/share."
+        echo "The panel would not discover this standard installation after login."
+        exit 1
+        ;;
+esac
 INSTALLED_MODULE="$(meson introspect --installed "${BUILD_DIR}" \
     | python3 -c '
 import json
@@ -107,133 +139,6 @@ installed = json.load(sys.stdin)
 print(next(destination for source, destination in installed.items()
            if source.endswith("libmeowmenu.so")))
 ')"
-MESON_DATADIR="$(meson introspect --buildoptions "${BUILD_DIR}" \
-    | python3 -c 'import sys,json; print([o["value"] for o in json.load(sys.stdin) if o["name"]=="datadir"][0])')"
-if [[ "${MESON_DATADIR}" == /* ]]; then
-    PANEL_DATA_DIR="${MESON_DATADIR}"
-else
-    PANEL_DATA_DIR="${PREFIX}/${MESON_DATADIR}"
-fi
-PANEL_XDG_DATA_DIRS="${PANEL_DATA_DIR}:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
-
-same_path() {
-    [[ "$(realpath -m -- "$1")" == "$(realpath -m -- "$2")" ]]
-}
-
-# /usr is reserved for package managers. /usr/local remains a supported
-# development prefix and is intentionally excluded from this protection.
-# is_protected_system_path:
-# @1: path to classify.
-#
-# Returns success when the path belongs to the package-managed /usr tree.
-is_protected_system_path() {
-    local path
-    path="$(realpath -m -- "$1")"
-    case "${path}" in
-        /usr|/usr/*)
-            [[ "${path}" != "/usr/local" && "${path}" != /usr/local/* ]]
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-KNOWN_ROOTS=()
-
-# add_known_root:
-# @1: candidate development prefix to inspect.
-#
-# Adds an existing, non-package-managed prefix once to the audit set.
-add_known_root() {
-    local root="$1"
-    local existing
-
-    root="$(realpath -m -- "${root}")"
-    [[ -d "${root}" ]] || return 0
-    is_protected_system_path "${root}" && return 0
-    for existing in "${KNOWN_ROOTS[@]}"; do
-        same_path "${root}" "${existing}" && return 0
-    done
-    KNOWN_ROOTS+=("${root}")
-}
-
-# remove_dev_file:
-# @1: exact development file path.
-#
-# Removes one file from an approved development prefix.
-remove_dev_file() {
-    local candidate="$1"
-
-    step "Remove stale ${candidate}"
-    if ! rm -f -- "${candidate}" 2>/dev/null; then
-        sudo rm -f -- "${candidate}"
-    fi
-    if [[ -e "${candidate}" || -L "${candidate}" ]]; then
-        echo "FAILED: stale file remains: ${candidate}"
-        exit 1
-    fi
-}
-
-# remove_dev_tree:
-# @1: exact development data directory.
-#
-# Removes one data directory from an approved development prefix.
-remove_dev_tree() {
-    local candidate="$1"
-
-    step "Remove stale ${candidate}"
-    if ! rm -rf -- "${candidate}" 2>/dev/null; then
-        sudo rm -rf -- "${candidate}"
-    fi
-    if [[ -e "${candidate}" || -L "${candidate}" ]]; then
-        echo "FAILED: stale directory remains: ${candidate}"
-        exit 1
-    fi
-}
-
-# remove_dev_payload_under_root:
-# @1: approved development prefix to inspect.
-#
-# Removes only exact MeowMenu payload paths, leaving unrelated files intact.
-remove_dev_payload_under_root() {
-    local root="$1"
-    local candidate
-
-    [[ -d "${root}" ]] || return 0
-    while IFS= read -r -d '' candidate; do
-        remove_dev_file "${candidate}"
-    done < <(find "${root}" \
-        \( -path '*/xfce4/panel/plugins/libmeowmenu.so' \
-        -o -path '*/xfce4/panel/plugins/meowmenu.desktop' \
-        -o -path '*/bin/xfce4-popup-meowmenu' \
-        -o -path '*/share/man/man1/xfce4-popup-meowmenu.1' \
-        -o -path '*/share/metainfo/io.github.matteobonanomi.xfce4-meowmenu-plugin.metainfo.xml' \
-        -o -path '*/share/icons/hicolor/*/apps/org.xfce.panel.meowmenu.png' \
-        -o -path '*/share/icons/hicolor/scalable/apps/org.xfce.panel.meowmenu.svg' \
-        -o -path '*/share/locale/*/LC_MESSAGES/xfce4-meowmenu-plugin.mo' \) \
-        \( -type f -o -type l \) -print0 2>/dev/null)
-    while IFS= read -r -d '' candidate; do
-        remove_dev_tree "${candidate}"
-    done < <(find "${root}" -type d \
-        \( -path '*/share/meowmenu' \
-        -o -path '*/share/xfce4-meowmenu-plugin' \) \
-        -prune -print0 2>/dev/null)
-}
-
-add_known_root "/usr/local"
-for candidate in /tmp/meowmenu-*; do
-    [[ -d "${candidate}" ]] && add_known_root "${candidate}"
-done
-add_known_root "${PREFIX}"
-add_known_root "${HOME}/.local"
-echo ""
-echo "Removing stale MeowMenu development payloads from known prefixes."
-for root in "${KNOWN_ROOTS[@]}"; do
-    # Keep the selected prefix intact until the new payload has been installed.
-    same_path "${root}" "${PREFIX}" && continue
-    remove_dev_payload_under_root "${root}"
-done
 
 # A sanitizer-instrumented shared module cannot be loaded safely by the
 # unsanitized xfce4-panel wrapper: libasan must be initialized by the host
@@ -345,24 +250,20 @@ if (( ${#INSTALLED_PRESETS[@]} == 0 )); then
     exit 1
 fi
 
-# Do not call uninstall.sh here. It deliberately removes the active plugin and
-# kills its wrapper, which makes Xfce see a configured slot with no module and
-# show the "remove plugin" prompt before the new install can complete. Meson
-# overwrites the installed files in place; the wrapper is recycled only after
-# the new files are present.
-
-# User preset drop-ins and a user-local package prefix intentionally share the
-# XDG data directory. Remove the old tree before installation so Meson restores
-# the packaged built-ins afterward instead of deleting the new payload.
-USER_DATA_ROOT="${XDG_DATA_HOME:-${HOME}/.local/share}"
-USER_MEOWMENU_DATA="${USER_DATA_ROOT%/}/meowmenu"
-if [[ "${USER_DATA_ROOT}" != /* || "${USER_DATA_ROOT}" == "/" ]] \
-        || is_protected_system_path "${USER_MEOWMENU_DATA}"; then
-    echo "Refusing unsafe XDG_DATA_HOME '${USER_DATA_ROOT}'."
+# Compile before cleanup so a build failure cannot destroy a working
+# development installation. Once compilation succeeds, use the standalone
+# uninstaller as the single source of truth for payload and user-state cleanup.
+step "Completely remove prior MeowMenu installation and user state"
+PANEL_NEEDS_RESTORE=false
+trap restore_panel_after_failure EXIT
+if ! "${SCRIPT_DIR}/uninstall.sh" --no-restart "${BUILD_DIR}" \
+        >> "${LOG_FILE}" 2>&1; then
+    echo "FAILED: Clean uninstall"
+    echo "Last output (see ${LOG_FILE} for the full log):"
+    tail -20 "${LOG_FILE}"
     exit 1
 fi
-step "Remove prior MeowMenu user data"
-rm -rf -- "${USER_MEOWMENU_DATA}"
+PANEL_NEEDS_RESTORE=true
 
 # The explicit compile above is authoritative. --no-rebuild prevents Meson
 # from launching Ninja again as part of installation.
@@ -413,175 +314,38 @@ for payload in "${INSTALLED_PAYLOAD[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
-# Reset user state after the replacement is installed
-# ---------------------------------------------------------------------------
-# Keep the panel slot and its live wrapper valid throughout installation.
-# Stop the panel only after the new module is in place. Resetting a live plugin
-# makes its settings callbacks repopulate keys while they are being removed,
-# producing a hybrid "Custom" profile instead of the fresh Modern preset.
-# Keeping the registered panel slot and installed module intact avoids the
-# missing-plugin prompt while the short reset is in progress.
-
-# stop_panel_for_reset:
-#
-# Stops the panel and its out-of-process plugin wrapper before Xfconf mutation.
-# Returns only when no old MeowMenu instance can write settings back into the
-# channel; restart_panel restores the saved panel configuration afterward.
-stop_panel_for_reset() {
-    if pgrep -x xfce4-panel >/dev/null 2>&1; then
-        step "Stop Xfce panel for clean state reset"
-        xfce4-panel --quit >> "${LOG_FILE}" 2>&1 || true
-        for _ in {1..20}; do
-            pgrep -x xfce4-panel >/dev/null 2>&1 || break
-            sleep 0.1
-        done
-    fi
-
-    pkill -f 'wrapper-2.0.*libmeowmenu\.so' 2>/dev/null || true
-    if pgrep -x xfce4-panel >/dev/null 2>&1; then
-        echo "FAILED: Xfce panel did not stop before the state reset"
-        echo "See ${LOG_FILE} for command output."
-        exit 1
-    fi
-}
-
-# Remember whether the saved panel layout contains a MeowMenu slot. A clean
-# installation may legitimately have no MeowMenu instance yet, in which case
-# the panel cannot be expected to spawn a MeowMenu wrapper.
-MEOWMENU_WAS_CONFIGURED=false
-if command -v xfconf-query >/dev/null 2>&1; then
-    while IFS= read -r prop; do
-        if [[ "${prop}" =~ ^/plugins/plugin-[0-9]+$ ]]; then
-            value="$(xfconf-query --channel xfce4-panel --property "${prop}" \
-                2>/dev/null || true)"
-            if [[ "${value}" == "meowmenu" ]]; then
-                MEOWMENU_WAS_CONFIGURED=true
-                break
-            fi
-        fi
-    done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
-fi
-
-stop_panel_for_reset
-
-# Legacy on-disk channel file (pre-rename installs); harmless to remove if
-# present. Live settings are reset through xfconfd below.
-XFCONF_FILE="${HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/meowmenu.xml"
-if [[ -f "${XFCONF_FILE}" ]]; then
-    step "Remove legacy Xfconf channel file (meowmenu.xml)"
-    rm -f "${XFCONF_FILE}"
-fi
-
-if command -v xfconf-query >/dev/null 2>&1; then
-    step "Reset MeowMenu Xfconf state (xfce4-panel channel + /initialized marker)"
-    while IFS= read -r prop; do
-        if [[ "${prop}" =~ ^/plugins/plugin-[0-9]+$ ]]; then
-            value="$(xfconf-query --channel xfce4-panel --property "${prop}" 2>/dev/null || true)"
-            if [[ "${value}" == "meowmenu" ]]; then
-                # The root property is the panel's slot registration. Reset
-                # only its direct children so the panel keeps this plugin ID.
-                declare -A child_roots=()
-                while IFS= read -r child; do
-                    [[ "${child}" == "${prop}/"* ]] || continue
-                    child_name="${child#${prop}/}"
-                    child_name="${child_name%%/*}"
-                    child_roots["${prop}/${child_name}"]=1
-                done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
-
-                for child in "${!child_roots[@]}"; do
-                    step "  Reset ${child} (recursive)"
-                    xfconf-query --channel xfce4-panel --property "${child}" \
-                        --reset --recursive 2>/dev/null || true
-                done
-            fi
-        fi
-    done < <(xfconf-query --channel xfce4-panel --list 2>/dev/null || true)
-else
-    step "xfconf-query not found — skipping channel reset"
-fi
-
-# Usage statistics live outside Xfconf and the preset directory. Remove their
-# dedicated cache directory so the new plugin instance starts without ranking
-# history as well as without settings.
-USER_CACHE_ROOT="${XDG_CACHE_HOME:-${HOME}/.cache}"
-USER_CACHE_DIR="${USER_CACHE_ROOT%/}/xfce4/meowmenu"
-if [[ "${USER_CACHE_ROOT}" != /* || "${USER_CACHE_ROOT}" == "/" ]] \
-        || is_protected_system_path "${USER_CACHE_DIR}"; then
-    echo "Refusing unsafe XDG_CACHE_HOME '${USER_CACHE_ROOT}'."
-    exit 1
-fi
-if [[ -e "${USER_CACHE_DIR}" ]]; then
-    step "Remove usage cache ${USER_CACHE_DIR}"
-    rm -rf -- "${USER_CACHE_DIR}"
-fi
-
-# ---------------------------------------------------------------------------
 # Reload panel
 # ---------------------------------------------------------------------------
-# Start the panel from its preserved slot configuration. The reset above keeps
-# the slot root registered while removing only MeowMenu's child settings.
+# The clean uninstall removed every MeowMenu panel slot. Start the panel with
+# its normal login environment so discovery now and after reboot is identical.
 
 # restart_panel:
 #
-# Recycle a running panel when possible, then fall back to a real launch if
-# that process disappears. The final check prevents install.sh from reporting
-# success while the saved panel configuration is not visible on screen.
+# Starts the panel after the clean transaction and verifies that it remains
+# alive. MeowMenu is intentionally not added automatically: normal package and
+# source installations expose it through Xfce's Add New Items dialog.
 restart_panel() {
-    local panel_pid=""
-    local stable_checks=0
-
-    panel_pid="$(pgrep -xo xfce4-panel || true)"
-    if [[ -n "${panel_pid}" ]]; then
-        step "Restart Xfce panel"
-        xfce4-panel -r >> "${LOG_FILE}" 2>&1 &
-        disown || true
-        sleep 1
-    fi
-
     if ! pgrep -x xfce4-panel >/dev/null 2>&1; then
         step "Start Xfce panel from saved configuration"
-        XDG_DATA_DIRS="${PANEL_XDG_DATA_DIRS}" \
-            setsid -f xfce4-panel --disable-wm-check >> "${LOG_FILE}" 2>&1
+        setsid -f xfce4-panel --disable-wm-check >> "${LOG_FILE}" 2>&1
     fi
 
-    if ! pgrep -x xfce4-panel >/dev/null 2>&1; then
-        echo "FAILED: Xfce panel did not stay running"
-        echo "Last output (see ${LOG_FILE} for the full log):"
-        tail -20 "${LOG_FILE}"
-        exit 1
-    fi
-
-    # A fresh install without an existing panel slot has no wrapper to check.
-    # The plugin will be available from the Add New Items dialog instead.
-    if [[ "${MEOWMENU_WAS_CONFIGURED}" != true ]]; then
-        return 0
-    fi
-
-    # The launcher process can briefly exist before it daemonizes or fails.
-    # Require both processes to survive several checks so a transient PID
-    # cannot turn a failed reload into a reported success.
-    for _ in {1..50}; do
-        if pgrep -x xfce4-panel >/dev/null 2>&1 \
-                && pgrep -f 'wrapper-2\.0 .*libmeowmenu\.so' \
-                    >/dev/null 2>&1; then
-            stable_checks=$((stable_checks + 1))
-            if (( stable_checks >= 5 )); then
-                return 0
-            fi
-        else
-            stable_checks=0
-        fi
-        sleep 0.2
+    for _ in {1..20}; do
+        pgrep -x xfce4-panel >/dev/null 2>&1 && return 0
+        sleep 0.1
     done
 
-    echo "FAILED: Xfce panel and MeowMenu wrapper did not stay running"
+    echo "FAILED: Xfce panel did not stay running"
     echo "Last output (see ${LOG_FILE} for the full log):"
     tail -20 "${LOG_FILE}"
     exit 1
 }
 
 restart_panel
+PANEL_NEEDS_RESTORE=false
+trap - EXIT
 
 echo "─────────────────────────────────────────"
-echo "  Done. MeowMenu reloaded from ${PREFIX}."
+echo "  Done. MeowMenu clean-installed to ${PREFIX}."
+echo "  Add Meow Menu through Xfce's Add New Items dialog for a fresh instance."
 echo ""
