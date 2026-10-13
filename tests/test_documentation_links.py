@@ -135,7 +135,7 @@ class DocumentationLinksTest(unittest.TestCase):
         self.assertIn("Wayland", readme)
         self.assertNotRegex(home, r"(?i)current release candidate|check RC1")
 
-    def test_public_release_and_configuration_policy_is_semantic(self):
+    def test_public_release_guidance_is_current_and_concise(self):
         documents = [
             ROOT / "README.md",
             ROOT / "docs/installation.md",
@@ -143,11 +143,9 @@ class DocumentationLinksTest(unittest.TestCase):
             ROOT / ".github/SECURITY.md",
         ]
         content = " ".join(document.read_text(encoding="utf-8") for document in documents)
-        self.assertRegex(content, r"(?is)0\.x.{0,180}experimental")
-        self.assertRegex(content, r"(?is)rc.{0,180}(?:stable|stabl|testing)")
-        self.assertRegex(content, r"(?is)newest 0\.x.{0,180}feature")
-        self.assertRegex(content, r"(?is)before final 1\.0\.0.{0,180}not guaranteed")
-        self.assertRegex(content, r"(?is)final 1\.0\.0.{0,180}preserv")
+        self.assertRegex(content, r"(?is)release candidates.{0,100}more stable")
+        self.assertRegex(content, r"(?is)regular 0\.x\.x.{0,100}latest features")
+        self.assertNotRegex(content, r"(?i)before final|final 1\.0\.0|not guaranteed")
 
     def test_public_pages_avoid_historical_and_obsolete_framing(self):
         pages = tuple((ROOT / "docs").glob("*.md"))
@@ -165,15 +163,15 @@ class DocumentationLinksTest(unittest.TestCase):
             self.assertIsNone(forbidden.search(content), document)
             self.assertIsNone(current_whisker_identity.search(content), document)
 
-    def test_configuration_tables_keep_role_specific_shapes(self):
+    def test_configuration_tables_keep_scannable_shapes(self):
         configuration = (ROOT / "docs/configuration.md").read_text(encoding="utf-8")
         tables = markdown_tables(configuration)
         self.assertTrue(
-            any(table[0][:2] == ["Option", "Description"] for table in tables)
+            any(table[0][:2] == ["Option", "What it does"] for table in tables)
         )
         self.assertTrue(
             any(
-                table[0][:4] == ["Key", "Type", "Default", "Description"]
+                table[0][:3] == ["Key", "Type", "Default"]
                 for table in tables
             )
         )
@@ -193,21 +191,20 @@ class DocumentationLinksTest(unittest.TestCase):
             self.assertNotIn(obsolete, configuration)
         self.assertNotRegex(testing, r"(?i)sidebar (?:at|on) the top|sidebar (?:at|on) the bottom")
 
-    def test_support_and_testing_pages_record_scope_without_snapshots(self):
+    def test_support_and_testing_pages_keep_reporting_requirements_short(self):
         support = (ROOT / "docs/support.md").read_text(encoding="utf-8")
         testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
         for field in (
-            "MeowMenu version",
-            "Distribution/version",
-            "Xfce version",
-            "Architecture",
-            "Session type",
-            "Installation method",
+            "the MeowMenu version",
+            "your distribution and Xfce version",
+            "whether you use X11 or Wayland",
+            "how you installed MeowMenu",
         ):
             self.assertIn(field, testing)
         self.assertIn("X11", support)
         self.assertIn("Wayland", support)
-        self.assertIn("not guaranteed", support)
+        self.assertIn("Release candidates are the more stable choice", support)
+        self.assertIn("Regular 0.x.x releases", support)
         self.assertNotIn("compatibility matrix", testing.lower())
 
     def test_keyboard_surface_is_cross_linked_and_current(self):

@@ -23,18 +23,10 @@ The manifest must report one successful check for each of the three packages
 and `xfce4-meowmenu-plugin-<version>.tar.gz`. It does not contain a checksum
 entry for itself.
 
-## Release channels and configuration
+## Choosing a release
 
-Before final 1.0.0, 0.x releases are experimental feature releases. An
-available `-rcN` release is the more stable channel for testing and feedback.
-Choose the newest 0.x release when it is newer than the latest RC and you want
-newer features; choose the RC when you prefer a more stable testing channel.
-Both are standard public releases.
-
-Before final 1.0.0, including every 0.x release and RC, compatibility and
-configuration preservation are not guaranteed in any way. From final 1.0.0
-onward, configuration preservation is guaranteed. Back up panel configuration
-before testing a pre-1.0 release.
+See [Support and compatibility](support) to choose between the latest release
+and a release candidate.
 
 ## Ubuntu 26.04
 

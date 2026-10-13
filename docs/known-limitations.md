@@ -16,7 +16,7 @@ confirmed defects.
   geometry and preserves the last completed normal size. This behavior covers
   both the normal GTK toplevel and optional `gtk-layer-shell`; compositor and
   layer-shell combinations without separately recorded results remain
-  unvalidated. See the [session boundaries](support#sessions-and-architectures).
+  unvalidated. See [Supported systems](support#supported-systems).
   X11 is the primary live-resize quality path.
 - **Architecture:** published packages and live checks cover
   `x86_64`/`amd64`. Other architectures are unverified source-build candidates.

@@ -6,63 +6,50 @@ nav_order: 5
 
 # Support and compatibility
 
-This page records testing evidence and compatibility boundaries independently
-from package availability.
+## Choosing a release
 
-Before final 1.0.0, including every 0.x release and RC, compatibility and
-configuration preservation are not guaranteed in any way. From final 1.0.0
-onward, configuration preservation is guaranteed. Back up panel configuration
-before testing a pre-1.0 release.
+Release candidates are the more stable choice. Regular 0.x.x releases are for
+users who want the latest features and improvements. Both are published on the
+[GitHub Releases page](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/releases).
 
-## Distro testing
+## Packages
 
-| Distribution/context | Maintainer | Community | CI  |
-| ----------------------| :----------:| :---------:| :---:|
-| Debian 13            | ✓          | ✓         | ✓   |
-| Xubuntu 26.04        | ✓          | ✓         | ✓   |
-| Arch Linux           | ✓          | —         | ✓   |
-| MX Linux             | —          | ✓         | —   |
-| Fedora 44            | —          | —         | ✓   |
+| System | Installation source |
+|--------|---------------------|
+| Ubuntu 26.04 | Package attached to each GitHub release |
+| Debian 13 | Package attached to each GitHub release |
+| Fedora 44 | Package attached to each GitHub release |
+| Arch Linux and derivatives | Maintainer-published AUR package |
 
-- **Maintainer** means a manual result recorded by the maintainer for the
-  named environment.
-- **Community** means a manual result recorded by a community tester for the
-  named environment.
-- **CI** means automated build, test, or package-recipe evidence for the named
-  distribution context; it is not a live desktop result.
-- **—** means no result is currently documented for that source, not a known
-  failure or incompatibility.
+See [Installation](installation) for commands and source-build instructions.
 
-CI marks describe automation for the named row, not a live desktop result.
-Evidence is never transferred to the Maintainer or Community columns.
+## Supported systems
 
-## Package availability
+| Area | Current support |
+|------|-----------------|
+| Xfce | Versions 4.16 through 4.21; 4.20 is the primary target |
+| Session | X11 is supported; Wayland is experimental |
+| Architecture | Published packages are available for `x86_64`/`amd64` |
 
-Project release packages are available for Ubuntu 26.04, Debian 13, and
-Fedora 44. Arch Linux uses a separately maintained AUR source recipe. See the
-[installation guide](installation) for current artifacts and commands.
-The tag workflow builds, tests, installs, and verifies the three native
-packages and validates the Arch recipe before publication. Availability,
-successful package automation, and recipe publication do not create
-maintainer or community testing marks.
+Wayland remains usable when optional layer-shell support is unavailable, but
+menu positioning can differ between compositors.
 
-## Xfce compatibility
+Other architectures may work when built from source, but they do not currently
+have published packages or regular testing.
 
-MeowMenu supports Xfce 4.16 through 4.21, with Xfce 4.20 as the primary
-quality target.
+## Tested distributions
 
-Routine automated builds cover Ubuntu 26.04, Debian 13, and Fedora 44. Live
-validation remains focused on Xfce 4.20 with X11 on `x86_64`/`amd64`; other
-supported Xfce versions do not have a documented live result here.
+| Distribution | Maintainer tested | Community tested | Automated build |
+|--------------|:-----------------:|:----------------:|:---------------:|
+| Debian 13 | ✓ | ✓ | ✓ |
+| Xubuntu 26.04 | ✓ | ✓ | ✓ |
+| Arch Linux | ✓ | — | ✓ |
+| MX Linux | — | ✓ | — |
+| Fedora 44 | — | — | ✓ |
 
-## Sessions and architectures
+An automated build confirms that MeowMenu compiles and passes its test suite.
+It does not replace testing in a running Xfce desktop.
 
-X11 on `x86_64`/`amd64` is the only officially supported live-quality path.
-Wayland is experimentally supported with a graceful positioning fallback but
-remains unverified live. Published packages cover `x86_64`/`amd64`; other
-architectures have no documented package or live result. Source compilation
-does not establish a session, architecture, or live desktop result.
-
-See [known limitations](known-limitations), [translation status](translations),
-and the [testing guide](testing) for the exact boundaries. Share a result using
-the [compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml).
+See [Known limitations](known-limitations) for current caveats. If you try
+MeowMenu on another setup, you can share the result with a
+[compatibility report](https://github.com/matteobonanomi/xfce4-meowmenu-plugin/issues/new?template=compatibility-report.yml).
