@@ -98,6 +98,7 @@ GtkWidget* SettingsDialog::init_user_session_tab()
 		gtk_box_pack_start(commands_vbox, command_edit->get_widget(), false, false, 0);
 		m_commands.push_back(command_edit);
 	}
+	g_object_unref(cmd_label_size_group);
 
 	return wrap_in_scrolled(GTK_WIDGET(page));
 }

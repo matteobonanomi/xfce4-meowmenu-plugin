@@ -404,7 +404,7 @@ jobs:
           cp "$build_dir/PKGBUILD" "$RUNNER_TEMP/arch-logs/PKGBUILD"
           sudo -u builder bash -c \
             "cd '$build_dir' && makepkg --printsrcinfo" \
-            > "$RUNNER_TEMP/arch-logs/.SRCINFO"
+            | tee "$RUNNER_TEMP/arch-logs/.SRCINFO" >/dev/null
 
       - name: Upload Arch validation metadata
         if: always()

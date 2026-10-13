@@ -159,6 +159,9 @@ jobs:
           export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/asan_suppressions.txt"
           export LSAN_OPTIONS="suppressions=${GITHUB_WORKSPACE}/build-aux/lsan_suppressions.txt"
           export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1:suppressions=${GITHUB_WORKSPACE}/build-aux/ubsan_suppressions.txt"
+          # GTK tests do not exercise desktop VFS providers. The local backend
+          # avoids process-global GVfs caches being reported as test leaks.
+          export GIO_USE_VFS=local
           # xvfb-run provides a virtual display so the GTK widget-construction
           # tests run here instead of aborting; the sanitizers then exercise the
           # freed-view safeguard path under a real display.
@@ -206,7 +209,7 @@ jobs:
           control_deps="$(awk '/^Depends:/{p=1;next} /^Recommends:/{p=1;next} /^[A-Za-z-]+:/{p=0} p' debian/control \
                           | tr ',' '\n' \
                           | sed -E 's/^[[:space:]]*//; s/[[:space:]]*\(.*\)//; s/[[:space:]]*$//' \
-                          | grep -v '^\${' \
+                          | grep -v "^\\\${" \
                           | grep -v '^$' \
                           | sort -u || true)"
           spec_requires="$(grep -E '^(Requires|Recommends):' dist/rpm/xfce4-meowmenu-plugin.spec \

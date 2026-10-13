@@ -22,6 +22,10 @@ using namespace WhiskerMenu;
 namespace
 {
 
+// Sanitized GTK builds can need extra time to process the first layout pass;
+// keep the deadline finite while allowing the slowest supported CI runner.
+constexpr guint k_window_visibility_timeout_ms = 5000;
+
 /* assert_dismissal_family_inventory:
  *
  * Keeps the external call-family audit beside the production transaction test.
@@ -191,7 +195,9 @@ static int run_test(int argc, char** argv)
 	settings->places_enabled = true;
 	settle_private_xfconf();
 	window->show(Window::PositionAtCenter);
-	assert(meowmenu_test::run_until([&]() { return gtk_widget_get_visible(window->get_widget()); }, 2000, "window visibility after show"));
+	assert(meowmenu_test::run_until(
+			[&]() { return gtk_widget_get_visible(window->get_widget()); },
+			k_window_visibility_timeout_ms, "window visibility after show"));
 	assert(window->get_result_toplevel_width_authority() == 480);
 	assert(window->get_result_viewport_width_cap() == -1);
 	settings->layout_mode = "centered";
@@ -213,7 +219,10 @@ static int run_test(int argc, char** argv)
 	window->refresh_layout();
 	window->refresh_layout();
 	drain_ready_sources();
-	assert(meowmenu_test::run_until([&]() { return gtk_widget_get_visible(window->get_widget()); }, 2000, "window visibility after layout refresh"));
+	assert(meowmenu_test::run_until(
+			[&]() { return gtk_widget_get_visible(window->get_widget()); },
+			k_window_visibility_timeout_ms,
+			"window visibility after layout refresh"));
 
 	window->switch_mode(true);
 	assert(window->is_places_active());

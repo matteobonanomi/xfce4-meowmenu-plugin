@@ -1177,6 +1177,11 @@ void WhiskerMenu::Window::apply_live_presentation_setting(
 
 //-----------------------------------------------------------------------------
 
+/* ~Window:
+ *
+ * Releases the menu's GTK resources and cancels callbacks that may otherwise
+ * retain the window after the panel plugin has begun shutting down.
+ */
 WhiskerMenu::Window::~Window()
 {
 	if (m_focus_out_idle != 0)
@@ -1224,6 +1229,11 @@ WhiskerMenu::Window::~Window()
 	{
 		g_object_unref(m_category_width_group);
 		m_category_width_group = nullptr;
+	}
+	if (m_mode_button_size_group)
+	{
+		g_object_unref(m_mode_button_size_group);
+		m_mode_button_size_group = nullptr;
 	}
 
 

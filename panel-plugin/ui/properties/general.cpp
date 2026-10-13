@@ -619,6 +619,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	m_icon_button = gtk_button_new();
 	gtk_label_set_mnemonic_widget(GTK_LABEL(icon_label), m_icon_button);
 	add_form_row(panel_grid, COLUMN_C2, 1, icon_label, m_icon_button, false, panel_c2_labels);
+	g_object_unref(panel_c1_labels);
+	g_object_unref(panel_c2_labels);
 
 	connect(m_icon_button, "clicked",
 		[this](GtkButton*)
@@ -787,6 +789,8 @@ GtkWidget* SettingsDialog::init_general_tab()
 	gtk_range_set_value(GTK_RANGE(m_menu_opacity), m_settings->menu_opacity);
 	add_form_row(menu_grid, COLUMN_C1, 3, mo_label, m_menu_opacity, true, menu_c1_labels);
 	gtk_label_set_mnemonic_widget(GTK_LABEL(mo_label), m_menu_opacity);
+	g_object_unref(menu_c1_labels);
+	g_object_unref(menu_c2_labels);
 
 	connect(m_menu_opacity, "value-changed",
 		[this](GtkRange* range)

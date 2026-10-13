@@ -40,6 +40,13 @@ leak:FcPatternBuild
 # Added: 2026-08-20
 leak:pango_layout_get_size
 
+# pango_layout_get_unknown_glyphs_count — current Ubuntu fontconfig builds
+# expose the same process-wide cache through this Pango measurement helper.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-10-13
+leak:pango_layout_get_unknown_glyphs_count
+
 # gtk_widget_get_preferred_height — the same cache allocations can pass
 # through GTK's preferred-size helper without a symbolized Pango frame on
 # stripped distro libraries. This remains scoped to the GTK boundary.
@@ -47,6 +54,13 @@ leak:pango_layout_get_size
 #   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
 # Added: 2026-08-20
 leak:gtk_widget_get_preferred_height
+
+# gtk_widget_get_preferred_width — the matching horizontal measurement path
+# is used by the same short-lived GTK test widgets.
+# Upstream acknowledgement: fontconfig issue 78
+#   https://gitlab.freedesktop.org/fontconfig/fontconfig/-/issues/78
+# Added: 2026-10-13
+leak:gtk_widget_get_preferred_width
 
 # gtk_cell_renderer_get_preferred_width — short-lived GtkTreeView tests reach
 # the same fontconfig pattern cache while measuring text renderers. Ubuntu's

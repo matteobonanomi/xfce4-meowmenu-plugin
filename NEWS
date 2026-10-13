@@ -1,4 +1,4 @@
-0.8.2 (2026-09-30)
+0.8.2 (2026-10-13)
 =====
 - Translations: localize built-in preset names and descriptions while preserving custom presets
 - Translations: refresh and validate all 56 catalogs, including localized AppStream metadata and translator credits
