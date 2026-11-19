@@ -1,6 +1,8 @@
 1.0.0-rc2 (2026-11-20)
 =====
 - Bug: fix executable launch failure from search bar
+- Bug: hardening graphical Arch package validation
+- Docs: update screenshots and demo.gif with new UX/UI
 
 0.8.2 (2026-10-13)
 =====
