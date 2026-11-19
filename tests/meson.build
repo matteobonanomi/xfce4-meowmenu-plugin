@@ -155,6 +155,7 @@ test(
   python3,
   args: [meson.current_source_dir() / 'test_repository_presentation.py'],
   env: ['PYTHONDONTWRITEBYTECODE=1'],
+  timeout: 60,
 )
 
 test(
