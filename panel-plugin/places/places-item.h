@@ -20,6 +20,13 @@
 namespace WhiskerMenu
 {
 
+enum class PlacesOpenAction
+{
+	DefaultHandler,
+	Execute,
+	AskScript
+};
+
 /* PlacesItem:
  *
  * Represents a single file or folder rendered in a Places section. Extends
@@ -59,6 +66,34 @@ public:
 	void open_with(GtkWidget* parent);
 	void add_desktop_link(GtkWidget* parent);
 
+	/* classify_open_action:
+	 * @file_type: resolved GIO file type.
+	 * @has_local_path: whether the target has a native path suitable for spawn.
+	 * @can_execute: current access::can-execute attribute.
+	 * @content_type: resolved content type; may be nullptr.
+	 *
+	 * Separates native executable activation from ordinary MIME-handler opens.
+	 * Text-derived scripts require a user choice, while launchers and data files
+	 * remain on the default-handler path.
+	 *
+	 * Returns: the activation policy for the supplied metadata.
+	 */
+	static PlacesOpenAction classify_open_action(GFileType file_type,
+			bool has_local_path, bool can_execute, const gchar* content_type);
+
+	/* build_execution_request:
+	 * @file: local executable candidate.
+	 * @path: receives the exact native executable path.
+	 * @working_directory: receives its parent directory, or an empty string.
+	 *
+	 * Builds the two path values needed for an argv-based spawn without shell
+	 * interpretation. Output strings are replaced only on success.
+	 *
+	 * Returns: true when @file has a non-empty native path.
+	 */
+	static bool build_execution_request(GFile* file, std::string* path,
+			std::string* working_directory);
+
 	/* search:
 	 * @filter: NUL-terminated UTF-8 string already case-folded by the caller
 	 *          (use places_filter_casefold()), or empty for "match everything".
@@ -93,6 +128,17 @@ public:
 	static gchar* build_open_error_message(const GError* error, const char* display_name);
 
 private:
+	enum class ScriptAction
+	{
+		Cancel,
+		Open,
+		Run,
+		RunInTerminal
+	};
+
+	void execute(GdkScreen* screen, GtkWidget* parent, bool in_terminal);
+	ScriptAction prompt_script_action(GtkWidget* parent) const;
+
 	GFile* m_file;
 	std::string m_uri;
 	std::string m_display_markup;

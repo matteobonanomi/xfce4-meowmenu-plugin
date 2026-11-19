@@ -1,3 +1,7 @@
+1.0.0-rc2 (2026-11-20)
+=====
+- Bug: fix executable launch failure from search bar
+
 0.8.2 (2026-10-13)
 =====
 - Translations: localize built-in preset names and descriptions while preserving custom presets

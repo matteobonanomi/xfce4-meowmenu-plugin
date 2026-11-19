@@ -625,6 +625,8 @@ void PlacesPage::on_row_activated(GtkTreePath* path)
 		return;
 	}
 	GdkScreen* screen = gtk_widget_get_screen(m_view->get_widget());
+	// A script choice is modal; retain the result model until it returns.
+	m_window->set_child_has_focus();
 	m_window->perform_then_dismiss(
 			[item, screen, this]() { item->open(screen, m_widget); });
 }

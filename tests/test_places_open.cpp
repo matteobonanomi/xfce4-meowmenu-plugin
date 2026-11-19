@@ -1,12 +1,11 @@
 /*
  * Unit tests for the Places open-path hardening logic.
  *
- * Covers the two pieces of the open path that are exercisable without a
- * display: the shell-quote round-trip used to hand paths to the external
- * helper, and the open-failure reason string built for the error dialog.
+ * Covers the open policy, exact executable path and working directory, helper
+ * quoting, and the open-failure reason string without launching a process.
  *
- * NOTE: item lifetime and the single-dialog discipline are UI-flow properties
- * that cannot be driven by this headless harness; manual checks cover them.
+ * NOTE: the script-choice dialog and single-dialog discipline remain UI-flow
+ * properties that cannot be driven by this headless harness.
  *
  * Like the other tests in this folder, the production translation unit
  * (places-item.cpp) is compiled directly into the binary rather than linked
@@ -19,15 +18,18 @@
 #include <string>
 
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <gio/gio.h>
 
 #include "places/places-item.h"
 #include "config/xfce-helpers.h"
 
 using WhiskerMenu::PlacesItem;
+using WhiskerMenu::PlacesOpenAction;
 using WhiskerMenu::XfceDependencyRegime;
 using WhiskerMenu::build_file_manager_command;
 using WhiskerMenu::build_terminal_command;
+using WhiskerMenu::build_terminal_execution_command;
 
 // Reject the C0 control range (and DEL) — an open-failure message must be
 // legible, so any control byte counts as garbage for this check. Tab/newline
@@ -132,11 +134,100 @@ static void test_shell_quote_round_trip()
 
 // ---------------------------------------------------------------------------
 
+static void test_executable_classification()
+{
+	using Action = PlacesOpenAction;
+	using Type = GFileType;
+
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, "application/x-executable") == Action::Execute);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, "application/x-shellscript") == Action::AskScript);
+
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_DIRECTORY,
+			true, true, "application/x-executable") == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			false, true, "application/x-executable") == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, false, "application/x-executable") == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, nullptr) == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, "application/x-desktop") == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, "text/plain") == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, "application/json") == Action::DefaultHandler);
+	assert(PlacesItem::classify_open_action(Type::G_FILE_TYPE_REGULAR,
+			true, true, "application/xml") == Action::DefaultHandler);
+}
+
+static void test_execution_request_preserves_literal_path()
+{
+	gchar* directory = g_dir_make_tmp("meowmenu-execute-XXXXXX", nullptr);
+	assert(directory);
+	gchar* native_path = g_build_filename(directory,
+			"Meow '$(touch nope)' `literal` executable", nullptr);
+	assert(g_file_set_contents(native_path, "fixture", -1, nullptr));
+	GFile* file = g_file_new_for_path(native_path);
+
+	std::string path = "unchanged";
+	std::string working_directory = "unchanged";
+	assert(PlacesItem::build_execution_request(
+			file, &path, &working_directory));
+	assert(path == native_path);
+	assert(working_directory == directory);
+
+	GFile* remote = g_file_new_for_uri("sftp://example.invalid/program");
+	path = "unchanged";
+	working_directory = "unchanged";
+	assert(!PlacesItem::build_execution_request(
+			remote, &path, &working_directory));
+	assert(path == "unchanged");
+	assert(working_directory == "unchanged");
+
+	g_object_unref(remote);
+	g_object_unref(file);
+	assert(g_remove(native_path) == 0);
+	assert(g_rmdir(directory) == 0);
+	g_free(native_path);
+	g_free(directory);
+}
+
+static void test_terminal_execution_command_round_trip()
+{
+	const char* path = "/tmp/Meow '$(touch nope)' `literal` executable";
+	for (XfceDependencyRegime regime :
+			{XfceDependencyRegime::Legacy, XfceDependencyRegime::Successor})
+	{
+		const std::string command =
+				build_terminal_execution_command(regime, path);
+		gchar** helper_argv = nullptr;
+		assert(g_shell_parse_argv(command.c_str(), nullptr,
+				&helper_argv, nullptr));
+		assert(g_strv_length(helper_argv) == 4);
+
+		gchar** executable_argv = nullptr;
+		assert(g_shell_parse_argv(helper_argv[3], nullptr,
+				&executable_argv, nullptr));
+		assert(g_strv_length(executable_argv) == 1);
+		assert(g_strcmp0(executable_argv[0], path) == 0);
+
+		g_strfreev(executable_argv);
+		g_strfreev(helper_argv);
+	}
+}
+
+// ---------------------------------------------------------------------------
+
 int main()
 {
 	test_error_message_contains_name_and_reason();
 	test_error_message_nonempty_without_gerror();
 	test_error_message_strips_control_bytes();
 	test_shell_quote_round_trip();
+	test_executable_classification();
+	test_execution_request_preserves_literal_path();
+	test_terminal_execution_command_round_trip();
 	return 0;
 }
