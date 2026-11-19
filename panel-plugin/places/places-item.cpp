@@ -138,16 +138,204 @@ PlacesItem::~PlacesItem()
 
 //-----------------------------------------------------------------------------
 
+/* classify_open_action:
+ * @file_type: resolved GIO file type.
+ * @has_local_path: whether the file can be passed to a native process.
+ * @can_execute: current execute permission reported by GIO.
+ * @content_type: resolved content type; may be nullptr.
+ *
+ * Selects direct execution only for local regular files whose permissions and
+ * MIME type both permit it. Scripts require confirmation, while desktop files
+ * and plain data retain normal MIME-handler behavior.
+ *
+ * Returns: the activation policy for the supplied metadata.
+ */
+PlacesOpenAction PlacesItem::classify_open_action(GFileType file_type,
+		bool has_local_path, bool can_execute, const gchar* content_type)
+{
+	if (file_type != G_FILE_TYPE_REGULAR || !has_local_path || !can_execute
+			|| !content_type
+			|| !g_content_type_can_be_executable(content_type))
+	{
+		return PlacesOpenAction::DefaultHandler;
+	}
+
+	if (g_content_type_equals(content_type, "application/x-desktop")
+			|| g_content_type_equals(content_type, "text/plain")
+			|| g_content_type_equals(content_type, "application/json")
+			|| g_content_type_equals(content_type, "application/xml"))
+	{
+		return PlacesOpenAction::DefaultHandler;
+	}
+
+	return g_content_type_is_a(content_type, "text/plain")
+			? PlacesOpenAction::AskScript
+			: PlacesOpenAction::Execute;
+}
+
+//-----------------------------------------------------------------------------
+
+/* build_execution_request:
+ * @file: local executable candidate.
+ * @path: receives the exact executable path.
+ * @working_directory: receives its parent directory, or an empty string.
+ *
+ * Resolves the path values used by the argv-based spawn. No shell command is
+ * constructed, so metacharacters remain literal filename bytes.
+ *
+ * Returns: true when @file has a non-empty native path.
+ */
+bool PlacesItem::build_execution_request(GFile* file, std::string* path,
+		std::string* working_directory)
+{
+	if (!file || !path || !working_directory)
+	{
+		return false;
+	}
+
+	gchar* native_path = g_file_get_path(file);
+	if (!native_path || !*native_path)
+	{
+		g_free(native_path);
+		return false;
+	}
+
+	std::string parent_path;
+	GFile* parent = g_file_get_parent(file);
+	if (parent)
+	{
+		gchar* native_parent = g_file_get_path(parent);
+		parent_path = native_parent ? native_parent : "";
+		g_free(native_parent);
+		g_object_unref(parent);
+	}
+
+	*path = native_path;
+	*working_directory = parent_path;
+	g_free(native_path);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+/* prompt_script_action:
+ * @parent: widget used to parent the modal choice; may be nullptr.
+ *
+ * Requires an explicit choice before a text-derived executable is run. The
+ * labels reuse existing translated strings and default to cancellation.
+ *
+ * Returns: the action selected by the user.
+ */
+PlacesItem::ScriptAction PlacesItem::prompt_script_action(
+		GtkWidget* parent) const
+{
+	enum
+	{
+		ResponseOpen = 1,
+		ResponseRun,
+		ResponseRunInTerminal
+	};
+
+	GtkWidget* toplevel = parent ? gtk_widget_get_toplevel(parent) : nullptr;
+	GtkWindow* window = GTK_IS_WINDOW(toplevel) ? GTK_WINDOW(toplevel) : nullptr;
+	gchar* run_label = g_strdup_printf(_("Run %s"), get_text());
+	GtkWidget* dialog = gtk_message_dialog_new(window,
+			GtkDialogFlags(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
+			GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE, "%s", run_label);
+	gtk_dialog_add_buttons(GTK_DIALOG(dialog),
+			_("_Cancel"), GTK_RESPONSE_CANCEL,
+			_("_Open"), ResponseOpen,
+			_("Run in Terminal"), ResponseRunInTerminal,
+			run_label, ResponseRun,
+			nullptr);
+	gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_CANCEL);
+	const gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
+	g_free(run_label);
+
+	switch (response)
+	{
+	case ResponseOpen:
+		return ScriptAction::Open;
+	case ResponseRun:
+		return ScriptAction::Run;
+	case ResponseRunInTerminal:
+		return ScriptAction::RunInTerminal;
+	default:
+		return ScriptAction::Cancel;
+	}
+}
+
+//-----------------------------------------------------------------------------
+
+/* execute:
+ * @screen: display on which the executable should start.
+ * @parent: widget used to parent a spawn failure dialog; may be nullptr.
+ * @in_terminal: whether to route the script through Xfce's terminal helper.
+ *
+ * Launches the exact native path with its parent as the working directory.
+ * Direct execution uses an argv array; terminal execution passes one safely
+ * quoted command string to the configured Xfce helper.
+ */
+void PlacesItem::execute(GdkScreen* screen, GtkWidget* parent,
+		bool in_terminal)
+{
+	std::string path;
+	std::string working_directory;
+	if (!build_execution_request(m_file, &path, &working_directory))
+	{
+		return;
+	}
+
+	GError* error = nullptr;
+	gboolean ok = FALSE;
+	if (in_terminal)
+	{
+		const std::string command = build_terminal_execution_command(
+				current_xfce_dependency_regime(), path.c_str());
+		CommandInterpretation interpretation =
+				CommandInterpretation::parse(command.c_str());
+		if (interpretation.valid())
+		{
+			ok = xfce_spawn(screen, working_directory.c_str(),
+					interpretation.argv(), nullptr, G_SPAWN_SEARCH_PATH,
+					FALSE, gtk_get_current_event_time(), nullptr, TRUE, &error);
+		}
+		else
+		{
+			error = interpretation.copy_error();
+		}
+	}
+	else
+	{
+		gchar* argv[] = { const_cast<gchar*>(path.c_str()), nullptr };
+		ok = xfce_spawn(screen, working_directory.c_str(), argv, nullptr,
+				G_SPAWN_DEFAULT, FALSE, gtk_get_current_event_time(),
+				nullptr, TRUE, &error);
+	}
+
+	if (!ok)
+	{
+		gchar* message = build_open_error_message(error, get_text());
+		GtkWidget* toplevel = parent ? gtk_widget_get_toplevel(parent) : nullptr;
+		GtkWindow* window = GTK_IS_WINDOW(toplevel) ? GTK_WINDOW(toplevel) : nullptr;
+		xfce_dialog_show_error(window, nullptr, "%s", message);
+		g_free(message);
+	}
+	g_clear_error(&error);
+}
+
+//-----------------------------------------------------------------------------
+
 /* open:
  * @screen: GdkScreen used to launch on the correct display.
  * @parent: a widget in the Places page used to parent the failure dialog; may
  *          be nullptr (the dialog is then unparented).
  *
- * Opens the file or folder with the system-default handler via GIO. Folders
- * fall back to the active Xfce FileManager helper on launch failure. The
- * shared builder quotes shell-significant paths so the helper receives the
- * exact target. On failure exactly one error dialog names the item and states
- * the underlying reason.
+ * Executes local executable files according to fresh permissions and content
+ * metadata, requiring a choice for scripts. Other files and folders use the
+ * system-default handler via GIO; folders retain the Xfce FileManager fallback.
+ * On failure exactly one error dialog names the item and underlying reason.
  *
  * NOTE: the caller dispatches this before closing the menu so the item is not
  * freed mid-open; see PlacesPage::on_row_activated().
@@ -156,6 +344,45 @@ void PlacesItem::open(GdkScreen* screen, GtkWidget* parent)
 {
 	if (m_uri.empty())
 	{
+		return;
+	}
+
+	GFileInfo* info = g_file_query_info(m_file,
+			G_FILE_ATTRIBUTE_STANDARD_TYPE ","
+			G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE ","
+			G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE,
+			G_FILE_QUERY_INFO_NONE, nullptr, nullptr);
+	gchar* native_path = g_file_get_path(m_file);
+	PlacesOpenAction action = PlacesOpenAction::DefaultHandler;
+	if (info)
+	{
+		action = classify_open_action(g_file_info_get_file_type(info),
+				native_path != nullptr,
+				g_file_info_get_attribute_boolean(info,
+						G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE),
+				g_file_info_get_content_type(info));
+		g_object_unref(info);
+	}
+	g_free(native_path);
+
+	if (action == PlacesOpenAction::AskScript)
+	{
+		const ScriptAction script_action = prompt_script_action(parent);
+		if (script_action == ScriptAction::Cancel)
+		{
+			return;
+		}
+		if (script_action == ScriptAction::Run
+				|| script_action == ScriptAction::RunInTerminal)
+		{
+			execute(screen, parent,
+					script_action == ScriptAction::RunInTerminal);
+			return;
+		}
+	}
+	else if (action == PlacesOpenAction::Execute)
+	{
+		execute(screen, parent, false);
 		return;
 	}
 

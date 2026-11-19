@@ -121,6 +121,28 @@ class DependencyContractTests(unittest.TestCase):
             source_helper,
         )
 
+    def test_arch_check_uses_an_isolated_gtk_environment(self):
+        pkgbuild = (
+            ROOT / "dist/arch/PKGBUILD"
+        ).read_text(encoding="utf-8")
+        checkdepends = re.search(r"(?ms)^checkdepends=\((.*?)\)\n", pkgbuild)
+        self.assertIsNotNone(checkdepends)
+        for package in ("xorg-server-xvfb", "xorg-xauth"):
+            self.assertRegex(checkdepends.group(1), rf"'{re.escape(package)}'")
+        check = re.search(r"(?ms)^check\(\) \{(.*?)^\}\n", pkgbuild)
+        self.assertIsNotNone(check)
+        for environment in (
+            "GTK_THEME=Adwaita",
+            "GDK_BACKEND=x11",
+            "MEOWMENU_REQUIRE_DISPLAY=1",
+            "MEOWMENU_REQUIRE_XFCONF=1",
+        ):
+            self.assertIn(environment, check.group(1))
+        self.assertIn(
+            "xvfb-run -a meson test -C build --print-errorlogs",
+            check.group(1),
+        )
+
     def test_fedora_and_arch_keep_positive_package_checks(self):
         workflow = (
             ROOT / ".github/workflows/packaging.yml"

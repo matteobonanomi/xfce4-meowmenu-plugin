@@ -49,6 +49,9 @@ std::string build_file_manager_command(
 std::string build_terminal_command(
 		XfceDependencyRegime regime,
 		const char* path);
+std::string build_terminal_execution_command(
+		XfceDependencyRegime regime,
+		const char* path);
 
 }
 

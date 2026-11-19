@@ -1,3 +1,10 @@
+1.0.0-rc2 (2026-11-20)
+=====
+- Bug: fix executable launch failure from search bar
+- Tests: hardening graphical Arch package validation
+- Tests: harden release gates for packaging builds
+- Docs: update screenshots and demo.gif with new UX/UI
+
 0.8.2 (2026-10-13)
 =====
 - Translations: localize built-in preset names and descriptions while preserving custom presets

@@ -397,6 +397,13 @@ jobs:
             "${EXPECTED_ARCH_VERSION}-1"
           grep -F -- '-Daccountsservice=disabled' "$build_dir/PKGBUILD"
           grep -F -- '-Dgtk-layer-shell=disabled' "$build_dir/PKGBUILD"
+          grep -F -- "'xorg-server-xvfb'" "$build_dir/PKGBUILD"
+          grep -F -- "'xorg-xauth'" "$build_dir/PKGBUILD"
+          grep -F -- 'GTK_THEME=Adwaita' "$build_dir/PKGBUILD"
+          grep -F -- 'MEOWMENU_REQUIRE_DISPLAY=1' "$build_dir/PKGBUILD"
+          grep -F -- 'MEOWMENU_REQUIRE_XFCONF=1' "$build_dir/PKGBUILD"
+          grep -F -- 'xvfb-run -a meson test -C build --print-errorlogs' \
+            "$build_dir/PKGBUILD"
           if [[ "$EXPECTED_ARCH_VERSION" == *rc* ]]; then
             stable_arch="${EXPECTED_ARCH_VERSION%%rc*}"
             test "$(vercmp "$EXPECTED_ARCH_VERSION" "$stable_arch")" -lt 0

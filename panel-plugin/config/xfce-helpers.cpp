@@ -172,3 +172,28 @@ std::string WhiskerMenu::build_terminal_command(
 					+ " --launch TerminalEmulator --working-directory ",
 			path);
 }
+
+//-----------------------------------------------------------------------------
+
+/* build_terminal_execution_command:
+ * @regime: helper family selected by the build.
+ * @path: exact native path of the script to execute.
+ *
+ * Passes one quoted command string to Xfce's preferred terminal helper. The
+ * outer quoting preserves the helper argv boundary; the inner quoting keeps
+ * the script path exact when the terminal interprets the command string.
+ *
+ * Returns: a GLib-shell-parseable helper command.
+ */
+std::string WhiskerMenu::build_terminal_execution_command(
+		XfceDependencyRegime regime,
+		const char* path)
+{
+	gchar* executable = g_shell_quote(path ? path : "");
+	std::string command = build_quoted_command(
+			std::string(xfce_opener(regime))
+					+ " --launch TerminalEmulator ",
+			executable);
+	g_free(executable);
+	return command;
+}

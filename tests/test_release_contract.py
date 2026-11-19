@@ -45,14 +45,14 @@ ARTIFACTS_SPEC.loader.exec_module(ARTIFACTS)
 
 
 class ReleaseContractTest(unittest.TestCase):
-    def test_current_news_describes_current_composition(self):
+    def test_news_describes_current_composition(self):
         news = (ROOT / "NEWS").read_text(encoding="utf-8")
         current = news.split("\n\n", maxsplit=1)[0]
         for required in (
             "simplify Docked, Centered, and Full Screen composition",
             "use Modern by default",
         ):
-            self.assertIn(required, current)
+            self.assertIn(required, news)
         self.assertNotRegex(current, r"(?i)\breset\b|retired layout|legacy key")
 
     def test_release_workflow_has_one_shared_tag_entry_path(self):

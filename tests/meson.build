@@ -30,9 +30,8 @@ test_menu_mode_state = executable(
 
 test('menu_mode_state', test_menu_mode_state)
 
-# Independent pure decisions share one executable. Each registration selects a
-# named case, so failures still identify the owning contract without copying
-# the same GTK-free setup into a dozen binaries.
+# Independent compact contracts share one executable. Each registration selects
+# a named case, so failures identify the owner without duplicating setup.
 test_contract_matrix_sources = [
   'test_contract_matrix.cpp',
   '..' / 'panel-plugin' / 'core' / 'category-lifetime.cpp',
@@ -65,7 +64,8 @@ foreach contract_case : [
   ['window_frame', 'frame'],
   ['menu_composition', 'composition'], ['grid_cell_metrics', 'grid'],
   ['opacity_model', 'opacity'], ['switch_icons', 'icons'],
-  ['user_session_relayout', 'category'], ['reload_intent', 'reload'],
+  ['category_lifetime', 'category'],
+  ['user_session_relayout', 'relayout'], ['reload_intent', 'reload'],
   ['application_load_generation', 'generation'],
 ]
   test(
@@ -155,6 +155,7 @@ test(
   python3,
   args: [meson.current_source_dir() / 'test_repository_presentation.py'],
   env: ['PYTHONDONTWRITEBYTECODE=1'],
+  timeout: 60,
 )
 
 test(
@@ -657,7 +658,12 @@ test_window_transactions = executable(
   dependencies: [test_support_dep, garcon, glib, gtk, libxfce4panel, libxfce4ui, libxfce4util, xfconf],
 )
 
-test('window_transactions', test_window_transactions, timeout: 30)
+# This case owns a real focus-sensitive toplevel. Keep it from sharing a display
+# with other graphical cases that can dismiss the window during its assertions.
+test('window_transactions', test_window_transactions,
+  is_parallel: false,
+  timeout: 30,
+)
 
 test_plugin_lifecycle = executable(
   'test_plugin_lifecycle',

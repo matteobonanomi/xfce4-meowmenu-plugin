@@ -14,8 +14,11 @@ the sibling AUR clone. The package build explicitly disables AccountsService
 and gtk-layer-shell; both remain optional source-build integrations.
 
 The recipe includes `check()` so candidate validation exercises the complete
-Meson suite. The release workflow also builds, lints, and smoke-installs the
-recipe as a publication prerequisite.
+Meson suite on an isolated X11 display with GTK's bundled Adwaita theme. Its
+`checkdepends` provide Xvfb and Xauth, while required-fixture flags make a
+missing display or private Xfconf service fail instead of silently skipping
+graphical coverage. The release workflow also builds, lints, and smoke-installs
+the recipe as a publication prerequisite.
 
 ## Reproducing the build locally
 
@@ -40,6 +43,12 @@ test "$(python3 ../../build-aux/news-version.py --arch-version)" \
 # 2. release packages use the core fallback
 grep -F -- '-Daccountsservice=disabled' PKGBUILD
 grep -F -- '-Dgtk-layer-shell=disabled' PKGBUILD
+
+# The package check supplies its own display and stable GTK theme.
+grep -F -- "'xorg-server-xvfb'" PKGBUILD
+grep -F -- "'xorg-xauth'" PKGBUILD
+grep -F -- 'GTK_THEME=Adwaita' PKGBUILD
+grep -F -- 'xvfb-run -a meson test -C build --print-errorlogs' PKGBUILD
 
 # 3. validate the source archive named by the recipe
 sudo -u builder makepkg --verifysource --noconfirm
