@@ -1,4 +1,4 @@
-/* Compact production-linked checks for independent, display-free contracts. */
+/* Compact production-linked checks for independent contracts. */
 
 #include "core/category-lifetime.h"
 #include "core/interactive-resize.h"
@@ -40,6 +40,30 @@ bool display_unavailable = false;
 } while (0)
 
 void test_focus_contract();
+
+/* ensure_contract_display:
+ *
+ * Initialises GTK for the display-backed matrix cases. Package checks can
+ * require a display so an unavailable graphical gate fails instead of being
+ * reported as an environmental skip.
+ *
+ * Returns: true when GTK has a usable display.
+ */
+bool ensure_contract_display()
+{
+	if (gtk_init_check(nullptr, nullptr))
+		return true;
+	if (g_strcmp0(g_getenv("MEOWMENU_REQUIRE_DISPLAY"), "1") == 0)
+	{
+		std::fprintf(stderr, "required GTK display unavailable\n");
+		++failures;
+	}
+	else
+	{
+		display_unavailable = true;
+	}
+	return false;
+}
 
 void test_keyboard_contract()
 {
@@ -202,24 +226,111 @@ void test_usage_contract()
 	CHECK(stats.get_frecency(nullptr, 0.5) == 0.0);
 }
 
+/* test_category_contract:
+ *
+ * Covers the retained ownership, size-group removal, repeated detach, and
+ * active-toggle selection rules used by dynamic category widgets.
+ */
 void test_category_contract()
 {
-	if (!gtk_init_check(nullptr, nullptr))
-	{
-		display_unavailable = true;
+	if (!ensure_contract_display())
 		return;
-	}
 	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	g_object_ref_sink(box);
+	GtkSizeGroup* width_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	std::vector<GtkWidget*> widgets;
+	std::vector<GtkWidget*> owned_widgets;
+	for (int i = 0; i < 3; ++i)
+	{
+		GtkWidget* button = gtk_button_new();
+		g_object_ref_sink(button);
+		owned_widgets.push_back(button);
+		gtk_box_pack_start(GTK_BOX(box), button, false, false, 0);
+		gtk_size_group_add_widget(width_group, button);
+		widgets.push_back(button);
+	}
+	detach_category_widgets(width_group, widgets);
+	CHECK(widgets.empty());
+	CHECK(gtk_size_group_get_widgets(width_group) == nullptr);
+	GList* children = gtk_container_get_children(GTK_CONTAINER(box));
+	CHECK(children == nullptr);
+	g_list_free(children);
+	detach_category_widgets(width_group, widgets);
+	CHECK(widgets.empty());
+	for (GtkWidget* button : owned_widgets)
+	{
+		CHECK(gtk_widget_get_parent(button) == nullptr);
+		gtk_widget_destroy(button);
+		g_object_unref(button);
+	}
+
 	GtkWidget* fallback = gtk_button_new();
+	GtkWidget* spacer = gtk_label_new(nullptr);
+	GtkWidget* inactive = gtk_toggle_button_new();
 	GtkWidget* active = gtk_toggle_button_new();
-	gtk_box_pack_start(GTK_BOX(box), fallback, false, false, 0);
+	g_object_ref_sink(fallback);
+	g_object_ref_sink(spacer);
+	g_object_ref_sink(inactive);
+	g_object_ref_sink(active);
+	gtk_box_pack_start(GTK_BOX(box), spacer, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(box), inactive, false, false, 0);
 	gtk_box_pack_start(GTK_BOX(box), active, false, false, 0);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(active), TRUE);
 	CHECK(active_toggle_child_or_default(GTK_CONTAINER(box), fallback) == active);
-	std::vector<GtkWidget*> widgets{active};
-	detach_category_widgets(nullptr, widgets);
-	CHECK(widgets.empty());
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(active), FALSE);
+	CHECK(active_toggle_child_or_default(GTK_CONTAINER(box), fallback) == fallback);
+	gtk_container_remove(GTK_CONTAINER(box), spacer);
+	gtk_container_remove(GTK_CONTAINER(box), inactive);
+	gtk_container_remove(GTK_CONTAINER(box), active);
+	for (GtkWidget* widget : {fallback, spacer, inactive, active})
+	{
+		gtk_widget_destroy(widget);
+		g_object_unref(widget);
+	}
 	gtk_widget_destroy(box);
+	g_object_unref(box);
+	g_object_unref(width_group);
+}
+
+/* test_user_session_relayout_contract:
+ *
+ * Exercises child reparenting, size-group idempotence, and the physical-edge
+ * spacer decision used during repeated Profile and Session relayouts.
+ */
+void test_user_session_relayout_contract()
+{
+	if (!ensure_contract_display())
+		return;
+	GtkWidget* source = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* target = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* child = gtk_button_new();
+	g_object_ref_sink(source);
+	g_object_ref_sink(target);
+	g_object_ref_sink(child);
+	gtk_box_pack_start(GTK_BOX(source), child, false, false, 0);
+	CHECK(meow_box_contains_child(GTK_BOX(source), child));
+	CHECK(meow_box_repack_child(GTK_BOX(target), child,
+			true, false, true, 4));
+	CHECK(!meow_box_contains_child(GTK_BOX(source), child));
+	CHECK(meow_box_contains_child(GTK_BOX(target), child));
+
+	GtkSizeGroup* group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	CHECK(meow_size_group_set_widget(group, child, true));
+	CHECK(meow_size_group_set_widget(group, child, true));
+	CHECK(meow_size_group_set_widget(group, child, false));
+	CHECK(meow_size_group_set_widget(group, child, false));
+	CHECK(meow_session_spacer_position(true, true) == 9);
+	CHECK(meow_session_spacer_position(true, false) == 0);
+	CHECK(meow_session_spacer_position(false, true) == 0);
+	CHECK(meow_session_spacer_position(false, false) == 9);
+
+	gtk_widget_destroy(source);
+	gtk_widget_destroy(target);
+	gtk_widget_destroy(child);
+	g_object_unref(source);
+	g_object_unref(target);
+	g_object_unref(child);
+	g_object_unref(group);
 }
 
 using Case = void (*)();
@@ -244,6 +355,7 @@ const NamedCase cases[] = {
 	{"generation", test_generation_contract},
 	{"usage", test_usage_contract},
 	{"category", test_category_contract},
+	{"relayout", test_user_session_relayout_contract},
 };
 
 Case find_case(const char* name)
